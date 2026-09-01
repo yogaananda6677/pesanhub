@@ -1,0 +1,58 @@
+name: Feature Request
+description: Usulan fitur baru yang harus disetujui sebelum implementasi.
+title: "[Feature]: "
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: "Jangan masukkan secret, API key, session/QR WAHA, nomor HP asli, atau data pelanggan."
+  - type: textarea
+    id: summary
+    attributes:
+      label: Ringkasan fitur
+    validations: {required: true}
+  - type: textarea
+    id: problem
+    attributes:
+      label: Masalah yang diselesaikan
+    validations: {required: true}
+  - type: textarea
+    id: user_story
+    attributes:
+      label: User story
+      placeholder: "Sebagai ..., saya ingin ..., agar ..."
+    validations: {required: true}
+  - type: dropdown
+    id: component
+    attributes:
+      label: Komponen
+      multiple: true
+      options: [Backend, Mobile, Web Customer, Database, WAHA, Hermes, Midtrans, CI/CD, Dokumentasi]
+    validations: {required: true}
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solusi yang diusulkan
+    validations: {required: true}
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: "- [ ] Kriteria yang dapat diverifikasi"
+    validations: {required: true}
+  - type: textarea
+    id: database
+    attributes:
+      label: Database impact
+      description: Jelaskan schema, migration, atau tulis tidak ada.
+    validations: {required: true}
+  - type: textarea
+    id: security
+    attributes:
+      label: Security/privacy impact
+    validations: {required: true}
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependensi dan blocker
+    validations: {required: true}

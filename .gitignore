@@ -1,0 +1,9 @@
+pesenhub_be/.env
+pesenhub_be/bin/
+pesenhub_be/coverage/
+pesenhub_be/tmp/
+pesenhub_be/dist/
+pesenhub_be/*.log
+pesenhub_be/sessions/
+pesenhub_be/.sessions/
+pesenhub_be/qr/

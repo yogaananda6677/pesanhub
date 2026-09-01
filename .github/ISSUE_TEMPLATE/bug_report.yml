@@ -1,0 +1,47 @@
+name: Bug Report
+description: Laporkan perilaku yang salah dan dapat direproduksi.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Samarkan log. Jangan masukkan secret, API key, session/QR WAHA, nomor HP asli, atau data pelanggan."
+  - type: textarea
+    id: summary
+    attributes: {label: Ringkasan bug}
+    validations: {required: true}
+  - type: input
+    id: environment
+    attributes: {label: Environment, placeholder: "OS, versi aplikasi, browser/perangkat"}
+    validations: {required: true}
+  - type: dropdown
+    id: component
+    attributes:
+      label: Komponen
+      multiple: true
+      options: [Backend, Mobile, Web Customer, Database, WAHA, CI/CD, Dokumentasi]
+    validations: {required: true}
+  - type: textarea
+    id: reproduce
+    attributes: {label: Langkah reproduksi}
+    validations: {required: true}
+  - type: textarea
+    id: expected
+    attributes: {label: Expected behavior}
+    validations: {required: true}
+  - type: textarea
+    id: actual
+    attributes: {label: Actual behavior}
+    validations: {required: true}
+  - type: textarea
+    id: logs
+    attributes: {label: Log yang sudah disamarkan, render: shell}
+  - type: textarea
+    id: screenshot
+    attributes: {label: Screenshot}
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Tingkat dampak
+      options: [Rendah, Sedang, Tinggi, Kritis]
+    validations: {required: true}

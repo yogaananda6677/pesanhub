@@ -1,0 +1,54 @@
+name: Mobile CD
+
+on:
+  push:
+    branches: [main]
+    tags: ['mobile-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Mobile Release Artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+      - name: Quality checks and release APK
+        working-directory: pesenhub_app
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed .
+          flutter analyze
+          flutter test
+          flutter build apk --release
+      - name: Select artifact identifier
+        id: artifact
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            echo "name=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: pesenhub-apk-${{ steps.artifact.outputs.name }}
+          path: pesenhub_app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14

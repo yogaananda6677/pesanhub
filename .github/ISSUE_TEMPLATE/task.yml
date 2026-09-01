@@ -1,0 +1,42 @@
+name: Engineering Task
+description: Refactor, dokumentasi, testing, infrastruktur, atau maintenance.
+title: "[Task]: "
+labels: ["task"]
+body:
+  - type: markdown
+    attributes:
+      value: "Jangan masukkan secret, session WAHA, nomor HP asli, atau data pelanggan."
+  - type: dropdown
+    id: type
+    attributes:
+      label: Jenis task
+      options: [Refactor, Dokumentasi, Testing, Infrastruktur, Maintenance]
+    validations: {required: true}
+  - type: textarea
+    id: problem
+    attributes: {label: Masalah atau kebutuhan}
+    validations: {required: true}
+  - type: textarea
+    id: objective
+    attributes: {label: Tujuan dan scope}
+    validations: {required: true}
+  - type: textarea
+    id: components
+    attributes: {label: Komponen terdampak}
+    validations: {required: true}
+  - type: textarea
+    id: acceptance
+    attributes: {label: Acceptance criteria}
+    validations: {required: true}
+  - type: textarea
+    id: database
+    attributes: {label: Dampak database}
+    validations: {required: true}
+  - type: textarea
+    id: security
+    attributes: {label: Dampak keamanan dan privasi}
+    validations: {required: true}
+  - type: textarea
+    id: dependencies
+    attributes: {label: Dependensi dan blocker}
+    validations: {required: true}

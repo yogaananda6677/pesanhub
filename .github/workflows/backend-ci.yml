@@ -1,0 +1,62 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Backend Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Detect Backend changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'pesenhub_be/**'
+              - '.github/workflows/backend-ci.yml'
+      - name: No Backend changes
+        if: steps.changes.outputs.backend != 'true'
+        run: echo "Backend Quality succeeded; no Backend changes."
+      - name: Set up Go
+        if: steps.changes.outputs.backend == 'true'
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: pesenhub_be/go.mod
+          cache-dependency-path: pesenhub_be/go.sum
+      - name: Download and verify modules
+        if: steps.changes.outputs.backend == 'true'
+        working-directory: pesenhub_be
+        run: |
+          go mod download
+          go mod verify
+      - name: Check formatting
+        if: steps.changes.outputs.backend == 'true'
+        working-directory: pesenhub_be
+        run: test -z "$(gofmt -l .)"
+      - name: Vet and test
+        if: steps.changes.outputs.backend == 'true'
+        working-directory: pesenhub_be
+        run: |
+          go vet ./...
+          go test ./...
+      - name: Validate Compose and build API
+        if: steps.changes.outputs.backend == 'true'
+        working-directory: pesenhub_be
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          docker compose build api

@@ -1,0 +1,55 @@
+name: Mobile CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: mobile-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Mobile Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Detect Mobile changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            mobile:
+              - 'pesenhub_app/**'
+              - '.github/workflows/mobile-ci.yml'
+      - name: No Mobile changes
+        if: steps.changes.outputs.mobile != 'true'
+        run: echo "Mobile Quality succeeded; no Mobile changes."
+      - name: Set up Java
+        if: steps.changes.outputs.mobile == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Flutter
+        if: steps.changes.outputs.mobile == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+      - name: Mobile quality and debug APK
+        if: steps.changes.outputs.mobile == 'true'
+        working-directory: pesenhub_app
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed .
+          flutter analyze
+          flutter test
+          flutter build apk --debug

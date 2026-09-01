@@ -1,0 +1,62 @@
+name: Contribution Policy
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: contribution-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    name: Contribution Policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch and related issue
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const branchPattern = /^(feature|fix|docs|refactor|test|chore)\/[0-9]+-[a-z0-9-]+$/;
+            if (pr.base.ref !== 'main') {
+              core.setFailed('Pull Request harus mengarah ke main.');
+              return;
+            }
+            if (pr.head.ref === 'main') {
+              core.setFailed('Source branch tidak boleh main.');
+              return;
+            }
+            if (!branchPattern.test(pr.head.ref)) {
+              core.setFailed(`Nama branch tidak valid: ${pr.head.ref}`);
+              return;
+            }
+
+            const body = pr.body || '';
+            const match = body.match(/(?:closes|fixes|resolves)\s+#([0-9]+)/i);
+            if (!match) {
+              core.setFailed('PR body wajib memiliki Closes #123, Fixes #123, atau Resolves #123.');
+              return;
+            }
+
+            const issueNumber = Number(match[1]);
+            try {
+              const {data: issue} = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+              });
+              if (issue.pull_request) {
+                core.setFailed(`#${issueNumber} adalah Pull Request, bukan Issue.`);
+                return;
+              }
+              core.info(`Contribution policy valid; related issue #${issueNumber} ditemukan.`);
+            } catch (error) {
+              core.setFailed(`Issue #${issueNumber} tidak ditemukan atau tidak dapat dibaca: ${error.message}`);
+            }

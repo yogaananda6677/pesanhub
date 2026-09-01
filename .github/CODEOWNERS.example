@@ -1,0 +1,8 @@
+# Ganti USERNAME_OWNER dengan username atau team GitHub yang benar,
+# lalu rename file ini menjadi CODEOWNERS.
+* @USERNAME_OWNER
+
+/pesenhub_be/ @USERNAME_OWNER
+/pesenhub_app/ @USERNAME_OWNER
+/.github/ @USERNAME_OWNER
+/docs/ @USERNAME_OWNER
