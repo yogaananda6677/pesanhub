@@ -1,0 +1,116 @@
+name: Phase
+description: Tracking issue untuk menyetujui scope, child issue, dan penutupan satu phase.
+title: "[Phase] Phase N — Nama Phase"
+labels: ["phase"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Phase Issue adalah parent seluruh Feature/Bug/Task Issue dalam phase ini.
+        Jangan mulai implementasi sebelum scope dan child issue disetujui Owner.
+  - type: input
+    id: phase
+    attributes:
+      label: Nama dan nomor phase
+      placeholder: "Phase 1 — Core Order dan Web Customer"
+    validations: {required: true}
+  - type: textarea
+    id: goal
+    attributes:
+      label: Tujuan phase
+    validations: {required: true}
+  - type: textarea
+    id: background
+    attributes:
+      label: Latar belakang
+    validations: {required: true}
+  - type: textarea
+    id: in_scope
+    attributes:
+      label: Scope termasuk
+      placeholder: "- Item yang termasuk"
+    validations: {required: true}
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Scope tidak termasuk
+      placeholder: "- Item yang tidak termasuk"
+    validations: {required: true}
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Deliverables
+    validations: {required: true}
+  - type: textarea
+    id: exit_criteria
+    attributes:
+      label: Exit criteria
+      placeholder: "- [ ] Kriteria yang dapat diverifikasi"
+    validations: {required: true}
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependensi
+    validations: {required: true}
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risiko dan mitigasi
+    validations: {required: true}
+  - type: textarea
+    id: backend_impact
+    attributes:
+      label: Dampak Backend
+    validations: {required: true}
+  - type: textarea
+    id: mobile_impact
+    attributes:
+      label: Dampak Mobile
+    validations: {required: true}
+  - type: textarea
+    id: database_impact
+    attributes:
+      label: Dampak database
+    validations: {required: true}
+  - type: textarea
+    id: integration_impact
+    attributes:
+      label: Dampak WAHA, Hermes, dan Midtrans
+    validations: {required: true}
+  - type: textarea
+    id: test_strategy
+    attributes:
+      label: Strategi pengujian
+    validations: {required: true}
+  - type: textarea
+    id: child_issues
+    attributes:
+      label: Daftar child issue
+      description: Gunakan checklist dan tautkan seluruh Feature, Bug, serta Task Issue.
+      placeholder: "- [ ] #<nomor> — Judul child issue"
+    validations: {required: true}
+  - type: textarea
+    id: validation_evidence
+    attributes:
+      label: Bukti validasi yang diperlukan
+    validations: {required: true}
+  - type: textarea
+    id: definition_of_done
+    attributes:
+      label: Definition of Done
+    validations: {required: true}
+  - type: checkboxes
+    id: phase_checklist
+    attributes:
+      label: Checklist Phase Issue
+      options:
+        - label: Scope phase disetujui
+        - label: Seluruh child issue dibuat
+        - label: Seluruh feature PR telah di-merge
+        - label: Backend CI lulus
+        - label: Mobile CI lulus
+        - label: Integration test lulus
+        - label: Dokumentasi diperbarui
+        - label: MEMORY.md diperbarui
+        - label: Exit criteria terpenuhi
+        - label: Phase Closing PR disetujui owner

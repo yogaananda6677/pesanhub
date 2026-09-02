@@ -1,46 +1,59 @@
 # Panduan Kontribusi PesenHub
 
-Semua perubahan mengikuti alur berikut:
+> Setiap phase, fitur, bug, dan task wajib memiliki issue sebelum implementasi. Setiap issue dikerjakan melalui branch terpisah dan diajukan melalui Pull Request. Tidak ada perubahan langsung ke `main`.
+
+Percakapan, `PRD.md`, atau `MEMORY.md` bukan pengganti GitHub Issue. Alur wajib untuk setiap phase dan fitur adalah:
 
 ```text
-Buat Issue
-→ Issue disetujui
-→ Assign issue
-→ Buat branch dari main
-→ Implementasi dan test
-→ Buat Pull Request
-→ Owner review
-→ CI lulus
-→ Squash and merge
+Issue → Branch → Implementasi → Pull Request → Review Owner → CI → Merge
 ```
 
-## Issue
+## Hierarki Pekerjaan
 
-Setiap fitur, bug fix, refactor, dokumentasi, testing, infrastruktur, dan maintenance wajib memiliki issue yang disetujui dan di-assign sebelum implementasi dimulai. Issue harus menjelaskan:
+```text
+Phase Issue
+├── Feature Issue
+├── Feature Issue
+├── Bug/Task Issue
+└── Phase Closing Pull Request
+```
 
-- Masalah atau kebutuhan dan tujuan.
-- Scope serta komponen terdampak.
-- Acceptance criteria yang dapat diperiksa.
-- Dampak database dan migration.
-- Dampak keamanan serta privasi.
-- Dependensi atau blocker.
+- Setiap phase mempunyai tepat satu Phase Issue sebagai parent/tracker.
+- Setiap fitur, bug, dan task teknis yang cukup besar mempunyai child issue sendiri.
+- Feature Issue wajib menulis `Parent Phase: #<nomor-phase-issue>`.
+- Satu issue implementasi memakai satu branch dan satu PR.
+- Satu branch hanya mengerjakan satu issue utama. Satu PR hanya menutup satu issue utama, kecuali beberapa issue yang sangat kecil telah disetujui Owner.
+- Phase Issue ditutup hanya oleh Phase Closing PR setelah seluruh child issue selesai, bukan secara manual atau dari Feature PR.
 
-Jangan menaruh secret, session/QR WAHA, nomor telepon asli, atau data pelanggan pada issue.
+## Membuka Phase
+
+Sebelum implementasi Phase N dimulai:
+
+1. Baca `PRD.md` dan `MEMORY.md`.
+2. Pastikan phase sebelumnya selesai, atau catat keputusan eksplisit Owner untuk berjalan paralel.
+3. Buat Phase Issue dari template dan tuliskan seluruh exit criteria.
+4. Pecah pekerjaan menjadi Feature Issue, Bug Issue, dan Task Issue.
+5. Hubungkan seluruh child issue ke Phase Issue.
+6. Dapatkan persetujuan Owner atas scope.
+7. Assign child issue sebelum implementasi dimulai.
+
+Feature Issue belum boleh dikerjakan jika Parent Phase belum tersedia, acceptance criteria belum jelas, belum di-assign, atau perubahan besar belum disetujui Owner.
 
 ## Branch
 
-Buat branch dari `main` terbaru:
+Setiap branch implementasi dibuat langsung dari `main` terbaru:
 
 ```bash
 git switch main
 git pull --ff-only origin main
-git switch -c feature/12-customer-order
+git switch -c feature/12-customer-web-order
 ```
 
-Nama branch wajib cocok dengan pola:
+Format yang diperbolehkan:
 
 ```text
-feature/<issue-number>-<nama>
+phase/<issue-number>-<nama-phase>
+feature/<issue-number>-<nama-fitur>
 fix/<issue-number>-<nama>
 docs/<issue-number>-<nama>
 refactor/<issue-number>-<nama>
@@ -48,25 +61,51 @@ test/<issue-number>-<nama>
 chore/<issue-number>-<nama>
 ```
 
-Gunakan huruf kecil, angka, dan tanda hubung, misalnya `feature/12-customer-web-order`, `fix/18-duplicate-waha-message`, atau `chore/22-backend-ci`. Direct push ke `main` tidak diperbolehkan.
+Gunakan huruf kecil, angka, dan tanda hubung. Branch `phase/` bukan long-lived integration branch dan tidak boleh menampung implementasi beberapa fitur. Branch tersebut hanya dibuat dari `main` terbaru pada akhir phase untuk pembaruan status, checklist, `MEMORY.md`, roadmap, bukti validasi, dan penutupan Phase Issue.
 
-## Pull Request
+Direct push dan force push ke `main` tidak diperbolehkan.
 
-PR wajib:
+## Pull Request Implementasi
 
-- Mengarah ke `main` dari branch yang memuat nomor issue.
-- Memuat `Closes #<nomor-issue>`, `Fixes #<nomor-issue>`, atau `Resolves #<nomor-issue>`.
-- Menjelaskan perubahan, scope, dan cara pengujian.
+Setiap PR wajib menuju `main` dan memuat satu closing keyword untuk issue utama:
+
+```text
+Closes #12
+Parent Phase: #10
+```
+
+Feature PR wajib menutup Feature Issue, mereferensikan Phase Issue yang benar, tidak menutup Phase Issue, hanya berisi scope issue, menyertakan test, lulus CI, dan memperoleh review Owner. Issue utama dan Parent Phase harus benar-benar ada; keduanya tidak boleh berupa Pull Request.
+
+Semua PR juga wajib:
+
+- Menjelaskan perubahan dan cara pengujian aktual.
 - Menyertakan screenshot untuk perubahan UI.
 - Menjelaskan migration dan rollback bila database berubah.
 - Menjelaskan dampak keamanan dan privasi.
 - Memperbarui `PRD.md` jika requirement berubah.
 - Memperbarui `MEMORY.md` jika progres atau keputusan material berubah.
-- Lulus seluruh CI dan memperoleh minimal satu review Owner.
-- Menyelesaikan seluruh review conversation.
-- Tidak di-merge sendiri oleh pembuat PR.
+- Menyelesaikan seluruh review conversation dan tidak di-merge sendiri oleh pembuat PR.
 
 Gunakan **Squash and merge** setelah seluruh syarat terpenuhi.
+
+## Phase Closing Pull Request
+
+Setelah seluruh child issue selesai, buat `phase/<phase-issue>-<nama>` dari `main` terbaru. PR ini menulis `Closes #<phase-issue>` dan hanya memuat dokumentasi penutupan: `MEMORY.md`, phase tracker/checklist, roadmap/status, bukti validasi akhir, known issue, pekerjaan tertunda, dan keputusan kesiapan phase berikutnya.
+
+Phase Closing PR wajib mencantumkan seluruh child issue dan PR yang sudah di-merge, hasil Backend CI, Mobile CI, integration test, seluruh exit criteria, serta memperoleh review Owner dan semua required checks.
+
+## Contoh Alur
+
+1. Buat Phase Issue #10.
+2. Buat Feature Issue #12 dengan `Parent Phase: #10`.
+3. Buat branch `feature/12-customer-web-order`.
+4. Implementasikan scope issue dan jalankan test.
+5. Buat PR dengan `Closes #12` dan `Parent Phase: #10`.
+6. Owner melakukan review.
+7. Squash and merge setelah CI lulus.
+8. Setelah seluruh fitur selesai, buat `phase/10-complete-phase-1`.
+9. Buat Phase Closing PR dengan `Closes #10`.
+10. Owner mereview dan merge setelah seluruh exit criteria lulus.
 
 ## Pemeriksaan Lokal
 

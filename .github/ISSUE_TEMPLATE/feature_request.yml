@@ -6,6 +6,13 @@ body:
   - type: markdown
     attributes:
       value: "Jangan masukkan secret, API key, session/QR WAHA, nomor HP asli, atau data pelanggan."
+  - type: input
+    id: parent_phase
+    attributes:
+      label: Parent Phase
+      description: Feature wajib terhubung ke Phase Issue yang sudah tersedia.
+      placeholder: "#<nomor-phase-issue>"
+    validations: {required: true}
   - type: textarea
     id: summary
     attributes:
@@ -35,10 +42,30 @@ body:
       label: Solusi yang diusulkan
     validations: {required: true}
   - type: textarea
+    id: goal
+    attributes:
+      label: Tujuan
+    validations: {required: true}
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+    validations: {required: true}
+  - type: textarea
+    id: non_scope
+    attributes:
+      label: Non-scope
+    validations: {required: true}
+  - type: textarea
     id: acceptance
     attributes:
       label: Acceptance criteria
       placeholder: "- [ ] Kriteria yang dapat diverifikasi"
+    validations: {required: true}
+  - type: textarea
+    id: api
+    attributes:
+      label: API impact
     validations: {required: true}
   - type: textarea
     id: database
@@ -47,9 +74,25 @@ body:
       description: Jelaskan schema, migration, atau tulis tidak ada.
     validations: {required: true}
   - type: textarea
+    id: ui
+    attributes:
+      label: UI impact
+    validations: {required: true}
+  - type: textarea
     id: security
     attributes:
       label: Security/privacy impact
+    validations: {required: true}
+  - type: textarea
+    id: test_scenarios
+    attributes:
+      label: Test scenario
+      placeholder: "- Skenario dan hasil yang diharapkan"
+    validations: {required: true}
+  - type: textarea
+    id: definition_of_done
+    attributes:
+      label: Definition of Done
     validations: {required: true}
   - type: textarea
     id: dependencies

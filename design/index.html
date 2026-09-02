@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PesenHub - Kasir & Manajemen Outlet</title>
+  <link rel="stylesheet" href="globals.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <main class="app-shell" id="app">
+    <!-- Sidebar Navigation -->
+    <aside class="side-nav" aria-label="Navigasi utama">
+      <div class="brand-mark">PH</div>
+      <div class="nav-stack" id="sideNavStack"></div>
+      <button class="nav-item settings-item" onclick="showToast('Pengaturan tersedia pada fase berikutnya')">
+        <i data-lucide="settings"></i>
+        <span>Atur</span>
+      </button>
+    </aside>
+
+    <section class="workspace">
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar-title">
+          <div class="mobile-brand">PH</div>
+          <div>
+            <strong>PesenHub</strong>
+            <span>Outlet Sudirman · Buka</span>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button id="connectionBtn" class="connection online" onclick="toggleOnline()">
+            <i data-lucide="wifi" id="connIcon"></i>
+            <span id="connText">Online</span>
+          </button>
+          <button class="icon-btn" aria-label="Notifikasi" onclick="setIncoming(true)">
+            <i data-lucide="bell"></i>
+            <i></i>
+          </button>
+          <button class="avatar">YS</button>
+        </div>
+      </header>
+
+      <div id="offlineBanner" class="offline-banner" style="display: none;">
+        <i data-lucide="wifi-off"></i> Data tersimpan di perangkat. Sinkronisasi otomatis saat internet kembali.
+      </div>
+
+      <!-- Main Content Views -->
+      <div class="content" id="viewContainer"></div>
+    </section>
+
+    <!-- Mobile Bottom Nav -->
+    <nav class="bottom-nav" aria-label="Navigasi mobile" id="bottomNav"></nav>
+
+    <!-- Modals & Drawers container -->
+    <div id="modalContainer"></div>
+
+    <!-- Toast container -->
+    <div id="toastContainer"></div>
+  </main>
+
+  <script>
+    // State Management
+    let state = {
+      view: "home", // home | orders | new | kds | menu
+      filter: "Aktif",
+      category: "Semua",
+      query: "",
+      spicy: "Sedang",
+      selectedProduct: null,
+      customer: "",
+      orderNote: "",
+      paymentOpen: false,
+      paymentMethod: "Tunai", // Tunai | QRIS
+      cash: 100000,
+      detail: null,
+      incoming: false,
+      online: true,
+      toast: "",
+      availability: {},
+      cart: [
+        { id: 1, name: "Nasi Goreng Spesial", price: 25000, category: "Nasi Goreng", icon: "🍳", available: true, qty: 1, spicy: "Sedang" },
+        { id: 6, name: "Es Teh Manis", price: 5000, category: "Minuman", icon: "🧋", available: true, qty: 1 }
+      ],
+      orders: [
+        { id: "PH-1258", customer: "Rina", source: "WhatsApp", status: "Menunggu", time: "12:06", elapsed: 3, total: 49000, paid: false, items: ["2× Nasi Goreng Spesial", "1× Es Teh Manis"], note: "Satu tidak pedas, tanpa acar" },
+        { id: "PH-1257", customer: "Budi", source: "Web", status: "Sedang Dibuat", time: "11:54", elapsed: 15, total: 37000, paid: true, items: ["1× Nasi Goreng Mawut", "1× Jeruk Hangat", "1× Kerupuk"], note: "Pedas" },
+        { id: "PH-1256", customer: "Pelanggan umum", source: "Kasir", status: "Siap Diambil", time: "11:50", elapsed: 19, total: 24000, paid: true, items: ["1× Mie Goreng Jawa", "1× Es Teh Manis"] },
+        { id: "PH-1255", customer: "Ayu", source: "WhatsApp", status: "Diterima", time: "11:59", elapsed: 10, total: 43000, paid: false, items: ["2× Nasi Goreng Biasa", "1× Es Teh Manis"], note: "Bungkus, sendok 2" }
+      ]
+    };
+
+    const products = [
+      { id: 1, name: "Nasi Goreng Spesial", price: 25000, category: "Nasi Goreng", icon: "🍳", image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400&auto=format&fit=crop", available: true, popular: true },
+      { id: 2, name: "Nasi Goreng Biasa", price: 18000, category: "Nasi Goreng", icon: "🍚", available: true },
+      { id: 3, name: "Nasi Goreng Mawut", price: 22000, category: "Nasi Goreng", icon: "🥘", available: true },
+      { id: 4, name: "Mie Goreng Jawa", price: 19000, category: "Mie & Kwetiau", icon: "🍜", available: true, popular: true },
+      { id: 5, name: "Kwetiau Goreng", price: 21000, category: "Mie & Kwetiau", icon: "🥡", available: true },
+      { id: 6, name: "Es Teh Manis", price: 5000, category: "Minuman", icon: "🧋", available: true },
+      { id: 7, name: "Jeruk Hangat", price: 7000, category: "Minuman", icon: "🍊", available: true },
+      { id: 8, name: "Kerupuk", price: 3000, category: "Tambahan", icon: "🥠", available: true },
+      { id: 9, name: "Telur Mata Sapi", price: 5000, category: "Tambahan", icon: "🍳", available: true },
+      { id: 10, name: "Ati Ampela", price: 7000, category: "Tambahan", icon: "🍢", available: false }
+    ];
+
+    // Initialize Availability
+    products.forEach(p => state.availability[p.id] = p.available);
+
+    const navItems = [
+      { id: "home", label: "Beranda", icon: "layout-dashboard" },
+      { id: "orders", label: "Antrean", icon: "receipt-text" },
+      { id: "new", label: "Pesanan", icon: "plus" },
+      { id: "kds", label: "Dapur", icon: "cooking-pot" },
+      { id: "menu", label: "Menu", icon: "menu" }
+    ];
+
+    const nextStatus = { "Menunggu": "Diterima", "Diterima": "Sedang Dibuat", "Sedang Dibuat": "Siap Diambil", "Siap Diambil": "Selesai" };
+    const nextLabel = { "Menunggu": "Terima pesanan", "Diterima": "Mulai masak", "Sedang Dibuat": "Tandai siap", "Siap Diambil": "Selesaikan" };
+
+    function money(amount) {
+      return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(amount);
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      state.toast = msg;
+      render();
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        state.toast = "";
+        render();
+      }, 2600);
+    }
+
+    function setView(v) {
+      state.view = v;
+      render();
+    }
+
+    function setFilter(f) {
+      state.filter = f;
+      render();
+    }
+
+    function setCategory(c) {
+      state.category = c;
+      render();
+    }
+
+    function toggleOnline() {
+      state.online = !state.online;
+      render();
+    }
+
+    function setIncoming(val) {
+      state.incoming = val;
+      render();
+    }
+
+    function setDetail(order) {
+      state.detail = order;
+      render();
+    }
+
+    function advanceOrder(id) {
+      const order = state.orders.find(o => o.id === id);
+      if (order && nextStatus[order.status]) {
+        const updatedStatus = nextStatus[order.status];
+        order.status = updatedStatus;
+        if (state.detail && state.detail.id === id) {
+          state.detail.status = updatedStatus;
+        }
+        showToast(`${id} dipindahkan ke ${updatedStatus}`);
+        render();
+      }
+    }
+
+    function quickAdd(productId) {
+      const product = products.find(p => p.id === productId);
+      if (!product || !state.availability[product.id]) return;
+      if (["Nasi Goreng", "Mie & Kwetiau"].includes(product.category)) {
+        state.selectedProduct = product;
+        state.spicy = "Sedang";
+        render();
+        return;
+      }
+      addToCart(product, "");
+    }
+
+    function addToCart(product, spicyLevel) {
+      const existing = state.cart.find(line => line.id === product.id && line.spicy === (spicyLevel || undefined));
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        state.cart.push({ ...product, qty: 1, spicy: spicyLevel || undefined });
+      }
+      state.selectedProduct = null;
+      showToast(`${product.name} ditambahkan`);
+      render();
+    }
+
+    function changeQty(index, delta) {
+      if (state.cart[index]) {
+        state.cart[index].qty += delta;
+        if (state.cart[index].qty <= 0) {
+          state.cart.splice(index, 1);
+        }
+        render();
+      }
+    }
+
+    function completePayment() {
+      const cartTotal = state.cart.reduce((sum, line) => sum + line.price * line.qty, 0);
+      const newOrder = {
+        id: `PH-${1259 + state.orders.length}`,
+        customer: state.customer.trim() || "Pelanggan umum",
+        source: "Kasir",
+        status: "Diterima",
+        time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        elapsed: 0,
+        total: cartTotal,
+        paid: true,
+        items: state.cart.map(line => `${line.qty}× ${line.name}${line.spicy ? ` · ${line.spicy}` : ""}`),
+        note: state.orderNote.trim() || undefined
+      };
+      state.orders.unshift(newOrder);
+      state.cart = [];
+      state.customer = "";
+      state.orderNote = "";
+      state.paymentOpen = false;
+      state.view = "orders";
+      showToast(`${newOrder.id} berhasil dibuat`);
+      render();
+    }
+
+    function acceptIncoming() {
+      const newOrder = {
+        id: "PH-1264",
+        customer: "Siti Rahma",
+        source: "WhatsApp",
+        status: "Diterima",
+        time: "12:08",
+        elapsed: 0,
+        total: 38000,
+        paid: false,
+        items: ["1× Nasi Goreng Spesial · Pedas", "1× Es Teh Manis", "1× Kerupuk"],
+        note: "Bungkus, tanpa acar"
+      };
+      if (!state.orders.some(o => o.id === newOrder.id)) {
+        state.orders.unshift(newOrder);
+      }
+      state.incoming = false;
+      state.view = "orders";
+      showToast("Pesanan WhatsApp diterima");
+      render();
+    }
+
+    // Auto popup incoming order simulation
+    setTimeout(() => {
+      state.incoming = true;
+      render();
+    }, 4500);
+
+    // RENDER FUNCTIONS
+    function renderNav() {
+      const waitingCount = state.orders.filter(o => o.status === "Menunggu" || o.status === "Diterima").length;
+      
+      const sideHTML = navItems.map(item => `
+        <button class="nav-item ${state.view === item.id ? 'active' : ''}" onclick="setView('${item.id}')">
+          <i data-lucide="${item.icon}"></i>
+          <span>${item.label}</span>
+          ${item.id === 'orders' && waitingCount > 0 ? `<b>${waitingCount}</b>` : ''}
+        </button>
+      `).join('');
+      document.getElementById('sideNavStack').innerHTML = sideHTML;
+
+      const bottomHTML = navItems.map(item => `
+        <button class="${state.view === item.id ? 'active' : ''}" onclick="setView('${item.id}')">
+          <i data-lucide="${item.icon}"></i>
+          <span>${item.label}</span>
+          ${item.id === 'orders' && waitingCount > 0 ? `<b>${waitingCount}</b>` : ''}
+        </button>
+      `).join('');
+      document.getElementById('bottomNav').innerHTML = bottomHTML;
+
+      // Topbar connection
+      const connBtn = document.getElementById('connectionBtn');
+      connBtn.className = `connection ${state.online ? 'online' : 'offline'}`;
+      document.getElementById('connIcon').setAttribute('data-lucide', state.online ? 'wifi' : 'wifi-off');
+      document.getElementById('connText').textContent = state.online ? 'Online' : 'Offline · 2 belum sinkron';
+      document.getElementById('offlineBanner').style.display = state.online ? 'none' : 'flex';
+    }
+
+    function renderView() {
+      const container = document.getElementById('viewContainer');
+      const activeOrders = state.orders.filter(o => o.status !== "Selesai");
+      const metrics = {
+        waiting: state.orders.filter(o => o.status === "Menunggu" || o.status === "Diterima").length,
+        cooking: state.orders.filter(o => o.status === "Sedang Dibuat").length,
+        ready: state.orders.filter(o => o.status === "Siap Diambil").length
+      };
+
+      if (state.view === "home") {
+        const sortedActive = activeOrders.slice().sort((a, b) => b.elapsed - a.elapsed);
+        const lateOrders = activeOrders.filter(o => o.elapsed >= 12);
+
+        container.innerHTML = `
+          <div class="view-stack">
+            <section class="welcome-row">
+              <div>
+                <p class="eyebrow">Rabu, 2 September · Shift siang</p>
+                <h1>Halo, Yoga! 👋</h1>
+                <p>Fokus berikutnya sudah diurutkan untukmu.</p>
+              </div>
+              <button class="primary-btn" onclick="setView('new')">
+                <i data-lucide="plus"></i> Buat pesanan
+              </button>
+            </section>
+
+            <section class="metric-grid" aria-label="Ringkasan antrean">
+              <button class="metric-card waiting" onclick="setFilter('Aktif'); setView('orders');">
+                <span class="metric-icon"><i data-lucide="clock-3"></i></span>
+                <div>
+                  <span>Perlu tindakan</span>
+                  <strong>${metrics.waiting}</strong>
+                  <small>menunggu diterima</small>
+                </div>
+                <i data-lucide="chevron-right"></i>
+              </button>
+              <button class="metric-card cooking" onclick="setFilter('Sedang Dibuat'); setView('orders');">
+                <span class="metric-icon"><i data-lucide="cooking-pot"></i></span>
+                <div>
+                  <span>Sedang dibuat</span>
+                  <strong>${metrics.cooking}</strong>
+                  <small>di dapur sekarang</small>
+                </div>
+                <i data-lucide="chevron-right"></i>
+              </button>
+              <button class="metric-card ready" onclick="setFilter('Siap Diambil'); setView('orders');">
+                <span class="metric-icon"><i data-lucide="package-check"></i></span>
+                <div>
+                  <span>Siap diambil</span>
+                  <strong>${metrics.ready}</strong>
+                  <small>segera serahkan</small>
+                </div>
+                <i data-lucide="chevron-right"></i>
+              </button>
+            </section>
+
+            <section class="home-grid">
+              <div class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <h2>Pesanan aktif</h2>
+                    <p>Urutan berdasarkan yang paling mendesak</p>
+                  </div>
+                  <button class="text-btn" onclick="setView('orders')">
+                    Lihat semua <i data-lucide="chevron-right"></i>
+                  </button>
+                </div>
+                <div class="compact-orders">
+                  ${sortedActive.length === 0 ? `
+                    <div class="empty-state">
+                      <span>✓</span><strong>Tidak ada pesanan aktif</strong>
+                    </div>
+                  ` : sortedActive.map(order => `
+                    <article class="compact-order" onclick="setDetail(${JSON.stringify(order).replace(/"/g, '&quot;')})">
+                      <div class="order-time">
+                        <strong>${order.time}</strong>
+                        <span>${order.elapsed} mnt</span>
+                      </div>
+                      <div class="order-main">
+                        <div>
+                          <b>${order.customer}</b>
+                          <span class="source-badge source-${order.source.toLowerCase()}">${order.source}</span>
+                        </div>
+                        <p>${order.items.join(" · ")}</p>
+                      </div>
+                      <span class="status-pill status-${order.status.toLowerCase().replaceAll(" ", "-")}">${order.status}</span>
+                      <i data-lucide="chevron-right"></i>
+                    </article>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="attention-panel">
+                <div class="attention-title">
+                  <i data-lucide="bell-ring"></i>
+                  <div>
+                    <h2>Butuh perhatian</h2>
+                    <p>Jangan sampai pesanan ini terlambat.</p>
+                  </div>
+                </div>
+                ${lateOrders.length === 0 ? `
+                  <p style="color: #8c4e0a; font-size: 12px; margin-top: 12px;">Semua pesanan berjalan tepat waktu. 🎉</p>
+                ` : lateOrders.map(order => `
+                  <article class="attention-card">
+                    <div>
+                      <span class="source-badge source-${order.source.toLowerCase()}">${order.source}</span>
+                      <span class="late-time">${order.elapsed} mnt</span>
+                    </div>
+                    <h3>${order.id} · ${order.customer}</h3>
+                    <p>${order.items[0]}</p>
+                    <button onclick="advanceOrder('${order.id}')">
+                      ${nextLabel[order.status]} <i data-lucide="chevron-right"></i>
+                    </button>
+                  </article>
+                `).join('')}
+                <div class="shift-note">
+                  <i data-lucide="coffee"></i>
+                  <p><strong>Pengingat operasional</strong> Cek minuman sebelum menyerahkan pesanan siap.</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        `;
+      } else if (state.view === "orders") {
+        const filteredOrders = state.orders.filter(order => {
+          if (state.filter === "Aktif") return order.status !== "Selesai";
+          if (state.filter === "Semua") return true;
+          return order.status === state.filter;
+        }).filter(order => order.customer.toLowerCase().includes(state.query.toLowerCase()) || order.id.toLowerCase().includes(state.query.toLowerCase()));
+
+        container.innerHTML = `
+          <div class="view-stack">
+            <section class="page-heading">
+              <div>
+                <p class="eyebrow">ANTREAN TERPADU</p>
+                <h1>Antrean pesanan</h1>
+                <p>Kasir, Web, dan WhatsApp dalam satu tempat.</p>
+              </div>
+              <button class="primary-btn" onclick="setView('new')">
+                <i data-lucide="plus"></i> Pesanan baru
+              </button>
+            </section>
+
+            <section class="filter-bar">
+              <div class="filter-scroll">
+                ${["Aktif", "Menunggu", "Diterima", "Sedang Dibuat", "Siap Diambil", "Selesai", "Semua"].map(item => `
+                  <button class="${state.filter === item ? 'active' : ''}" onclick="setFilter('${item}')">
+                    ${item} ${item === "Aktif" ? `<span>${activeOrders.length}</span>` : ''}
+                  </button>
+                `).join('')}
+              </div>
+              <label class="search-box">
+                <i data-lucide="search"></i>
+                <input placeholder="Cari nama atau nomor order" value="${state.query}" oninput="state.query = this.value; renderView(); lucide.createIcons();">
+              </label>
+            </section>
+
+            <section class="order-board">
+              ${filteredOrders.length === 0 ? `
+                <div class="empty-state">
+                  <span>✓</span><strong>Tidak ada pesanan</strong>
+                  <p>Antrean untuk status ini sedang kosong.</p>
+                </div>
+              ` : filteredOrders.map(order => `
+                <article class="order-card ${order.elapsed >= 12 && order.status !== 'Siap Diambil' ? 'late' : ''}">
+                  <div class="order-card-head">
+                    <div>
+                      <strong>${order.id}</strong>
+                      <span class="source-badge source-${order.source.toLowerCase()}">${order.source}</span>
+                    </div>
+                    <span class="elapsed"><i data-lucide="clock-3"></i> ${order.elapsed} mnt</span>
+                  </div>
+                  <div class="order-customer">
+                    <div class="customer-avatar">${order.customer.charAt(0)}</div>
+                    <div>
+                      <h3>${order.customer}</h3>
+                      <p>${order.time} · ${order.paid ? 'Sudah dibayar' : 'Belum dibayar'}</p>
+                    </div>
+                    <span class="status-pill status-${order.status.toLowerCase().replaceAll(" ", "-")}">${order.status}</span>
+                  </div>
+                  <ul>
+                    ${order.items.map(item => `<li>${item}</li>`).join('')}
+                  </ul>
+                  ${order.note ? `<p class="order-note">Catatan: ${order.note}</p>` : ''}
+                  <div class="order-total">
+                    <span>Total</span>
+                    <strong>${money(order.total)}</strong>
+                  </div>
+                  <div class="card-actions">
+                    <button class="secondary-btn" onclick="setDetail(${JSON.stringify(order).replace(/"/g, '&quot;')})">Lihat detail</button>
+                    ${nextStatus[order.status] ? `
+                      <button class="primary-btn" onclick="advanceOrder('${order.id}')">
+                        ${nextLabel[order.status]} <i data-lucide="chevron-right"></i>
+                      </button>
+                    ` : ''}
+                  </div>
+                </article>
+              `).join('')}
+            </section>
+          </div>
+        `;
+      } else if (state.view === "new") {
+        const cartTotal = state.cart.reduce((sum, line) => sum + line.price * line.qty, 0);
+        const filteredProducts = products.filter(p => (state.category === "Semua" || p.category === state.category) && p.name.toLowerCase().includes(state.query.toLowerCase()));
+
+        container.innerHTML = `
+          <div class="order-entry">
+            <section class="catalog-area">
+              <div class="page-heading compact">
+                <div>
+                  <p class="eyebrow">PESANAN KASIR</p>
+                  <h1>Buat pesanan</h1>
+                  <p>Pilih menu, cek ringkasan, lalu bayar.</p>
+                </div>
+              </div>
+              <div class="catalog-tools">
+                <label class="search-box grow">
+                  <i data-lucide="search"></i>
+                  <input value="${state.query}" oninput="state.query = this.value; renderView(); lucide.createIcons();" placeholder="Cari menu..." />
+                </label>
+              </div>
+              <div class="category-tabs">
+                ${["Semua", "Nasi Goreng", "Mie & Kwetiau", "Minuman", "Tambahan"].map(item => `
+                  <button class="${state.category === item ? 'active' : ''}" onclick="setCategory('${item}')">${item}</button>
+                `).join('')}
+              </div>
+              <div class="product-grid">
+                ${filteredProducts.map(product => `
+                  <button class="product-card ${!state.availability[product.id] ? 'sold-out' : ''}" onclick="quickAdd(${product.id})" ${!state.availability[product.id] ? 'disabled' : ''}>
+                    <div class="product-photo ${product.image ? 'has-image' : ''}">
+                      ${product.image ? `<img src="${product.image}" alt="${product.name}" />` : `<span>${product.icon}</span>`}
+                      ${product.popular ? `<b>Favorit</b>` : ''}
+                      ${!state.availability[product.id] ? `<em>Habis</em>` : ''}
+                    </div>
+                    <div class="product-info">
+                      <div>
+                        <strong>${product.name}</strong>
+                        <span>${product.category}</span>
+                      </div>
+                      <footer>
+                        <b>${money(product.price)}</b>
+                        <i><i data-lucide="plus"></i></i>
+                      </footer>
+                    </div>
+                  </button>
+                `).join('')}
+              </div>
+            </section>
+
+            <aside class="cart-panel">
+              <div class="cart-head">
+                <div>
+                  <h2>Pesanan baru</h2>
+                  <p>${state.cart.reduce((sum, line) => sum + line.qty, 0)} item dipilih</p>
+                </div>
+                <i data-lucide="shopping-bag"></i>
+              </div>
+              <label class="field-label">
+                Nama pelanggan <span>Opsional</span>
+                <input value="${state.customer}" oninput="state.customer = this.value;" placeholder="Pelanggan umum" />
+              </label>
+              <div class="cart-lines">
+                ${state.cart.length === 0 ? `
+                  <div class="empty-state">
+                    <span>🛍️</span>
+                    <strong>Keranjang kosong</strong>
+                    <p>Ketuk menu untuk menambah pesanan.</p>
+                  </div>
+                ` : state.cart.map((line, index) => `
+                  <article class="cart-line">
+                    <div class="line-icon">${line.icon}</div>
+                    <div class="line-copy">
+                      <strong>${line.name}</strong>
+                      ${line.spicy ? `<span>Pedas: ${line.spicy}</span>` : ''}
+                      <b>${money(line.price * line.qty)}</b>
+                    </div>
+                    <div class="qty-control">
+                      <button onclick="changeQty(${index}, -1)"><i data-lucide="minus"></i></button>
+                      <span>${line.qty}</span>
+                      <button onclick="changeQty(${index}, 1)"><i data-lucide="plus"></i></button>
+                    </div>
+                  </article>
+                `).join('')}
+              </div>
+              <label class="field-label note-field">
+                Catatan pesanan <span>Opsional</span>
+                <textarea oninput="state.orderNote = this.value;" placeholder="Contoh: bungkus, tanpa acar">${state.orderNote}</textarea>
+              </label>
+              <div class="cart-summary">
+                <div><span>Subtotal</span><b>${money(cartTotal)}</b></div>
+                <div><span>Biaya lain</span><b>Rp0</b></div>
+                <div class="grand-total">
+                  <span>Total</span>
+                  <strong>${money(cartTotal)}</strong>
+                </div>
+              </div>
+              <button class="checkout-btn" ${!state.cart.length ? 'disabled' : ''} onclick="state.paymentOpen = true; render();">
+                <span>Lanjut pembayaran</span>
+                <strong>${money(cartTotal)}</strong>
+                <i data-lucide="chevron-right"></i>
+              </button>
+            </aside>
+          </div>
+        `;
+      } else if (state.view === "kds") {
+        const statuses = ["Diterima", "Sedang Dibuat", "Siap Diambil"];
+        container.innerHTML = `
+          <div class="view-stack">
+            <section class="page-heading">
+              <div>
+                <p class="eyebrow">MODE DAPUR</p>
+                <h1>Produksi pesanan</h1>
+                <p>Tampilan besar untuk dibaca sambil memasak dan menyiapkan minuman.</p>
+              </div>
+              <div class="kds-legend">
+                <span><i class="dot orange"></i> Baru</span>
+                <span><i class="dot blue"></i> Dimasak</span>
+                <span><i class="dot green"></i> Siap</span>
+              </div>
+            </section>
+            <section class="kds-board">
+              ${statuses.map(status => {
+                const columnOrders = state.orders.filter(o => o.status === status);
+                return `
+                  <div class="kds-column kds-${status.toLowerCase().replaceAll(" ", "-")}">
+                    <header>
+                      <div>
+                        <span>${status === "Diterima" ? "BARU" : status === "Sedang Dibuat" ? "DIMASAK" : "SIAP"}</span>
+                        <h2>${status}</h2>
+                      </div>
+                      <b>${columnOrders.length}</b>
+                    </header>
+                    <div class="kds-list">
+                      ${columnOrders.length === 0 ? `
+                        <div class="empty-state">
+                          <span>✓</span><strong>Kosong</strong>
+                          <p>Belum ada tiket.</p>
+                        </div>
+                      ` : columnOrders.map(order => `
+                        <article class="kds-ticket">
+                          <div class="ticket-head">
+                            <div>
+                              <strong>${order.id}</strong>
+                              <span class="source-badge source-${order.source.toLowerCase()}">${order.source}</span>
+                            </div>
+                            <b class="${order.elapsed >= 12 ? 'late-time' : ''}">${order.elapsed} mnt</b>
+                          </div>
+                          <h3>${order.customer}</h3>
+                          <ul>
+                            ${order.items.map(item => `<li>${item}</li>`).join('')}
+                          </ul>
+                          ${order.note ? `<p>⚠ ${order.note}</p>` : ''}
+                          ${nextStatus[order.status] ? `
+                            <button onclick="advanceOrder('${order.id}')">
+                              ${nextLabel[order.status]} <i data-lucide="chevron-right"></i>
+                            </button>
+                          ` : ''}
+                        </article>
+                      `).join('')}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </section>
+          </div>
+        `;
+      } else if (state.view === "menu") {
+        const availableCount = Object.values(state.availability).filter(Boolean).length;
+        container.innerHTML = `
+          <div class="view-stack">
+            <section class="page-heading">
+              <div>
+                <p class="eyebrow">KETERSEDIAAN HARI INI</p>
+                <h1>Menu outlet</h1>
+                <p>Matikan menu yang habis agar tidak dapat dipesan.</p>
+              </div>
+              <div class="menu-count">
+                <strong>${availableCount}</strong>
+                <span>dari ${products.length} tersedia</span>
+              </div>
+            </section>
+            <section class="menu-management">
+              ${products.map(product => `
+                <article class="menu-row">
+                  <div class="menu-emoji">${product.icon}</div>
+                  <div class="menu-copy">
+                    <strong>${product.name}</strong>
+                    <span>${product.category} · ${money(product.price)}</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" ${state.availability[product.id] ? 'checked' : ''} onchange="state.availability[${product.id}] = this.checked; renderView();">
+                    <span></span>
+                  </label>
+                  <b class="${state.availability[product.id] ? 'available' : 'unavailable'}">
+                    ${state.availability[product.id] ? 'Tersedia' : 'Habis'}
+                  </b>
+                </article>
+              `).join('')}
+            </section>
+          </div>
+        `;
+      }
+    }
+
+    function renderModals() {
+      const modalContainer = document.getElementById('modalContainer');
+      let html = '';
+
+      // Incoming WhatsApp Modal
+      if (state.incoming) {
+        html += `
+          <div class="modal-backdrop priority-backdrop">
+            <section class="incoming-modal" role="dialog" aria-modal="true" aria-label="Pesanan WhatsApp baru">
+              <div class="incoming-head">
+                <div class="pulse-icon"><i data-lucide="bell-ring"></i></div>
+                <div>
+                  <p>PESANAN BARU</p>
+                  <h2>WhatsApp · Siti Rahma</h2>
+                </div>
+                <button class="close-btn" onclick="setIncoming(false)"><i data-lucide="x"></i></button>
+              </div>
+              <div class="incoming-body">
+                <div class="incoming-meta">
+                  <span>#PH-1264 · 12:08</span>
+                  <strong>${money(38000)}</strong>
+                </div>
+                <ul>
+                  <li><b>1×</b> Nasi Goreng Spesial · Pedas</li>
+                  <li><b>1×</b> Es Teh Manis</li>
+                  <li><b>1×</b> Kerupuk</li>
+                </ul>
+                <p class="incoming-note">Bungkus, tanpa acar</p>
+              </div>
+              <div class="incoming-actions">
+                <button class="reject-btn" onclick="setIncoming(false)">Tolak</button>
+                <button class="accept-btn" onclick="acceptIncoming()"><i data-lucide="check"></i> Terima pesanan</button>
+              </div>
+            </section>
+          </div>
+        `;
+      }
+
+      // Spicy Option Modal
+      if (state.selectedProduct) {
+        const prod = state.selectedProduct;
+        html += `
+          <div class="modal-backdrop" onclick="state.selectedProduct = null; render();">
+            <section class="option-modal" onclick="event.stopPropagation();">
+              <div class="modal-title">
+                <div>
+                  <p>TAMBAH KE PESANAN</p>
+                  <h2>${prod.name}</h2>
+                </div>
+                <button class="close-btn" onclick="state.selectedProduct = null; render();"><i data-lucide="x"></i></button>
+              </div>
+              <div class="dish-preview">
+                <span>${prod.icon}</span>
+                <div>
+                  <b>${money(prod.price)}</b>
+                  <p>Pilih tingkat kepedasan sebelum menambahkan.</p>
+                </div>
+              </div>
+              <fieldset>
+                <legend>Level pedas <span>Wajib</span></legend>
+                <div class="option-grid">
+                  ${["Tidak pedas", "Sedang", "Pedas", "Extra pedas"].map(level => `
+                    <button class="${state.spicy === level ? 'selected' : ''}" onclick="state.spicy = '${level}'; renderModals(); lucide.createIcons();">
+                      <span>${level}</span>
+                      ${state.spicy === level ? `<i data-lucide="check"></i>` : ''}
+                    </button>
+                  `).join('')}
+                </div>
+              </fieldset>
+              <button class="full-primary" onclick="addToCart(state.selectedProduct, state.spicy)">
+                <i data-lucide="plus"></i> Tambahkan · ${money(prod.price)}
+              </button>
+            </section>
+          </div>
+        `;
+      }
+
+      // Payment Modal
+      if (state.paymentOpen) {
+        const cartTotal = state.cart.reduce((sum, line) => sum + line.price * line.qty, 0);
+        html += `
+          <div class="modal-backdrop" onclick="state.paymentOpen = false; render();">
+            <section class="payment-modal" onclick="event.stopPropagation();">
+              <div class="modal-title">
+                <div>
+                  <p>PEMBAYARAN</p>
+                  <h2>Pilih cara bayar</h2>
+                </div>
+                <button class="close-btn" onclick="state.paymentOpen = false; render();"><i data-lucide="x"></i></button>
+              </div>
+              <div class="payment-layout">
+                <div>
+                  <div class="payment-methods">
+                    <button class="${state.paymentMethod === 'Tunai' ? 'selected' : ''}" onclick="state.paymentMethod = 'Tunai'; renderModals(); lucide.createIcons();">
+                      <i data-lucide="wallet-cards"></i>
+                      <div>
+                        <strong>Tunai</strong>
+                        <span>Hitung kembalian langsung</span>
+                      </div>
+                      ${state.paymentMethod === 'Tunai' ? `<i data-lucide="check-circle-2"></i>` : ''}
+                    </button>
+                    <button class="${state.paymentMethod === 'QRIS' ? 'selected' : ''}" onclick="state.paymentMethod = 'QRIS'; renderModals(); lucide.createIcons();">
+                      <i data-lucide="smartphone"></i>
+                      <div>
+                        <strong>QRIS Midtrans</strong>
+                        <span>Tampilkan kode pembayaran</span>
+                      </div>
+                      ${state.paymentMethod === 'QRIS' ? `<i data-lucide="check-circle-2"></i>` : ''}
+                    </button>
+                  </div>
+                  ${state.paymentMethod === 'Tunai' ? `
+                    <div class="cash-panel">
+                      <p>Uang diterima</p>
+                      <div class="cash-presets">
+                        ${[50000, 100000, cartTotal].map(amount => `
+                          <button class="${state.cash === amount ? 'active' : ''}" onclick="state.cash = ${amount}; renderModals(); lucide.createIcons();">
+                            ${amount === cartTotal ? 'Uang pas' : money(amount)}
+                          </button>
+                        `).join('')}
+                      </div>
+                      <label>Nominal <input type="number" value="${state.cash}" oninput="state.cash = Number(this.value); renderModals(); lucide.createIcons();" /></label>
+                      <div class="change-row">
+                        <span>Kembalian</span>
+                        <strong>${money(Math.max(0, state.cash - cartTotal))}</strong>
+                      </div>
+                    </div>
+                  ` : `
+                    <div class="qris-panel">
+                      <div class="qr-placeholder"><span>PH</span></div>
+                      <div>
+                        <strong>QRIS siap dibuat</strong>
+                        <p>Pada aplikasi asli, QR dinamis dibuat oleh Midtrans setelah konfirmasi.</p>
+                      </div>
+                    </div>
+                  `}
+                </div>
+                <aside class="payment-summary">
+                  <i data-lucide="receipt-text"></i>
+                  <span>Total pembayaran</span>
+                  <strong>${money(cartTotal)}</strong>
+                  <p>${state.cart.reduce((sum, line) => sum + line.qty, 0)} item · ${state.customer || 'Pelanggan umum'}</p>
+                </aside>
+              </div>
+              <button class="full-primary" onclick="completePayment()" ${state.paymentMethod === 'Tunai' && state.cash < cartTotal ? 'disabled' : ''}>
+                <i data-lucide="check"></i> ${state.paymentMethod === 'Tunai' ? 'Konfirmasi pembayaran' : 'Buat QRIS'}
+              </button>
+            </section>
+          </div>
+        `;
+      }
+
+      // Order Detail Drawer
+      if (state.detail) {
+        const order = state.detail;
+        const statusList = ["Menunggu", "Diterima", "Sedang Dibuat", "Siap Diambil", "Selesai"];
+        const trackStatuses = ["Diterima", "Sedang Dibuat", "Siap Diambil", "Selesai"];
+        const currentIndex = statusList.indexOf(order.status);
+
+        html += `
+          <div class="modal-backdrop" onclick="state.detail = null; render();">
+            <section class="detail-drawer" onclick="event.stopPropagation();">
+              <div class="modal-title">
+                <div>
+                  <p>DETAIL PESANAN</p>
+                  <h2>${order.id}</h2>
+                </div>
+                <button class="close-btn" onclick="state.detail = null; render();"><i data-lucide="x"></i></button>
+              </div>
+              <div class="detail-customer">
+                <div class="customer-avatar large">${order.customer.charAt(0)}</div>
+                <div>
+                  <h3>${order.customer}</h3>
+                  <p>${order.time} · <span class="source-badge source-${order.source.toLowerCase()}">${order.source}</span></p>
+                </div>
+                <span class="status-pill status-${order.status.toLowerCase().replaceAll(" ", "-")}">${order.status}</span>
+              </div>
+              <div class="status-track">
+                ${trackStatuses.map((st, index) => {
+                  const point = index + 1;
+                  const done = currentIndex >= point;
+                  return `
+                    <div class="${done ? 'done' : ''}">
+                      <i>${currentIndex > point ? '<i data-lucide="check"></i>' : point}</i>
+                      <span>${st}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+              <section class="detail-section">
+                <h3>Isi pesanan</h3>
+                ${order.items.map(item => `<div class="detail-line"><span>${item}</span></div>`).join('')}
+                ${order.note ? `<p class="detail-note">Catatan: ${order.note}</p>` : ''}
+              </section>
+              <section class="detail-section">
+                <div class="detail-total">
+                  <span>Total</span>
+                  <strong>${money(order.total)}</strong>
+                </div>
+                <div class="payment-chip">
+                  <i data-lucide="circle-dollar-sign"></i>
+                  <span>${order.paid ? 'Sudah dibayar' : 'Belum dibayar'}</span>
+                </div>
+              </section>
+              ${nextStatus[order.status] ? `
+                <button class="full-primary sticky-action" onclick="advanceOrder('${order.id}')">
+                  ${nextLabel[order.status]} <i data-lucide="chevron-right"></i>
+                </button>
+              ` : ''}
+            </section>
+          </div>
+        `;
+      }
+
+      modalContainer.innerHTML = html;
+    }
+
+    function renderToast() {
+      const toastContainer = document.getElementById('toastContainer');
+      if (state.toast) {
+        toastContainer.innerHTML = `
+          <div class="toast">
+            <i data-lucide="check-circle-2"></i> ${state.toast}
+          </div>
+        `;
+      } else {
+        toastContainer.innerHTML = '';
+      }
+    }
+
+    function render() {
+      renderNav();
+      renderView();
+      renderModals();
+      renderToast();
+      lucide.createIcons();
+    }
+
+    // Initial render
+    render();
+  </script>
+</body>
+</html>

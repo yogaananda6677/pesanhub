@@ -24,7 +24,7 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request;
-            const branchPattern = /^(feature|fix|docs|refactor|test|chore)\/[0-9]+-[a-z0-9-]+$/;
+            const branchPattern = /^(phase|feature|fix|docs|refactor|test|chore)\/[0-9]+-[a-z0-9-]+$/;
             if (pr.base.ref !== 'main') {
               core.setFailed('Pull Request harus mengarah ke main.');
               return;
@@ -33,19 +33,36 @@ jobs:
               core.setFailed('Source branch tidak boleh main.');
               return;
             }
-            if (!branchPattern.test(pr.head.ref)) {
+            const branchMatch = pr.head.ref.match(branchPattern);
+            if (!branchMatch) {
               core.setFailed(`Nama branch tidak valid: ${pr.head.ref}`);
               return;
             }
 
             const body = pr.body || '';
-            const match = body.match(/(?:closes|fixes|resolves)\s+#([0-9]+)/i);
-            if (!match) {
+            const closingMatches = [...body.matchAll(/(?:closes|fixes|resolves)\s+#([0-9]+)/gi)];
+            const closingIssues = [...new Set(closingMatches.map((item) => Number(item[1])))];
+            if (closingIssues.length === 0) {
               core.setFailed('PR body wajib memiliki Closes #123, Fixes #123, atau Resolves #123.');
               return;
             }
+            if (closingIssues.length !== 1) {
+              core.setFailed('Satu PR hanya boleh menutup satu issue utama. Minta Owner memecah scope PR.');
+              return;
+            }
 
-            const issueNumber = Number(match[1]);
+            const issueNumber = closingIssues[0];
+            const branchIssueNumber = Number(pr.head.ref.split('/')[1].split('-')[0]);
+            if (branchIssueNumber !== issueNumber) {
+              core.setFailed(`Nomor issue pada branch (#${branchIssueNumber}) harus sama dengan issue utama (#${issueNumber}).`);
+              return;
+            }
+            const isPhaseBranch = pr.head.ref.startsWith('phase/');
+            const isFeatureBranch = pr.head.ref.startsWith('feature/');
+            const isPhaseIssue = (issue) =>
+              /^\[Phase\](?:\s|:)/i.test(issue.title) ||
+              issue.labels.some((label) => (typeof label === 'string' ? label : label.name).toLowerCase() === 'phase');
+
             try {
               const {data: issue} = await github.rest.issues.get({
                 owner: context.repo.owner,
@@ -56,7 +73,54 @@ jobs:
                 core.setFailed(`#${issueNumber} adalah Pull Request, bukan Issue.`);
                 return;
               }
-              core.info(`Contribution policy valid; related issue #${issueNumber} ditemukan.`);
+              const mainIssueIsPhase = isPhaseIssue(issue);
+              if (isPhaseBranch && !mainIssueIsPhase) {
+                core.setFailed(`Phase Closing PR wajib menutup Phase Issue; #${issueNumber} bukan Phase Issue.`);
+                return;
+              }
+              if (!isPhaseBranch && mainIssueIsPhase) {
+                core.setFailed('Phase Issue hanya boleh ditutup oleh Phase Closing PR dari branch phase/.');
+                return;
+              }
+
+              if (isFeatureBranch) {
+                const parentMatch = body.match(/Parent\s+Phase\s*:\s*#([0-9]+)/i);
+                if (!parentMatch) {
+                  core.setFailed('Feature PR wajib memiliki Parent Phase: #123.');
+                  return;
+                }
+                const parentNumber = Number(parentMatch[1]);
+                if (parentNumber === issueNumber) {
+                  core.setFailed('Issue utama dan Parent Phase tidak boleh sama.');
+                  return;
+                }
+
+                const {data: parent} = await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: parentNumber,
+                });
+                if (parent.pull_request) {
+                  core.setFailed(`#${parentNumber} adalah Pull Request, bukan Parent Phase Issue.`);
+                  return;
+                }
+                if (!isPhaseIssue(parent)) {
+                  core.setFailed(`#${parentNumber} bukan Phase Issue; gunakan judul [Phase] atau label phase.`);
+                  return;
+                }
+
+                const issueBody = issue.body || '';
+                const inlineParent = issueBody.match(/Parent\s+Phase\s*:\s*#([0-9]+)/i);
+                const formParent = issueBody.match(/###\s+Parent\s+Phase\s*\n+\s*#([0-9]+)/i);
+                const issueParentNumber = Number((inlineParent || formParent || [])[1]);
+                if (!issueParentNumber || issueParentNumber !== parentNumber) {
+                  core.setFailed(`Feature Issue #${issueNumber} wajib mereferensikan Parent Phase #${parentNumber}.`);
+                  return;
+                }
+                core.info(`Feature Issue #${issueNumber} dan Parent Phase #${parentNumber} valid.`);
+              }
+
+              core.info(`Contribution policy valid; issue utama #${issueNumber} ditemukan.`);
             } catch (error) {
-              core.setFailed(`Issue #${issueNumber} tidak ditemukan atau tidak dapat dibaca: ${error.message}`);
+              core.setFailed(`Issue utama atau Parent Phase tidak ditemukan/tidak dapat dibaca: ${error.message}`);
             }

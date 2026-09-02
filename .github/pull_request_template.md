@@ -2,25 +2,30 @@
 
 Jelaskan perubahan dan alasan utamanya.
 
-## Related Issue
+## Parent Phase
+
+Parent Phase: #
+
+## Issue Utama
 
 Closes #
 
-## Jenis Perubahan
+## Jenis Pekerjaan
 
+- [ ] Phase closing
 - [ ] Feature
 - [ ] Bug fix
 - [ ] Refactor
-- [ ] Documentation
 - [ ] Test
-- [ ] Infrastructure / maintenance
+- [ ] Documentation
+- [ ] Infrastructure
 
 ## Komponen Terdampak
 
 - [ ] Backend
 - [ ] Mobile
 - [ ] Database
-- [ ] WAHA
+- [ ] WAHA, Hermes, atau Midtrans
 - [ ] CI/CD atau dokumentasi
 
 ## Perubahan yang Dilakukan
@@ -45,15 +50,22 @@ Tidak ada / jelaskan migration dan rollback.
 
 Tidak ada / jelaskan dampak dan mitigasi. Jangan menyertakan secret atau data pelanggan.
 
+## Phase Closing Evidence
+
+Tidak berlaku untuk PR biasa. Untuk Phase Closing PR, cantumkan seluruh child issue, PR yang sudah di-merge, hasil Backend CI, Mobile CI, integration test, exit criteria, pekerjaan tertunda, dan keputusan phase berikutnya.
+
 ## Checklist
 
+- [ ] Phase Issue sudah tersedia.
+- [ ] Feature PR mereferensikan Parent Phase.
+- [ ] Branch dibuat dari `main` terbaru.
 - [ ] Branch memiliki nomor issue.
-- [ ] PR menghubungkan issue dengan `Closes`, `Fixes`, atau `Resolves`.
-- [ ] Test sudah dijalankan.
-- [ ] CI lulus.
-- [ ] Tidak ada secret, credential, QR, atau session WAHA.
-- [ ] Tidak ada data pelanggan asli.
-- [ ] Dokumentasi diperbarui.
-- [ ] `MEMORY.md` diperbarui jika diperlukan.
+- [ ] Satu branch hanya mengerjakan satu issue utama.
+- [ ] PR menghubungkan satu issue utama dengan `Closes`, `Fixes`, atau `Resolves`.
+- [ ] PR tidak menutup Phase Issue kecuali ini Phase Closing PR.
+- [ ] Seluruh acceptance criteria terpenuhi.
+- [ ] Test sudah dijalankan dan CI relevan lulus.
+- [ ] Tidak ada secret, credential, QR, session WAHA, atau data pelanggan asli.
+- [ ] Dokumentasi dan `MEMORY.md` diperbarui jika diperlukan.
 - [ ] Perubahan tidak keluar dari scope issue.
-- [ ] Siap direview Owner.
+- [ ] Owner siap melakukan review.

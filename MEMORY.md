@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 1 September 2026 |
-| Updated by | Monorepo Git and CI/CD foundation session |
+| Updated by | Mandatory phase and feature workflow session |
 
 ## 2. Product Intent
 
@@ -65,6 +65,20 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | 6 | Hardening dan production scale | NOT_STARTED | — | — | — |
 
 Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
+
+## Current GitHub Work
+
+- Phase Issue: `NOT_CREATED`
+- Child Issues: `NOT_CREATED`
+- Current Issue: `NOT_CREATED`
+- Current Branch: `NOT_CREATED`
+- Pull Request: `NOT_CREATED`
+- Merged Pull Requests: `NOT_CREATED`
+- Status: `IN_PROGRESS`
+- Exit Criteria: lihat checklist Phase 0; belum seluruhnya terpenuhi
+- Validation: aturan lokal dan YAML tervalidasi; workflow GitHub belum pernah dijalankan
+- Blocker: remote GitHub dan username/team Owner belum tersedia
+- Next Issue: `NOT_CREATED` — buat Phase Issue Phase 0 setelah repository tersambung ke GitHub
 
 ## 6. Current Phase Checklist
 
@@ -166,15 +180,18 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 11. Rules for Coding Agents
 
 1. Baca `PRD.md` dan seluruh `MEMORY.md` sebelum membuat rencana.
-2. Kerjakan hanya current phase kecuali pengguna secara eksplisit mengubah prioritas.
-3. Jangan mengulang item berstatus `DONE` tanpa alasan regresi atau permintaan perubahan.
-4. Jangan memperluas scope diam-diam; catat proposal sebagai open question.
-5. Jangan menyimpan token, password, API key, session WAHA, atau Midtrans server key di repository.
-6. Jangan mengubah invariants tanpa mencatat ADR baru dan persetujuan product owner.
-7. Jalankan test dan pemeriksaan statis yang relevan sebelum menandai selesai.
-8. Catat command validasi dan hasilnya; jangan menulis `PASS` tanpa menjalankannya.
-9. Update checklist, phase tracker, decision log, dan work log dalam perubahan yang sama.
-10. Jika berhenti karena blocker, ubah status menjadi `BLOCKED` dan tulis kebutuhan spesifik untuk melanjutkan.
+2. Jangan memulai phase, fitur, bug, atau task tanpa GitHub Issue yang disetujui dan di-assign; percakapan, `PRD.md`, dan `MEMORY.md` bukan pengganti Issue.
+3. Kerjakan setiap issue pada branch bernomor terpisah dan ajukan PR untuk review Owner serta CI; jangan direct push ke `main`.
+4. Kerjakan hanya current phase kecuali pengguna secara eksplisit menyetujui phase paralel dan keputusan tersebut dicatat.
+5. Jangan mengulang item berstatus `DONE` tanpa alasan regresi atau permintaan perubahan.
+6. Jangan memperluas scope diam-diam; catat proposal sebagai open question.
+7. Jangan menyimpan token, password, API key, session WAHA, atau Midtrans server key di repository.
+8. Jangan mengubah invariants tanpa mencatat ADR baru dan persetujuan product owner.
+9. Jalankan test dan pemeriksaan statis yang relevan sebelum menandai selesai.
+10. Catat command validasi dan hasilnya; jangan menulis `PASS` tanpa menjalankannya.
+11. Update Current GitHub Work, checklist, phase tracker, decision log, dan work log dalam perubahan yang sama.
+12. Phase Issue hanya ditutup oleh Phase Closing PR setelah seluruh child issue dan exit criteria selesai.
+13. Jika berhenti karena blocker, tulis kebutuhan spesifik untuk melanjutkan tanpa mengarang nomor Issue, branch, atau PR.
 
 ## 12. Decision Log Template
 
@@ -185,6 +202,32 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 1 September 2026 — Mandatory Phase and Feature Workflow
+
+**Goal**
+- Menjadikan Issue → Branch → Implementasi → Pull Request → Review Owner → CI → Merge sebagai aturan wajib untuk setiap phase dan fitur.
+
+**Changed**
+- Menambah template `phase.yml` dengan scope, impact, child issue, exit criteria, bukti validasi, Definition of Done, dan checklist penutupan phase.
+- Memperluas Feature Issue agar wajib memiliki Parent Phase, scope/non-scope, dampak API/database/UI/security, test scenario, dan Definition of Done.
+- Memperbarui panduan kontribusi dan PR template untuk hierarki Phase Issue → child issue → Phase Closing PR serta larangan long-lived phase branch.
+- Memperketat Contribution Policy: menerima branch `phase/`, menyamakan nomor branch dengan issue utama, membatasi satu closing issue, memvalidasi Parent Phase untuk Feature PR, dan mencegah Phase Issue ditutup selain oleh Phase Closing PR.
+- Menambah bagian Current GitHub Work menggunakan `NOT_CREATED`; tidak ada nomor Issue, branch, atau PR aktual yang dikarang.
+
+**Validation**
+- Parse seluruh 10 file YAML `.github`: PASS.
+- Kontrak field Phase Issue, Feature Issue, dan Pull Request template: PASS.
+- Skenario regex branch serta kecocokan nomor branch–issue utama: PASS.
+- Syntax JavaScript `Contribution Policy` dalam wrapper async GitHub Script: PASS.
+- Placeholder Current GitHub Work seluruhnya `NOT_CREATED` dan pemeriksaan nomor Issue/PR palsu: PASS.
+- `actionlint`: NOT_RUN — binary tidak tersedia dan tidak diinstal.
+
+**Known Issues**
+- Remote GitHub dan username/team Owner belum tersedia; Phase Issue, child issue, branch implementasi, PR, dan branch protection belum dapat dibuat.
+
+**Next**
+- Setelah remote tersedia, buat Phase Issue Phase 0 terlebih dahulu, pecah sisa exit criteria menjadi child issue, lalu minta persetujuan Owner sebelum implementasi berikutnya.
 
 ### 1 September 2026 — Monorepo Git and CI/CD Foundation
 
