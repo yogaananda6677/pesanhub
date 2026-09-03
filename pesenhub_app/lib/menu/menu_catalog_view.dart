@@ -100,9 +100,9 @@ class _MenuCatalogViewState extends State<MenuCatalogView> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bool isTablet =
-            constraints.maxWidth >= AppSpacing.tabletBreakpoint;
-        final int crossAxisCount = isTablet ? 3 : 2;
+        final bool isWide = constraints.maxWidth >= 720;
+        final int crossAxisCount = isWide ? 3 : 2;
+        final double childAspectRatio = isWide ? 1.05 : 0.85;
 
         return SingleChildScrollView(
           key: const PageStorageKey('menu_catalog_scroll'),
@@ -147,7 +147,7 @@ class _MenuCatalogViewState extends State<MenuCatalogView> {
                     crossAxisCount: crossAxisCount,
                     crossAxisSpacing: AppSpacing.md,
                     mainAxisSpacing: AppSpacing.md,
-                    childAspectRatio: isTablet ? 1.35 : 0.85,
+                    childAspectRatio: childAspectRatio,
                   ),
                   itemCount: filteredItems.length,
                   itemBuilder: (context, index) {

@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 4 September 2026 |
-| Updated by | Issue #27 menu search, category filter, and modifier implementation and validation |
+| Updated by | Issue #28 cart, takeaway notes, order review, and manual submit implementation and validation |
 
 ## 2. Product Intent
 
@@ -72,14 +72,14 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#4 — Phase 1B Cashier Mobile & Tablet](https://github.com/yogaananda6677/pesanhub/issues/4)
 - Child Issues: #23–#35
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#27 — Implementasi menu search, category filter, modifier, dan level kepedasan](https://github.com/yogaananda6677/pesanhub/issues/27)
-- Current Branch: `feature/27-menu-search-filter-modifiers`
+- Current Issue: [#28 — Implementasi cart, catatan bungkus, order review, dan submit manual](https://github.com/yogaananda6677/pesanhub/issues/28)
+- Current Branch: `feature/28-cart-takeaway-order-review-submit`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh acceptance criteria #27 terpenuhi (pencarian debounce, filter kategori, item unavailable tidak dapat ditambahkan, validasi required modifier & batas topping, dynamic price calculation, responsif mobile & tablet)
-- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (54/54 pass), backend check pass
-- Next Step: Review/merge Issue #27, lalu lanjut ke Issue #28 (Implementasi cart, catatan bungkus, order review, dan submit manual)
+- Exit Criteria: Seluruh acceptance criteria #28 terpenuhi (review item/modifier/catatan/subtotal, idempotency key & double-tap lock, backend availability/price discrepancy handling, keyboard-safe primary submit, responsif mobile & tablet)
+- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (61/61 pass), backend check pass
+- Next Step: Review/merge Issue #28, lalu lanjut ke Issue #29 (Implementasi order detail, status timeline, dan contextual quick action)
 
 ## 6. Current Phase Checklist
 
@@ -124,8 +124,8 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [x] #24: Implementasi responsive app shell mobile dan tablet (PR #96)
 - [x] #25: Implementasi dashboard kasir dan operational summary (PR #97)
 - [x] #26: Implementasi unified order queue, source badge, dan alert visual (PR #98)
-- [x] #27: Implementasi menu search, category filter, modifier, dan level kepedasan (PR pending)
-- [ ] #28: Implementasi cart, catatan bungkus, order review, dan submit manual
+- [x] #27: Implementasi menu search, category filter, modifier, dan level kepedasan (PR #99)
+- [x] #28: Implementasi cart, catatan bungkus, order review, dan submit manual (PR pending)
 - [ ] #29: Implementasi order detail, status timeline, dan contextual quick action
 - [ ] #30: Implementasi KDS adaptif untuk tablet dan mobile
 - [ ] #31: Implementasi pengelolaan menu availability pada Flutter
