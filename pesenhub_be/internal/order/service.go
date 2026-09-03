@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -27,16 +28,24 @@ type Reader interface {
 	GetByID(context.Context, string) (OrderDetail, error)
 }
 
+type WebOrderStore interface {
+	CreateWeb(context.Context, PublicOrderCreateInput, string, string, string) (PublicOrderResponse, bool, error)
+	PreviewWeb(context.Context, []ItemInput) (PreviewResponse, error)
+	GetByPublicToken(context.Context, string) (PublicTrackingDetail, error)
+}
+
 type Service struct {
 	store       Creator
 	transitions Transitioner
 	reader      Reader
+	webStore    WebOrderStore
 }
 
 func NewService(store Creator) *Service {
 	s := &Service{store: store}
 	s.transitions, _ = store.(Transitioner)
 	s.reader, _ = store.(Reader)
+	s.webStore, _ = store.(WebOrderStore)
 	return s
 }
 
@@ -231,4 +240,105 @@ func (s *Service) QueueSnapshot(ctx context.Context, p customer.Principal) ([]Or
 		orders[i].RedactForRole(p.Role)
 	}
 	return orders, nil
+}
+
+func NormalizePhone(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", &ValidationError{Field: "customer_phone", Reason: "Nomor handphone wajib diisi"}
+	}
+	if strings.HasPrefix(raw, "08") {
+		raw = "+628" + raw[2:]
+	} else if strings.HasPrefix(raw, "628") {
+		raw = "+" + raw
+	} else if !strings.HasPrefix(raw, "+628") {
+		return "", &ValidationError{Field: "customer_phone", Reason: "Nomor handphone harus diawali +628 atau 08"}
+	}
+
+	digits := raw[1:] // after '+'
+	if len(digits) < 10 || len(digits) > 15 {
+		return "", &ValidationError{Field: "customer_phone", Reason: "Panjang nomor handphone harus antara 10 sampai 15 digit"}
+	}
+	for _, c := range digits {
+		if c < '0' || c > '9' {
+			return "", &ValidationError{Field: "customer_phone", Reason: "Nomor handphone hanya boleh berisi angka"}
+		}
+	}
+	return raw, nil
+}
+
+func ValidateCustomerName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", &ValidationError{Field: "customer_name", Reason: "Nama pelanggan wajib diisi"}
+	}
+	if len(name) > 120 {
+		return "", &ValidationError{Field: "customer_name", Reason: "Nama pelanggan maksimal 120 karakter"}
+	}
+	return name, nil
+}
+
+func (s *Service) CreateWeb(ctx context.Context, in PublicOrderCreateInput, idempotencyKey, requestID string) (PublicOrderResponse, bool, error) {
+	if s.webStore == nil {
+		return PublicOrderResponse{}, false, errors.New("web store not configured")
+	}
+
+	normPhone, err := NormalizePhone(in.CustomerPhone)
+	if err != nil {
+		return PublicOrderResponse{}, false, err
+	}
+	in.CustomerPhone = normPhone
+
+	normName, err := ValidateCustomerName(in.CustomerName)
+	if err != nil {
+		return PublicOrderResponse{}, false, err
+	}
+	in.CustomerName = normName
+
+	if len(in.Items) == 0 {
+		return PublicOrderResponse{}, false, &ValidationError{Field: "items", Reason: "Minimal harus memilih 1 item"}
+	}
+	if len(in.Items) > 100 {
+		return PublicOrderResponse{}, false, &ValidationError{Field: "items", Reason: "Maksimal 100 item"}
+	}
+	for _, it := range in.Items {
+		if it.Quantity <= 0 || it.Quantity > 99 {
+			return PublicOrderResponse{}, false, &ValidationError{Field: "quantity", Reason: "Jumlah item harus antara 1 dan 99"}
+		}
+	}
+
+	idempotencyKey = strings.TrimSpace(idempotencyKey)
+	if idempotencyKey == "" {
+		idempotencyKey = "web-" + customer.NewID()
+	}
+
+	reqBytes, _ := json.Marshal(in)
+	hash := fmt.Sprintf("%x", sha256.Sum256(reqBytes))
+
+	return s.webStore.CreateWeb(ctx, in, idempotencyKey, hash, requestID)
+}
+
+func (s *Service) PreviewWeb(ctx context.Context, items []ItemInput) (PreviewResponse, error) {
+	if s.webStore == nil {
+		return PreviewResponse{}, errors.New("web store not configured")
+	}
+	if len(items) == 0 {
+		return PreviewResponse{}, &ValidationError{Field: "items", Reason: "Minimal harus memilih 1 item"}
+	}
+	if len(items) > 100 {
+		return PreviewResponse{}, &ValidationError{Field: "items", Reason: "Maksimal 100 item"}
+	}
+	for _, it := range items {
+		if it.Quantity <= 0 || it.Quantity > 99 {
+			return PreviewResponse{}, &ValidationError{Field: "quantity", Reason: "Jumlah item harus antara 1 dan 99"}
+		}
+	}
+	return s.webStore.PreviewWeb(ctx, items)
+}
+
+func (s *Service) GetByPublicToken(ctx context.Context, token string) (PublicTrackingDetail, error) {
+	if s.webStore == nil {
+		return PublicTrackingDetail{}, errors.New("web store not configured")
+	}
+	return s.webStore.GetByPublicToken(ctx, token)
 }

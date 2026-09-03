@@ -44,6 +44,8 @@ END $$;
 SQL
 
 run_migration down
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='orders' AND column_name='public_tracking_token'")" = "t"
+run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.orders_source_status_created_idx') IS NULL")" = "t"
 run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='order_status_history' AND column_name='request_hash'")" = "t"
@@ -59,6 +61,7 @@ test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "
 run_migration up
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='customers' AND column_name='preferences'")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_groups') IS NOT NULL")" = "t"
+run_migration down
 run_migration down
 run_migration down
 run_migration down
@@ -94,6 +97,7 @@ DO $$ BEGIN
 END $$;
 SQL
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT string_agg(name,',' ORDER BY sort_order,name,id) FROM menus WHERE is_available")" = "Nasi Goreng"
+run_migration down
 run_migration down
 run_migration down
 run_migration down

@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #20 WebSocket order events and recovery |
+| Updated by | Issue #21 customer web ordering and identity validation |
 
 ## 2. Product Intent
 
@@ -72,15 +72,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#3 — Phase 1A Core Backend](https://github.com/yogaananda6677/pesanhub/issues/3)
 - Child Issues: #13–#22
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#20 — Implementasi WebSocket order event dan recovery](https://github.com/yogaananda6677/pesanhub/issues/20)
-- Current Branch: `feature/20-websocket-order-events`
+- Current Issue: [#21 — Implementasi customer ordering web dan validasi identitas](https://github.com/yogaananda6677/pesanhub/issues/21)
+- Current Branch: `feature/21-customer-web-order`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91)
 - Status: `IN_PROGRESS`
-- Exit Criteria: lihat acceptance criteria #20; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: unit/vet/race, OpenAPI YAML, reversible migration, dan WebSocket roundtrip + outbox integration lulus lokal; CI menunggu PR
+- Exit Criteria: lihat acceptance criteria #21; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
+- Validation: unit/vet/race, OpenAPI YAML, reversible migration 000008, static web accessibility, dan PostgreSQL web order integration lulus lokal; CI menunggu PR
 - Blocker: endpoint staff dan KDS tetap default-deny sampai verified principal middleware tersedia
-- Next Issue: #21 setelah #20 direview dan di-merge
+- Next Issue: #22 setelah #21 direview dan di-merge
 
 ## 6. Current Phase Checklist
 
@@ -206,6 +206,34 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Issue #21 Customer Web Ordering and Identity Validation
+
+**Goal**
+- Memungkinkan pelanggan mobile-web membuat pesanan `CUSTOMER_WEB` tanpa akun secara aman, ringan, dan responsif dengan validasi identitas, total preview dihitung backend, pencegahan double-submit, dan token pelacakan status publik tanpa mengekspos nomor HP (Invariant 11).
+
+**Changed**
+- Menambahkan migrasi `000008_add_order_public_tracking_token.up.sql` dan `.down.sql` untuk kolom `public_tracking_token` dan indeks parsial.
+- Menambahkan `PublicOrderCreateInput`, `PublicOrderResponse`, `PreviewInput`, `PreviewResponse`, dan `PublicTrackingDetail` di `internal/order/model.go`.
+- Menambahkan `NormalizePhone` (E.164 +628) dan `ValidateCustomerName` di `internal/order/service.go`.
+- Menambahkan method `CreateWeb`, `PreviewWeb`, dan `GetByPublicToken` di `internal/order/store.go` dan `service.go`.
+- Menambahkan rate limiting berbasis IP dan endpoint HTTP di `internal/order/handler.go` serta pendaftaran route di `cmd/api/main.go`.
+- Mengembangkan antarmuka web mobile-first responsif di `web/index.html`, `web/style.css`, dan `web/app.js` dengan accessibility landmarks, pencegahan double-submit, dan polling status otomatis.
+- Menambahkan unit tests `web_order_test.go`, `web_ui_test.go`, dan integration test PostgreSQL `web_integration_test.go`.
+- Menambahkan dokumentasi arsitektur di `docs/CUSTOMER_WEB_ORDERING.md` dan memperbarui `docs/api/openapi.yaml`.
+
+**Validation**
+- `cd pesenhub_be && ./run.sh check`: PASS.
+- `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS.
+- `cd pesenhub_be && ./scripts/test-orders.sh`: PASS.
+- `cd pesenhub_be && go test -race ./...`: PASS.
+- Parse `docs/api/openapi.yaml`: PASS.
+
+**Known Issues**
+- Tidak ada.
+
+**Next**
+- Review/merge Issue #21, lalu lanjutkan ke #22 (issue terakhir Phase 1A).
 
 ### 3 September 2026 — Issue #20 WebSocket Order Events and Recovery
 

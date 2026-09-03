@@ -1,2 +1,101 @@
 <!doctype html>
-<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PesenHub</title><style>body{font-family:system-ui;max-width:42rem;margin:20vh auto;padding:1.5rem;color:#242424}h1{color:#b54318}</style></head><body><main><h1>PesenHub</h1><p>Halaman pemesanan pelanggan sedang disiapkan.</p></main></body></html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PesenHub — Order Nasi Goreng & Minuman</title>
+  <meta name="description" content="Pesan makanan dan minuman favorit Anda secara cepat dan praktis tanpa antre.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header" role="banner">
+    <div class="header-content">
+      <div class="brand">
+        <h1>PesenHub</h1>
+        <p>Outlet Nasi Goreng & Minuman</p>
+      </div>
+      <div id="active-order-badge-container"></div>
+    </div>
+  </header>
+
+  <main class="container" role="main">
+    <div id="global-alert" class="alert-banner alert-error hidden" role="alert" aria-live="assertive"></div>
+
+    <!-- VIEW 1: ORDER FORM -->
+    <div id="view-order">
+      <section class="card" aria-labelledby="section-identitas">
+        <h2 id="section-identitas" class="section-title">Data Pemesan</h2>
+        <div class="form-group">
+          <label for="input-customer-name" class="form-label">Nama Lengkap <span style="color:var(--error)">*</span></label>
+          <input type="text" id="input-customer-name" class="form-input" placeholder="contoh: Budi Santoso" maxlength="120" autocomplete="name" required>
+          <div id="err-customer-name" class="field-error" aria-live="polite">Nama pemesan wajib diisi</div>
+        </div>
+        <div class="form-group">
+          <label for="input-customer-phone" class="form-label">Nomor WhatsApp / HP <span style="color:var(--error)">*</span></label>
+          <input type="tel" id="input-customer-phone" class="form-input" placeholder="contoh: 081234567890" maxlength="16" autocomplete="tel" required>
+          <div id="err-customer-phone" class="field-error" aria-live="polite">Nomor WhatsApp wajib diisi (diawali 08 atau +628)</div>
+        </div>
+        <div class="form-group">
+          <label for="input-order-notes" class="form-label">Catatan Pesanan (opsional)</label>
+          <textarea id="input-order-notes" class="form-textarea" placeholder="contoh: Bungkus terpisah, sendok 2"></textarea>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="section-katalog">
+        <h2 id="section-katalog" class="section-title">Pilih Menu</h2>
+        <nav class="category-tabs" id="category-tabs" aria-label="Kategori Menu"></nav>
+        <div id="menu-list" role="region" aria-live="polite">
+          <p style="color:var(--text-muted);text-align:center;padding:1.5rem">Memuat menu...</p>
+        </div>
+        <div id="err-items" class="field-error" style="margin-top:0.5rem" aria-live="polite">Pilih minimal 1 menu untuk melanjutkan</div>
+      </section>
+
+      <section class="card" aria-labelledby="section-ringkasan">
+        <h2 id="section-ringkasan" class="section-title">Ringkasan Pesanan</h2>
+        <div id="cart-summary-items">
+          <p style="color:var(--text-muted);font-size:0.9rem">Belum ada menu yang dipilih.</p>
+        </div>
+        <div class="summary-row summary-total">
+          <span>Total Pembayaran:</span>
+          <span id="total-amount-display">Rp 0</span>
+        </div>
+        <div style="margin-top:1rem">
+          <button type="button" id="btn-submit-order" class="btn-primary" disabled>
+            <span>Kirim Pesanan</span>
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <!-- VIEW 2: TRACKING STATUS -->
+    <div id="view-tracking" class="hidden">
+      <section class="card tracking-card" aria-labelledby="tracking-title">
+        <span id="tracking-status-badge" class="badge badge-pending">PENDING</span>
+        <h2 id="tracking-title" style="margin-top:0.75rem;font-size:1.1rem">Nomor Pesanan Anda</h2>
+        <div id="tracking-order-number" class="tracking-order-num">-</div>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">
+          Pesanan atas nama: <strong id="tracking-customer-name" style="color:var(--text)">-</strong>
+        </p>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem">
+          Halaman ini memperbarui status secara otomatis. Anda dapat menyimpan tautan ini untuk melacak proses pembuatan pesanan di dapur.
+        </p>
+
+        <div style="text-align:left;border-top:1px solid var(--border);padding-top:1rem">
+          <h3 style="font-size:0.95rem;margin-bottom:0.5rem">Detail Pesanan:</h3>
+          <div id="tracking-items-list"></div>
+          <div class="summary-row summary-total" style="margin-top:0.75rem">
+            <span>Total:</span>
+            <span id="tracking-total-amount">Rp 0</span>
+          </div>
+        </div>
+
+        <button type="button" id="btn-new-order" class="btn-primary" style="margin-top:1.5rem;background:#475569">
+          Buat Pesanan Baru
+        </button>
+      </section>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
