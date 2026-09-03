@@ -77,7 +77,7 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#79](https://github.com/yogaananda6677/pesanhub/pull/79)
 - Status: `IN_PROGRESS`
 - Exit Criteria: lihat checklist Phase 0; belum seluruhnya terpenuhi
-- Validation: branch protection aktif dengan tiga required checks; konflik PR #78 sedang diselaraskan terhadap main setelah #79 merged
+- Validation: branch protection, CODEOWNERS, environment matrix, Backend, dan Mobile tervalidasi lokal; required checks akan dijalankan ulang setelah rebase PR #78
 - Blocker: review/merge PR #78 dan sinkronisasi roadmap #76
 - Next Issue: #76 setelah PR #78 direview dan di-merge
 
@@ -247,7 +247,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Secret-file tracking: PASS — tidak ada `.env`, `local.properties`, keystore, atau JKS tracked.
 - `pesenhub_be/run.sh check` dan `docker compose config --quiet`: PASS setelah retry di luar sandbox untuk izin loopback `httptest`; checksum `.env` tidak berubah.
 - Flutter `pub get`, format check, analyze, dan test: PASS; hanya ada informasi tujuh transitive dependency dengan versi baru di luar constraint.
-- Contribution Policy, Backend Quality, dan Mobile Quality pada multi-issue PR: menunggu PR dibuat.
+- Contribution Policy, Backend Quality, dan Mobile Quality pada multi-issue PR #78: menunggu hasil GitHub.
 
 **Known Issues**
 - Hanya satu akun Owner yang diketahui. Approval dan Code Owner review membutuhkan collaborator kedua; author tidak boleh self-review.
