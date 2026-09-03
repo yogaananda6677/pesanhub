@@ -1,6 +1,7 @@
 # PesenHub Backend
 
 Kontrak HTTP lintas endpoint mengikuti [`docs/API_CONVENTIONS.md`](../docs/API_CONVENTIONS.md) dan schema OpenAPI [`docs/api/openapi.yaml`](../docs/api/openapi.yaml).
+Model data inti dan ERD tersedia di [`docs/CORE_DOMAIN_MODEL.md`](../docs/CORE_DOMAIN_MODEL.md). Jalankan integration test migration terisolasi dengan `./scripts/test-migrations.sh`.
 
 Fondasi REST API Phase 0. Cara utama menjalankan PesenHub adalah Docker Compose: API Golang, PostgreSQL, dan WAHA berada dalam satu network. Web Customer masih berupa placeholder dan tidak ada pairing atau pengiriman WhatsApp otomatis.
 

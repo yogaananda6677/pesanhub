@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS outbox_events;
+DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS payment_events;
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS order_status_history;
+DROP TABLE IF EXISTS order_item_modifiers;
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS menu_modifiers;
+DROP TABLE IF EXISTS menus;
+DROP TABLE IF EXISTS menu_categories;
+DROP TABLE IF EXISTS customers;

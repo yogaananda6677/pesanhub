@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #13 API conventions |
+| Updated by | Issue #14 core domain schema |
 
 ## 2. Product Intent
 
@@ -57,7 +57,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | Phase | Scope | Status | Started | Completed | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2) | Project readiness | DONE | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md` |
-| [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | IN_PROGRESS | 2026-09-03 | — | Issue #13 API conventions |
+| [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | IN_PROGRESS | 2026-09-03 | — | Issues #13–#14 |
 | [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | NOT_STARTED | — | — | Menunggu kontrak 1A |
 | [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment | NOT_STARTED | — | — | Menunggu domain 1A |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release | NOT_STARTED | — | — | Menunggu 1A–1C |
@@ -72,15 +72,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#3 — Phase 1A Core Backend](https://github.com/yogaananda6677/pesanhub/issues/3)
 - Child Issues: #13–#22
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#13 — API convention, error response, pagination, dan versioning](https://github.com/yogaananda6677/pesanhub/issues/13)
-- Current Branch: `feature/13-api-conventions`
-- Pull Request: [#83 — feat: establish HTTP API conventions](https://github.com/yogaananda6677/pesanhub/pull/83); supersedes closed PR #82
+- Current Issue: [#14 — Desain domain model dan migration data inti](https://github.com/yogaananda6677/pesanhub/issues/14)
+- Current Branch: `feature/14-core-domain-schema`
+- Pull Request: [#84 — feat: add core domain schema](https://github.com/yogaananda6677/pesanhub/pull/84)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81)
 - Status: `IN_PROGRESS`
-- Exit Criteria: lihat acceptance criteria #13; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: serializer/error mapping, pagination, request ID, panic contract, Backend check/race/vet, dan OpenAPI parse lulus lokal; CI menunggu pada PR #83
-- Blocker: tidak ada untuk #13
-- Next Issue: #14 setelah #13 direview dan di-merge
+- Exit Criteria: lihat acceptance criteria #14; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
+- Validation: canonical domain mapping, Backend/race suite, dan PostgreSQL 16 migration up/down/up beserta positive/negative constraint cases lulus lokal; CI menunggu PR #84
+- Blocker: tidak ada untuk #14
+- Next Issue: #15 setelah #14 direview dan di-merge
 
 ## 6. Current Phase Checklist
 
@@ -206,6 +206,27 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Issue #14 Core Domain Schema
+
+**Goal**
+- Menyediakan model customer, menu, order snapshot, payment, history, audit, dan outbox dengan constraint aman pada PostgreSQL 16.
+
+**Changed**
+- Menambah migration reversible `000002_create_core_domain` tanpa mengubah migration terpakai `000001`.
+- Menambah ERD/data invariants pada `docs/CORE_DOMAIN_MODEL.md` dan canonical enum mapping pada `internal/domain`.
+- Menambah test migration container terisolasi untuk siklus up/down/up, insert sukses, duplicate idempotency, invalid status, rollback scope, dan multiple null channel reference.
+
+**Validation**
+- Domain unit test, Go format, shell syntax, dan `git diff --check`: PASS.
+- PostgreSQL 16 migration up/down/up serta positive/negative constraint checks: PASS.
+
+**Known Issues**
+- Repository transaction untuk insert atomik order/items/history/audit/outbox menjadi scope #17/#22; migration hanya menyediakan constraint dan relational boundary.
+- Tidak ada data production atau credential nyata yang digunakan.
+
+**Next**
+- Review dan merge PR #84; setelah itu lanjut #15 untuk identifikasi/profil pelanggan.
 
 ### 3 September 2026 — Issue #13 HTTP API Conventions
 
