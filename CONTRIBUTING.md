@@ -22,7 +22,7 @@ Phase Issue
 - Setiap fitur, bug, dan task teknis yang cukup besar mempunyai child issue sendiri.
 - Feature Issue wajib menulis `Parent Phase: #<nomor-phase-issue>`.
 - Satu issue implementasi memakai satu branch dan satu PR.
-- Satu branch hanya mengerjakan satu issue utama. Satu PR hanya menutup satu issue utama, kecuali beberapa issue yang sangat kecil telah disetujui Owner.
+- Satu branch hanya mengerjakan satu issue utama. Satu PR hanya menutup satu issue utama, kecuali beberapa issue yang saling terkait telah disetujui Owner dan PR diberi label `policy:multi-issue-approved`.
 - Phase Issue ditutup hanya oleh Phase Closing PR setelah seluruh child issue selesai, bukan secara manual atau dari Feature PR.
 
 ## Membuka Phase
@@ -75,6 +75,8 @@ Parent Phase: #10
 ```
 
 Feature PR wajib menutup Feature Issue, mereferensikan Phase Issue yang benar, tidak menutup Phase Issue, hanya berisi scope issue, menyertakan test, lulus CI, dan memperoleh review Owner. Issue utama dan Parent Phase harus benar-benar ada; keduanya tidak boleh berupa Pull Request.
+
+Untuk multi-issue PR yang disetujui Owner, nomor issue utama harus tetap sama dengan nomor pada branch dan setiap issue tambahan harus ditulis memakai closing keyword terpisah. Contribution Policy memvalidasi seluruh closing issue dan hanya menerima pengecualian ini setelah label `policy:multi-issue-approved` dipasang oleh Owner.
 
 Semua PR juga wajib:
 

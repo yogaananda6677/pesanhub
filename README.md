@@ -17,6 +17,7 @@ PesenHub adalah monorepo dengan satu histori Git dan dua komponen aplikasi:
 - [Mobile](pesenhub_app/README.md)
 - [Aturan kontribusi](CONTRIBUTING.md)
 - [Setup GitHub dan branch protection](docs/GITHUB_SETUP.md)
+- [Environment development dan secret matrix](docs/ENVIRONMENT.md)
 
 ## Backend
 
@@ -40,4 +41,4 @@ Issue → Branch → Pull Request → Review → Merge
 
 Pull Request ke `main` diperiksa oleh Contribution Policy, Backend CI, dan Mobile CI. CI Backend dan Mobile terpisah dan tetap melaporkan status sukses ketika komponennya tidak berubah. Backend CD memublikasikan image multi-stage ke GHCR pada push `main` atau tag `backend-v*`. Mobile CD membangun APK release sebagai artifact 14 hari pada push `main` atau tag `mobile-v*`; APK belum production-signed dan tidak diunggah ke Play Store.
 
-Badge belum ditambahkan karena URL repository GitHub belum diketahui.
+Badge sengaja belum ditambahkan sampai kebijakan badge dan workflow default disepakati melalui Issue.
