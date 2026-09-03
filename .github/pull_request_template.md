@@ -10,6 +10,8 @@ Parent Phase: #
 
 Closes #
 
+Tambahkan closing keyword lain hanya untuk issue yang saling terkait dan telah mendapat label `policy:multi-issue-approved` dari Owner.
+
 ## Jenis Pekerjaan
 
 - [ ] Phase closing
@@ -62,6 +64,7 @@ Tidak berlaku untuk PR biasa. Untuk Phase Closing PR, cantumkan seluruh child is
 - [ ] Branch memiliki nomor issue.
 - [ ] Satu branch hanya mengerjakan satu issue utama.
 - [ ] PR menghubungkan satu issue utama dengan `Closes`, `Fixes`, atau `Resolves`.
+- [ ] Multi-issue PR telah disetujui Owner dan memakai label `policy:multi-issue-approved`, atau tidak berlaku.
 - [ ] PR tidak menutup Phase Issue kecuali ini Phase Closing PR.
 - [ ] Seluruh acceptance criteria terpenuhi.
 - [ ] Test sudah dijalankan dan CI relevan lulus.

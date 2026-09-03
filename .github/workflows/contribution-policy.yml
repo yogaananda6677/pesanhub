@@ -46,17 +46,20 @@ jobs:
               core.setFailed('PR body wajib memiliki Closes #123, Fixes #123, atau Resolves #123.');
               return;
             }
-            if (closingIssues.length !== 1) {
-              core.setFailed('Satu PR hanya boleh menutup satu issue utama. Minta Owner memecah scope PR.');
+            const branchIssueNumber = Number(pr.head.ref.split('/')[1].split('-')[0]);
+            if (!closingIssues.includes(branchIssueNumber)) {
+              core.setFailed(`Nomor issue pada branch (#${branchIssueNumber}) harus termasuk closing issue PR.`);
+              return;
+            }
+            const multiIssueApproved = pr.labels.some(
+              (label) => label.name === 'policy:multi-issue-approved',
+            );
+            if (closingIssues.length > 1 && !multiIssueApproved) {
+              core.setFailed('Multi-issue PR wajib mendapat label policy:multi-issue-approved dari Owner.');
               return;
             }
 
-            const issueNumber = closingIssues[0];
-            const branchIssueNumber = Number(pr.head.ref.split('/')[1].split('-')[0]);
-            if (branchIssueNumber !== issueNumber) {
-              core.setFailed(`Nomor issue pada branch (#${branchIssueNumber}) harus sama dengan issue utama (#${issueNumber}).`);
-              return;
-            }
+            const issueNumber = branchIssueNumber;
             const isPhaseBranch = pr.head.ref.startsWith('phase/');
             const isFeatureBranch = pr.head.ref.startsWith('feature/');
             const isPhaseIssue = (issue) =>
@@ -64,15 +67,20 @@ jobs:
               issue.labels.some((label) => (typeof label === 'string' ? label : label.name).toLowerCase() === 'phase');
 
             try {
-              const {data: issue} = await github.rest.issues.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-              });
-              if (issue.pull_request) {
-                core.setFailed(`#${issueNumber} adalah Pull Request, bukan Issue.`);
-                return;
+              const closingIssueData = [];
+              for (const closingIssueNumber of closingIssues) {
+                const {data: closingIssue} = await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: closingIssueNumber,
+                });
+                if (closingIssue.pull_request) {
+                  core.setFailed(`#${closingIssueNumber} adalah Pull Request, bukan Issue.`);
+                  return;
+                }
+                closingIssueData.push(closingIssue);
               }
+              const issue = closingIssueData.find((item) => item.number === issueNumber);
               const mainIssueIsPhase = isPhaseIssue(issue);
               if (isPhaseBranch && !mainIssueIsPhase) {
                 core.setFailed(`Phase Closing PR wajib menutup Phase Issue; #${issueNumber} bukan Phase Issue.`);
@@ -120,7 +128,7 @@ jobs:
                 core.info(`Feature Issue #${issueNumber} dan Parent Phase #${parentNumber} valid.`);
               }
 
-              core.info(`Contribution policy valid; issue utama #${issueNumber} ditemukan.`);
+              core.info(`Contribution policy valid; closing issue ${closingIssues.map((number) => `#${number}`).join(', ')} ditemukan.`);
             } catch (error) {
               core.setFailed(`Issue utama atau Parent Phase tidak ditemukan/tidak dapat dibaca: ${error.message}`);
             }

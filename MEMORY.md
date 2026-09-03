@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #75 Phase 0 product decision proposal |
+| Updated by | Issues #10–#12 repository governance |
 
 ## 2. Product Intent
 
@@ -71,15 +71,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
 - Phase Issue: [#2 — Phase 0 Project Readiness](https://github.com/yogaananda6677/pesanhub/issues/2)
 - Child Issues: #9, #10, #11, #12, #75, #76
-- Current Issue: [#75 — Putuskan scope bisnis dan integrasi minimum Phase 0](https://github.com/yogaananda6677/pesanhub/issues/75)
-- Current Branch: `docs/75-phase-0-product-decisions`
-- Pull Request: [#79 — docs: propose Phase 0 product decisions](https://github.com/yogaananda6677/pesanhub/pull/79)
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77)
+- Current Issues: [#10](https://github.com/yogaananda6677/pesanhub/issues/10), [#11](https://github.com/yogaananda6677/pesanhub/issues/11), dan [#12](https://github.com/yogaananda6677/pesanhub/issues/12)
+- Current Branch: `chore/10-phase-0-repository-governance`
+- Pull Request: [#78 — chore: establish Phase 0 repository governance](https://github.com/yogaananda6677/pesanhub/pull/78)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#79](https://github.com/yogaananda6677/pesanhub/pull/79)
 - Status: `IN_PROGRESS`
 - Exit Criteria: lihat checklist Phase 0; belum seluruhnya terpenuhi
-- Validation: konsistensi lokal dan scope diff lulus; review Owner dan CI menunggu pada PR #79
-- Blocker: keputusan #75 belum efektif sebelum merge; governance PR #78 dan sinkronisasi roadmap #76 masih terbuka
-- Next Issue: #76 setelah keputusan #75 direview dan di-merge
+- Validation: branch protection aktif dengan tiga required checks; konflik PR #78 sedang diselaraskan terhadap main setelah #79 merged
+- Blocker: review/merge PR #78 dan sinkronisasi roadmap #76
+- Next Issue: #76 setelah PR #78 direview dan di-merge
 
 ## 6. Current Phase Checklist
 
@@ -227,6 +227,34 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 
 **Next**
 - Review dan merge PR #79 sebagai Owner; setelah merge, kerjakan #76 untuk menyelaraskan PRD/MEMORY dan dependency roadmap.
+
+### 3 September 2026 — Issues #10–#12 Repository Governance
+
+**Goal**
+- Menggabungkan tiga Issue Phase 0 yang saling terkait atas persetujuan Owner: branch protection, CODEOWNERS, serta dokumentasi environment dan secret.
+
+**Changed**
+- Mengaktifkan protection `main` dengan strict required checks, satu approval, Code Owner review, stale/last-push approval, conversation resolution, admin enforcement, linear history, serta larangan force-push/deletion.
+- Menonaktifkan merge commit dan rebase merge; hanya squash merge tersedia dan branch dihapus otomatis setelah merge.
+- Mengaktifkan `.github/CODEOWNERS` untuk akun repository Owner `@yogaananda6677` dan mencatat kebutuhan reviewer kedua.
+- Membuat `docs/ENVIRONMENT.md` berisi prasyarat, setup, environment/secret matrix, ownership, provision, rotasi, sandbox, verifikasi, dan troubleshooting aman.
+- Memperbarui Contribution Policy untuk multi-issue PR yang memerlukan label Owner `policy:multi-issue-approved` serta memvalidasi semua closing Issue.
+- Memperbarui panduan kontribusi, PR template, README, dan setup GitHub agar sesuai state aktual.
+
+**Validation**
+- GitHub branch protection, repository merge settings, dan label multi-issue: PASS melalui REST/CLI read-only verification.
+- Parse 10 file YAML, syntax JavaScript Contribution Policy, CODEOWNERS, documentation contract, dan `git diff --check`: PASS.
+- Secret-file tracking: PASS — tidak ada `.env`, `local.properties`, keystore, atau JKS tracked.
+- `pesenhub_be/run.sh check` dan `docker compose config --quiet`: PASS setelah retry di luar sandbox untuk izin loopback `httptest`; checksum `.env` tidak berubah.
+- Flutter `pub get`, format check, analyze, dan test: PASS; hanya ada informasi tujuh transitive dependency dengan versi baru di luar constraint.
+- Contribution Policy, Backend Quality, dan Mobile Quality pada multi-issue PR: menunggu PR dibuat.
+
+**Known Issues**
+- Hanya satu akun Owner yang diketahui. Approval dan Code Owner review membutuhkan collaborator kedua; author tidak boleh self-review.
+- #75 dan #76 tetap terbuka dan tidak termasuk dalam PR ini.
+
+**Next**
+- Buka multi-issue PR untuk #10, #11, dan #12, tambahkan label approval Owner, tunggu seluruh CI serta review dari akun lain, lalu squash merge.
 
 ### 3 September 2026 — Issue #9 Phase 0 Readiness Audit
 
