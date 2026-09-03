@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #22 order mutation audit logging and authorized query |
+| Updated by | Phase 1A closing evidence and transition to Phase 1B |
 
 ## 2. Product Intent
 
@@ -57,8 +57,8 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | Phase | Scope | Status | Started | Completed | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2) | Project readiness | DONE | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md` |
-| [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | IN_PROGRESS | 2026-09-03 | — | Issues #13–#16 |
-| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | NOT_STARTED | — | — | Menunggu kontrak 1A |
+| [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | DONE | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
+| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | NOT_STARTED | — | — | Siap dimulai setelah Phase 1A di-merge |
 | [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment | NOT_STARTED | — | — | Menunggu domain 1A |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release | NOT_STARTED | — | — | Menunggu 1A–1C |
 | [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7) | Food Aggregator Integration | NOT_STARTED | — | — | Menunggu MVP stabil dan kontrak resmi |
@@ -70,17 +70,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
 - Phase Issue: [#3 — Phase 1A Core Backend](https://github.com/yogaananda6677/pesanhub/issues/3)
-- Child Issues: #13–#22
+- Child Issues: #13–#22 (seluruh 10 child issue CLOSED)
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#22 — Implementasi audit log perubahan pesanan](https://github.com/yogaananda6677/pesanhub/issues/22)
-- Current Branch: `feature/22-order-audit-log`
+- Current Issue: [#3 — Phase 1A Core Backend](https://github.com/yogaananda6677/pesanhub/issues/3)
+- Current Branch: `phase/3-core-backend-closing`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92)
-- Status: `IN_PROGRESS`
-- Exit Criteria: lihat acceptance criteria #22; Phase 1A closing checklist dan PR #3 berikutnya
-- Validation: unit/vet/race, OpenAPI YAML, PII sanitization/masking, transactional atomicity, and self-audited RBAC query integration lulus lokal; CI menunggu PR
-- Blocker: endpoint staff dan KDS tetap default-deny sampai verified principal middleware tersedia
-- Next Step: Phase 1A closing evaluation (#3) setelah #22 di-merge
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93)
+- Status: `DONE` (efektif setelah Phase Closing PR di-merge)
+- Exit Criteria: Seluruh acceptance criteria Phase 1A terpenuhi dan terdokumentasi di `docs/PHASE_1A_CLOSING_EVIDENCE.md`
+- Next Phase: Phase 1B — Cashier Mobile & Tablet ([#4](https://github.com/yogaananda6677/pesanhub/issues/4))
 
 ## 6. Current Phase Checklist
 
@@ -105,6 +103,19 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [ ] Uji Hermes structured tool call — dijadwalkan pada #38–#41/#52, bukan blocker #2.
 - [ ] Uji Midtrans sandbox dan webhook validation — dijadwalkan pada #45–#47/#53, bukan blocker #2.
 - [x] Aktifkan CI, lint, unit test, dan format check sebagai required checks (PR #78).
+
+### Phase 1A — Core Backend
+
+- [x] #13: Tetapkan API convention, error response, pagination, dan versioning (PR #81)
+- [x] #14: Desain domain model dan migration data inti (PR #83)
+- [x] #15: Implementasi identifikasi dan profil pelanggan (PR #84)
+- [x] #16: Implementasi menu, category, modifier, harga, dan availability (PR #85)
+- [x] #17: Implementasi order creation CASHIER_MANUAL, source tracking, dan idempotency (PR #86)
+- [x] #18: Implementasi lifecycle order, validasi transisi, dan audit status (PR #87)
+- [x] #19: Implementasi unified order query dan filter antrean (PR #88)
+- [x] #20: Implementasi WebSocket order event dan recovery (PR #91)
+- [x] #21: Implementasi customer ordering web dan validasi identitas (PR #92)
+- [x] #22: Implementasi audit log perubahan pesanan (PR #93)
 
 ## 7. Work Completed
 
@@ -206,6 +217,27 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Phase 1A Core Backend Closing Evidence and Transition
+
+**Goal**
+- Menutup Phase Issue #3 setelah seluruh 10 child issue (#13–#22) selesai diimplementasikan, diverifikasi, dan di-merge melalui PR #81–#93.
+- Mengumpulkan bukti penutupan di `docs/PHASE_1A_CLOSING_EVIDENCE.md` dan mempersiapkan transisi ke Phase 1B (Cashier Mobile & Tablet, #4).
+
+**Changed**
+- Membuat `docs/PHASE_1A_CLOSING_EVIDENCE.md` yang merangkum hasil child issues, pemenuhan acceptance criteria, repositories matrix, dan validasi operasional.
+- Memperbarui `MEMORY.md`: status Phase 1A menjadi `DONE`, status Phase 1B menjadi `NOT_STARTED` (siap dimulai), dan checklist Phase 1A ditandai selesai.
+
+**Validation**
+- `cd pesenhub_be && ./run.sh check`: PASS.
+- `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS.
+- `cd pesenhub_be && ./scripts/test-orders.sh`: PASS.
+- `cd pesenhub_be && go test -race ./...`: PASS.
+- `flutter test`: PASS.
+- Parse `docs/api/openapi.yaml`: PASS.
+
+**Next**
+- Merge Phase Closing PR, menutup Issue #3, dan memulai child issue pertama Phase 1B (#23: Audit kesiapan UI kasir/KDS dan dependensi Flutter).
 
 ### 3 September 2026 — Issue #22 Order Mutation Audit Logging
 
