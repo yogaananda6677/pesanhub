@@ -74,11 +74,11 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
 - Current Issue: [#15 — Implementasi identifikasi dan profil pelanggan](https://github.com/yogaananda6677/pesanhub/issues/15)
 - Current Branch: `feature/15-customer-profile`
-- Pull Request: `NOT_CREATED`
+- Pull Request: [#85 — feat: implement customer identity profiles](https://github.com/yogaananda6677/pesanhub/pull/85)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81)
 - Status: `IN_PROGRESS`
 - Exit Criteria: lihat acceptance criteria #15; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: phone normalization, retry/collision, authorization, handler contract, dan PostgreSQL migration/concurrency lulus lokal
+- Validation: phone normalization, retry/collision, authorization, handler/race suite, dan PostgreSQL migration/concurrency lulus lokal; CI menunggu PR #85
 - Blocker: auth/OTP production sengaja di luar #15; protected routes default-deny sampai principal middleware tersedia
 - Next Issue: #16 setelah #15 direview dan di-merge
 
@@ -227,7 +227,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Tidak ada auto-merge customer; collision memerlukan resolusi staf eksplisit pada issue lanjutan.
 
 **Next**
-- Buka PR #15; setelah merge lanjut #16 untuk menu/category/modifier/availability.
+- Review dan merge PR #85; setelah itu lanjut #16 untuk menu/category/modifier/availability.
 
 ### 3 September 2026 — Issue #14 Core Domain Schema
 
