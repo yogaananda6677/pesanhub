@@ -14,8 +14,8 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current phase | Phase 0 — Discovery dan Fondasi |
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
-| Last updated | 1 September 2026 |
-| Updated by | Mandatory phase and feature workflow session |
+| Last updated | 3 September 2026 |
+| Updated by | Issue #9 Phase 0 readiness audit |
 
 ## 2. Product Intent
 
@@ -68,17 +68,18 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 ## Current GitHub Work
 
-- Phase Issue: `NOT_CREATED`
-- Child Issues: `NOT_CREATED`
-- Current Issue: `NOT_CREATED`
-- Current Branch: `NOT_CREATED`
-- Pull Request: `NOT_CREATED`
+- Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
+- Phase Issue: [#2 — Phase 0 Project Readiness](https://github.com/yogaananda6677/pesanhub/issues/2)
+- Child Issues: #9, #10, #11, #12, #75, #76
+- Current Issue: [#9 — Audit dan tutup blocker Project Readiness](https://github.com/yogaananda6677/pesanhub/issues/9)
+- Current Branch: `chore/9-audit-phase-0-blockers`
+- Pull Request: [#77 — docs: audit Phase 0 project readiness](https://github.com/yogaananda6677/pesanhub/pull/77)
 - Merged Pull Requests: `NOT_CREATED`
 - Status: `IN_PROGRESS`
 - Exit Criteria: lihat checklist Phase 0; belum seluruhnya terpenuhi
-- Validation: aturan lokal dan YAML tervalidasi; workflow GitHub belum pernah dijalankan
-- Blocker: remote GitHub dan username/team Owner belum tersedia
-- Next Issue: `NOT_CREATED` — buat Phase Issue Phase 0 setelah repository tersambung ke GitHub
+- Validation: Contribution Policy, Backend Quality, dan Mobile Quality lulus pada PR #77; push run Backend/Mobile CI dan CD sebelumnya juga sukses
+- Blocker: branch protection #10, CODEOWNERS #11, environment/secret matrix #12, keputusan produk #75, dan sinkronisasi roadmap #76
+- Next Issue: #10 setelah #9 direview dan di-merge; #11/#12 dapat berjalan paralel hanya dengan persetujuan Owner
 
 ## 6. Current Phase Checklist
 
@@ -138,8 +139,10 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 | Q-008 | Risiko penggunaan WAHA diterima atau perlu WhatsApp Business Platform resmi? | Product owner | Phase 0 | OPEN |
 | Q-009 | Web Customer mengizinkan pembayaran tunai, Midtrans, atau keduanya? | Product owner | Phase 0 | OPEN |
 | Q-010 | Perlukah OTP untuk membuka detail/riwayat pesanan lama? | Product owner | Phase 1 | OPEN |
-| Q-011 | Apa URL remote GitHub dan username/team pemilik untuk CODEOWNERS? | Repository owner | Phase 0 | OPEN |
+| Q-011 | Akun/team mana yang menjadi Code Owner root, Backend, Mobile, workflow, dan dokumentasi? | Repository owner | Phase 0 | OPEN — remote diketahui; ownership path belum diputuskan (#11) |
 | Q-012 | Kredensial signing Android dan target distribusi produksi? | Repository owner | Phase 4 | OPEN |
+| Q-013 | Kosakata status order/payment canonical mana yang dipakai oleh schema, API, dan Flutter? | Product owner + lead engineer | Phase 0 | OPEN — #75 |
+| Q-014 | Bagaimana contributor memperoleh akses ke prototype desain kasir yang saat ini HTTP 401? | Product/design owner | Phase 0 | OPEN — diperlukan sebelum #23 |
 
 ## 9. Next Recommended Work
 
@@ -202,6 +205,33 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Issue #9 Phase 0 Readiness Audit
+
+**Goal**
+- Menghasilkan inventaris terverifikasi atas blocker Phase 0 tanpa mengubah source aplikasi, runtime, atau pengaturan GitHub yang memerlukan keputusan Owner.
+
+**Changed**
+- Membuat `docs/PHASE_0_READINESS_AUDIT.md` berisi evidence repository/GitHub, owner, status, pekerjaan yang tidak diulang, dan urutan penyelesaian.
+- Mengganti placeholder Current GitHub Work dengan Epic #1, Phase Issue #2, Issue #9, branch aktif, serta blocker nyata.
+- Membuat follow-up #75 untuk keputusan bisnis/integrasi Phase 0 dan #76 untuk sinkronisasi roadmap lokal dengan milestone GitHub.
+- Memperbarui Q-011 dan menambah Q-013/Q-014 berdasarkan evidence audit.
+
+**Validation**
+- Git root, remote `origin`, default branch `main`, dan clean state sebelum branch dibuat: PASS.
+- Backend CI, Mobile CI, Backend CD, dan Mobile CD push run terakhir: PASS.
+- Branch protection/ruleset: FAIL expected — belum aktif dan ditangani #10.
+- CODEOWNERS aktif: FAIL expected — belum tersedia dan ditangani #11.
+- Secret tracking: PASS — hanya `.env.example` yang tracked; tidak ada nilai `.env` dibaca atau diubah.
+- `git diff --check`: PASS.
+- Contribution Policy, Backend Quality, dan Mobile Quality pada Pull Request #77: PASS.
+
+**Known Issues**
+- #10, #11, #12, #75, dan #76 tetap terbuka; Phase 0 belum memenuhi exit criteria.
+- Prototype desain kasir merespons HTTP 401 sehingga detail visual belum dapat diverifikasi.
+
+**Next**
+- Buka PR untuk #9, tunggu seluruh required checks dan review Owner, lalu squash merge sebelum mengerjakan child issue berikutnya.
 
 ### 1 September 2026 — Mandatory Phase and Feature Workflow
 
