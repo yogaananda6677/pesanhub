@@ -20,6 +20,8 @@ PesenHub adalah monorepo dengan satu histori Git dan dua komponen aplikasi:
 - [Environment development dan secret matrix](docs/ENVIRONMENT.md)
 - [Roadmap produk dan mapping Phase #2–#8](PRD.md#12-roadmap-implementasi-berbasis-phase)
 - [Phase 0 closing evidence](docs/PHASE_0_CLOSING_EVIDENCE.md)
+- [HTTP API conventions](docs/API_CONVENTIONS.md)
+- [OpenAPI contract](docs/api/openapi.yaml)
 
 ## Backend
 

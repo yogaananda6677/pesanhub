@@ -1,0 +1,138 @@
+openapi: 3.1.0
+info:
+  title: PesenHub API
+  version: 1.0.0
+  description: Shared HTTP primitives for Phase 1A. Domain paths are added by their owning issues.
+servers:
+  - url: /api/v1
+paths:
+  /examples:
+    get:
+      summary: Contract-only collection example
+      operationId: listExamplesContract
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Example collection response
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExampleCollection'
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+components:
+  parameters:
+    RequestID:
+      name: X-Request-ID
+      in: header
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9._-]{1,128}$'
+    PageSize:
+      name: page[size]
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+    PageCursor:
+      name: page[cursor]
+      in: query
+      schema:
+        type: string
+        description: Opaque base64url cursor returned by the server.
+    Sort:
+      name: sort
+      in: query
+      schema:
+        type: string
+        enum: [created_at, -created_at]
+        default: created_at
+  headers:
+    RequestID:
+      description: Effective correlation identifier.
+      schema:
+        type: string
+  responses:
+    InvalidQuery:
+      description: Query parameter validation failed.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [field, reason]
+      properties:
+        field:
+          type: string
+        reason:
+          type: string
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message, request_id]
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]*$'
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+        request_id:
+          type: string
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+    PageMeta:
+      type: object
+      additionalProperties: false
+      required: [size, next_cursor]
+      properties:
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        next_cursor:
+          type: [string, 'null']
+    Example:
+      type: object
+      additionalProperties: false
+      required: [id, created_at]
+      properties:
+        id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    ExampleCollection:
+      type: object
+      additionalProperties: false
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Example'
+        page:
+          $ref: '#/components/schemas/PageMeta'
