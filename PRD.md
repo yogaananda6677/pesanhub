@@ -14,7 +14,7 @@
 
 ## 1. Ringkasan Produk
 
-> **Phase 0 decision gate:** proposal baseline outlet, perangkat, fulfillment, pembayaran, local database, WAHA, dan status canonical tersedia di [`docs/PHASE_0_PRODUCT_DECISIONS.md`](docs/PHASE_0_PRODUCT_DECISIONS.md). Proposal berstatus `EFFECTIVE_ON_MERGE` dan belum menggantikan requirement dokumen ini sebelum direview serta di-merge oleh Owner. Sinkronisasi istilah/roadmap dilakukan melalui Issue #76 setelah keputusan efektif.
+> **Phase 0 baseline:** keputusan outlet, perangkat, fulfillment, pembayaran, local database, WAHA, dan status canonical pada [`docs/PHASE_0_PRODUCT_DECISIONS.md`](docs/PHASE_0_PRODUCT_DECISIONS.md) berlaku setelah PR #79 di-merge. Roadmap eksekusi mengikuti Epic #1 dan Phase Issue #2–#8; perubahan requirement tetap memerlukan persetujuan Owner.
 
 PesenHub adalah sistem pemesanan terpusat untuk menggantikan pencatatan manual berbasis buku pada outlet nasi goreng. Sistem menyatukan pesanan dari kasir, WhatsApp, dan Web Customer ke dalam satu antrean, membantu kasir yang juga menangani produksi, menerima pembayaran digital melalui Midtrans, dan memberi informasi otomatis kepada pelanggan ketika pesanan sudah selesai.
 
@@ -368,6 +368,17 @@ Semua endpoint mutasi penting memakai autentikasi atau public-scope authorizatio
 
 ## 12. Roadmap Implementasi Berbasis Phase
 
+GitHub Issue dan milestone adalah sumber kebenaran status eksekusi. Estimasi hari/bulan di bawah adalah urutan target awal, bukan janji tanggal. Requirement dari roadmap lama tetap dipertahankan melalui mapping berikut:
+
+| Roadmap lama | Roadmap GitHub | Mapping requirement |
+| --- | --- | --- |
+| Phase 0 — Discovery dan Fondasi | [Phase 0 — Project Readiness (#2)](https://github.com/yogaananda6677/pesanhub/issues/2) | Keputusan bisnis, fondasi repository, environment, CI, contract/migration awal, dan readiness spike |
+| Phase 1 — Core Order, Web Customer & Flutter POS/KDS | [Phase 1A — Core Backend (#3)](https://github.com/yogaananda6677/pesanhub/issues/3) + [Phase 1B — Cashier Mobile & Tablet (#4)](https://github.com/yogaananda6677/pesanhub/issues/4) | Domain/API/web/real-time dipisahkan dari UI Flutter/offline sync |
+| Phase 2 — WhatsApp, WAHA, dan Hermes + Phase 3 — Midtrans dan Notifikasi | [Phase 1C — WhatsApp, Agent & Payment (#5)](https://github.com/yogaananda6677/pesanhub/issues/5) | WAHA, Hermes, cash, Midtrans QRIS, webhook, retry, dan notifikasi integrasi |
+| Phase 4 — QA, Pilot, dan MVP Release | [Phase 1D — MVP Integration & Release (#6)](https://github.com/yogaananda6677/pesanhub/issues/6) | Contract/integration/E2E, security, observability, backup, UAT, dan pilot |
+| Phase 5 — Aggregator Integration | [Phase 2 — Food Aggregator Integration (#7)](https://github.com/yogaananda6677/pesanhub/issues/7) | Spike kontrak resmi, adapter, mapping, deduplikasi, dan rekonsiliasi |
+| Phase 6 — Hardening dan Production Scale | [Phase 3 — Production Hardening (#8)](https://github.com/yogaananda6677/pesanhub/issues/8) | Load/resilience/chaos, infrastructure, backup, monitoring, runbook, dan readiness |
+
 ### Phase 0 — Discovery dan Fondasi (Hari 1–3)
 
 **Tujuan:** Mengunci alur bisnis dan menyiapkan kerangka pengembangan.
@@ -383,82 +394,79 @@ Semua endpoint mutasi penting memakai autentikasi atau public-scope authorizatio
 
 **Exit criteria:** Semua integrasi eksternal dapat diuji di sandbox/dev dan keputusan penting dicatat di `MEMORY.md`.
 
-### Phase 1 — Core Order, Web Customer & Flutter POS/KDS (Hari 4–10)
+### Phase 1A — Core Backend ([#3](https://github.com/yogaananda6677/pesanhub/issues/3))
 
-**Tujuan:** Menjalankan order Web Customer dan kasir dari awal sampai selesai.
+**Tujuan:** Menyediakan domain, schema, REST API, Web Customer, dan real-time event sebagai system of record.
 
 **Deliverables:**
 
-- Login staf dan role dasar.
-- CRUD menu dan ketersediaan.
+- API convention, error contract, pagination, dan versioning.
+- Domain/migration customer, menu, order, payment, audit, dan outbox.
+- Identifikasi pelanggan, login/role staf yang dibutuhkan, serta menu dan availability.
 - Web Customer responsif untuk input nama, nomor HP, pemilihan menu, ringkasan, dan pengiriman order.
 - Halaman nomor order dan status menggunakan public token.
-- Pembuatan order kasir.
-- Antrean tunggal dengan status dan badge sumber.
-- Perubahan status sampai `COMPLETED`.
-- Cache lokal, local UUID, outbox, dan retry dasar.
-- WebSocket untuk pembaruan order.
+- Pembuatan order `CASHIER_MANUAL`/`CUSTOMER_WEB`, idempotency, lifecycle, audit, dan unified query.
+- WebSocket order event dan recovery.
 
-**Exit criteria:** Order Web Customer dan kasir masuk ke antrean yang sama; order kasir dapat dibuat online/offline, tidak duplikat saat retry, dan tampil di perangkat.
+**Exit criteria:** Migration/domain tervalidasi; order manual dan web tidak duplikat; transisi ilegal ditolak/diaudit; unified query dan WebSocket konsisten.
 
-### Phase 2 — WhatsApp, WAHA, dan Hermes (Hari 11–17)
+### Phase 1B — Cashier Mobile & Tablet ([#4](https://github.com/yogaananda6677/pesanhub/issues/4))
 
-**Tujuan:** Menerima order WhatsApp secara terpandu dan aman.
+**Tujuan:** Menyediakan POS/KDS Flutter responsif dan offline-first untuk satu kasir dan satu KDS.
 
 **Deliverables:**
 
-- Webhook pesan masuk dan API pesan keluar WAHA.
-- Normalisasi nomor dan riwayat pelanggan.
-- Hermes tools untuk membaca menu, membuat draft, meminta klarifikasi, dan mengirim pesan.
-- Konfirmasi pelanggan sebelum order final.
-- Human handoff dan pause/resume automation.
-- Audit agent dan deduplikasi message ID.
+- Design system dan responsive shell mobile/tablet.
+- Dashboard, unified queue, manual order, detail/timeline, KDS, dan availability.
+- Cache SQLite, local UUID, outbox, background sync, retry, conflict handling, dan duplicate prevention.
+- Network indicator, local notification, audio, dan heads-up alert.
 
-**Exit criteria:** Skenario order WhatsApp lengkap menghasilkan satu order valid dan kasus ambigu dialihkan atau diklarifikasi.
+**Exit criteria:** Alur kasir lulus pada mobile/tablet; order offline tersinkron tepat sekali; queue/KDS dan fallback koneksi/notifikasi teruji.
 
-### Phase 3 — Midtrans dan Notifikasi (Hari 18–23)
+### Phase 1C — WhatsApp, Agent & Payment ([#5](https://github.com/yogaananda6677/pesanhub/issues/5))
 
-**Tujuan:** Mendukung pembayaran digital dan alarm operasional.
+**Tujuan:** Mengintegrasikan WAHA, Hermes, pembayaran tunai, dan Midtrans QRIS secara aman dan idempotent.
 
 **Deliverables:**
 
-- Pembuatan transaksi Midtrans sandbox.
-- Webhook tervalidasi dan idempotent.
-- Pemisahan status order dan pembayaran.
-- Heads-up notification/audio untuk order baru.
-- Reminder order belum diterima dan order menjelang tutup.
-- Pesan WhatsApp untuk order diterima, pembayaran terverifikasi, siap diambil, dan selesai.
+- Health/session, webhook authentication, normalisasi, deduplikasi, outbox, retry, dan failure logging WAHA.
+- Hermes structured extraction, confidence policy, klarifikasi, konfirmasi, human handoff, dan pause automation.
+- Pembuatan satu order WhatsApp hanya setelah konfirmasi eksplisit.
+- Pencatatan tunai serta transaksi QRIS Midtrans sandbox.
+- Verifikasi/mapping webhook pembayaran, expiry, retry, dan rekonsiliasi.
+- Pesan konfirmasi dan completion notification melalui WAHA.
 
-**Exit criteria:** Pembayaran sandbox mengubah status hanya melalui webhook valid dan notifikasi terkirim satu kali per event.
+**Exit criteria:** Pesan duplikat tidak menggandakan order; ambiguity tidak menjadi order; webhook invalid ditolak dan event valid diproses sekali; kegagalan pengiriman dapat diretry aman.
 
-### Phase 4 — QA, Pilot, dan MVP Release (Hari 24–30)
+### Phase 1D — MVP Integration & Release ([#6](https://github.com/yogaananda6677/pesanhub/issues/6))
 
 **Tujuan:** Menyiapkan penggunaan outlet secara terbatas.
 
 **Deliverables:**
 
-- Unit, integration, widget, dan end-to-end test untuk critical path.
-- Uji kehilangan jaringan, webhook ganda, restart WAHA, dan retry sinkronisasi.
-- Monitoring, backup, runbook gangguan, serta pelatihan kasir.
-- Pilot dengan satu outlet dan checklist go-live.
-- Perbaikan temuan kritis dan penandaan rilis MVP.
+- Integrasi Flutter REST/WebSocket dan contract test.
+- Integration/E2E test untuk kasir, Web Customer, WhatsApp, Midtrans, dan offline sync.
+- Uji kehilangan jaringan, duplicate webhook/event, restart WAHA, dan retry sinkronisasi.
+- Security/privacy review, PII redaction, rate limiting, observability, serta abuse protection.
+- Backup/restore, UAT, release checklist, pelatihan kasir, dan pilot satu outlet.
 
 **Exit criteria:** Tidak ada defect severity-critical, backup/restore teruji, critical path lulus, dan owner menerima hasil pilot.
 
-### Phase 5 — Aggregator Integration (Bulan 2–3)
+### Phase 2 — Food Aggregator Integration ([#7](https://github.com/yogaananda6677/pesanhub/issues/7))
 
-- Integration adapter untuk GoFood, GrabFood, dan ShopeeFood jika API/kemitraan tersedia.
+- Spike kontrak resmi dan keputusan go/no-go sebelum implementasi.
+- Channel adapter untuk GoFood, GrabFood, dan ShopeeFood hanya jika API/kemitraan resmi tersedia.
 - Normalisasi item, status, pembayaran, dan pembatalan lintas channel.
-- Rekonsiliasi order dan dashboard multi-channel.
+- External mapping, idempotency, rekonsiliasi order, dan dashboard multi-channel.
 - Badge sumber dan filter diperluas.
 
-### Phase 6 — Hardening dan Production Scale (Bulan 4–5)
+### Phase 3 — Production Hardening ([#8](https://github.com/yogaananda6677/pesanhub/issues/8))
 
-- Load test end-to-end dan capacity planning.
-- High availability untuk backend/database sesuai kebutuhan.
-- Workflow reminder lanjutan dan konfigurasi per outlet.
-- Laporan operasional, rekonsiliasi pembayaran, dan retensi data.
-- Security review, disaster recovery drill, dan production deployment penuh.
+- Load, WebSocket concurrency/reconnect, webhook resilience, chaos, dan recovery test.
+- Production infrastructure, capacity planning, serta high availability sesuai kebutuhan terukur.
+- Backup automation/retention/restore verification, monitoring, dan actionable alerting.
+- Operational runbook, reminder order, laporan/rekonsiliasi, dan retensi data.
+- Production readiness review, disaster recovery drill, dan deployment penuh.
 
 ## 13. Strategi Pengujian
 
@@ -481,7 +489,7 @@ Semua endpoint mutasi penting memakai autentikasi atau public-scope authorizatio
 | Webhook masuk berulang | Order/pembayaran ganda | Unique event ID dan idempotent consumer |
 | Internet outlet tidak stabil | Antrean terlambat | Local cache/outbox, indikator koneksi, retry, dan rekonsiliasi |
 | Notifikasi tidak berbunyi | Order terlewat | Permission onboarding, alarm escalation, indikator visual, dan health check perangkat |
-| API aggregator tidak tersedia | Phase 5 tertunda | Adapter interface dan validasi akses kemitraan sebelum komitmen timeline |
+| API aggregator tidak tersedia | Phase 2 tertunda | Adapter interface dan validasi akses kemitraan sebelum komitmen timeline |
 
 ## 15. Definition of Done
 
