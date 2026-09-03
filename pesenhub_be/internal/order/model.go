@@ -58,9 +58,17 @@ type Order struct {
 	Items         []Item    `json:"items"`
 }
 
-type ValidationError struct{ Field string }
+type ValidationError struct {
+	Field  string
+	Reason string
+}
 
-func (e *ValidationError) Error() string { return e.Field + ": " + ErrInvalidInput.Error() }
+func (e *ValidationError) Error() string {
+	if e.Reason != "" {
+		return e.Field + ": " + e.Reason
+	}
+	return e.Field + ": " + ErrInvalidInput.Error()
+}
 func (e *ValidationError) Unwrap() error { return ErrInvalidInput }
 
 type TransitionInput struct {
@@ -167,4 +175,48 @@ func DecodeCursor(cursor string) (time.Time, string, error) {
 		return time.Time{}, "", ErrInvalidInput
 	}
 	return t, parts[1], nil
+}
+
+type PublicOrderCreateInput struct {
+	CustomerName  string      `json:"customer_name"`
+	CustomerPhone string      `json:"customer_phone"`
+	Notes         string      `json:"notes"`
+	Items         []ItemInput `json:"items"`
+}
+
+type PublicOrderResponse struct {
+	OrderNumber         string    `json:"order_number"`
+	PublicTrackingToken string    `json:"public_tracking_token"`
+	Status              string    `json:"status"`
+	TotalAmount         int64     `json:"total_amount"`
+	CreatedAt           time.Time `json:"created_at"`
+}
+
+type PreviewInput struct {
+	Items []ItemInput `json:"items"`
+}
+
+type PreviewItem struct {
+	MenuID          string             `json:"menu_id"`
+	Name            string             `json:"name"`
+	Quantity        int                `json:"quantity"`
+	UnitPriceAmount int64              `json:"unit_price_amount"`
+	LineTotalAmount int64              `json:"line_total_amount"`
+	Modifiers       []ModifierSnapshot `json:"modifiers"`
+}
+
+type PreviewResponse struct {
+	SubtotalAmount int64         `json:"subtotal_amount"`
+	TotalAmount    int64         `json:"total_amount"`
+	Items          []PreviewItem `json:"items"`
+}
+
+type PublicTrackingDetail struct {
+	OrderNumber  string            `json:"order_number"`
+	Status       string            `json:"status"`
+	CustomerName string            `json:"customer_name"`
+	TotalAmount  int64             `json:"total_amount"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
+	Items        []OrderItemDetail `json:"items"`
 }

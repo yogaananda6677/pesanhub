@@ -480,3 +480,251 @@ func (s *Store) populateItems(ctx context.Context, orders []OrderDetail) error {
 	}
 	return modRows.Err()
 }
+
+func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, hash, requestID string) (PublicOrderResponse, bool, error) {
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return PublicOrderResponse{}, false, err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "CUSTOMER_WEB:"+key); err != nil {
+		return PublicOrderResponse{}, false, err
+	}
+
+	var existing PublicOrderResponse
+	var storedHash string
+	err = tx.QueryRow(ctx, `SELECT order_number, COALESCE(public_tracking_token, ''), status, total_amount, created_at, request_hash
+		FROM orders
+		WHERE source = 'CUSTOMER_WEB' AND idempotency_key = $1`, key).Scan(
+		&existing.OrderNumber, &existing.PublicTrackingToken, &existing.Status, &existing.TotalAmount, &existing.CreatedAt, &storedHash,
+	)
+	if err == nil {
+		if storedHash != hash {
+			return PublicOrderResponse{}, false, ErrIdempotencyConflict
+		}
+		return existing, false, nil
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return PublicOrderResponse{}, false, err
+	}
+
+	items := make([]Item, 0, len(in.Items))
+	var total int64
+	for _, requested := range in.Items {
+		menu, err := loadMenu(ctx, tx, requested.MenuID)
+		if err != nil {
+			return PublicOrderResponse{}, false, err
+		}
+		unit, err := catalog.Price(menu, requested.Selections)
+		if err != nil {
+			return PublicOrderResponse{}, false, err
+		}
+		if unit > (1<<63-1)/int64(requested.Quantity) {
+			return PublicOrderResponse{}, false, ErrInvalidInput
+		}
+		line := unit * int64(requested.Quantity)
+		if total > 1<<63-1-line {
+			return PublicOrderResponse{}, false, ErrInvalidInput
+		}
+		total += line
+		items = append(items, Item{
+			ID:              customer.NewID(),
+			MenuID:          menu.ID,
+			Name:            menu.Name,
+			SKU:             menu.SKU,
+			UnitPriceAmount: unit,
+			Quantity:        requested.Quantity,
+			LineTotalAmount: line,
+		})
+	}
+
+	var customerID string
+	err = tx.QueryRow(ctx, `INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (phone_e164) DO UPDATE SET display_name = EXCLUDED.display_name
+		RETURNING id::text`, customer.NewID(), in.CustomerPhone, in.CustomerName, "cust-"+in.CustomerPhone).Scan(&customerID)
+	if err != nil {
+		return PublicOrderResponse{}, false, err
+	}
+
+	orderID := customer.NewID()
+	orderNumber := "ORD-" + strings.ToUpper(strings.ReplaceAll(customer.NewID(), "-", "")[:16])
+	trackingToken := "trk_" + strings.ToLower(strings.ReplaceAll(customer.NewID(), "-", "")+strings.ReplaceAll(customer.NewID(), "-", "")[:8])
+
+	res := PublicOrderResponse{
+		OrderNumber:         orderNumber,
+		PublicTrackingToken: trackingToken,
+		Status:              "PENDING",
+		TotalAmount:         total,
+	}
+
+	err = tx.QueryRow(ctx, `INSERT INTO orders (id, order_number, customer_id, source, fulfillment, status, customer_name_snapshot, customer_phone_snapshot, notes, subtotal_amount, total_amount, idempotency_key, version, request_hash, public_tracking_token)
+		VALUES ($1, $2, $3, 'CUSTOMER_WEB', 'PICKUP', 'PENDING', $4, $5, NULLIF($6, ''), $7, $7, $8, 1, $9, $10)
+		RETURNING created_at`, orderID, orderNumber, customerID, in.CustomerName, in.CustomerPhone, in.Notes, total, key, hash, trackingToken).Scan(&res.CreatedAt)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return PublicOrderResponse{}, false, ErrIdempotencyConflict
+		}
+		return PublicOrderResponse{}, false, err
+	}
+
+	for i, requested := range in.Items {
+		item := items[i]
+		_, err = tx.Exec(ctx, `INSERT INTO order_items (id, order_id, menu_id, menu_name_snapshot, sku_snapshot, unit_price_amount, quantity, line_total_amount, notes)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''))`,
+			item.ID, orderID, item.MenuID, item.Name, item.SKU, item.UnitPriceAmount, item.Quantity, item.LineTotalAmount, requested.Notes)
+		if err != nil {
+			return PublicOrderResponse{}, false, err
+		}
+
+		menu, _ := loadMenu(ctx, tx, item.MenuID)
+		options := map[string]catalog.Option{}
+		for _, g := range menu.Groups {
+			for _, op := range g.Options {
+				options[op.ID] = op
+			}
+		}
+		for _, sel := range requested.Selections {
+			for _, optionID := range sel.OptionIDs {
+				op := options[optionID]
+				_, err = tx.Exec(ctx, `INSERT INTO order_item_modifiers (id, order_item_id, modifier_option_id, name_snapshot, price_delta_amount)
+					VALUES ($1, $2, $3, $4, $5)`, customer.NewID(), item.ID, op.ID, op.Name, op.PriceDeltaAmount)
+				if err != nil {
+					return PublicOrderResponse{}, false, err
+				}
+			}
+		}
+	}
+
+	metadata, _ := json.Marshal(map[string]any{
+		"order_id":       orderID,
+		"order_number":   orderNumber,
+		"source":         "CUSTOMER_WEB",
+		"status":         "PENDING",
+		"customer_name":  in.CustomerName,
+		"customer_phone": in.CustomerPhone,
+		"total_amount":   total,
+		"version":        1,
+	})
+
+	statements := []struct {
+		q    string
+		args []any
+	}{
+		{`INSERT INTO order_status_history (id, order_id, to_status, order_version, actor_type, actor_id, request_id) VALUES ($1, $2, 'PENDING', 1, 'CUSTOMER', $3, $4)`, []any{customer.NewID(), orderID, customerID, requestID}},
+		{`INSERT INTO audit_logs (id, aggregate_type, aggregate_id, action, actor_type, actor_id, request_id, metadata_redacted) VALUES ($1, 'ORDER', $2, 'ORDER_CREATED', 'CUSTOMER', $3, $4, $5)`, []any{customer.NewID(), orderID, customerID, requestID, metadata}},
+		{`INSERT INTO outbox_events (id, aggregate_type, aggregate_id, event_type, payload, deduplication_key) VALUES ($1, 'ORDER', $2, 'ORDER_CREATED', $3, $4)`, []any{customer.NewID(), orderID, metadata, "order-created:" + orderID}},
+	}
+	for _, st := range statements {
+		if _, err = tx.Exec(ctx, st.q, st.args...); err != nil {
+			return PublicOrderResponse{}, false, err
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return PublicOrderResponse{}, false, err
+	}
+	s.notifyOutbox()
+	return res, true, nil
+}
+
+func (s *Store) PreviewWeb(ctx context.Context, items []ItemInput) (PreviewResponse, error) {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return PreviewResponse{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	var total int64
+	previewItems := make([]PreviewItem, 0, len(items))
+
+	for _, requested := range items {
+		menu, err := loadMenu(ctx, tx, requested.MenuID)
+		if err != nil {
+			return PreviewResponse{}, err
+		}
+		unit, err := catalog.Price(menu, requested.Selections)
+		if err != nil {
+			return PreviewResponse{}, err
+		}
+		if unit > (1<<63-1)/int64(requested.Quantity) {
+			return PreviewResponse{}, ErrInvalidInput
+		}
+		line := unit * int64(requested.Quantity)
+		if total > 1<<63-1-line {
+			return PreviewResponse{}, ErrInvalidInput
+		}
+		total += line
+
+		options := map[string]catalog.Option{}
+		for _, g := range menu.Groups {
+			for _, op := range g.Options {
+				options[op.ID] = op
+			}
+		}
+		var mods []ModifierSnapshot
+		for _, sel := range requested.Selections {
+			for _, optionID := range sel.OptionIDs {
+				if op, ok := options[optionID]; ok {
+					mods = append(mods, ModifierSnapshot{
+						ID:               op.ID,
+						Name:             op.Name,
+						PriceDeltaAmount: op.PriceDeltaAmount,
+					})
+				}
+			}
+		}
+
+		previewItems = append(previewItems, PreviewItem{
+			MenuID:          menu.ID,
+			Name:            menu.Name,
+			Quantity:        requested.Quantity,
+			UnitPriceAmount: unit,
+			LineTotalAmount: line,
+			Modifiers:       mods,
+		})
+	}
+
+	return PreviewResponse{
+		SubtotalAmount: total,
+		TotalAmount:    total,
+		Items:          previewItems,
+	}, nil
+}
+
+func (s *Store) GetByPublicToken(ctx context.Context, token string) (PublicTrackingDetail, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return PublicTrackingDetail{}, ErrNotFound
+	}
+
+	var o OrderDetail
+	err := s.db.QueryRow(ctx, `SELECT id::text, order_number, source, status, customer_name_snapshot, total_amount, version, created_at, updated_at
+		FROM orders
+		WHERE public_tracking_token = $1`, token).Scan(
+		&o.ID, &o.OrderNumber, &o.Source, &o.Status, &o.CustomerName, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return PublicTrackingDetail{}, ErrNotFound
+	}
+	if err != nil {
+		return PublicTrackingDetail{}, err
+	}
+
+	orders := []OrderDetail{o}
+	if err = s.populateItems(ctx, orders); err != nil {
+		return PublicTrackingDetail{}, err
+	}
+	o = orders[0]
+
+	return PublicTrackingDetail{
+		OrderNumber:  o.OrderNumber,
+		Status:       o.Status,
+		CustomerName: o.CustomerName,
+		TotalAmount:  o.TotalAmount,
+		CreatedAt:    o.CreatedAt,
+		UpdatedAt:    o.UpdatedAt,
+		Items:        o.Items,
+	}, nil
+}

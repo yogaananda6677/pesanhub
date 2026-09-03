@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"pesenhub/backend/internal/catalog"
@@ -15,13 +16,56 @@ import (
 	"pesenhub/backend/internal/ws"
 )
 
+type ipRateLimiter struct {
+	mu     sync.Mutex
+	limits map[string][]time.Time
+	limit  int
+	window time.Duration
+}
+
+func newIPRateLimiter(limit int, window time.Duration) *ipRateLimiter {
+	return &ipRateLimiter{
+		limits: make(map[string][]time.Time),
+		limit:  limit,
+		window: window,
+	}
+}
+
+func (l *ipRateLimiter) Allow(ip string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	now := time.Now()
+	cutoff := now.Add(-l.window)
+
+	timestamps := l.limits[ip]
+	valid := timestamps[:0]
+	for _, t := range timestamps {
+		if t.After(cutoff) {
+			valid = append(valid, t)
+		}
+	}
+
+	if len(valid) >= l.limit {
+		l.limits[ip] = valid
+		return false
+	}
+
+	l.limits[ip] = append(valid, now)
+	return true
+}
+
 type Handler struct {
 	service *Service
 	hub     *ws.Hub
+	limiter *ipRateLimiter
 }
 
 func NewHandler(s *Service, hub ...*ws.Hub) *Handler {
-	h := &Handler{service: s}
+	h := &Handler{
+		service: s,
+		limiter: newIPRateLimiter(60, time.Minute),
+	}
 	if len(hub) > 0 {
 		h.hub = hub[0]
 	}
@@ -208,6 +252,74 @@ func (h *Handler) WS(w http.ResponseWriter, r *http.Request) {
 	client.ReadPump()
 }
 
+func (h *Handler) PreviewWeb(w http.ResponseWriter, r *http.Request) {
+	var in PreviewInput
+	dec := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&in); err != nil {
+		h.writeError(w, r, ErrMalformedInput)
+		return
+	}
+	res, err := h.service.PreviewWeb(r.Context(), in.Items)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, map[string]any{"data": res})
+}
+
+func (h *Handler) CreateWeb(w http.ResponseWriter, r *http.Request) {
+	clientIP := r.RemoteAddr
+	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+		clientIP = strings.Split(fwd, ",")[0]
+	}
+	if h.limiter != nil && !h.limiter.Allow(strings.TrimSpace(clientIP)) {
+		httpapi.WriteError(w, http.StatusTooManyRequests, "RATE_LIMITED", "Too many requests, please slow down.", httpserver.RequestID(r.Context()), nil)
+		return
+	}
+
+	var in PublicOrderCreateInput
+	dec := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&in); err != nil {
+		h.writeError(w, r, ErrMalformedInput)
+		return
+	}
+
+	idempotencyKey := r.Header.Get("Idempotency-Key")
+	if idempotencyKey == "" {
+		idempotencyKey = r.Header.Get("X-Idempotency-Key")
+	}
+
+	res, isNew, err := h.service.CreateWeb(r.Context(), in, idempotencyKey, httpserver.RequestID(r.Context()))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+
+	status := http.StatusCreated
+	if !isNew {
+		status = http.StatusOK
+	}
+	httpapi.WriteJSON(w, status, map[string]any{"data": res})
+}
+
+func (h *Handler) GetByPublicToken(w http.ResponseWriter, r *http.Request) {
+	token := r.PathValue("token")
+	if token == "" {
+		h.writeError(w, r, ErrNotFound)
+		return
+	}
+
+	res, err := h.service.GetByPublicToken(r.Context(), token)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+
+	httpapi.WriteJSON(w, http.StatusOK, map[string]any{"data": res})
+}
+
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
 	status, code, message := http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred."
 	details := []httpapi.FieldError(nil)
@@ -231,7 +343,11 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 	}
 	var validation *ValidationError
 	if errors.As(err, &validation) {
-		details = []httpapi.FieldError{{Field: validation.Field, Reason: "invalid"}}
+		reason := validation.Reason
+		if reason == "" {
+			reason = "invalid"
+		}
+		details = []httpapi.FieldError{{Field: validation.Field, Reason: reason}}
 	}
 	var cv *catalog.ValidationError
 	if errors.As(err, &cv) {
