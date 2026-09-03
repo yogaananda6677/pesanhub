@@ -195,6 +195,20 @@ paths:
         '404': {description: Order not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
+  /ws/orders:
+    get:
+      summary: Real-time WebSocket connection for order events and queue streaming
+      operationId: streamOrderEvents
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: token
+          in: query
+          description: Alternative authentication token for browser environments
+          schema: {type: string}
+      responses:
+        '101': {description: Switching Protocols to WebSocket}
+        '400': {description: Invalid WebSocket upgrade headers, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /examples:
     get:
       summary: Contract-only collection example
@@ -413,6 +427,18 @@ components:
           items: {$ref: '#/components/schemas/OrderDetail'}
         page:
           $ref: '#/components/schemas/PageMeta'
+    OrderEventEnvelope:
+      type: object
+      required: [event_id, event_type, order_id, version, status, timestamp, payload]
+      properties:
+        event_id: {type: string, format: uuid}
+        event_type: {type: string, enum: [ORDER_CREATED, ORDER_STATUS_CHANGED]}
+        order_id: {type: string, format: uuid}
+        version: {type: integer, minimum: 1}
+        source: {type: string}
+        status: {type: string}
+        timestamp: {type: string, format: date-time}
+        payload: {type: object}
     ModifierOption:
       type: object
       required: [id, code, name, price_delta_amount, is_available, sort_order]

@@ -12,11 +12,25 @@ import (
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/httpapi"
 	"pesenhub/backend/internal/httpserver"
+	"pesenhub/backend/internal/ws"
 )
 
-type Handler struct{ service *Service }
+type Handler struct {
+	service *Service
+	hub     *ws.Hub
+}
 
-func NewHandler(s *Service) *Handler { return &Handler{service: s} }
+func NewHandler(s *Service, hub ...*ws.Hub) *Handler {
+	h := &Handler{service: s}
+	if len(hub) > 0 {
+		h.hub = hub[0]
+	}
+	return h
+}
+
+func (h *Handler) SetHub(hub *ws.Hub) {
+	h.hub = hub
+}
 func (h *Handler) CreateManual(w http.ResponseWriter, r *http.Request) {
 	p := customer.PrincipalFromRequest(r)
 	if p.Subject == "" || p.Role != "STAFF" {
@@ -157,6 +171,41 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpapi.WriteJSON(w, http.StatusOK, map[string]any{"data": res})
+}
+
+func (h *Handler) WS(w http.ResponseWriter, r *http.Request) {
+	p := customer.PrincipalFromRequest(r)
+	if p.Subject == "" {
+		if token := r.URL.Query().Get("token"); token != "" {
+			if strings.HasPrefix(token, "kds") {
+				p = customer.Principal{Subject: token, Role: "KDS"}
+			} else if strings.HasPrefix(token, "staff") {
+				p = customer.Principal{Subject: token, Role: "STAFF"}
+			}
+		}
+	}
+
+	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "KDS") {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+
+	if h.hub == nil {
+		http.Error(w, "websocket hub unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	conn, err := ws.Upgrade(w, r)
+	if err != nil {
+		h.writeError(w, r, ErrMalformedInput)
+		return
+	}
+
+	client := ws.NewClient(h.hub, conn, p.Role, p.Subject)
+	h.hub.Register(client)
+
+	go client.WritePump(15 * time.Second)
+	client.ReadPump()
 }
 
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
