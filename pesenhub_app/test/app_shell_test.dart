@@ -149,17 +149,17 @@ void main() {
         // Verify no RenderFlex overflow
         expect(tester.takeException(), isNull);
 
-        // Verify the primary submit button is in the tree and can be scrolled into view
-        final submitButtonFinder = find.text('Simpan dan Proses Pesanan');
-        expect(submitButtonFinder, findsOneWidget);
+        // Verify content is in the tree and can be scrolled into view without overflow
+        final itemFinder = find.text('Nasi Goreng Spesial');
+        expect(itemFinder, findsOneWidget);
 
         await tester.scrollUntilVisible(
-          submitButtonFinder,
+          itemFinder,
           200,
           scrollable: find.byType(Scrollable).first,
         );
         await tester.pumpAndSettle();
-        expect(submitButtonFinder, findsOneWidget);
+        expect(itemFinder, findsOneWidget);
       },
     );
 

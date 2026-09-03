@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../cart/controllers/cart_controller.dart';
 import '../menu/controllers/menu_controller.dart' as mc;
 import '../menu/menu_catalog_view.dart';
 import '../menu/models/sample_menu_data.dart';
+import '../pos/pos_view.dart';
 import '../queue/controllers/queue_controller.dart';
 import '../queue/models/queue_order.dart';
 import '../queue/models/queue_order_item.dart';
@@ -13,124 +15,26 @@ import '../widgets/app_button.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_feedback.dart';
 import '../widgets/app_status_badge.dart';
-import '../widgets/app_text_field.dart';
 
 /// PosDestinationView provides the cashier order creation UI.
-/// Designed with scrolling to maintain full keyboard accessibility.
-class PosDestinationView extends StatefulWidget {
-  const PosDestinationView({super.key});
+class PosDestinationView extends StatelessWidget {
+  final mc.MenuController? menuController;
+  final CartController? cartController;
+  final VoidCallback? onNavigateToQueue;
 
-  @override
-  State<PosDestinationView> createState() => _PosDestinationViewState();
-}
-
-class _PosDestinationViewState extends State<PosDestinationView> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _searchController.dispose();
-    super.dispose();
-  }
+  const PosDestinationView({
+    super.key,
+    this.menuController,
+    this.cartController,
+    this.onNavigateToQueue,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      key: const PageStorageKey('pos_view_scroll'),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Identitas Pelanggan',
-                  style: AppTypography.titleMedium,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  label: 'Nama Pelanggan',
-                  hintText: 'Contoh: Budi Santoso',
-                  controller: _nameController,
-                  prefixIcon: const Icon(Icons.person_outline_rounded),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  label: 'Nomor WhatsApp',
-                  hintText: '081234567890',
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  prefixIcon: const Icon(Icons.phone_outlined),
-                  helperText: 'Wajib untuk notifikasi status pesanan',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Pilih Menu', style: AppTypography.titleMedium),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  hintText: 'Cari nasi goreng, mie, minuman...',
-                  controller: _searchController,
-                  prefixIcon: const Icon(Icons.search_rounded),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Nasi Goreng Spesial (x1)',
-                        style: AppTypography.bodyLarge,
-                      ),
-                    ),
-                    SizedBox(width: AppSpacing.sm),
-                    Text('Rp 28.000', style: AppTypography.moneyPrimary),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                const Text(
-                  'Pedas Sedang, Telur Ceplok Matang',
-                  style: AppTypography.bodySmall,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                const Divider(),
-                const SizedBox(height: AppSpacing.md),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Total Pembayaran',
-                        style: AppTypography.titleLarge,
-                      ),
-                    ),
-                    SizedBox(width: AppSpacing.sm),
-                    Text('Rp 28.000', style: AppTypography.moneyPrimary),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                AppButton(
-                  label: 'Simpan dan Proses Pesanan',
-                  icon: Icons.check_circle_outline_rounded,
-                  isFullWidth: true,
-                  onPressed: () {},
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return PosView(
+      menuController: menuController,
+      cartController: cartController,
+      onNavigateToQueue: onNavigateToQueue,
     );
   }
 }
