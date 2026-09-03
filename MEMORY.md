@@ -74,11 +74,11 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
 - Current Issue: [#16 — Implementasi menu, category, modifier, harga, dan availability](https://github.com/yogaananda6677/pesanhub/issues/16)
 - Current Branch: `feature/16-menu-catalog`
-- Pull Request: `NOT_CREATED`
+- Pull Request: [#86 — feat: implement menu catalog](https://github.com/yogaananda6677/pesanhub/pull/86)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81)
 - Status: `IN_PROGRESS`
 - Exit Criteria: lihat acceptance criteria #16; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: price/modifier validation, handler contract, OpenAPI, dan PostgreSQL catalog migration/visibility lulus lokal
+- Validation: price/modifier validation, handler/race suite, OpenAPI, dan PostgreSQL catalog migration/visibility lulus lokal; CI menunggu PR #86
 - Blocker: admin writes default-deny sampai verified staff principal middleware tersedia; public/agent read tetap tersedia
 - Next Issue: #17 setelah #16 direview dan di-merge
 
@@ -227,7 +227,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Promo kompleks dan inventory di luar #16; order snapshot/atomic calculation dilanjutkan #17.
 
 **Next**
-- Buka PR #16; setelah merge lanjut #17 untuk order creation manual, source tracking, dan idempotency.
+- Review dan merge PR #86; setelah itu lanjut #17 untuk order creation manual, source tracking, dan idempotency.
 
 ### 3 September 2026 — Issue #15 Customer Identity and Profile
 
