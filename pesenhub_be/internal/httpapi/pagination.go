@@ -22,6 +22,11 @@ type Pagination struct {
 	Order  string
 }
 
+type PageMeta struct {
+	Size       int     `json:"size"`
+	NextCursor *string `json:"next_cursor"`
+}
+
 // ParsePagination validates the shared collection query. allowedSort contains
 // public field names; handlers must translate them to fixed SQL expressions.
 func ParsePagination(query url.Values, allowedSort map[string]struct{}, defaultSort string) (Pagination, error) {

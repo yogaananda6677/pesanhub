@@ -99,6 +99,36 @@ paths:
         '200': {description: Authorized order history}
         '403': {$ref: '#/components/responses/Forbidden'}
   /orders:
+    get:
+      summary: List and filter orders with cursor pagination
+      operationId: listOrders
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/Sort'
+        - name: status
+          in: query
+          description: Filter by status (single or comma-separated)
+          schema: {type: string}
+        - name: source
+          in: query
+          description: Filter by order source (single or comma-separated)
+          schema: {type: string}
+        - name: created_from
+          in: query
+          description: Filter by creation time start (RFC3339)
+          schema: {type: string, format: date-time}
+        - name: created_to
+          in: query
+          description: Filter by creation time end (RFC3339)
+          schema: {type: string, format: date-time}
+      responses:
+        '200': {description: Filtered orders with cursor pagination, content: {application/json: {schema: {$ref: '#/components/schemas/OrderCollection'}}}}
+        '400': {$ref: '#/components/responses/InvalidQuery'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
     post:
       summary: Create or replay a cashier manual order atomically
       operationId: createManualOrder
@@ -115,6 +145,38 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
+  /orders/queue:
+    get:
+      summary: Get active queue snapshot for KDS/Kitchen
+      operationId: getOrderQueue
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: Active orders in queue
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/OrderDetail'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /orders/{id}:
+    get:
+      summary: Get order details by ID
+      operationId: getOrderByID
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Order details, content: {application/json: {schema: {$ref: '#/components/schemas/OrderDetail'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Order not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
   /orders/{id}/status-transitions:
     post:
       summary: Apply or replay a legal order status transition
@@ -284,6 +346,73 @@ components:
         id: {type: string, format: uuid}
         status: {type: string, enum: [PENDING, ACCEPTED, PREPARING, READY_FOR_PICKUP, COMPLETED, REJECTED, CANCELLED]}
         version: {type: integer, minimum: 1}
+    ModifierSnapshot:
+      type: object
+      required: [id, name, price_delta_amount]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        price_delta_amount: {type: integer, format: int64}
+    OrderItemDetail:
+      type: object
+      required: [id, menu_id, name, sku, unit_price_amount, quantity, line_total_amount]
+      properties:
+        id: {type: string, format: uuid}
+        menu_id: {type: string, format: uuid}
+        name: {type: string}
+        sku: {type: string}
+        category_name: {type: string}
+        quantity: {type: integer, minimum: 1}
+        unit_price_amount: {type: integer, format: int64, minimum: 0}
+        line_total_amount: {type: integer, format: int64, minimum: 0}
+        notes: {type: string}
+        modifiers:
+          type: array
+          items: {$ref: '#/components/schemas/ModifierSnapshot'}
+    OrderStatusHistoryEntry:
+      type: object
+      required: [to_status, order_version, actor_type, created_at]
+      properties:
+        from_status: {type: string}
+        to_status: {type: string}
+        order_version: {type: integer, minimum: 1}
+        actor_type: {type: string}
+        actor_id: {type: string}
+        reason_code: {type: string}
+        created_at: {type: string, format: date-time}
+    OrderDetail:
+      type: object
+      required: [id, order_number, source, status, customer_name, total_amount, version, created_at, updated_at, items]
+      properties:
+        id: {type: string, format: uuid}
+        order_number: {type: string}
+        client_order_id: {type: string, format: uuid}
+        customer_id: {type: string, format: uuid}
+        source: {type: string, enum: [CASHIER_MANUAL, CUSTOMER_WEB, WHATSAPP]}
+        status: {type: string, enum: [PENDING, ACCEPTED, PREPARING, READY_FOR_PICKUP, COMPLETED, REJECTED, CANCELLED]}
+        customer_name: {type: string}
+        customer_phone: {type: string, nullable: true}
+        notes: {type: string}
+        total_amount: {type: integer, format: int64, minimum: 0}
+        version: {type: integer, minimum: 1}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/OrderItemDetail'}
+        history:
+          type: array
+          items: {$ref: '#/components/schemas/OrderStatusHistoryEntry'}
+    OrderCollection:
+      type: object
+      additionalProperties: false
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/OrderDetail'}
+        page:
+          $ref: '#/components/schemas/PageMeta'
     ModifierOption:
       type: object
       required: [id, code, name, price_delta_amount, is_available, sort_order]

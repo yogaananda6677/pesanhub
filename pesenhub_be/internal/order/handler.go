@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
+	"time"
 
 	"pesenhub/backend/internal/catalog"
 	"pesenhub/backend/internal/customer"
@@ -68,6 +70,95 @@ func (h *Handler) TransitionStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	httpapi.WriteJSON(w, http.StatusOK, result)
 }
+
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	p := customer.PrincipalFromRequest(r)
+	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "KDS") {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+	pagination, err := httpapi.ParsePagination(r.URL.Query(), map[string]struct{}{"created_at": {}}, "created_at")
+	if err != nil {
+		httpapi.WriteError(w, http.StatusBadRequest, "INVALID_QUERY", "Query parameter validation failed.", httpserver.RequestID(r.Context()), nil)
+		return
+	}
+
+	filter := OrderFilter{
+		Pagination: pagination,
+	}
+
+	for _, raw := range r.URL.Query()["status"] {
+		for _, s := range strings.Split(raw, ",") {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				filter.Statuses = append(filter.Statuses, s)
+			}
+		}
+	}
+
+	for _, raw := range r.URL.Query()["source"] {
+		for _, s := range strings.Split(raw, ",") {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				filter.Sources = append(filter.Sources, s)
+			}
+		}
+	}
+
+	if raw := r.URL.Query().Get("created_from"); raw != "" {
+		t, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			h.writeError(w, r, &ValidationError{Field: "created_from"})
+			return
+		}
+		filter.CreatedFrom = &t
+	}
+
+	if raw := r.URL.Query().Get("created_to"); raw != "" {
+		t, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			h.writeError(w, r, &ValidationError{Field: "created_to"})
+			return
+		}
+		filter.CreatedTo = &t
+	}
+
+	res, err := h.service.List(r.Context(), p, filter)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, res)
+}
+
+func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
+	p := customer.PrincipalFromRequest(r)
+	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "KDS") {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+	res, err := h.service.GetByID(r.Context(), p, r.PathValue("id"))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, res)
+}
+
+func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
+	p := customer.PrincipalFromRequest(r)
+	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "KDS") {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+	res, err := h.service.QueueSnapshot(r.Context(), p)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, map[string]any{"data": res})
+}
+
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
 	status, code, message := http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred."
 	details := []httpapi.FieldError(nil)

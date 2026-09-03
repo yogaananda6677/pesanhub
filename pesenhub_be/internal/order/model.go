@@ -1,10 +1,14 @@
 package order
 
 import (
+	"encoding/base64"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"pesenhub/backend/internal/catalog"
+	"pesenhub/backend/internal/httpapi"
 )
 
 var (
@@ -69,4 +73,98 @@ type StatusResult struct {
 	ID      string `json:"id"`
 	Status  string `json:"status"`
 	Version int64  `json:"version"`
+}
+
+type OrderFilter struct {
+	Sources     []string
+	Statuses    []string
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	Pagination  httpapi.Pagination
+}
+
+type ModifierSnapshot struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	PriceDeltaAmount int64  `json:"price_delta_amount"`
+}
+
+type OrderItemDetail struct {
+	ID              string             `json:"id"`
+	MenuID          string             `json:"menu_id"`
+	Name            string             `json:"name"`
+	SKU             string             `json:"sku"`
+	CategoryName    string             `json:"category_name,omitempty"`
+	Quantity        int                `json:"quantity"`
+	UnitPriceAmount int64              `json:"unit_price_amount"`
+	LineTotalAmount int64              `json:"line_total_amount"`
+	Notes           string             `json:"notes,omitempty"`
+	Modifiers       []ModifierSnapshot `json:"modifiers,omitempty"`
+}
+
+type OrderStatusHistoryEntry struct {
+	FromStatus string    `json:"from_status,omitempty"`
+	ToStatus   string    `json:"to_status"`
+	Version    int64     `json:"order_version"`
+	ActorType  string    `json:"actor_type"`
+	ActorID    string    `json:"actor_id,omitempty"`
+	ReasonCode string    `json:"reason_code,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type OrderDetail struct {
+	ID            string                    `json:"id"`
+	OrderNumber   string                    `json:"order_number"`
+	ClientOrderID string                    `json:"client_order_id,omitempty"`
+	CustomerID    string                    `json:"customer_id,omitempty"`
+	Source        string                    `json:"source"`
+	Status        string                    `json:"status"`
+	CustomerName  string                    `json:"customer_name"`
+	CustomerPhone *string                   `json:"customer_phone,omitempty"`
+	Notes         string                    `json:"notes,omitempty"`
+	TotalAmount   int64                     `json:"total_amount"`
+	Version       int64                     `json:"version"`
+	CreatedAt     time.Time                 `json:"created_at"`
+	UpdatedAt     time.Time                 `json:"updated_at"`
+	Items         []OrderItemDetail         `json:"items"`
+	History       []OrderStatusHistoryEntry `json:"history,omitempty"`
+}
+
+func (o *OrderDetail) RedactForRole(role string) {
+	if role == "KDS" {
+		o.CustomerPhone = nil
+		o.CustomerID = ""
+	}
+}
+
+type OrderCollection struct {
+	Data []OrderDetail    `json:"data"`
+	Page httpapi.PageMeta `json:"page"`
+}
+
+func EncodeCursor(t time.Time, id string) string {
+	raw := fmt.Sprintf("%s,%s", t.UTC().Format(time.RFC3339Nano), id)
+	return base64.RawURLEncoding.EncodeToString([]byte(raw))
+}
+
+func DecodeCursor(cursor string) (time.Time, string, error) {
+	if cursor == "" {
+		return time.Time{}, "", nil
+	}
+	b, err := base64.RawURLEncoding.DecodeString(cursor)
+	if err != nil {
+		return time.Time{}, "", ErrInvalidInput
+	}
+	parts := strings.SplitN(string(b), ",", 2)
+	if len(parts) != 2 {
+		return time.Time{}, "", ErrInvalidInput
+	}
+	t, err := time.Parse(time.RFC3339Nano, parts[0])
+	if err != nil {
+		return time.Time{}, "", ErrInvalidInput
+	}
+	if err := validateUUID(parts[1]); err != nil {
+		return time.Time{}, "", ErrInvalidInput
+	}
+	return t, parts[1], nil
 }
