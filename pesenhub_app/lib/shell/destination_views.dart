@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../queue/controllers/queue_controller.dart';
+import '../queue/models/queue_order.dart';
+import '../queue/models/queue_order_item.dart';
+import '../queue/queue_view.dart';
 import '../showcase/design_system_showcase.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -130,87 +134,129 @@ class _PosDestinationViewState extends State<PosDestinationView> {
 }
 
 /// QueueDestinationView provides the unified order queue monitoring UI.
-class QueueDestinationView extends StatelessWidget {
-  const QueueDestinationView({super.key});
+class QueueDestinationView extends StatefulWidget {
+  final QueueController? controller;
+
+  const QueueDestinationView({super.key, this.controller});
+
+  @override
+  State<QueueDestinationView> createState() => _QueueDestinationViewState();
+}
+
+class _QueueDestinationViewState extends State<QueueDestinationView> {
+  late final QueueController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.controller != null) {
+      _controller = widget.controller!;
+    } else {
+      final now = DateTime.now();
+      _controller = QueueController(
+        initialOrders: [
+          QueueOrder(
+            id: 'ord-104',
+            orderNumber: '#ORD-104',
+            customerName: 'Pak Ahmad',
+            customerPhone: '0813****1122',
+            source: 'CUSTOMER_WEB',
+            orderStatus: 'PENDING',
+            paymentStatus: 'PAID',
+            isTakeaway: true,
+            takeawayNotes: 'Bungkus cepat, buru-buru',
+            createdAt: now.subtract(const Duration(minutes: 20)),
+            items: const [
+              QueueOrderItem(
+                name: 'Nasi Goreng Petai',
+                quantity: 1,
+                unitPrice: 28000,
+                notes: 'Pedas sedang',
+              ),
+              QueueOrderItem(
+                name: 'Teh Tarik Hangat',
+                quantity: 1,
+                unitPrice: 10000,
+                isDrink: true,
+              ),
+            ],
+          ),
+          QueueOrder(
+            id: 'ord-101',
+            orderNumber: '#ORD-101',
+            customerName: 'Siti Rahma',
+            customerPhone: '0812****7890',
+            source: 'CUSTOMER_WEB',
+            orderStatus: 'PENDING',
+            paymentStatus: 'UNPAID',
+            isTakeaway: true,
+            takeawayNotes: 'Pisah sambal & jangan pakai sendok plastik',
+            createdAt: now.subtract(const Duration(minutes: 5)),
+            items: const [
+              QueueOrderItem(
+                name: 'Nasi Goreng Gila',
+                quantity: 1,
+                unitPrice: 25000,
+                notes: 'Pedas Level 3, Telur Matang',
+              ),
+              QueueOrderItem(
+                name: 'Es Teh Manis',
+                quantity: 1,
+                unitPrice: 5000,
+                notes: 'Less sugar',
+                isDrink: true,
+              ),
+            ],
+          ),
+          QueueOrder(
+            id: 'ord-102',
+            orderNumber: '#ORD-102',
+            customerName: 'Budi Santoso',
+            customerPhone: '0857****3344',
+            source: 'WHATSAPP',
+            orderStatus: 'PREPARING',
+            paymentStatus: 'PAID',
+            createdAt: now.subtract(const Duration(minutes: 10)),
+            items: const [
+              QueueOrderItem(
+                name: 'Nasi Goreng Spesial',
+                quantity: 2,
+                unitPrice: 30000,
+                notes: 'Tidak pakai acar',
+              ),
+              QueueOrderItem(
+                name: 'Es Jeruk Nipis',
+                quantity: 2,
+                unitPrice: 8000,
+                isDrink: true,
+              ),
+            ],
+          ),
+          QueueOrder(
+            id: 'ord-103',
+            orderNumber: '#ORD-103',
+            customerName: 'Meja 4 (Dine-in)',
+            customerPhone: 'Kasir',
+            source: 'CASHIER_MANUAL',
+            orderStatus: 'READY_FOR_PICKUP',
+            paymentStatus: 'PAID',
+            createdAt: now.subtract(const Duration(minutes: 12)),
+            items: const [
+              QueueOrderItem(
+                name: 'Nasi Goreng Babat',
+                quantity: 1,
+                unitPrice: 32000,
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      key: const PageStorageKey('queue_view_scroll'),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              AppStatusBadge.order('PENDING'),
-              AppStatusBadge.order('PREPARING'),
-              AppStatusBadge.order('READY_FOR_PICKUP'),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    const Text(
-                      'Order #ORD-101',
-                      style: AppTypography.titleMedium,
-                    ),
-                    AppStatusBadge.order('PENDING'),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'Pelanggan: Siti Rahma',
-                  style: AppTypography.bodyLarge,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    AppStatusBadge.source('CUSTOMER_WEB'),
-                    AppStatusBadge.payment('UNPAID'),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                const Text(
-                  '1x Nasi Goreng Gila (Rp 25.000)',
-                  style: AppTypography.bodyMedium,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppButton.outlined(
-                        label: 'Tolak',
-                        onPressed: () {},
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: AppButton(
-                        label: 'Terima Pesanan',
-                        onPressed: () {},
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    return QueueView(controller: _controller);
   }
 }
 
