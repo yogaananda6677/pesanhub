@@ -24,7 +24,7 @@ void main() {
         expect(find.byType(NavigationBar), findsOneWidget);
         expect(find.byType(NavigationRail), findsNothing);
 
-        // Verify all 5 destination labels are present
+        // Verify all destination labels are present
         for (final destination in AppDestination.values) {
           expect(find.text(destination.label), findsOneWidget);
         }
@@ -50,7 +50,7 @@ void main() {
         expect(find.byType(NavigationRail), findsOneWidget);
         expect(find.byType(NavigationBar), findsNothing);
 
-        // Verify all 5 destination labels in rail
+        // Verify all destination labels in rail
         for (final destination in AppDestination.values) {
           expect(find.text(destination.label), findsOneWidget);
         }
@@ -72,7 +72,7 @@ void main() {
           MaterialApp(theme: AppTheme.lightTheme, home: const AppShell()),
         );
 
-        // Navigate to 'Dapur KDS' (index 2)
+        // Navigate to 'Dapur KDS' (index 3)
         await tester.tap(find.text('Dapur KDS'));
         await tester.pumpAndSettle();
 
@@ -93,14 +93,17 @@ void main() {
     testWidgets(
       'Criteria #2: Input state is preserved when switching between mobile and tablet',
       (tester) async {
-        // Start in mobile size (400 x 700)
+        // Start on POS destination in mobile size (400 x 700)
         tester.view.physicalSize = const Size(400, 700);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
 
         await tester.pumpWidget(
-          MaterialApp(theme: AppTheme.lightTheme, home: const AppShell()),
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const AppShell(initialIndex: 1),
+          ),
         );
 
         // Enter customer name in POS view
@@ -132,7 +135,10 @@ void main() {
         addTearDown(tester.view.resetDevicePixelRatio);
 
         await tester.pumpWidget(
-          MaterialApp(theme: AppTheme.lightTheme, home: const AppShell()),
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const AppShell(initialIndex: 1),
+          ),
         );
 
         // Simulate keyboard open by setting bottom viewInsets
@@ -169,26 +175,31 @@ void main() {
           MaterialApp(theme: AppTheme.lightTheme, home: const AppShell()),
         );
 
-        // 1. Initially on POS
+        // 1. Initially on Ringkasan (Dashboard)
+        expect(find.text('Ringkasan Operasional'), findsOneWidget);
+
+        // 2. Switch to Kasir
+        await tester.tap(find.text('Kasir'));
+        await tester.pumpAndSettle();
         expect(find.byType(PosDestinationView), findsOneWidget);
         expect(find.text('Kasir — Buat Pesanan'), findsOneWidget);
 
-        // 2. Switch to Antrean
+        // 3. Switch to Antrean
         await tester.tap(find.text('Antrean'));
         await tester.pumpAndSettle();
         expect(find.text('Antrean Pesanan'), findsOneWidget);
 
-        // 3. Switch to Menu
+        // 4. Switch to Menu
         await tester.tap(find.text('Menu'));
         await tester.pumpAndSettle();
         expect(find.text('Kelola Ketersediaan Menu'), findsOneWidget);
 
-        // 4. Switch to Pengaturan
+        // 5. Switch to Pengaturan
         await tester.tap(find.text('Pengaturan'));
         await tester.pumpAndSettle();
         expect(find.text('Pengaturan Outlet'), findsOneWidget);
 
-        // 5. Open Design System Catalog from Settings
+        // 6. Open Design System Catalog from Settings
         await tester.tap(find.text('Buka Katalog Design System'));
         await tester.pumpAndSettle();
         expect(find.byType(DesignSystemShowcase), findsOneWidget);

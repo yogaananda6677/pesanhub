@@ -11,8 +11,8 @@ void main() {
     // Verify AppShell is mounted as home
     expect(find.byType(AppShell), findsOneWidget);
 
-    // Verify header and cashier destination title
-    expect(find.text('Kasir — Buat Pesanan'), findsOneWidget);
+    // Verify header and dashboard destination title
+    expect(find.text('Ringkasan Operasional'), findsOneWidget);
     expect(find.text('PesenHub Outlet #01 — Nasi Goreng'), findsOneWidget);
   });
 }
