@@ -4,10 +4,14 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"pesenhub/backend/internal/catalog"
+	"pesenhub/backend/internal/customer"
+	"pesenhub/backend/internal/httpapi"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -154,4 +158,162 @@ func TestStoreCreateConcurrentIdempotencyIntegration(t *testing.T) {
 	if _, _, err = s.Transition(ctx, first, TransitionInput{TargetStatus: "ACCEPTED", ExpectedVersion: 5}, "status-terminal", "staff", "STAFF", "request"); !errors.Is(err, ErrInvalidTransition) {
 		t.Fatalf("expected terminal transition rejection, got %v", err)
 	}
+}
+
+func TestStoreOrderQueryAndQueueIntegration(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	catID := "c1000000-0000-4000-8000-000000000001"
+	menuID := "c2000000-0000-4000-8000-000000000001"
+	if _, err = db.Exec(ctx, `INSERT INTO menu_categories(id,name) VALUES ($1,'Minuman') ON CONFLICT DO NOTHING`, catID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(ctx, `INSERT INTO menus(id,category_id,sku,name,price_amount,is_available) VALUES ($1,$2,'ES-TEH','Es Teh Manis',5000,true) ON CONFLICT DO NOTHING`, menuID, catID); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	ordersData := []struct {
+		id, orderNum, source, status, name, phone, notes string
+		total                                            int64
+		createdAt                                        time.Time
+	}{
+		{"b1000000-0000-4000-8000-000000000001", "ORD-Q-1", "CASHIER_MANUAL", "ACCEPTED", "Customer Manual", "+62811111111", "bungkus terpisah", 10000, now.Add(-10 * time.Minute)},
+		{"b1000000-0000-4000-8000-000000000002", "ORD-Q-2", "CUSTOMER_WEB", "PREPARING", "Customer Web", "+62822222222", "es sedikit", 5000, now.Add(-5 * time.Minute)},
+		{"b1000000-0000-4000-8000-000000000003", "ORD-Q-3", "WHATSAPP", "READY_FOR_PICKUP", "Customer WA", "+62833333333", "tanpa sedotan", 15000, now.Add(-1 * time.Minute)},
+		{"b1000000-0000-4000-8000-000000000004", "ORD-Q-4", "CUSTOMER_WEB", "COMPLETED", "Customer Done", "+62844444444", "", 5000, now.Add(-30 * time.Minute)},
+	}
+
+	for _, od := range ordersData {
+		_, err = db.Exec(ctx, `INSERT INTO orders(id,order_number,source,status,customer_name_snapshot,customer_phone_snapshot,notes,subtotal_amount,total_amount,idempotency_key,created_at,updated_at)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,'key-' || $2,$9,$9) ON CONFLICT (id) DO NOTHING`,
+			od.id, od.orderNum, od.source, od.status, od.name, od.phone, od.notes, od.total, od.createdAt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		itemID := "d" + od.id[1:]
+		_, err = db.Exec(ctx, `INSERT INTO order_items(id,order_id,menu_id,menu_name_snapshot,sku_snapshot,unit_price_amount,quantity,line_total_amount,notes,created_at)
+			VALUES ($1,$2,$3,'Es Teh Manis','ES-TEH',5000,1,5000,$4,$5) ON CONFLICT (id) DO NOTHING`,
+			itemID, od.id, menuID, od.notes, od.createdAt)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	store := NewStore(db)
+	svc := NewService(store)
+
+	staff := customer.Principal{Subject: "staff-1", Role: "STAFF"}
+	kds := customer.Principal{Subject: "kds-1", Role: "KDS"}
+
+	allRes, err := svc.List(ctx, staff, OrderFilter{
+		Pagination: httpapi.Pagination{Size: 10, Order: "asc"},
+	})
+	if err != nil {
+		t.Fatalf("list all: %v", err)
+	}
+	sourcesFound := make(map[string]bool)
+	for _, o := range allRes.Data {
+		sourcesFound[o.Source] = true
+		if strings.HasPrefix(o.OrderNumber, "ORD-Q-") && len(o.Items) > 0 && o.Items[0].CategoryName != "Minuman" {
+			t.Fatalf("expected category Minuman for item, got %s", o.Items[0].CategoryName)
+		}
+	}
+	if !sourcesFound["CASHIER_MANUAL"] || !sourcesFound["CUSTOMER_WEB"] || !sourcesFound["WHATSAPP"] {
+		t.Fatalf("expected all 3 sources, got: %#v", sourcesFound)
+	}
+
+	kdsRes, err := svc.List(ctx, kds, OrderFilter{
+		Pagination: httpapi.Pagination{Size: 10, Order: "asc"},
+	})
+	if err != nil {
+		t.Fatalf("list kds: %v", err)
+	}
+	for _, o := range kdsRes.Data {
+		if o.CustomerPhone != nil {
+			t.Fatalf("KDS should not receive customer phone, got %v", *o.CustomerPhone)
+		}
+		if o.CustomerID != "" {
+			t.Fatalf("KDS should not receive customer ID, got %s", o.CustomerID)
+		}
+		if o.CustomerName == "" {
+			t.Fatal("KDS must retain customer name")
+		}
+	}
+
+	filtered, err := svc.List(ctx, staff, OrderFilter{
+		Sources:  []string{"CUSTOMER_WEB"},
+		Statuses: []string{"PREPARING"},
+	})
+	if err != nil {
+		t.Fatalf("filtered list: %v", err)
+	}
+	if len(filtered.Data) != 1 || filtered.Data[0].OrderNumber != "ORD-Q-2" {
+		t.Fatalf("unexpected filtered results: %#v", filtered.Data)
+	}
+
+	var pagedIDs []string
+	cursor := ""
+	for {
+		page, err := svc.List(ctx, staff, OrderFilter{
+			Pagination: httpapi.Pagination{Size: 2, Cursor: cursor, Order: "asc"},
+		})
+		if err != nil {
+			t.Fatalf("paged error: %v", err)
+		}
+		for _, o := range page.Data {
+			pagedIDs = append(pagedIDs, o.ID)
+		}
+		if page.Page.NextCursor == nil || *page.Page.NextCursor == "" {
+			break
+		}
+		cursor = *page.Page.NextCursor
+	}
+	seen := make(map[string]bool)
+	for _, id := range pagedIDs {
+		if seen[id] {
+			t.Fatalf("duplicate order returned across pages: %s", id)
+		}
+		seen[id] = true
+	}
+	if len(seen) < 4 {
+		t.Fatalf("expected at least 4 orders across pages, got %d", len(seen))
+	}
+
+	queue, err := svc.QueueSnapshot(ctx, kds)
+	if err != nil {
+		t.Fatalf("queue snapshot error: %v", err)
+	}
+	for _, q := range queue {
+		if q.Status == "COMPLETED" || q.Status == "REJECTED" || q.Status == "CANCELLED" {
+			t.Fatalf("queue should only have active orders, got status: %s", q.Status)
+		}
+		if q.CustomerPhone != nil {
+			t.Fatalf("KDS queue must redact phone, got: %v", *q.CustomerPhone)
+		}
+	}
+
+	detail, err := svc.GetByID(ctx, staff, "b1000000-0000-4000-8000-000000000001")
+	if err != nil {
+		t.Fatalf("get by id error: %v", err)
+	}
+	if detail.OrderNumber != "ORD-Q-1" || len(detail.Items) == 0 {
+		t.Fatalf("unexpected detail: %#v", detail)
+	}
+
+	var plan string
+	err = db.QueryRow(ctx, `EXPLAIN SELECT id FROM orders WHERE source='CUSTOMER_WEB' AND status='PREPARING' ORDER BY created_at ASC, id ASC LIMIT 20`).Scan(&plan)
+	if err != nil {
+		t.Fatalf("explain query: %v", err)
+	}
+	t.Logf("Query plan: %s", plan)
 }

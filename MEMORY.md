@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #18 order lifecycle |
+| Updated by | Issue #19 unified order query and filter |
 
 ## 2. Product Intent
 
@@ -72,15 +72,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#3 — Phase 1A Core Backend](https://github.com/yogaananda6677/pesanhub/issues/3)
 - Child Issues: #13–#22
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#18 — Implementasi lifecycle order, validasi transisi, dan audit status](https://github.com/yogaananda6677/pesanhub/issues/18)
-- Current Branch: `feature/18-order-lifecycle`
-- Pull Request: [#88](https://github.com/yogaananda6677/pesanhub/pull/88)
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87)
+- Current Issue: [#19 — Implementasi unified order query dan filter antrean](https://github.com/yogaananda6677/pesanhub/issues/19)
+- Current Branch: `feature/19-order-query`
+- Pull Request: pending
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88)
 - Status: `IN_PROGRESS`
-- Exit Criteria: lihat acceptance criteria #18; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: unit/vet/race, OpenAPI YAML, reversible migration, dan PostgreSQL concurrent lifecycle integration lulus lokal; CI menunggu PR
-- Blocker: endpoint staff tetap default-deny sampai verified staff principal middleware tersedia
-- Next Issue: #19 setelah #18 direview dan di-merge
+- Exit Criteria: lihat acceptance criteria #19; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
+- Validation: unit/vet/race, OpenAPI YAML, reversible migration, dan PostgreSQL concurrent query/filter/RBAC integration lulus lokal; CI menunggu PR
+- Blocker: endpoint staff dan KDS tetap default-deny sampai verified principal middleware tersedia
+- Next Issue: #20 setelah #19 direview dan di-merge
 
 ## 6. Current Phase Checklist
 
@@ -206,6 +206,32 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Issue #19 Unified Order Query and Queue Filter
+
+**Goal**
+- Menyediakan read model antrean tunggal yang cepat untuk seluruh sumber dan status dengan keyset cursor pagination, filter dinamis, dan RBAC PII redaction.
+
+**Changed**
+- Menambah endpoint `GET /api/v1/orders`, `GET /api/v1/orders/queue`, dan `GET /api/v1/orders/{id}`.
+- Menambah composite index `(source, status, created_at, id)`, `(created_at, id)`, dan `order_item_modifiers(order_item_id)`.
+- Menambah keyset cursor pagination `(created_at, id)` deterministik tanpa duplicate record antarhalaman.
+- Menambah RBAC: role `STAFF` mengakses data penuh, sedangkan role `KDS` menerima payload dengan `customer_phone` dan `customer_id` diredaksi.
+- Menambah kategori item (`Makanan`/`Minuman`) dan catatan bungkus/pesanan untuk kebutuhan stasiun dapur/KDS.
+- Menambah kontrak OpenAPI, dokumentasi query di `docs/ORDER_QUERIES.md`, unit tests, dan integration tests PostgreSQL.
+
+**Validation**
+- `cd pesenhub_be && ./run.sh check`: PASS.
+- `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS.
+- `cd pesenhub_be && ./scripts/test-orders.sh`: PASS.
+- `cd pesenhub_be && go test -race ./...`: PASS.
+- Parse `docs/api/openapi.yaml`: PASS.
+
+**Known Issues**
+- Principal staff/KDS produksi masih menunggu middleware autentikasi pada issue terkait; endpoint sengaja default-deny.
+
+**Next**
+- Review/merge Issue #19, lalu lanjutkan ke #20.
 
 ### 3 September 2026 — Issue #18 Order Lifecycle
 

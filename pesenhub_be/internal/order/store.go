@@ -14,6 +14,7 @@ import (
 	"pesenhub/backend/internal/catalog"
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/domain"
+	"pesenhub/backend/internal/httpapi"
 )
 
 type Store struct{ db *pgxpool.Pool }
@@ -245,4 +246,211 @@ func loadMenu(ctx context.Context, tx pgx.Tx, id string) (catalog.Menu, error) {
 		return m, err
 	}
 	return m, nil
+}
+
+func (s *Store) List(ctx context.Context, filter OrderFilter) ([]OrderDetail, string, error) {
+	var where []string
+	var args []any
+
+	if len(filter.Sources) > 0 {
+		args = append(args, filter.Sources)
+		where = append(where, fmt.Sprintf("o.source = ANY($%d)", len(args)))
+	}
+	if len(filter.Statuses) > 0 {
+		args = append(args, filter.Statuses)
+		where = append(where, fmt.Sprintf("o.status = ANY($%d)", len(args)))
+	}
+	if filter.CreatedFrom != nil {
+		args = append(args, *filter.CreatedFrom)
+		where = append(where, fmt.Sprintf("o.created_at >= $%d", len(args)))
+	}
+	if filter.CreatedTo != nil {
+		args = append(args, *filter.CreatedTo)
+		where = append(where, fmt.Sprintf("o.created_at <= $%d", len(args)))
+	}
+
+	orderDir := "ASC"
+	if strings.ToLower(filter.Pagination.Order) == "desc" {
+		orderDir = "DESC"
+	}
+
+	if filter.Pagination.Cursor != "" {
+		curTime, curID, err := DecodeCursor(filter.Pagination.Cursor)
+		if err != nil {
+			return nil, "", err
+		}
+		args = append(args, curTime, curID)
+		if orderDir == "DESC" {
+			where = append(where, fmt.Sprintf("(o.created_at, o.id) < ($%d, $%d)", len(args)-1, len(args)))
+		} else {
+			where = append(where, fmt.Sprintf("(o.created_at, o.id) > ($%d, $%d)", len(args)-1, len(args)))
+		}
+	}
+
+	whereClause := ""
+	if len(where) > 0 {
+		whereClause = "WHERE " + strings.Join(where, " AND ")
+	}
+
+	limit := filter.Pagination.Size
+	if limit < 1 {
+		limit = httpapi.DefaultPageSize
+	} else if limit > httpapi.MaxPageSize {
+		limit = httpapi.MaxPageSize
+	}
+
+	args = append(args, limit+1)
+	limitClause := fmt.Sprintf("LIMIT $%d", len(args))
+	orderClause := fmt.Sprintf("ORDER BY o.created_at %s, o.id %s", orderDir, orderDir)
+
+	query := fmt.Sprintf(`SELECT o.id::text, o.order_number, COALESCE(o.client_order_id::text, ''), COALESCE(o.customer_id::text, ''),
+		o.source, o.status, o.customer_name_snapshot, o.customer_phone_snapshot,
+		COALESCE(o.notes, ''), o.total_amount, o.version, o.created_at, o.updated_at
+		FROM orders o %s %s %s`, whereClause, orderClause, limitClause)
+
+	rows, err := s.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, "", err
+	}
+	defer rows.Close()
+
+	var orders []OrderDetail
+	for rows.Next() {
+		var o OrderDetail
+		var phone *string
+		if err = rows.Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt); err != nil {
+			return nil, "", err
+		}
+		o.CustomerPhone = phone
+		orders = append(orders, o)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, "", err
+	}
+
+	var nextCursor string
+	if len(orders) > limit {
+		nextCursor = EncodeCursor(orders[limit-1].CreatedAt, orders[limit-1].ID)
+		orders = orders[:limit]
+	}
+
+	if err = s.populateItems(ctx, orders); err != nil {
+		return nil, "", err
+	}
+
+	return orders, nextCursor, nil
+}
+
+func (s *Store) GetByID(ctx context.Context, orderID string) (OrderDetail, error) {
+	var o OrderDetail
+	var phone *string
+	err := s.db.QueryRow(ctx, `SELECT o.id::text, o.order_number, COALESCE(o.client_order_id::text, ''), COALESCE(o.customer_id::text, ''),
+		o.source, o.status, o.customer_name_snapshot, o.customer_phone_snapshot,
+		COALESCE(o.notes, ''), o.total_amount, o.version, o.created_at, o.updated_at
+		FROM orders o WHERE o.id = $1`, orderID).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return OrderDetail{}, ErrNotFound
+	}
+	if err != nil {
+		return OrderDetail{}, err
+	}
+	o.CustomerPhone = phone
+	orders := []OrderDetail{o}
+	if err = s.populateItems(ctx, orders); err != nil {
+		return OrderDetail{}, err
+	}
+	o = orders[0]
+
+	histRows, err := s.db.Query(ctx, `SELECT COALESCE(from_status, ''), to_status, order_version, actor_type, COALESCE(actor_id, ''), COALESCE(reason_code, ''), created_at
+		FROM order_status_history
+		WHERE order_id = $1
+		ORDER BY order_version ASC`, orderID)
+	if err != nil {
+		return OrderDetail{}, err
+	}
+	defer histRows.Close()
+
+	o.History = []OrderStatusHistoryEntry{}
+	for histRows.Next() {
+		var h OrderStatusHistoryEntry
+		if err = histRows.Scan(&h.FromStatus, &h.ToStatus, &h.Version, &h.ActorType, &h.ActorID, &h.ReasonCode, &h.CreatedAt); err != nil {
+			return OrderDetail{}, err
+		}
+		o.History = append(o.History, h)
+	}
+	if err = histRows.Err(); err != nil {
+		return OrderDetail{}, err
+	}
+	return o, nil
+}
+
+func (s *Store) populateItems(ctx context.Context, orders []OrderDetail) error {
+	if len(orders) == 0 {
+		return nil
+	}
+	orderIDs := make([]string, len(orders))
+	orderMap := make(map[string]*OrderDetail, len(orders))
+	for i := range orders {
+		orderIDs[i] = orders[i].ID
+		orderMap[orders[i].ID] = &orders[i]
+		orders[i].Items = []OrderItemDetail{}
+	}
+
+	rows, err := s.db.Query(ctx, `SELECT oi.id::text, oi.order_id::text, COALESCE(oi.menu_id::text, ''),
+		oi.menu_name_snapshot, oi.sku_snapshot, COALESCE(mc.name, ''),
+		oi.quantity, oi.unit_price_amount, oi.line_total_amount, COALESCE(oi.notes, '')
+		FROM order_items oi
+		LEFT JOIN menus m ON m.id = oi.menu_id
+		LEFT JOIN menu_categories mc ON mc.id = m.category_id
+		WHERE oi.order_id = ANY($1)
+		ORDER BY oi.created_at ASC, oi.id ASC`, orderIDs)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var itemIDs []string
+	itemMap := make(map[string]*OrderItemDetail)
+
+	for rows.Next() {
+		var it OrderItemDetail
+		var orderID string
+		if err = rows.Scan(&it.ID, &orderID, &it.MenuID, &it.Name, &it.SKU, &it.CategoryName, &it.Quantity, &it.UnitPriceAmount, &it.LineTotalAmount, &it.Notes); err != nil {
+			return err
+		}
+		it.Modifiers = []ModifierSnapshot{}
+		if ord, ok := orderMap[orderID]; ok {
+			ord.Items = append(ord.Items, it)
+			itemIDs = append(itemIDs, it.ID)
+			itemMap[it.ID] = &ord.Items[len(ord.Items)-1]
+		}
+	}
+	if err = rows.Err(); err != nil {
+		return err
+	}
+
+	if len(itemIDs) == 0 {
+		return nil
+	}
+
+	modRows, err := s.db.Query(ctx, `SELECT id::text, order_item_id::text, name_snapshot, price_delta_amount
+		FROM order_item_modifiers
+		WHERE order_item_id = ANY($1)
+		ORDER BY created_at ASC, id ASC`, itemIDs)
+	if err != nil {
+		return err
+	}
+	defer modRows.Close()
+
+	for modRows.Next() {
+		var mod ModifierSnapshot
+		var itemID string
+		if err = modRows.Scan(&mod.ID, &itemID, &mod.Name, &mod.PriceDeltaAmount); err != nil {
+			return err
+		}
+		if it, ok := itemMap[itemID]; ok {
+			it.Modifiers = append(it.Modifiers, mod)
+		}
+	}
+	return modRows.Err()
 }
