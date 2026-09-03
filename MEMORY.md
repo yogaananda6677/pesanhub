@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #16 menu catalog |
+| Updated by | Issue #17 manual cashier order |
 
 ## 2. Product Intent
 
@@ -72,15 +72,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#3 — Phase 1A Core Backend](https://github.com/yogaananda6677/pesanhub/issues/3)
 - Child Issues: #13–#22
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#16 — Implementasi menu, category, modifier, harga, dan availability](https://github.com/yogaananda6677/pesanhub/issues/16)
-- Current Branch: `feature/16-menu-catalog`
-- Pull Request: [#86 — feat: implement menu catalog](https://github.com/yogaananda6677/pesanhub/pull/86)
+- Current Issue: [#17 — Implementasi order creation CASHIER_MANUAL, source tracking, dan idempotency](https://github.com/yogaananda6677/pesanhub/issues/17)
+- Current Branch: `feature/17-manual-order`
+- Pull Request: [#87 — feat: implement idempotent manual cashier orders](https://github.com/yogaananda6677/pesanhub/pull/87)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81)
 - Status: `IN_PROGRESS`
-- Exit Criteria: lihat acceptance criteria #16; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: price/modifier validation, handler/race suite, OpenAPI, dan PostgreSQL catalog migration/visibility lulus lokal; CI menunggu PR #86
-- Blocker: admin writes default-deny sampai verified staff principal middleware tersedia; public/agent read tetap tersedia
-- Next Issue: #17 setelah #16 direview dan di-merge
+- Exit Criteria: lihat acceptance criteria #17; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
+- Validation: unit/vet/race, OpenAPI YAML, reversible migration, dan PostgreSQL concurrent idempotency integration lulus lokal; CI menunggu PR #87
+- Blocker: endpoint staff tetap default-deny sampai verified staff principal middleware tersedia
+- Next Issue: #18 setelah #17 direview dan di-merge
 
 ## 6. Current Phase Checklist
 
@@ -206,6 +206,27 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Issue #17 Manual Cashier Order
+
+**Goal**
+- Membuat order `CASHIER_MANUAL` yang atomik, dihitung backend, dan aman terhadap retry bersamaan.
+
+**Changed**
+- Menambah endpoint staff `POST /api/v1/orders`, kontrak OpenAPI, serta panduan operasi.
+- Menambah request hash dan client order ID, snapshot item/modifier, status history awal, audit log, dan outbox dalam satu transaksi.
+- Menambah advisory transaction lock per source/idempotency key dan integration test PostgreSQL untuk concurrent replay, payload conflict, serta unavailable catalog.
+
+**Validation**
+- `go test ./...`, `go vet ./...`, dan `go test -race ./...`: PASS.
+- `scripts/test-migrations.sh` dan `scripts/test-orders.sh`: PASS.
+- Parse `docs/api/openapi.yaml`: PASS.
+
+**Known Issues**
+- Principal staff produksi masih menunggu middleware autentikasi pada issue terkait; endpoint sengaja default-deny.
+
+**Next**
+- Review/merge Issue #17, lalu lanjutkan lifecycle order pada #18.
 
 ### 3 September 2026 — Issue #16 Menu Catalog
 
