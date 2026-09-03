@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../menu/controllers/menu_controller.dart' as mc;
+import '../menu/menu_catalog_view.dart';
+import '../menu/models/sample_menu_data.dart';
 import '../queue/controllers/queue_controller.dart';
 import '../queue/models/queue_order.dart';
 import '../queue/models/queue_order_item.dart';
 import '../queue/queue_view.dart';
 import '../showcase/design_system_showcase.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../widgets/app_button.dart';
@@ -321,63 +323,33 @@ class KdsDestinationView extends StatelessWidget {
   }
 }
 
-/// MenuDestinationView provides the menu catalog availability management UI.
-class MenuDestinationView extends StatelessWidget {
-  const MenuDestinationView({super.key});
+/// MenuDestinationView provides the menu catalog view.
+class MenuDestinationView extends StatefulWidget {
+  final mc.MenuController? controller;
+
+  const MenuDestinationView({super.key, this.controller});
+
+  @override
+  State<MenuDestinationView> createState() => _MenuDestinationViewState();
+}
+
+class _MenuDestinationViewState extends State<MenuDestinationView> {
+  late final mc.MenuController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller =
+        widget.controller ??
+        mc.MenuController(
+          initialCategories: SampleMenuData.sampleCategories,
+          initialMenus: SampleMenuData.sampleMenus,
+        );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      key: const PageStorageKey('menu_view_scroll'),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Ketersediaan Menu Hari Ini',
-            style: AppTypography.titleLarge,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppCard(
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(
-                'Nasi Goreng Spesial',
-                style: AppTypography.titleMedium,
-              ),
-              subtitle: const Text(
-                'Tersedia • Rp 28.000',
-                style: AppTypography.bodyMedium,
-              ),
-              trailing: Switch(
-                value: true,
-                activeTrackColor: AppColors.success,
-                onChanged: (val) {},
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppCard(
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(
-                'Nasi Goreng Seafood',
-                style: AppTypography.titleMedium,
-              ),
-              subtitle: const Text(
-                'Habis / Out of Stock • Rp 32.000',
-                style: AppTypography.bodyMedium,
-              ),
-              trailing: Switch(
-                value: false,
-                activeTrackColor: AppColors.success,
-                onChanged: (val) {},
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return MenuCatalogView(controller: _controller);
   }
 }
 
