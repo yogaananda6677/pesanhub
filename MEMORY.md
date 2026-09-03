@@ -74,10 +74,10 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
 - Current Issue: [#2 — Phase 0 Project Readiness](https://github.com/yogaananda6677/pesanhub/issues/2)
 - Current Branch: `phase/2-project-readiness`
-- Pull Request: `NOT_CREATED`
+- Pull Request: [#81 — docs: close Phase 0 project readiness](https://github.com/yogaananda6677/pesanhub/pull/81)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80)
 - Status: `DONE`
-- Exit Criteria: seluruh child issue closed; evidence dan deviasi approval tercatat pada `docs/PHASE_0_CLOSING_EVIDENCE.md`
+- Exit Criteria: seluruh child issue closed; evidence dan deviasi approval tercatat pada `docs/PHASE_0_CLOSING_EVIDENCE.md`; efektif saat PR #81 merged
 - Validation: Backend/Docker, Flutter, link Issue, branch protection, dan CI `main` lulus pada 3 September 2026
 - Blocker: tidak ada blocker Phase 0; merge Phase Closing PR menjadi gate penutupan #2
 - Next Issue: [#13 — API convention](https://github.com/yogaananda6677/pesanhub/issues/13) setelah Phase Closing PR di-merge
@@ -226,7 +226,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Akses prototype desain Q-014 tetap dibutuhkan sebelum #23, tetapi bukan blocker Project Readiness #2.
 
 **Next**
-- Merge Phase Closing PR untuk menutup #2, kemudian mulai Phase 1A dari #13.
+- Merge Phase Closing PR #81 untuk menutup #2, kemudian mulai Phase 1A dari #13.
 
 ### 3 September 2026 — Issue #76 Roadmap Synchronization
 
