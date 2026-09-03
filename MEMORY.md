@@ -74,11 +74,11 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
 - Current Issue: [#17 — Implementasi order creation CASHIER_MANUAL, source tracking, dan idempotency](https://github.com/yogaananda6677/pesanhub/issues/17)
 - Current Branch: `feature/17-manual-order`
-- Pull Request: pending
+- Pull Request: [#87 — feat: implement idempotent manual cashier orders](https://github.com/yogaananda6677/pesanhub/pull/87)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81)
 - Status: `IN_PROGRESS`
 - Exit Criteria: lihat acceptance criteria #17; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: unit/vet/race, OpenAPI YAML, reversible migration, dan PostgreSQL concurrent idempotency integration lulus lokal; CI menunggu PR
+- Validation: unit/vet/race, OpenAPI YAML, reversible migration, dan PostgreSQL concurrent idempotency integration lulus lokal; CI menunggu PR #87
 - Blocker: endpoint staff tetap default-deny sampai verified staff principal middleware tersedia
 - Next Issue: #18 setelah #17 direview dan di-merge
 
