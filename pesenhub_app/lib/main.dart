@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'showcase/design_system_showcase.dart';
+import 'shell/app_shell.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -16,7 +16,7 @@ class PesenHubApp extends StatelessWidget {
       title: 'PesenHub',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const DesignSystemShowcase(),
+      home: const AppShell(),
     );
   }
 }

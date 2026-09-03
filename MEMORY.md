@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #23 Flutter design system implementation and validation |
+| Updated by | Issue #24 responsive app shell implementation and verification |
 
 ## 2. Product Intent
 
@@ -58,7 +58,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | --- | --- | --- | --- | --- | --- |
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2) | Project readiness | DONE | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md` |
 | [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | DONE | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
-| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | IN_PROGRESS | 2026-09-03 | — | Issue #23 |
+| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | IN_PROGRESS | 2026-09-03 | — | Issues #23, #24 |
 | [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment | NOT_STARTED | — | — | Menunggu domain 1A |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release | NOT_STARTED | — | — | Menunggu 1A–1C |
 | [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7) | Food Aggregator Integration | NOT_STARTED | — | — | Menunggu MVP stabil dan kontrak resmi |
@@ -72,15 +72,14 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#4 — Phase 1B Cashier Mobile & Tablet](https://github.com/yogaananda6677/pesanhub/issues/4)
 - Child Issues: #23–#35
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#23 — Bangun design system Flutter PesenHub](https://github.com/yogaananda6677/pesanhub/issues/23)
-- Current Branch: `feature/23-flutter-design-system`
+- Current Issue: [#24 — Implementasi responsive app shell mobile dan tablet](https://github.com/yogaananda6677/pesanhub/issues/24)
+- Current Branch: `feature/24-responsive-app-shell`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh acceptance criteria #23 terpenuhi (target sentuh 48px, semantik status teks+ikon, responsif mobile/tablet, state feedback)
-- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (27/27 pass), backend check pass
-- Blocker: Prototype desain kasir HTTP 401 diselesaikan dengan implementasi design system mandiri yang konsisten dengan brand PesenHub
-- Next Step: Review/merge Issue #23, lalu lanjut ke Issue #24 (Responsive app shell mobile dan tablet)
+- Exit Criteria: Seluruh acceptance criteria #24 terpenuhi (layout mobile/tablet adaptif, state retention on resize/rotate, keyboard inset handling)
+- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (33/33 pass), backend check pass
+- Next Step: Review/merge Issue #24, lalu lanjut ke Issue #25 (Implementasi dashboard kasir dan operational summary)
 
 ## 6. Current Phase Checklist
 
@@ -121,8 +120,8 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 ### Phase 1B — Cashier Mobile & Tablet
 
-- [x] #23: Bangun design system Flutter PesenHub (PR pending)
-- [ ] #24: Implementasi responsive app shell mobile dan tablet
+- [x] #23: Bangun design system Flutter PesenHub (PR #95)
+- [x] #24: Implementasi responsive app shell mobile dan tablet (PR pending)
 - [ ] #25: Implementasi dashboard kasir dan operational summary
 - [ ] #26: Implementasi unified order queue, source badge, dan alert visual
 - [ ] #27: Implementasi menu search, category filter, modifier, dan level kepedasan
@@ -235,6 +234,28 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Issue #24 Responsive App Shell Mobile and Tablet
+
+**Goal**
+- Menyediakan kerangka navigasi adaptif (App Shell) untuk aplikasi kasir (POS) dan dapur (KDS) PesenHub yang bekerja mulus pada viewport ponsel (< 600dp) dan tablet (>= 600dp), mempertahankan state saat rotasi layar atau resize, serta menangani system insets dan keyboard secara ergonomis.
+
+**Changed**
+- Menambahkan enum destinasi `AppDestination` di `pesenhub_app/lib/navigation/app_destination.dart` (`pos`, `queue`, `kds`, `menu`, `settings`).
+- Membangun tampilan placeholder berstruktur di `pesenhub_app/lib/shell/destination_views.dart`: `PosDestinationView` (dengan identitas pelanggan, pemilihan menu, total, dan submit), `QueueDestinationView` (antrean order aktif), `KdsDestinationView` (tiket memasak dapur), `MenuDestinationView` (toggle ketersediaan menu), dan `SettingsDestinationView` (pengaturan outlet dan akses katalog showcase).
+- Mengimplementasikan `AppShell` di `pesenhub_app/lib/shell/app_shell.dart` dengan scaffold adaptif tunggal, `NavigationBar` pada mobile (< 600dp), `NavigationRail` permanen di sisi kiri pada tablet (>= 600dp), header outlet dengan status koneksi (`Online`), serta retensi state tak terputus menggunakan `GlobalKey` dan `IndexedStack`.
+- Mengonfigurasi `PesenHubApp` di `pesenhub_app/lib/main.dart` untuk memuat `AppShell`.
+- Menambahkan unit dan widget tests komprehensif di `pesenhub_app/test/app_shell_test.dart` (menguji mobile navigation bar, tablet navigation rail, retensi state tab saat rotasi portrait/landscape, retensi input formulir saat window resize, simulasi keyboard insets, dan pergantian destinasi) serta memperbarui `test/widget_test.dart`.
+- Menambahkan dokumentasi spesifikasi di `docs/APP_SHELL_RESPONSIVE.md`.
+
+**Validation**
+- `dart format --output=none --set-exit-if-changed .`: PASS.
+- `flutter analyze`: PASS (0 issue found).
+- `flutter test`: PASS (33/33 tests passed).
+- `cd pesenhub_be && ./run.sh check`: PASS.
+
+**Next**
+- Review/merge Issue #24, lalu lanjut ke Issue #25 (Implementasi dashboard kasir dan operational summary).
 
 ### 3 September 2026 — Issue #23 Flutter Design System
 
