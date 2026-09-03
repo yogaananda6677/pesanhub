@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 /// AppDestination defines the navigation destinations available in the PesenHub App Shell.
 enum AppDestination {
+  dashboard,
   pos,
   queue,
   kds,
@@ -10,6 +11,8 @@ enum AppDestination {
 
   String get label {
     switch (this) {
+      case AppDestination.dashboard:
+        return 'Ringkasan';
       case AppDestination.pos:
         return 'Kasir';
       case AppDestination.queue:
@@ -25,6 +28,8 @@ enum AppDestination {
 
   String get title {
     switch (this) {
+      case AppDestination.dashboard:
+        return 'Ringkasan Operasional';
       case AppDestination.pos:
         return 'Kasir — Buat Pesanan';
       case AppDestination.queue:
@@ -40,6 +45,8 @@ enum AppDestination {
 
   IconData get icon {
     switch (this) {
+      case AppDestination.dashboard:
+        return Icons.dashboard_outlined;
       case AppDestination.pos:
         return Icons.point_of_sale_outlined;
       case AppDestination.queue:
@@ -55,6 +62,8 @@ enum AppDestination {
 
   IconData get selectedIcon {
     switch (this) {
+      case AppDestination.dashboard:
+        return Icons.dashboard_rounded;
       case AppDestination.pos:
         return Icons.point_of_sale_rounded;
       case AppDestination.queue:
@@ -70,7 +79,7 @@ enum AppDestination {
 
   static AppDestination fromIndex(int index) {
     if (index < 0 || index >= AppDestination.values.length) {
-      return AppDestination.pos;
+      return AppDestination.dashboard;
     }
     return AppDestination.values[index];
   }
