@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../order/order_detail_view.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/app_feedback.dart';
 import 'controllers/queue_controller.dart';
@@ -59,6 +60,21 @@ class _QueueViewState extends State<QueueView> {
     } else {
       widget.controller.updateOrderStatus(order.id, newStatus);
     }
+  }
+
+  void _openOrderDetail(QueueOrder order) {
+    OrderDetailView.show(
+      context: context,
+      order: order,
+      role: 'STAFF',
+      transitionFn: (orderId, targetStatus, expectedVersion) async {
+        _handleStatusChanged(order, targetStatus);
+        return widget.controller.allOrders.firstWhere((o) => o.id == orderId);
+      },
+      reloadFn: (orderId) async {
+        return widget.controller.allOrders.firstWhere((o) => o.id == orderId);
+      },
+    );
   }
 
   @override
@@ -163,6 +179,7 @@ class _QueueViewState extends State<QueueView> {
           order: order,
           now: widget.controller.now,
           onStatusChanged: _handleStatusChanged,
+          onTap: () => _openOrderDetail(order),
         );
       },
     );
@@ -186,6 +203,7 @@ class _QueueViewState extends State<QueueView> {
                   order: order,
                   now: widget.controller.now,
                   onStatusChanged: _handleStatusChanged,
+                  onTap: () => _openOrderDetail(order),
                 ),
               );
             }).toList(),
@@ -202,6 +220,7 @@ class _QueueViewState extends State<QueueView> {
                   order: order,
                   now: widget.controller.now,
                   onStatusChanged: _handleStatusChanged,
+                  onTap: () => _openOrderDetail(order),
                 ),
               );
             }).toList(),

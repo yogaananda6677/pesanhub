@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 4 September 2026 |
-| Updated by | Issue #28 cart, takeaway notes, order review, and manual submit implementation and validation |
+| Updated by | Issue #29 order detail, status timeline, and contextual quick action implementation and validation |
 
 ## 2. Product Intent
 
@@ -125,8 +125,8 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [x] #25: Implementasi dashboard kasir dan operational summary (PR #97)
 - [x] #26: Implementasi unified order queue, source badge, dan alert visual (PR #98)
 - [x] #27: Implementasi menu search, category filter, modifier, dan level kepedasan (PR #99)
-- [x] #28: Implementasi cart, catatan bungkus, order review, dan submit manual (PR pending)
-- [ ] #29: Implementasi order detail, status timeline, dan contextual quick action
+- [x] #28: Implementasi cart, catatan bungkus, order review, dan submit manual (PR #100)
+- [x] #29: Implementasi order detail, status timeline, dan contextual quick action (PR pending)
 - [ ] #30: Implementasi KDS adaptif untuk tablet dan mobile
 - [ ] #31: Implementasi pengelolaan menu availability pada Flutter
 - [ ] #32: Pilih dan implementasikan local database serta cache Flutter
@@ -234,6 +234,30 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 4 September 2026 — Issue #29 Order Detail, Status Timeline, and Contextual Quick Actions
+
+**Goal**
+- Menampilkan detail operasional lengkap pesanan pada kasir mobile dan tablet PesenHub, memisahkan timeline status pesanan dari status pembayaran (Invarian #7), menangani konflik versi optimistik (*stale version conflict*) tanpa menimpa data server, menerapkan pembatasan hak akses (*role guard*), serta menyajikan tepat satu aksi status utama kontekstual sesuai state saat ini (misal: `PREPARING` -> *"Tandai Siap"* menuju `READY_FOR_PICKUP`).
+
+**Changed**
+- Menambahkan model `OrderAction` di `pesenhub_app/lib/order/models/order_action.dart` (`targetStatus`, `label`, `icon`, `isDestructive`, `helperText`).
+- Mengimplementasikan `OrderDetailController` di `pesenhub_app/lib/order/controllers/order_detail_controller.dart` dengan role guard (`STAFF`, `KDS`, `CUSTOMER`), seleksi tepat satu `primaryAction` kontekstual, aksi sekunder, dan penanganan konkurensi versi optimistik (`VERSION_CONFLICT`) yang memuat state terbaru tanpa overwrite.
+- Membangun komponen UI `OrderStatusTimeline` di `pesenhub_app/lib/order/widgets/order_status_timeline.dart` yang memvisualisasikan siklus pesanan (`Diterima` -> `Memasak` -> `Siap Diambil` -> `Selesai`) secara terpisah dari status pembayaran.
+- Membangun komponen UI `OrderPaymentCard` di `pesenhub_app/lib/order/widgets/order_payment_card.dart` yang menyajikan status pembayaran independen (`UNPAID`, `PAID`, `FAILED`, `REFUNDED`) dan nilai total transaksi.
+- Membangun `OrderDetailView` di `pesenhub_app/lib/order/order_detail_view.dart` dengan header nomor order dan versi, banner peringatan konflik versi dengan tombol reload, informasi pelanggan & layanan (makan di tempat vs bungkus beserta catatan kemasan), daftar item menu dengan pemisahan barista drinks, serta tombol aksi primer kontekstual dan aksi sekunder.
+- Mengintegrasikan `OrderDetailView` ke dalam antrean order `OrderQueueCard` dan `QueueView` di `pesenhub_app/lib/queue/` via callback `onTap`.
+- Menambahkan test suite komprehensif di `pesenhub_app/test/order_detail_test.dart` (6 test cases menguji Criteria #1–#5) dan memastikan seluruh 67 test cases Flutter lulus.
+- Menambahkan dokumentasi di `docs/ORDER_DETAIL_TIMELINE_ACTIONS.md`.
+
+**Validation**
+- `dart format --output=none --set-exit-if-changed .`: PASS.
+- `flutter analyze`: PASS (0 issue found).
+- `flutter test`: PASS (67/67 tests passed).
+- `cd pesenhub_be && ./run.sh check`: PASS.
+
+**Next**
+- Review/merge Issue #29, lalu lanjut ke Issue #30 (Implementasi KDS adaptif untuk tablet dan mobile).
 
 ### 4 September 2026 — Issue #27 Menu Search, Category Filter, and Modifiers
 

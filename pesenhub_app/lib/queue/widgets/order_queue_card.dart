@@ -13,12 +13,14 @@ class OrderQueueCard extends StatelessWidget {
   final QueueOrder order;
   final DateTime? now;
   final void Function(QueueOrder order, String newStatus)? onStatusChanged;
+  final VoidCallback? onTap;
 
   const OrderQueueCard({
     super.key,
     required this.order,
     this.now,
     this.onStatusChanged,
+    this.onTap,
   });
 
   @override
@@ -28,6 +30,7 @@ class OrderQueueCard extends StatelessWidget {
         : order.isOverdue;
 
     return AppCard(
+      onTap: onTap,
       borderSide: isOverdue
           ? const BorderSide(color: AppColors.error, width: 2)
           : null,
