@@ -385,14 +385,14 @@ GitHub Issue dan milestone adalah sumber kebenaran status eksekusi. Estimasi har
 
 **Deliverables:**
 
-- Diagram alur order dan state machine disetujui.
+- Audit blocker dan keputusan bisnis minimum disetujui.
 - Struktur repository dengan `pesenhub_be/`, `pesenhub_app/`, root `PRD.md`, dan root `MEMORY.md`.
-- Environment, CI, lint, dan testing dasar untuk kedua komponen.
+- Branch protection, CODEOWNERS, environment/secret matrix, CI, lint, dan testing dasar untuk kedua komponen.
 - Kontrak API awal dan migration database.
-- Spike konektivitas Flutter–Golang, WAHA webhook, Hermes tool call, dan Midtrans sandbox.
-- Daftar menu, modifier, jam operasional, serta aturan pembayaran outlet.
+- Roadmap GitHub Phase 0–3 beserta dependency dan ownership nyata.
+- Daftar menu, modifier, jam operasional, serta aturan pembayaran outlet diteruskan ke child issue implementasi terkait.
 
-**Exit criteria:** Semua integrasi eksternal dapat diuji di sandbox/dev dan keputusan penting dicatat di `MEMORY.md`.
+**Exit criteria:** Seluruh child issue #9–#12, #75, dan #76 selesai; tiga required checks, CODEOWNERS, branch protection, serta environment development terverifikasi; keputusan dan closing evidence dicatat. Spike Flutter–Golang, WAHA, Hermes, dan Midtrans tetap wajib, tetapi dieksekusi melalui #48/#49, #36–#43/#51, #38–#41/#52, dan #45–#47/#53 sesuai roadmap baru.
 
 ### Phase 1A — Core Backend ([#3](https://github.com/yogaananda6677/pesanhub/issues/3))
 
