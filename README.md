@@ -24,6 +24,7 @@ PesenHub adalah monorepo dengan satu histori Git dan dua komponen aplikasi:
 - [OpenAPI contract](docs/api/openapi.yaml)
 - [Core domain model dan ERD](docs/CORE_DOMAIN_MODEL.md)
 - [Customer identity dan privacy](docs/CUSTOMER_IDENTITY.md)
+- [Menu catalog contract](docs/MENU_CATALOG.md)
 
 ## Backend
 

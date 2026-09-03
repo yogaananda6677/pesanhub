@@ -19,7 +19,7 @@ run_migration() {
 }
 
 run_migration up
-docker exec "$container" psql -v ON_ERROR_STOP=1 -U pesenhub_test -d pesenhub_test <<'SQL'
+docker exec -i "$container" psql -v ON_ERROR_STOP=1 -U pesenhub_test -d pesenhub_test <<'SQL'
 INSERT INTO customers (id, phone_e164, display_name, preferences, create_idempotency_key) VALUES ('01000000-0000-0000-0000-000000000001', '+6281234567890', 'Test Customer', '{"spicy":true}', 'customer-test-1');
 INSERT INTO menu_categories (id, name) VALUES ('10000000-0000-0000-0000-000000000001', 'Makanan');
 INSERT INTO menus (id, category_id, sku, name, price_amount) VALUES ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'NASGOR', 'Nasi Goreng', 15000);
@@ -44,10 +44,15 @@ END $$;
 SQL
 
 run_migration down
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_groups') IS NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='customers' AND column_name='preferences'")" = "t"
+run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='customers' AND column_name='preferences'")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.orders') IS NOT NULL")" = "t"
 run_migration up
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='customers' AND column_name='preferences'")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_groups') IS NOT NULL")" = "t"
+run_migration down
 run_migration down
 run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.orders') IS NULL")" = "t"
@@ -62,4 +67,26 @@ docker exec "$container" psql -v ON_ERROR_STOP=1 -U pesenhub_test -d pesenhub_te
 second_pid=$!
 wait "$first_pid" "$second_pid"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*) FROM customers WHERE phone_e164='+628111111111'")" = "1"
-echo "Migration up/down/up, customer extension rollback, and constraint checks passed."
+
+docker exec -i "$container" psql -v ON_ERROR_STOP=1 -U pesenhub_test -d pesenhub_test <<'SQL'
+INSERT INTO menu_categories(id,name,sort_order) VALUES ('91000000-0000-0000-0000-000000000001','Minuman',2),('91000000-0000-0000-0000-000000000002','Makanan',1);
+INSERT INTO menus(id,category_id,sku,name,price_amount,is_available,sort_order) VALUES
+('92000000-0000-0000-0000-000000000001','91000000-0000-0000-0000-000000000002','NASGOR','Nasi Goreng',15000,true,2),
+('92000000-0000-0000-0000-000000000002','91000000-0000-0000-0000-000000000002','MIE','Mie Goreng',14000,false,1);
+INSERT INTO modifier_groups(id,menu_id,code,name,min_select,max_select,sort_order) VALUES ('93000000-0000-0000-0000-000000000001','92000000-0000-0000-0000-000000000001','spice','Level Pedas',1,1,1);
+INSERT INTO modifier_options(id,group_id,code,name,price_delta_amount,sort_order) VALUES ('94000000-0000-0000-0000-000000000001','93000000-0000-0000-0000-000000000001','hot','Pedas',0,1);
+DO $$ BEGIN
+  BEGIN
+    INSERT INTO modifier_groups(id,menu_id,code,name,min_select,max_select) VALUES ('93000000-0000-0000-0000-000000000002','92000000-0000-0000-0000-000000000001','invalid','Invalid',2,1);
+    RAISE EXCEPTION 'invalid modifier bounds unexpectedly accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+SQL
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT string_agg(name,',' ORDER BY sort_order,name,id) FROM menus WHERE is_available")" = "Nasi Goreng"
+run_migration down
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_groups') IS NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.customers') IS NOT NULL")" = "t"
+run_migration up
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_options') IS NOT NULL")" = "t"
+echo "Migration up/down/up, customer collision, and catalog constraint/visibility checks passed."

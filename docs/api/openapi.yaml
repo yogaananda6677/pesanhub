@@ -6,6 +6,51 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /public/menu:
+    get:
+      summary: Read active and available public catalog
+      operationId: getPublicMenu
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - {name: 'filter[category_id]', in: query, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Stable category/menu/modifier ordering, content: {application/json: {schema: {$ref: '#/components/schemas/CatalogResponse'}}}}
+  /agent/menu:
+    get:
+      summary: Read the same safe catalog projection for agent tools
+      operationId: getAgentMenu
+      responses:
+        '200': {description: Active and available catalog, content: {application/json: {schema: {$ref: '#/components/schemas/CatalogResponse'}}}}
+  /admin/categories:
+    post:
+      summary: Create a category
+      operationId: createCategory
+      security: [{bearerAuth: []}]
+      responses:
+        '201': {description: Category created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /admin/menus:
+    post:
+      summary: Create a menu with modifier groups and options atomically
+      operationId: createMenu
+      security: [{bearerAuth: []}]
+      responses:
+        '201': {description: Menu created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /admin/menus/{id}/availability:
+    patch:
+      summary: Update availability with optimistic version
+      operationId: updateMenuAvailability
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Availability updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
   /customers:
     post:
       summary: Create or replay a customer profile
@@ -137,6 +182,55 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
   schemas:
+    ModifierOption:
+      type: object
+      required: [id, code, name, price_delta_amount, is_available, sort_order]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string}
+        name: {type: string}
+        price_delta_amount: {type: integer, format: int64}
+        is_available: {type: boolean}
+        sort_order: {type: integer, minimum: 0}
+    ModifierGroup:
+      type: object
+      required: [id, code, name, min_select, max_select, is_active, sort_order, options]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string}
+        name: {type: string}
+        min_select: {type: integer, minimum: 0}
+        max_select: {type: integer, minimum: 1}
+        is_active: {type: boolean}
+        sort_order: {type: integer, minimum: 0}
+        options: {type: array, items: {$ref: '#/components/schemas/ModifierOption'}}
+    CatalogMenu:
+      type: object
+      required: [id, category_id, sku, name, price_amount, is_available, version, sort_order, modifier_groups]
+      properties:
+        id: {type: string, format: uuid}
+        category_id: {type: string, format: uuid}
+        sku: {type: string}
+        name: {type: string}
+        price_amount: {type: integer, format: int64, minimum: 0}
+        is_available: {type: boolean}
+        version: {type: integer, minimum: 1}
+        sort_order: {type: integer, minimum: 0}
+        modifier_groups: {type: array, items: {$ref: '#/components/schemas/ModifierGroup'}}
+    CatalogCategory:
+      type: object
+      required: [id, name, sort_order, is_active, menus]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        sort_order: {type: integer, minimum: 0}
+        is_active: {type: boolean}
+        menus: {type: array, items: {$ref: '#/components/schemas/CatalogMenu'}}
+    CatalogResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/CatalogCategory'}}
     CustomerCreate:
       type: object
       additionalProperties: false
