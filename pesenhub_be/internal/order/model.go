@@ -9,7 +9,11 @@ import (
 
 var (
 	ErrInvalidInput        = errors.New("invalid order input")
+	ErrMalformedInput      = errors.New("malformed order request")
 	ErrIdempotencyConflict = errors.New("idempotency key was already used with a different request")
+	ErrInvalidTransition   = errors.New("order status transition is not allowed")
+	ErrVersionConflict     = errors.New("order version conflict")
+	ErrNotFound            = errors.New("order not found")
 )
 
 type ItemInput struct {
@@ -54,3 +58,15 @@ type ValidationError struct{ Field string }
 
 func (e *ValidationError) Error() string { return e.Field + ": " + ErrInvalidInput.Error() }
 func (e *ValidationError) Unwrap() error { return ErrInvalidInput }
+
+type TransitionInput struct {
+	TargetStatus    string `json:"target_status"`
+	ExpectedVersion int64  `json:"expected_version"`
+	ReasonCode      string `json:"reason_code,omitempty"`
+}
+
+type StatusResult struct {
+	ID      string `json:"id"`
+	Status  string `json:"status"`
+	Version int64  `json:"version"`
+}

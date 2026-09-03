@@ -7,8 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"pesenhub/backend/internal/catalog"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestStoreCreateConcurrentIdempotencyIntegration(t *testing.T) {
@@ -91,5 +92,66 @@ func TestStoreCreateConcurrentIdempotencyIntegration(t *testing.T) {
 	in.ClientOrderID = "a5000000-0000-4000-8000-000000000002"
 	if _, _, err = s.CreateManual(ctx, in, "integration-unavailable", "staff", "request"); !errors.Is(err, catalog.ErrUnavailable) {
 		t.Fatalf("expected unavailable, got %v", err)
+	}
+
+	for _, step := range []struct {
+		target  string
+		version int64
+		key     string
+	}{{"ACCEPTED", 1, "status-accepted"}, {"PREPARING", 2, "status-preparing"}} {
+		got, changed, err := s.Transition(ctx, first, TransitionInput{TargetStatus: step.target, ExpectedVersion: step.version}, step.key, "staff", "STAFF", "request")
+		if err != nil || !changed || got.Version != step.version+1 {
+			t.Fatalf("transition %#v got=%#v changed=%v err=%v", step, got, changed, err)
+		}
+	}
+	transition := TransitionInput{TargetStatus: "READY_FOR_PICKUP", ExpectedVersion: 3}
+	statusIDs := make(chan StatusResult, 2)
+	statusErrs := make(chan error, 2)
+	wg = sync.WaitGroup{}
+	for range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			got, _, err := s.Transition(ctx, first, transition, "status-ready", "staff", "STAFF", "request-ready")
+			if err != nil {
+				statusErrs <- err
+				return
+			}
+			statusIDs <- got
+		}()
+	}
+	wg.Wait()
+	close(statusIDs)
+	close(statusErrs)
+	for err := range statusErrs {
+		t.Fatal(err)
+	}
+	for got := range statusIDs {
+		if got.Status != "READY_FOR_PICKUP" || got.Version != 4 {
+			t.Fatalf("unexpected replay result: %#v", got)
+		}
+	}
+	if _, _, err = s.Transition(ctx, first, transition, "status-ready", "other-staff", "STAFF", "request-ready"); !errors.Is(err, ErrIdempotencyConflict) {
+		t.Fatalf("expected actor-scoped idempotency conflict, got %v", err)
+	}
+	var readyHistory, readyAudit, readyOutbox int
+	if err = db.QueryRow(ctx, `SELECT (SELECT count(*) FROM order_status_history WHERE order_id=$1 AND order_version=4),(SELECT count(*) FROM audit_logs WHERE aggregate_id=$1 AND action='ORDER_STATUS_CHANGED'),(SELECT count(*) FROM outbox_events WHERE aggregate_id=$1 AND event_type='ORDER_STATUS_CHANGED')`, first).Scan(&readyHistory, &readyAudit, &readyOutbox); err != nil {
+		t.Fatal(err)
+	}
+	if readyHistory != 1 || readyAudit != 3 || readyOutbox != 3 {
+		t.Fatalf("lifecycle counts=%d/%d/%d", readyHistory, readyAudit, readyOutbox)
+	}
+	if _, _, err = s.Transition(ctx, first, TransitionInput{TargetStatus: "COMPLETED", ExpectedVersion: 3}, "status-stale", "staff", "STAFF", "request"); !errors.Is(err, ErrVersionConflict) {
+		t.Fatalf("expected stale version, got %v", err)
+	}
+	if _, _, err = s.Transition(ctx, first, TransitionInput{TargetStatus: "CANCELLED", ExpectedVersion: 4}, "status-illegal", "staff", "STAFF", "request"); !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("expected invalid transition, got %v", err)
+	}
+	completed, completedChanged, err := s.Transition(ctx, first, TransitionInput{TargetStatus: "COMPLETED", ExpectedVersion: 4}, "status-completed", "staff", "STAFF", "request")
+	if err != nil || !completedChanged || completed.Version != 5 {
+		t.Fatalf("complete got=%#v changed=%v err=%v", completed, completedChanged, err)
+	}
+	if _, _, err = s.Transition(ctx, first, TransitionInput{TargetStatus: "ACCEPTED", ExpectedVersion: 5}, "status-terminal", "staff", "STAFF", "request"); !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("expected terminal transition rejection, got %v", err)
 	}
 }
