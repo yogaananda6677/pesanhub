@@ -74,11 +74,11 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
 - Current Issue: [#14 — Desain domain model dan migration data inti](https://github.com/yogaananda6677/pesanhub/issues/14)
 - Current Branch: `feature/14-core-domain-schema`
-- Pull Request: `NOT_CREATED`
+- Pull Request: [#84 — feat: add core domain schema](https://github.com/yogaananda6677/pesanhub/pull/84)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81)
 - Status: `IN_PROGRESS`
 - Exit Criteria: lihat acceptance criteria #14; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: canonical domain mapping dan PostgreSQL 16 migration up/down/up beserta positive/negative constraint cases lulus lokal
+- Validation: canonical domain mapping, Backend/race suite, dan PostgreSQL 16 migration up/down/up beserta positive/negative constraint cases lulus lokal; CI menunggu PR #84
 - Blocker: tidak ada untuk #14
 - Next Issue: #15 setelah #14 direview dan di-merge
 
@@ -226,7 +226,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Tidak ada data production atau credential nyata yang digunakan.
 
 **Next**
-- Buka PR #14; setelah merge lanjut #15 untuk identifikasi/profil pelanggan.
+- Review dan merge PR #84; setelah itu lanjut #15 untuk identifikasi/profil pelanggan.
 
 ### 3 September 2026 — Issue #13 HTTP API Conventions
 
