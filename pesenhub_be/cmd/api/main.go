@@ -18,13 +18,14 @@ import (
 	"pesenhub/backend/internal/httpserver"
 	orderapi "pesenhub/backend/internal/order"
 	"pesenhub/backend/internal/waha"
+	"pesenhub/backend/internal/ws"
 )
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Error("invalid configuration", "error", err)
+		logger.Error("configuration loading failed", "error", "invalid configuration")
 		os.Exit(1)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -39,7 +40,15 @@ func main() {
 	h := health.New("pesenhub-api", pool, wc)
 	customers := customer.NewHandler(customer.NewService(customer.NewStore(pool), customer.NewID))
 	catalogHandler := catalog.NewHandler(catalog.NewService(catalog.NewStore(pool), customer.NewID))
-	orders := orderapi.NewHandler(orderapi.NewService(orderapi.NewStore(pool)))
+
+	orderStore := orderapi.NewStore(pool)
+	orderHub := ws.NewHub()
+	defer orderHub.Close()
+	publisher := orderapi.NewOutboxPublisher(pool, orderapi.NewHubBroadcasterAdapter(orderHub), logger)
+	orderStore.SetNotifier(publisher)
+	go publisher.Start(ctx, 500*time.Millisecond)
+
+	orders := orderapi.NewHandler(orderapi.NewService(orderStore), orderHub)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", h.Live)
 	mux.HandleFunc("GET /health/ready", h.Ready)
@@ -54,6 +63,7 @@ func main() {
 	mux.HandleFunc("GET /api/v1/orders", orders.List)
 	mux.HandleFunc("GET /api/v1/orders/queue", orders.Queue)
 	mux.HandleFunc("GET /api/v1/orders/{id}", orders.GetByID)
+	mux.HandleFunc("GET /api/v1/ws/orders", orders.WS)
 	mux.HandleFunc("POST /api/v1/orders", orders.CreateManual)
 	mux.HandleFunc("POST /api/v1/orders/{id}/status-transitions", orders.TransitionStatus)
 	mux.Handle("GET /", http.FileServer(http.Dir("web")))

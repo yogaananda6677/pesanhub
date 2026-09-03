@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #19 unified order query and filter |
+| Updated by | Issue #20 WebSocket order events and recovery |
 
 ## 2. Product Intent
 
@@ -72,15 +72,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#3 — Phase 1A Core Backend](https://github.com/yogaananda6677/pesanhub/issues/3)
 - Child Issues: #13–#22
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#19 — Implementasi unified order query dan filter antrean](https://github.com/yogaananda6677/pesanhub/issues/19)
-- Current Branch: `feature/19-order-query`
+- Current Issue: [#20 — Implementasi WebSocket order event dan recovery](https://github.com/yogaananda6677/pesanhub/issues/20)
+- Current Branch: `feature/20-websocket-order-events`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90)
 - Status: `IN_PROGRESS`
-- Exit Criteria: lihat acceptance criteria #19; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: unit/vet/race, OpenAPI YAML, reversible migration, dan PostgreSQL concurrent query/filter/RBAC integration lulus lokal; CI menunggu PR
+- Exit Criteria: lihat acceptance criteria #20; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
+- Validation: unit/vet/race, OpenAPI YAML, reversible migration, dan WebSocket roundtrip + outbox integration lulus lokal; CI menunggu PR
 - Blocker: endpoint staff dan KDS tetap default-deny sampai verified principal middleware tersedia
-- Next Issue: #20 setelah #19 direview dan di-merge
+- Next Issue: #21 setelah #20 direview dan di-merge
 
 ## 6. Current Phase Checklist
 
@@ -206,6 +206,32 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Issue #20 WebSocket Order Events and Recovery
+
+**Goal**
+- Mendistribusikan perubahan antrean order secara real-time ke client POS/KDS melalui WebSocket dengan autentikasi (role `STAFF` & `KDS`), heartbeat ping-pong, ordering berbasis version, outbox processing, dan snapshot recovery REST saat terjadi gap / disconnect.
+
+**Changed**
+- Menambah package `internal/ws` untuk upgrade RFC 6455 tanpa external dependency, ping/pong heartbeat, thread-safe frame reading/writing, dan `Hub` untuk role-aware broadcast serta backpressure handling.
+- Menambah `OutboxPublisher` di `internal/order/publisher.go` untuk membaca transactional outbox events (`ORDER_CREATED`, `ORDER_STATUS_CHANGED`), membungkus dalam `OrderEventEnvelope`, meredaksi PII untuk role `KDS`, dan mem-broadcast ke `Hub`.
+- Menghubungkan `order.Store` ke `OutboxPublisher` agar commit mutasi order langsung memicu pengiriman event instan.
+- Menambah endpoint WebSocket `GET /api/v1/ws/orders` di `internal/order/handler.go` dan `cmd/api/main.go`.
+- Menambah unit test `internal/ws/ws_test.go`, `internal/order/publisher_test.go`, dan integration test end-to-end `internal/order/ws_integration_test.go`.
+- Menambah dokumentasi arsitektur di `docs/ORDER_EVENTS_WS.md` dan memperbarui kontrak OpenAPI di `docs/api/openapi.yaml`.
+
+**Validation**
+- `cd pesenhub_be && ./run.sh check`: PASS.
+- `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS.
+- `cd pesenhub_be && ./scripts/test-orders.sh`: PASS.
+- `cd pesenhub_be && go test -race ./...`: PASS.
+- Parse `docs/api/openapi.yaml`: PASS.
+
+**Known Issues**
+- Principal staff/KDS produksi masih menunggu middleware autentikasi pada issue terkait; endpoint sengaja default-deny.
+
+**Next**
+- Review/merge Issue #20, lalu lanjutkan ke #21.
 
 ### 3 September 2026 — Issue #19 Unified Order Query and Queue Filter
 

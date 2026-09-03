@@ -17,9 +17,26 @@ import (
 	"pesenhub/backend/internal/httpapi"
 )
 
-type Store struct{ db *pgxpool.Pool }
+type OutboxNotifier interface {
+	Notify()
+}
+
+type Store struct {
+	db       *pgxpool.Pool
+	notifier OutboxNotifier
+}
 
 func NewStore(db *pgxpool.Pool) *Store { return &Store{db: db} }
+
+func (s *Store) SetNotifier(n OutboxNotifier) {
+	s.notifier = n
+}
+
+func (s *Store) notifyOutbox() {
+	if s.notifier != nil {
+		s.notifier.Notify()
+	}
+}
 
 func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInput, key, hash, actorID, roleRequest string) (StatusResult, bool, error) {
 	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
@@ -82,6 +99,7 @@ func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInp
 	if err = tx.Commit(ctx); err != nil {
 		return StatusResult{}, false, err
 	}
+	s.notifyOutbox()
 	return result, true, nil
 }
 
@@ -160,7 +178,14 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 			}
 		}
 	}
-	metadata, _ := json.Marshal(map[string]any{"source": "CASHIER_MANUAL", "total_amount": total})
+	metadata, _ := json.Marshal(map[string]any{
+		"order_id":     o.ID,
+		"order_number": o.OrderNumber,
+		"source":       "CASHIER_MANUAL",
+		"status":       "PENDING",
+		"total_amount": total,
+		"version":      1,
+	})
 	statements := []struct {
 		q    string
 		args []any
@@ -177,6 +202,7 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 	if err = tx.Commit(ctx); err != nil {
 		return Order{}, false, err
 	}
+	s.notifyOutbox()
 	return o, true, nil
 }
 
