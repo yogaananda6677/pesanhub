@@ -52,6 +52,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/admin/menus", catalogHandler.CreateMenu)
 	mux.HandleFunc("PATCH /api/v1/admin/menus/{id}/availability", catalogHandler.Availability)
 	mux.HandleFunc("POST /api/v1/orders", orders.CreateManual)
+	mux.HandleFunc("POST /api/v1/orders/{id}/status-transitions", orders.TransitionStatus)
 	mux.Handle("GET /", http.FileServer(http.Dir("web")))
 	server := &http.Server{Addr: cfg.Address(), Handler: httpserver.Middleware(logger, mux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {

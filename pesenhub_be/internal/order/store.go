@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -12,11 +13,76 @@ import (
 
 	"pesenhub/backend/internal/catalog"
 	"pesenhub/backend/internal/customer"
+	"pesenhub/backend/internal/domain"
 )
 
 type Store struct{ db *pgxpool.Pool }
 
 func NewStore(db *pgxpool.Pool) *Store { return &Store{db: db} }
+
+func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInput, key, hash, actorID, roleRequest string) (StatusResult, bool, error) {
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return StatusResult{}, false, err
+	}
+	defer tx.Rollback(ctx)
+	parts := strings.SplitN(roleRequest, "|", 2)
+	role, requestID := parts[0], "unknown"
+	if len(parts) == 2 && parts[1] != "" {
+		requestID = parts[1]
+	}
+	if role != "STAFF" {
+		return StatusResult{}, false, customer.ErrUnauthorized
+	}
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "ORDER_STATUS:"+orderID+":"+key); err != nil {
+		return StatusResult{}, false, err
+	}
+	var replay StatusResult
+	var storedHash, storedActor string
+	err = tx.QueryRow(ctx, `SELECT o.id::text,o.status,o.version,h.request_hash,h.actor_id FROM order_status_history h JOIN orders o ON o.id=h.order_id WHERE h.order_id=$1 AND h.idempotency_key=$2`, orderID, key).Scan(&replay.ID, &replay.Status, &replay.Version, &storedHash, &storedActor)
+	if err == nil {
+		if storedHash != hash || storedActor != actorID {
+			return StatusResult{}, false, ErrIdempotencyConflict
+		}
+		return replay, false, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return StatusResult{}, false, err
+	}
+	var current string
+	var version int64
+	err = tx.QueryRow(ctx, `SELECT status,version FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&current, &version)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return StatusResult{}, false, ErrNotFound
+	}
+	if err != nil {
+		return StatusResult{}, false, err
+	}
+	if version != in.ExpectedVersion {
+		return StatusResult{}, false, ErrVersionConflict
+	}
+	if !ValidTransition(domain.OrderStatus(current), domain.OrderStatus(in.TargetStatus)) {
+		return StatusResult{}, false, ErrInvalidTransition
+	}
+	result := StatusResult{ID: orderID, Status: in.TargetStatus, Version: version + 1}
+	if _, err = tx.Exec(ctx, `UPDATE orders SET status=$2,version=$3,updated_at=now() WHERE id=$1`, orderID, result.Status, result.Version); err != nil {
+		return StatusResult{}, false, err
+	}
+	metadata, _ := json.Marshal(map[string]any{"from_status": current, "to_status": result.Status, "version": result.Version})
+	if _, err = tx.Exec(ctx, `INSERT INTO order_status_history (id,order_id,from_status,to_status,order_version,actor_type,actor_id,reason_code,request_id,idempotency_key,request_hash) VALUES ($1,$2,$3,$4,$5,'STAFF',$6,NULLIF($7,''),$8,$9,$10)`, customer.NewID(), orderID, current, result.Status, result.Version, actorID, in.ReasonCode, requestID, key, hash); err != nil {
+		return StatusResult{}, false, err
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs (id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES ($1,'ORDER',$2,'ORDER_STATUS_CHANGED','STAFF',$3,$4,$5)`, customer.NewID(), orderID, actorID, requestID, metadata); err != nil {
+		return StatusResult{}, false, err
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO outbox_events (id,aggregate_type,aggregate_id,event_type,payload,deduplication_key) VALUES ($1,'ORDER',$2,'ORDER_STATUS_CHANGED',$3,$4)`, customer.NewID(), orderID, metadata, "order-status:"+orderID+":"+fmt.Sprint(result.Version)); err != nil {
+		return StatusResult{}, false, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return StatusResult{}, false, err
+	}
+	return result, true, nil
+}
 
 func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequest string) (Order, bool, error) {
 	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})

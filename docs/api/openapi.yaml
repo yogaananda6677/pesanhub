@@ -115,6 +115,24 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
+  /orders/{id}/status-transitions:
+    post:
+      summary: Apply or replay a legal order status transition
+      operationId: transitionOrderStatus
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/OrderStatusTransition'}}}
+      responses:
+        '200': {description: Transition applied or idempotently replayed, content: {application/json: {schema: {$ref: '#/components/schemas/OrderStatusResult'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Order not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
   /examples:
     get:
       summary: Contract-only collection example
@@ -250,6 +268,22 @@ components:
         version: {type: integer, minimum: 1}
         created_at: {type: string, format: date-time}
         items: {type: array, items: {$ref: '#/components/schemas/OrderItem'}}
+    OrderStatusTransition:
+      type: object
+      additionalProperties: false
+      required: [target_status, expected_version]
+      properties:
+        target_status: {type: string, enum: [ACCEPTED, PREPARING, READY_FOR_PICKUP, COMPLETED, REJECTED, CANCELLED]}
+        expected_version: {type: integer, minimum: 1}
+        reason_code: {type: string, maxLength: 64}
+    OrderStatusResult:
+      type: object
+      additionalProperties: false
+      required: [id, status, version]
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [PENDING, ACCEPTED, PREPARING, READY_FOR_PICKUP, COMPLETED, REJECTED, CANCELLED]}
+        version: {type: integer, minimum: 1}
     ModifierOption:
       type: object
       required: [id, code, name, price_delta_amount, is_available, sort_order]
