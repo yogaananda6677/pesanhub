@@ -12,10 +12,10 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | --- | --- |
 | Product | PesenHub |
 | Current phase | Phase 0 — Discovery dan Fondasi |
-| Current status | IN_PROGRESS |
+| Current status | DONE |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #76 roadmap synchronization |
+| Updated by | Phase Closing PR #2 |
 
 ## 2. Product Intent
 
@@ -56,7 +56,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 
 | Phase | Scope | Status | Started | Completed | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2) | Project readiness | IN_PROGRESS | 2026-09-01 | — | PR #77, #78, #79; Phase Closing PR belum dibuat |
+| [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2) | Project readiness | DONE | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md` |
 | [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | NOT_STARTED | — | — | Menunggu Phase 0 |
 | [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | NOT_STARTED | — | — | Menunggu kontrak 1A |
 | [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment | NOT_STARTED | — | — | Menunggu domain 1A |
@@ -72,15 +72,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#2 — Phase 0 Project Readiness](https://github.com/yogaananda6677/pesanhub/issues/2)
 - Child Issues: #9, #10, #11, #12, #75, #76
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#76 — Selaraskan PRD dan MEMORY dengan roadmap milestone Phase 0–3](https://github.com/yogaananda6677/pesanhub/issues/76)
-- Current Branch: `docs/76-align-phase-roadmap`
-- Pull Request: [#80 — docs: align roadmap with GitHub phases](https://github.com/yogaananda6677/pesanhub/pull/80)
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#79](https://github.com/yogaananda6677/pesanhub/pull/79)
-- Status: `IN_PROGRESS`
-- Exit Criteria: lihat checklist Phase 0; belum seluruhnya terpenuhi
-- Validation: link #1–#8, tujuh phase, istilah stale, dan scope diff lulus lokal; CI menunggu pada PR #80
-- Blocker: Issue #76 dan Phase Closing PR #2 belum selesai
-- Next Issue: Phase Closing PR #2 setelah #76 direview dan di-merge
+- Current Issue: [#2 — Phase 0 Project Readiness](https://github.com/yogaananda6677/pesanhub/issues/2)
+- Current Branch: `phase/2-project-readiness`
+- Pull Request: [#81 — docs: close Phase 0 project readiness](https://github.com/yogaananda6677/pesanhub/pull/81)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80)
+- Status: `DONE`
+- Exit Criteria: seluruh child issue closed; evidence dan deviasi approval tercatat pada `docs/PHASE_0_CLOSING_EVIDENCE.md`; efektif saat PR #81 merged
+- Validation: Backend/Docker, Flutter, link Issue, branch protection, dan CI `main` lulus pada 3 September 2026
+- Blocker: tidak ada blocker Phase 0; merge Phase Closing PR menjadi gate penutupan #2
+- Next Issue: [#13 — API convention](https://github.com/yogaananda6677/pesanhub/issues/13) setelah Phase Closing PR di-merge
 
 ## 6. Current Phase Checklist
 
@@ -100,10 +100,10 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [x] Buat kontrak API fondasi untuk health endpoint.
 - [x] Buat schema/migration database awal.
 - [x] Bangun dan jalankan API, PostgreSQL, dan WAHA sebagai stack Docker Compose dengan API runtime non-root.
-- [ ] Uji koneksi Flutter ke health endpoint Golang.
-- [ ] Uji webhook WAHA dan pengiriman pesan dev.
-- [ ] Uji Hermes structured tool call.
-- [ ] Uji Midtrans sandbox dan webhook validation.
+- [ ] Uji koneksi Flutter ke REST/WebSocket Backend — dijadwalkan pada #48/#49, bukan blocker #2.
+- [ ] Uji webhook WAHA dan pengiriman pesan dev — dijadwalkan pada #36–#43/#51, bukan blocker #2.
+- [ ] Uji Hermes structured tool call — dijadwalkan pada #38–#41/#52, bukan blocker #2.
+- [ ] Uji Midtrans sandbox dan webhook validation — dijadwalkan pada #45–#47/#53, bukan blocker #2.
 - [x] Aktifkan CI, lint, unit test, dan format check sebagai required checks (PR #78).
 
 ## 7. Work Completed
@@ -206,6 +206,27 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Phase 0 Closing Audit
+
+**Goal**
+- Menutup Phase Issue #2 hanya berdasarkan child issue, repository governance, dokumentasi, dan validasi yang dapat diaudit.
+
+**Changed**
+- Menambah `docs/PHASE_0_CLOSING_EVIDENCE.md` dengan matriks acceptance criteria, hasil test, deferral, risiko, dan deviasi approval.
+- Menandai Phase 0 `DONE` efektif hanya ketika Phase Closing PR di-merge dan Issue #2 ditutup.
+- Memetakan spike integrasi lama ke child issue Phase 1B–1D tanpa menghapus requirement.
+
+**Validation**
+- Seluruh child issue #9–#12, #75, dan #76 `CLOSED`; tidak ada PR terbuka sebelum closing branch dibuat.
+- Backend check, Docker Compose config, Flutter format/analyze/test, required checks, dan latest `main` CI/CD: PASS.
+
+**Known Issues**
+- Required approval count diubah Owner menjadi nol untuk self-merge; deviasi dari teks awal #2 dicatat eksplisit dan tidak diklaim sebagai independent review.
+- Akses prototype desain Q-014 tetap dibutuhkan sebelum #23, tetapi bukan blocker Project Readiness #2.
+
+**Next**
+- Merge Phase Closing PR #81 untuk menutup #2, kemudian mulai Phase 1A dari #13.
 
 ### 3 September 2026 — Issue #76 Roadmap Synchronization
 
