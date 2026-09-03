@@ -11,11 +11,11 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Field | Current value |
 | --- | --- |
 | Product | PesenHub |
-| Current phase | Phase 0 — Discovery dan Fondasi |
-| Current status | DONE |
+| Current phase | Phase 1A — Core Backend |
+| Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Phase Closing PR #2 |
+| Updated by | Issue #13 API conventions |
 
 ## 2. Product Intent
 
@@ -57,7 +57,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | Phase | Scope | Status | Started | Completed | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2) | Project readiness | DONE | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md` |
-| [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | NOT_STARTED | — | — | Menunggu Phase 0 |
+| [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | IN_PROGRESS | 2026-09-03 | — | Issue #13 API conventions |
 | [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | NOT_STARTED | — | — | Menunggu kontrak 1A |
 | [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment | NOT_STARTED | — | — | Menunggu domain 1A |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release | NOT_STARTED | — | — | Menunggu 1A–1C |
@@ -69,18 +69,18 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 ## Current GitHub Work
 
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
-- Phase Issue: [#2 — Phase 0 Project Readiness](https://github.com/yogaananda6677/pesanhub/issues/2)
-- Child Issues: #9, #10, #11, #12, #75, #76
+- Phase Issue: [#3 — Phase 1A Core Backend](https://github.com/yogaananda6677/pesanhub/issues/3)
+- Child Issues: #13–#22
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#2 — Phase 0 Project Readiness](https://github.com/yogaananda6677/pesanhub/issues/2)
-- Current Branch: `phase/2-project-readiness`
-- Pull Request: [#81 — docs: close Phase 0 project readiness](https://github.com/yogaananda6677/pesanhub/pull/81)
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80)
-- Status: `DONE`
-- Exit Criteria: seluruh child issue closed; evidence dan deviasi approval tercatat pada `docs/PHASE_0_CLOSING_EVIDENCE.md`; efektif saat PR #81 merged
-- Validation: Backend/Docker, Flutter, link Issue, branch protection, dan CI `main` lulus pada 3 September 2026
-- Blocker: tidak ada blocker Phase 0; merge Phase Closing PR menjadi gate penutupan #2
-- Next Issue: [#13 — API convention](https://github.com/yogaananda6677/pesanhub/issues/13) setelah Phase Closing PR di-merge
+- Current Issue: [#13 — API convention, error response, pagination, dan versioning](https://github.com/yogaananda6677/pesanhub/issues/13)
+- Current Branch: `feat/13-api-conventions`
+- Pull Request: `NOT_CREATED`
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81)
+- Status: `IN_PROGRESS`
+- Exit Criteria: lihat acceptance criteria #13; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
+- Validation: serializer/error mapping, pagination, request ID, panic contract, Backend check/race/vet, dan OpenAPI parse lulus lokal
+- Blocker: tidak ada untuk #13
+- Next Issue: #14 setelah #13 direview dan di-merge
 
 ## 6. Current Phase Checklist
 
@@ -206,6 +206,28 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Issue #13 HTTP API Conventions
+
+**Goal**
+- Mengunci kontrak HTTP bersama sebelum endpoint domain Phase 1A dikembangkan.
+
+**Changed**
+- Menambah `docs/API_CONVENTIONS.md` dan OpenAPI 3.1 machine-readable untuk versioning, response, error, pagination, filter/sort, mutation, idempotency, version conflict, dan status code.
+- Menambah package `internal/httpapi` untuk JSON/error envelope aman dan parser cursor pagination dengan default 20/maksimum 100 serta sort allowlist.
+- Memvalidasi/menghasilkan `X-Request-ID` pada middleware dan mengubah panic recovery ke error envelope canonical.
+- Menambah unit/contract tests untuk success primitive, validation error, invalid pagination, request ID, dan panic redaction.
+
+**Validation**
+- `gofmt`, `pesenhub_be/run.sh check`, race test, `go vet`, dan parse OpenAPI YAML: PASS.
+- Integration persistence tidak relevan karena issue ini tidak mengubah database atau endpoint domain.
+- Flutter tidak terdampak; contract menjadi input untuk #48/#49.
+
+**Known Issues**
+- `/api/v1/examples` pada OpenAPI hanya contoh kontrak dan bukan route runtime; endpoint domain ditambahkan oleh issue pemiliknya.
+
+**Next**
+- Buka PR #13; setelah merge lanjut #14 untuk domain model dan migration inti.
 
 ### 3 September 2026 — Phase 0 Closing Audit
 
