@@ -10,9 +10,11 @@
 | MVP target | 1 month |
 | Full scope target | 4–5 months |
 | Author | Product Team / Lead Engineer |
-| Last updated | 1 September 2026 |
+| Last updated | 3 September 2026 |
 
 ## 1. Ringkasan Produk
+
+> **Phase 0 decision gate:** proposal baseline outlet, perangkat, fulfillment, pembayaran, local database, WAHA, dan status canonical tersedia di [`docs/PHASE_0_PRODUCT_DECISIONS.md`](docs/PHASE_0_PRODUCT_DECISIONS.md). Proposal berstatus `EFFECTIVE_ON_MERGE` dan belum menggantikan requirement dokumen ini sebelum direview serta di-merge oleh Owner. Sinkronisasi istilah/roadmap dilakukan melalui Issue #76 setelah keputusan efektif.
 
 PesenHub adalah sistem pemesanan terpusat untuk menggantikan pencatatan manual berbasis buku pada outlet nasi goreng. Sistem menyatukan pesanan dari kasir, WhatsApp, dan Web Customer ke dalam satu antrean, membantu kasir yang juga menangani produksi, menerima pembayaran digital melalui Midtrans, dan memberi informasi otomatis kepada pelanggan ketika pesanan sudah selesai.
 

@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #9 Phase 0 readiness audit |
+| Updated by | Issue #75 Phase 0 product decision proposal |
 
 ## 2. Product Intent
 
@@ -41,10 +41,10 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | --- | --- | --- | --- |
 | ADR-001 | Flutter untuk aplikasi POS/KDS | ACCEPTED | Satu codebase mobile lintas platform |
 | ADR-002 | Golang sebagai backend dan system of record | ACCEPTED | Cocok untuk REST, WebSocket, dan concurrent event handling |
-| ADR-003 | WAHA sebagai WhatsApp gateway awal | PROVISIONAL | Self-hosted dan cepat untuk MVP; risiko koneksi tidak resmi harus diterima |
+| ADR-003 | WAHA sebagai gateway development/pilot dengan exit trigger menuju platform resmi | PROPOSED — PD-007 | Menunggu review Owner pada #75; tidak mengizinkan data production sebelum #58 |
 | ADR-004 | Hermes sebagai conversational order agent | ACCEPTED | Membantu ekstraksi dan klarifikasi order melalui tool terbatas |
 | ADR-005 | Midtrans untuk payment gateway | ACCEPTED | Mendukung kanal pembayaran lokal dan webhook status |
-| ADR-006 | SQLite atau Isar untuk local offline store | OPEN | Pilih satu pada Phase 0 berdasarkan kebutuhan query dan kematangan package |
+| ADR-006 | SQLite untuk local offline store; package divalidasi pada #32 | PROPOSED — PD-006 | Model relational/transactional sesuai menu, order, queue snapshot, dan outbox |
 | ADR-007 | WebSocket + REST untuk antrean | ACCEPTED | Real-time update dengan jalur recovery |
 | ADR-008 | PostgreSQL 16 sebagai database backend | ACCEPTED | Diminta eksplisit untuk fondasi Backend Phase 0; memakai image Alpine dengan persistent volume |
 | ADR-009 | Satu root `PRD.md` untuk Backend, Mobile, dan Web Customer | ACCEPTED | Seluruh komponen memakai aturan bisnis dan roadmap yang sama |
@@ -71,15 +71,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
 - Phase Issue: [#2 — Phase 0 Project Readiness](https://github.com/yogaananda6677/pesanhub/issues/2)
 - Child Issues: #9, #10, #11, #12, #75, #76
-- Current Issue: [#9 — Audit dan tutup blocker Project Readiness](https://github.com/yogaananda6677/pesanhub/issues/9)
-- Current Branch: `chore/9-audit-phase-0-blockers`
-- Pull Request: [#77 — docs: audit Phase 0 project readiness](https://github.com/yogaananda6677/pesanhub/pull/77)
-- Merged Pull Requests: `NOT_CREATED`
+- Current Issue: [#75 — Putuskan scope bisnis dan integrasi minimum Phase 0](https://github.com/yogaananda6677/pesanhub/issues/75)
+- Current Branch: `docs/75-phase-0-product-decisions`
+- Pull Request: `NOT_CREATED`
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77)
 - Status: `IN_PROGRESS`
 - Exit Criteria: lihat checklist Phase 0; belum seluruhnya terpenuhi
-- Validation: Contribution Policy, Backend Quality, dan Mobile Quality lulus pada PR #77; push run Backend/Mobile CI dan CD sebelumnya juga sukses
-- Blocker: branch protection #10, CODEOWNERS #11, environment/secret matrix #12, keputusan produk #75, dan sinkronisasi roadmap #76
-- Next Issue: #10 setelah #9 direview dan di-merge; #11/#12 dapat berjalan paralel hanya dengan persetujuan Owner
+- Validation: proposal PD-001–PD-008 menunggu review Owner dan CI pada PR #75
+- Blocker: keputusan #75 belum efektif sebelum merge; governance PR #78 dan sinkronisasi roadmap #76 masih terbuka
+- Next Issue: #76 setelah keputusan #75 direview dan di-merge
 
 ## 6. Current Phase Checklist
 
@@ -129,15 +129,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 | ID | Question / blocker | Owner | Needed by | Status |
 | --- | --- | --- | --- | --- |
-| Q-001 | Satu outlet atau multi-outlet sejak MVP? | Product owner | Phase 0 | OPEN |
-| Q-002 | Satu perangkat POS/KDS atau beberapa perangkat? | Product owner | Phase 0 | OPEN |
-| Q-003 | Pickup saja atau termasuk delivery? | Product owner | Phase 0 | OPEN |
-| Q-004 | Kapan order dianggap sah? | Product owner | Phase 0 | OPEN |
-| Q-005 | Kanal pembayaran Midtrans yang diaktifkan? | Product owner | Phase 0 | OPEN |
-| Q-006 | SQLite atau Isar? | Lead engineer | Phase 0 | OPEN |
+| Q-001 | Satu outlet atau multi-outlet sejak MVP? | Product owner | Phase 0 | PROPOSED — PD-001; efektif saat #75 di-merge |
+| Q-002 | Satu perangkat POS/KDS atau beberapa perangkat? | Product owner | Phase 0 | PROPOSED — PD-002; efektif saat #75 di-merge |
+| Q-003 | Pickup saja atau termasuk delivery? | Product owner | Phase 0 | PROPOSED — PD-003; efektif saat #75 di-merge |
+| Q-004 | Kapan order dianggap sah? | Product owner | Phase 0 | PROPOSED — PD-004; efektif saat #75 di-merge |
+| Q-005 | Kanal pembayaran Midtrans yang diaktifkan? | Product owner | Phase 0 | PROPOSED — PD-005; efektif saat #75 di-merge |
+| Q-006 | SQLite atau Isar? | Lead engineer | Phase 0 | PROPOSED — PD-006; efektif saat #75 di-merge |
 | Q-007 | PostgreSQL sebagai database backend? | Lead engineer | Phase 0 | RESOLVED — PostgreSQL 16 |
-| Q-008 | Risiko penggunaan WAHA diterima atau perlu WhatsApp Business Platform resmi? | Product owner | Phase 0 | OPEN |
-| Q-009 | Web Customer mengizinkan pembayaran tunai, Midtrans, atau keduanya? | Product owner | Phase 0 | OPEN |
+| Q-008 | Risiko penggunaan WAHA diterima atau perlu WhatsApp Business Platform resmi? | Product owner | Phase 0 | PROPOSED — PD-007; efektif saat #75 di-merge |
+| Q-009 | Web Customer mengizinkan pembayaran tunai, Midtrans, atau keduanya? | Product owner | Phase 0 | PROPOSED — PD-005; efektif saat #75 di-merge |
 | Q-010 | Perlukah OTP untuk membuka detail/riwayat pesanan lama? | Product owner | Phase 1 | OPEN |
 | Q-011 | Akun/team mana yang menjadi Code Owner root, Backend, Mobile, workflow, dan dokumentasi? | Repository owner | Phase 0 | OPEN — remote diketahui; ownership path belum diputuskan (#11) |
 | Q-012 | Kredensial signing Android dan target distribusi produksi? | Repository owner | Phase 4 | OPEN |
@@ -205,6 +205,28 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Issue #75 Phase 0 Product Decision Proposal
+
+**Goal**
+- Menyediakan baseline eksplisit untuk scope outlet/perangkat, fulfillment, order validity, payment, local database, risiko WAHA, serta status canonical.
+
+**Changed**
+- Menambah `docs/PHASE_0_PRODUCT_DECISIONS.md` dengan PD-001–PD-008 berstatus `EFFECTIVE_ON_MERGE`.
+- Merekomendasikan single outlet, satu kasir + satu KDS (target uji maksimal tiga perangkat staf), pickup-only, cash + Midtrans QRIS, SQLite, dan penggunaan WAHA terbatas untuk development/pilot.
+- Menetapkan proposal status order/payment/source canonical serta mapping istilah lama tanpa mengubah schema atau source aplikasi.
+- Menautkan proposal dari PRD; sinkronisasi penuh tetap menjadi scope #76 setelah Owner menyetujui keputusan.
+
+**Validation**
+- Konsistensi decision matrix, status vocabulary, tautan issue, dan scope non-implementasi: menunggu pemeriksaan sebelum PR.
+- Backend/Mobile source, `.env`, Docker, migration, dan deployment tidak diubah.
+
+**Known Issues**
+- Seluruh keputusan belum efektif sebelum PR direview dan di-merge Owner.
+- Detail operasional outlet dapat mengubah rekomendasi; perubahan wajib dicatat pada review PR, bukan diasumsikan.
+
+**Next**
+- Buka PR #75 untuk review Owner; setelah merge, kerjakan #76 untuk menyelaraskan PRD/MEMORY dan dependency roadmap.
 
 ### 3 September 2026 — Issue #9 Phase 0 Readiness Audit
 
