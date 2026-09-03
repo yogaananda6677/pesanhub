@@ -14,8 +14,8 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current phase | Phase 1A — Core Backend |
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
-| Last updated | 3 September 2026 |
-| Updated by | Issue #25 cashier dashboard and operational summary implementation and validation |
+| Last updated | 4 September 2026 |
+| Updated by | Issue #26 unified order queue, source badges, and visual alerts implementation and validation |
 
 ## 2. Product Intent
 
@@ -58,7 +58,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | --- | --- | --- | --- | --- | --- |
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2) | Project readiness | DONE | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md` |
 | [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | DONE | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
-| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | IN_PROGRESS | 2026-09-03 | — | Issues #23, #24, #25 |
+| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | IN_PROGRESS | 2026-09-03 | — | Issues #23, #24, #25, #26 |
 | [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment | NOT_STARTED | — | — | Menunggu domain 1A |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release | NOT_STARTED | — | — | Menunggu 1A–1C |
 | [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7) | Food Aggregator Integration | NOT_STARTED | — | — | Menunggu MVP stabil dan kontrak resmi |
@@ -72,14 +72,14 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#4 — Phase 1B Cashier Mobile & Tablet](https://github.com/yogaananda6677/pesanhub/issues/4)
 - Child Issues: #23–#35
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#25 — Implementasi dashboard kasir dan operational summary](https://github.com/yogaananda6677/pesanhub/issues/25)
-- Current Branch: `feature/25-cashier-dashboard`
+- Current Issue: [#26 — Implementasi unified order queue, source badge, dan alert visual](https://github.com/yogaananda6677/pesanhub/issues/26)
+- Current Branch: `feature/26-unified-order-queue`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh acceptance criteria #25 terpenuhi (konsistensi snapshot count, stale/offline timestamp banner, 1-tap quick actions, loading/empty/error/success states)
-- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (40/40 pass), backend check pass
-- Next Step: Review/merge Issue #25, lalu lanjut ke Issue #26 (Implementasi unified order queue, source badge, dan alert visual)
+- Exit Criteria: Seluruh acceptance criteria #26 terpenuhi (source badges 3 kanal MVP, deduplikasi real-time tanpa kartu ganda, alert terlambat > 15 mnt, highlight minuman & bungkus langsung di kartu, stable sort, layout responsif mobile & tablet)
+- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (47/47 pass), backend check pass
+- Next Step: Review/merge Issue #26, lalu lanjut ke Issue #27 (Implementasi menu search, category filter, modifier, dan level kepedasan)
 
 ## 6. Current Phase Checklist
 
@@ -122,8 +122,8 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 - [x] #23: Bangun design system Flutter PesenHub (PR #95)
 - [x] #24: Implementasi responsive app shell mobile dan tablet (PR #96)
-- [x] #25: Implementasi dashboard kasir dan operational summary (PR pending)
-- [ ] #26: Implementasi unified order queue, source badge, dan alert visual
+- [x] #25: Implementasi dashboard kasir dan operational summary (PR #97)
+- [x] #26: Implementasi unified order queue, source badge, dan alert visual (PR pending)
 - [ ] #27: Implementasi menu search, category filter, modifier, dan level kepedasan
 - [ ] #28: Implementasi cart, catatan bungkus, order review, dan submit manual
 - [ ] #29: Implementasi order detail, status timeline, dan contextual quick action
@@ -234,6 +234,32 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 4 September 2026 — Issue #26 Unified Order Queue, Source Badges, and Visual Alerts
+
+**Goal**
+- Menyediakan antrean order terpadu (*Unified Order Queue*) pada aplikasi kasir POS/KDS PesenHub yang menggabungkan seluruh sumber pesanan (`WHATSAPP`, `CASHIER_MANUAL`, `CUSTOMER_WEB`), menandai pesanan baru & terlambat (*late/overdue* > 15 mnt), menampilkan minuman dan catatan bungkus secara langsung pada kartu tanpa perlu membuka layar baru, serta menjamin pengurutan stabil dan deduplikasi saat konsumsi event real-time atau rekoneksi.
+
+**Changed**
+- Menambahkan model `QueueOrderItem` di `pesenhub_app/lib/queue/models/queue_order_item.dart` (`name`, `quantity`, `unitPrice`, `notes`, `isDrink`).
+- Menambahkan model `QueueOrder` di `pesenhub_app/lib/queue/models/queue_order.dart` (`id`, `orderNumber`, `customerName`, `customerPhone`, `source`, `orderStatus`, `paymentStatus`, `isTakeaway`, `takeawayNotes`, `items`, `createdAt`, `version`, `isOverdue`, `drinkItems`, `foodItems`).
+- Menambahkan model state `QueueState` di `pesenhub_app/lib/queue/models/queue_state.dart` (`loading`, `success`, `empty`, `error`, `isStale`, `isOffline`).
+- Mengimplementasikan `QueueController` di `pesenhub_app/lib/queue/controllers/queue_controller.dart` dengan pemetaan idempoten `Map<String, QueueOrder>` untuk deduplikasi, penanganan versi event real-time, filter status & kanal, dan stable sorting (overdue first, lalu PENDING FIFO).
+- Membangun `OrderQueueCard` di `pesenhub_app/lib/queue/widgets/order_queue_card.dart` dengan badge sumber 3 kanal MVP (`AppStatusBadge.source`), alert banner merah untuk pesanan terlambat, sorotan khusus minuman barista, detail catatan bungkus takeaway, dan tombol aksi kontekstual langsung.
+- Membangun `QueueFilterBar` di `pesenhub_app/lib/queue/widgets/queue_filter_bar.dart` dengan status chips ber-counter, pilihan kanal sumber, dan pencarian teks.
+- Mengimplementasikan `QueueView` di `pesenhub_app/lib/queue/queue_view.dart` dengan tata letak adaptif (1 kolom pada mobile, 2 kolom pada tablet) dan dukungan penuh untuk loading, empty, error, serta stale/offline banner.
+- Mengintegrasikan `QueueView` ke dalam `QueueDestinationView` di `pesenhub_app/lib/shell/destination_views.dart`.
+- Menambahkan test suite komprehensif di `pesenhub_app/test/queue_test.dart` (7 test cases menguji Criteria #1–#5) dan memastikan seluruh 47 test cases Flutter lulus.
+- Menambahkan dokumentasi di `docs/UNIFIED_ORDER_QUEUE.md`.
+
+**Validation**
+- `dart format --output=none --set-exit-if-changed .`: PASS.
+- `flutter analyze`: PASS (0 issue found).
+- `flutter test`: PASS (47/47 tests passed).
+- `cd pesenhub_be && ./run.sh check`: PASS.
+
+**Next**
+- Review/merge Issue #26, lalu lanjut ke Issue #27 (Implementasi menu search, category filter, modifier, dan level kepedasan).
 
 ### 3 September 2026 — Issue #25 Cashier Dashboard and Operational Summary
 
