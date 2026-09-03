@@ -20,6 +20,7 @@ run_migration() {
 
 run_migration up
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U pesenhub_test -d pesenhub_test <<'SQL'
+INSERT INTO customers (id, phone_e164, display_name, preferences, create_idempotency_key) VALUES ('01000000-0000-0000-0000-000000000001', '+6281234567890', 'Test Customer', '{"spicy":true}', 'customer-test-1');
 INSERT INTO menu_categories (id, name) VALUES ('10000000-0000-0000-0000-000000000001', 'Makanan');
 INSERT INTO menus (id, category_id, sku, name, price_amount) VALUES ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'NASGOR', 'Nasi Goreng', 15000);
 INSERT INTO orders (id, order_number, source, customer_name_snapshot, subtotal_amount, total_amount, idempotency_key) VALUES ('30000000-0000-0000-0000-000000000001', 'ORD-TEST-1', 'CASHIER_MANUAL', 'Test Customer', 15000, 15000, 'order-test-1');
@@ -43,8 +44,22 @@ END $$;
 SQL
 
 run_migration down
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='customers' AND column_name='preferences'")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.orders') IS NOT NULL")" = "t"
+run_migration up
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='customers' AND column_name='preferences'")" = "t"
+run_migration down
+run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.orders') IS NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.app_metadata') IS NOT NULL")" = "t"
 run_migration up
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.outbox_events') IS NOT NULL")" = "t"
-echo "Migration up/down/up and constraint checks passed."
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='customers' AND column_name='preferences'")" = "t"
+
+docker exec "$container" psql -v ON_ERROR_STOP=1 -U pesenhub_test -d pesenhub_test -c "INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key) VALUES ('81000000-0000-0000-0000-000000000001', '+628111111111', 'Race Test', 'race-key-1') ON CONFLICT DO NOTHING" >/dev/null &
+first_pid=$!
+docker exec "$container" psql -v ON_ERROR_STOP=1 -U pesenhub_test -d pesenhub_test -c "INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key) VALUES ('81000000-0000-0000-0000-000000000002', '+628111111111', 'Race Test', 'race-key-2') ON CONFLICT DO NOTHING" >/dev/null &
+second_pid=$!
+wait "$first_pid" "$second_pid"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*) FROM customers WHERE phone_e164='+628111111111'")" = "1"
+echo "Migration up/down/up, customer extension rollback, and constraint checks passed."

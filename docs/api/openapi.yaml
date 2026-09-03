@@ -6,6 +6,53 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /customers:
+    post:
+      summary: Create or replay a customer profile
+      operationId: createCustomer
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerCreate'
+      responses:
+        '200': {description: Idempotent replay, content: {application/json: {schema: {$ref: '#/components/schemas/Customer'}}}}
+        '201': {description: Customer created, content: {application/json: {schema: {$ref: '#/components/schemas/Customer'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /customers/{id}:
+    patch:
+      summary: Update an authorized customer profile
+      operationId: updateCustomer
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CustomerUpdate'}
+      responses:
+        '200': {description: Customer updated, content: {application/json: {schema: {$ref: '#/components/schemas/Customer'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /customers/{id}/orders:
+    get:
+      summary: Read order history for an authorized customer identity
+      operationId: getCustomerOrderHistory
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Authorized order history}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /examples:
     get:
       summary: Contract-only collection example
@@ -28,6 +75,10 @@ paths:
         '400':
           $ref: '#/components/responses/InvalidQuery'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
   parameters:
     RequestID:
       name: X-Request-ID
@@ -43,6 +94,11 @@ components:
         default: 20
         minimum: 1
         maximum: 100
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 128}
     PageCursor:
       name: page[cursor]
       in: query
@@ -62,6 +118,15 @@ components:
       schema:
         type: string
   responses:
+    ValidationError:
+      description: Semantic input validation failed.
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Conflict:
+      description: Idempotency, phone identity, or version conflict.
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+    Forbidden:
+      description: Authenticated principal cannot access this customer.
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
     InvalidQuery:
       description: Query parameter validation failed.
       headers:
@@ -72,6 +137,32 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
   schemas:
+    CustomerCreate:
+      type: object
+      additionalProperties: false
+      required: [phone, display_name]
+      properties:
+        phone: {type: string}
+        display_name: {type: string, minLength: 1, maxLength: 120}
+        preferences: {type: object, additionalProperties: true}
+    CustomerUpdate:
+      type: object
+      additionalProperties: false
+      required: [display_name, preferences, version]
+      properties:
+        display_name: {type: string, minLength: 1, maxLength: 120}
+        preferences: {type: object, additionalProperties: true}
+        version: {type: integer, minimum: 1}
+    Customer:
+      type: object
+      additionalProperties: false
+      required: [id, phone_e164, display_name, preferences, version]
+      properties:
+        id: {type: string, format: uuid}
+        phone_e164: {type: string, pattern: '^\+62[0-9]{9,12}$'}
+        display_name: {type: string}
+        preferences: {type: object, additionalProperties: true}
+        version: {type: integer, minimum: 1}
     FieldError:
       type: object
       additionalProperties: false

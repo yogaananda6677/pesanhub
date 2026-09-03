@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #14 core domain schema |
+| Updated by | Issue #15 customer identity and profile |
 
 ## 2. Product Intent
 
@@ -57,7 +57,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | Phase | Scope | Status | Started | Completed | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2) | Project readiness | DONE | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md` |
-| [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | IN_PROGRESS | 2026-09-03 | — | Issues #13–#14 |
+| [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | IN_PROGRESS | 2026-09-03 | — | Issues #13–#15 |
 | [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | NOT_STARTED | — | — | Menunggu kontrak 1A |
 | [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment | NOT_STARTED | — | — | Menunggu domain 1A |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release | NOT_STARTED | — | — | Menunggu 1A–1C |
@@ -72,15 +72,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#3 — Phase 1A Core Backend](https://github.com/yogaananda6677/pesanhub/issues/3)
 - Child Issues: #13–#22
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#14 — Desain domain model dan migration data inti](https://github.com/yogaananda6677/pesanhub/issues/14)
-- Current Branch: `feature/14-core-domain-schema`
-- Pull Request: [#84 — feat: add core domain schema](https://github.com/yogaananda6677/pesanhub/pull/84)
+- Current Issue: [#15 — Implementasi identifikasi dan profil pelanggan](https://github.com/yogaananda6677/pesanhub/issues/15)
+- Current Branch: `feature/15-customer-profile`
+- Pull Request: [#85 — feat: implement customer identity profiles](https://github.com/yogaananda6677/pesanhub/pull/85)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81)
 - Status: `IN_PROGRESS`
-- Exit Criteria: lihat acceptance criteria #14; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: canonical domain mapping, Backend/race suite, dan PostgreSQL 16 migration up/down/up beserta positive/negative constraint cases lulus lokal; CI menunggu PR #84
-- Blocker: tidak ada untuk #14
-- Next Issue: #15 setelah #14 direview dan di-merge
+- Exit Criteria: lihat acceptance criteria #15; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
+- Validation: phone normalization, retry/collision, authorization, handler/race suite, dan PostgreSQL migration/concurrency lulus lokal; CI menunggu PR #85
+- Blocker: auth/OTP production sengaja di luar #15; protected routes default-deny sampai principal middleware tersedia
+- Next Issue: #16 setelah #15 direview dan di-merge
 
 ## 6. Current Phase Checklist
 
@@ -206,6 +206,28 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Issue #15 Customer Identity and Profile
+
+**Goal**
+- Mengidentifikasi customer melalui nomor Indonesia ternormalisasi serta menyediakan create/update/history yang collision-safe dan authorization-first.
+
+**Changed**
+- Menambah normalizer `08…`/`628…`/`+628…`/`8…` ke E.164, customer service/store/handler, UUID internal, expected version, dan principal authorization.
+- Menambah migration reversible `000003` untuk preferences object, optimistic version, dan create idempotency key.
+- Menambah OpenAPI customer create/update/history dan `docs/CUSTOMER_IDENTITY.md` untuk collision, shared/recycled phone, privacy, dan default-deny behavior.
+- Menambah unit/contract test serta memperluas migration test dengan rollback/reapply dan concurrent unique collision.
+
+**Validation**
+- Go format/unit/vet, OpenAPI parse, shell syntax, dan `git diff --check`: PASS.
+- PostgreSQL 16 migration up/down/up, customer extension rollback, dan concurrent phone collision: PASS.
+
+**Known Issues**
+- Auth/OTP production tidak termasuk #15. Update/history runtime aman dengan default `UNAUTHENTICATED` sampai middleware memasukkan verified principal.
+- Tidak ada auto-merge customer; collision memerlukan resolusi staf eksplisit pada issue lanjutan.
+
+**Next**
+- Review dan merge PR #85; setelah itu lanjut #16 untuk menu/category/modifier/availability.
 
 ### 3 September 2026 — Issue #14 Core Domain Schema
 
