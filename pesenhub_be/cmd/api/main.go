@@ -16,6 +16,7 @@ import (
 	"pesenhub/backend/internal/database"
 	"pesenhub/backend/internal/health"
 	"pesenhub/backend/internal/httpserver"
+	orderapi "pesenhub/backend/internal/order"
 	"pesenhub/backend/internal/waha"
 )
 
@@ -38,6 +39,7 @@ func main() {
 	h := health.New("pesenhub-api", pool, wc)
 	customers := customer.NewHandler(customer.NewService(customer.NewStore(pool), customer.NewID))
 	catalogHandler := catalog.NewHandler(catalog.NewService(catalog.NewStore(pool), customer.NewID))
+	orders := orderapi.NewHandler(orderapi.NewService(orderapi.NewStore(pool)))
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", h.Live)
 	mux.HandleFunc("GET /health/ready", h.Ready)
@@ -49,6 +51,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/admin/categories", catalogHandler.CreateCategory)
 	mux.HandleFunc("POST /api/v1/admin/menus", catalogHandler.CreateMenu)
 	mux.HandleFunc("PATCH /api/v1/admin/menus/{id}/availability", catalogHandler.Availability)
+	mux.HandleFunc("POST /api/v1/orders", orders.CreateManual)
 	mux.Handle("GET /", http.FileServer(http.Dir("web")))
 	server := &http.Server{Addr: cfg.Address(), Handler: httpserver.Middleware(logger, mux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {

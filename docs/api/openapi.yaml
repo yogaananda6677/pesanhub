@@ -98,6 +98,23 @@ paths:
       responses:
         '200': {description: Authorized order history}
         '403': {$ref: '#/components/responses/Forbidden'}
+  /orders:
+    post:
+      summary: Create or replay a cashier manual order atomically
+      operationId: createManualOrder
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ManualOrderCreate'}}}
+      responses:
+        '200': {description: Identical idempotent replay, content: {application/json: {schema: {$ref: '#/components/schemas/Order'}}}}
+        '201': {description: Pending cashier order created, content: {application/json: {schema: {$ref: '#/components/schemas/Order'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
   /examples:
     get:
       summary: Contract-only collection example
@@ -182,6 +199,57 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
   schemas:
+    ModifierSelection:
+      type: object
+      additionalProperties: false
+      required: [group_id, option_ids]
+      properties:
+        group_id: {type: string, format: uuid}
+        option_ids: {type: array, items: {type: string, format: uuid}}
+    ManualOrderItemCreate:
+      type: object
+      additionalProperties: false
+      required: [menu_id, quantity]
+      properties:
+        menu_id: {type: string, format: uuid}
+        quantity: {type: integer, minimum: 1, maximum: 100}
+        notes: {type: string}
+        modifier_groups: {type: array, items: {$ref: '#/components/schemas/ModifierSelection'}}
+    ManualOrderCreate:
+      type: object
+      additionalProperties: false
+      required: [client_order_id, customer_name, items]
+      properties:
+        client_order_id: {type: string, format: uuid}
+        customer_id: {type: string, format: uuid}
+        customer_name: {type: string, minLength: 1, maxLength: 120}
+        customer_phone: {type: string}
+        notes: {type: string}
+        items: {type: array, minItems: 1, maxItems: 100, items: {$ref: '#/components/schemas/ManualOrderItemCreate'}}
+    OrderItem:
+      type: object
+      required: [id, menu_id, name, sku, unit_price_amount, quantity, line_total_amount]
+      properties:
+        id: {type: string, format: uuid}
+        menu_id: {type: string, format: uuid}
+        name: {type: string}
+        sku: {type: string}
+        unit_price_amount: {type: integer, format: int64, minimum: 0}
+        quantity: {type: integer, minimum: 1}
+        line_total_amount: {type: integer, format: int64, minimum: 0}
+    Order:
+      type: object
+      required: [id, order_number, client_order_id, source, status, total_amount, version, created_at, items]
+      properties:
+        id: {type: string, format: uuid}
+        order_number: {type: string}
+        client_order_id: {type: string, format: uuid}
+        source: {const: CASHIER_MANUAL}
+        status: {const: PENDING}
+        total_amount: {type: integer, format: int64, minimum: 0}
+        version: {type: integer, minimum: 1}
+        created_at: {type: string, format: date-time}
+        items: {type: array, items: {$ref: '#/components/schemas/OrderItem'}}
     ModifierOption:
       type: object
       required: [id, code, name, price_delta_amount, is_available, sort_order]

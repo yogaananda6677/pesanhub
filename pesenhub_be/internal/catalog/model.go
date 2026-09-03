@@ -62,8 +62,8 @@ type Category struct {
 }
 
 type Selection struct {
-	GroupID   string
-	OptionIDs []string
+	GroupID   string   `json:"group_id"`
+	OptionIDs []string `json:"option_ids"`
 }
 
 func Price(menu Menu, selections []Selection) (int64, error) {
