@@ -73,12 +73,12 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Child Issues: #13–#22
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
 - Current Issue: [#13 — API convention, error response, pagination, dan versioning](https://github.com/yogaananda6677/pesanhub/issues/13)
-- Current Branch: `feat/13-api-conventions`
-- Pull Request: [#82 — feat: establish HTTP API conventions](https://github.com/yogaananda6677/pesanhub/pull/82)
+- Current Branch: `feature/13-api-conventions`
+- Pull Request: `NOT_CREATED` (#82 closed because its `feat/` branch prefix violated Contribution Policy)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81)
 - Status: `IN_PROGRESS`
 - Exit Criteria: lihat acceptance criteria #13; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: serializer/error mapping, pagination, request ID, panic contract, Backend check/race/vet, dan OpenAPI parse lulus lokal; CI menunggu pada PR #82
+- Validation: serializer/error mapping, pagination, request ID, panic contract, Backend check/race/vet, dan OpenAPI parse lulus lokal; CI menunggu pada PR pengganti
 - Blocker: tidak ada untuk #13
 - Next Issue: #14 setelah #13 direview dan di-merge
 
@@ -227,7 +227,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - `/api/v1/examples` pada OpenAPI hanya contoh kontrak dan bukan route runtime; endpoint domain ditambahkan oleh issue pemiliknya.
 
 **Next**
-- Review dan merge PR #82; setelah itu lanjut #14 untuk domain model dan migration inti.
+- Buka PR pengganti dari branch `feature/`; setelah merge lanjut #14 untuk domain model dan migration inti.
 
 ### 3 September 2026 — Phase 0 Closing Audit
 
