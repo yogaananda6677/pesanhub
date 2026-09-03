@@ -73,11 +73,11 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Child Issues: #9, #10, #11, #12, #75, #76
 - Current Issue: [#75 — Putuskan scope bisnis dan integrasi minimum Phase 0](https://github.com/yogaananda6677/pesanhub/issues/75)
 - Current Branch: `docs/75-phase-0-product-decisions`
-- Pull Request: `NOT_CREATED`
+- Pull Request: [#79 — docs: propose Phase 0 product decisions](https://github.com/yogaananda6677/pesanhub/pull/79)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77)
 - Status: `IN_PROGRESS`
 - Exit Criteria: lihat checklist Phase 0; belum seluruhnya terpenuhi
-- Validation: proposal PD-001–PD-008 menunggu review Owner dan CI pada PR #75
+- Validation: konsistensi lokal dan scope diff lulus; review Owner dan CI menunggu pada PR #79
 - Blocker: keputusan #75 belum efektif sebelum merge; governance PR #78 dan sinkronisasi roadmap #76 masih terbuka
 - Next Issue: #76 setelah keputusan #75 direview dan di-merge
 
@@ -218,7 +218,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menautkan proposal dari PRD; sinkronisasi penuh tetap menjadi scope #76 setelah Owner menyetujui keputusan.
 
 **Validation**
-- Konsistensi decision matrix, status vocabulary, tautan issue, dan scope non-implementasi: menunggu pemeriksaan sebelum PR.
+- `git diff --check`, kelengkapan Q/PD, dan pembatasan path dokumentasi lulus lokal.
 - Backend/Mobile source, `.env`, Docker, migration, dan deployment tidak diubah.
 
 **Known Issues**
@@ -226,7 +226,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Detail operasional outlet dapat mengubah rekomendasi; perubahan wajib dicatat pada review PR, bukan diasumsikan.
 
 **Next**
-- Buka PR #75 untuk review Owner; setelah merge, kerjakan #76 untuk menyelaraskan PRD/MEMORY dan dependency roadmap.
+- Review dan merge PR #79 sebagai Owner; setelah merge, kerjakan #76 untuk menyelaraskan PRD/MEMORY dan dependency roadmap.
 
 ### 3 September 2026 — Issue #9 Phase 0 Readiness Audit
 
