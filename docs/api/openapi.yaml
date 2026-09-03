@@ -236,6 +236,18 @@ paths:
         '404': {description: Order not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
+  /orders/{id}/audit-logs:
+    get:
+      summary: Query immutable audit logs for an order (staff only, self-audited)
+      operationId: getOrderAuditLogs
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Chronological list of sanitized audit logs, content: {application/json: {schema: {$ref: '#/components/schemas/AuditLogCollection'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Order not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
   /ws/orders:
     get:
       summary: Real-time WebSocket connection for order events and queue streaming
@@ -682,4 +694,25 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/OrderItemDetail'}
+    AuditLogEntry:
+      type: object
+      required: [id, aggregate_type, aggregate_id, action, actor_type, request_id, metadata, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        aggregate_type: {type: string, enum: [ORDER]}
+        aggregate_id: {type: string, format: uuid}
+        action: {type: string, enum: [ORDER_CREATED, ORDER_STATUS_CHANGED, AUDIT_LOGS_ACCESSED]}
+        actor_type: {type: string, enum: [STAFF, CUSTOMER, SYSTEM, AGENT]}
+        actor_id: {type: string}
+        request_id: {type: string}
+        metadata: {type: object}
+        created_at: {type: string, format: date-time}
+    AuditLogCollection:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/AuditLogEntry'}
+
 

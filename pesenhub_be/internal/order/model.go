@@ -2,6 +2,7 @@ package order
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -219,4 +220,16 @@ type PublicTrackingDetail struct {
 	CreatedAt    time.Time         `json:"created_at"`
 	UpdatedAt    time.Time         `json:"updated_at"`
 	Items        []OrderItemDetail `json:"items"`
+}
+
+type AuditLogEntry struct {
+	ID            string          `json:"id"`
+	AggregateType string          `json:"aggregate_type"`
+	AggregateID   string          `json:"aggregate_id"`
+	Action        string          `json:"action"`
+	ActorType     string          `json:"actor_type"`
+	ActorID       string          `json:"actor_id,omitempty"`
+	RequestID     string          `json:"request_id"`
+	Metadata      json.RawMessage `json:"metadata"`
+	CreatedAt     time.Time       `json:"created_at"`
 }

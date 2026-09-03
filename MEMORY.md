@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #21 customer web ordering and identity validation |
+| Updated by | Issue #22 order mutation audit logging and authorized query |
 
 ## 2. Product Intent
 
@@ -72,15 +72,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#3 — Phase 1A Core Backend](https://github.com/yogaananda6677/pesanhub/issues/3)
 - Child Issues: #13–#22
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#21 — Implementasi customer ordering web dan validasi identitas](https://github.com/yogaananda6677/pesanhub/issues/21)
-- Current Branch: `feature/21-customer-web-order`
+- Current Issue: [#22 — Implementasi audit log perubahan pesanan](https://github.com/yogaananda6677/pesanhub/issues/22)
+- Current Branch: `feature/22-order-audit-log`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92)
 - Status: `IN_PROGRESS`
-- Exit Criteria: lihat acceptance criteria #21; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: unit/vet/race, OpenAPI YAML, reversible migration 000008, static web accessibility, dan PostgreSQL web order integration lulus lokal; CI menunggu PR
+- Exit Criteria: lihat acceptance criteria #22; Phase 1A closing checklist dan PR #3 berikutnya
+- Validation: unit/vet/race, OpenAPI YAML, PII sanitization/masking, transactional atomicity, and self-audited RBAC query integration lulus lokal; CI menunggu PR
 - Blocker: endpoint staff dan KDS tetap default-deny sampai verified principal middleware tersedia
-- Next Issue: #22 setelah #21 direview dan di-merge
+- Next Step: Phase 1A closing evaluation (#3) setelah #22 di-merge
 
 ## 6. Current Phase Checklist
 
@@ -206,6 +206,33 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Issue #22 Order Mutation Audit Logging
+
+**Goal**
+- Menyediakan audit log append-only dan immutable untuk setiap mutasi penting order (`ORDER_CREATED`, `ORDER_STATUS_CHANGED`, `AUDIT_LOGS_ACCESSED`) dengan pencatatan actor, request ID, timestamp UTC, redaksi PII ketat (tanpa nomor HP utuh, token, atau secret), serta query terotorisasi yang dibatasi role dan tercatat (self-audited).
+
+**Changed**
+- Menambahkan `MaskPhone` dan `SanitizeAuditMetadata` di `internal/order/audit.go` untuk menyamarkan nomor handphone (`+62812****7890`) dan menyensor token/secret (`[REDACTED]`) sebelum disimpan di kolom `metadata_redacted`.
+- Menambahkan struct `AuditLogEntry` di `internal/order/model.go`.
+- Menerapkan `SanitizeAuditMetadata` pada insert audit log di `Create`, `Transition`, dan `CreateWeb` di `internal/order/store.go`.
+- Menambahkan method `GetAuditLogs` di `internal/order/store.go` dan `service.go` yang mencatat event `AUDIT_LOGS_ACCESSED` secara otomatis saat log dibaca.
+- Menambahkan handler `GetAuditLogs` di `internal/order/handler.go` dengan otorisasi RBAC role `STAFF` dan mendaftarkan route `GET /api/v1/orders/{id}/audit-logs` di `cmd/api/main.go`.
+- Menambahkan unit tests `audit_test.go` dan integration test PostgreSQL `audit_integration_test.go` yang membuktikan atomisitas transaksi, ketepatan 1 audit per mutasi, sanitasi PII tanpa kebocoran nomor HP utuh, dan self-audited access.
+- Menambahkan dokumentasi spesifikasi di `docs/ORDER_AUDIT_LOGS.md` dan memperbarui `docs/api/openapi.yaml`.
+
+**Validation**
+- `cd pesenhub_be && ./run.sh check`: PASS.
+- `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS.
+- `cd pesenhub_be && ./scripts/test-orders.sh`: PASS.
+- `cd pesenhub_be && go test -race ./...`: PASS.
+- Parse `docs/api/openapi.yaml`: PASS.
+
+**Known Issues**
+- Tidak ada.
+
+**Next**
+- Review/merge Issue #22, lalu lanjutkan ke Phase 1A closing checklist dan PR penutup Phase #3.
 
 ### 3 September 2026 — Issue #21 Customer Web Ordering and Identity Validation
 

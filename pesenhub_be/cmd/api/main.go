@@ -66,6 +66,7 @@ func main() {
 	mux.HandleFunc("GET /api/v1/orders", orders.List)
 	mux.HandleFunc("GET /api/v1/orders/queue", orders.Queue)
 	mux.HandleFunc("GET /api/v1/orders/{id}", orders.GetByID)
+	mux.HandleFunc("GET /api/v1/orders/{id}/audit-logs", orders.GetAuditLogs)
 	mux.HandleFunc("GET /api/v1/ws/orders", orders.WS)
 	mux.HandleFunc("POST /api/v1/orders", orders.CreateManual)
 	mux.HandleFunc("POST /api/v1/orders/{id}/status-transitions", orders.TransitionStatus)

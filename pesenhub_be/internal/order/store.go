@@ -87,10 +87,17 @@ func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInp
 		return StatusResult{}, false, err
 	}
 	metadata, _ := json.Marshal(map[string]any{"from_status": current, "to_status": result.Status, "version": result.Version})
+	auditMeta := SanitizeAuditMetadata(map[string]any{
+		"order_id":    orderID,
+		"from_status": current,
+		"to_status":   result.Status,
+		"version":     result.Version,
+		"reason_code": in.ReasonCode,
+	})
 	if _, err = tx.Exec(ctx, `INSERT INTO order_status_history (id,order_id,from_status,to_status,order_version,actor_type,actor_id,reason_code,request_id,idempotency_key,request_hash) VALUES ($1,$2,$3,$4,$5,'STAFF',$6,NULLIF($7,''),$8,$9,$10)`, customer.NewID(), orderID, current, result.Status, result.Version, actorID, in.ReasonCode, requestID, key, hash); err != nil {
 		return StatusResult{}, false, err
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs (id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES ($1,'ORDER',$2,'ORDER_STATUS_CHANGED','STAFF',$3,$4,$5)`, customer.NewID(), orderID, actorID, requestID, metadata); err != nil {
+	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs (id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES ($1,'ORDER',$2,'ORDER_STATUS_CHANGED','STAFF',$3,$4,$5)`, customer.NewID(), orderID, actorID, requestID, auditMeta); err != nil {
 		return StatusResult{}, false, err
 	}
 	if _, err = tx.Exec(ctx, `INSERT INTO outbox_events (id,aggregate_type,aggregate_id,event_type,payload,deduplication_key) VALUES ($1,'ORDER',$2,'ORDER_STATUS_CHANGED',$3,$4)`, customer.NewID(), orderID, metadata, "order-status:"+orderID+":"+fmt.Sprint(result.Version)); err != nil {
@@ -186,12 +193,22 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 		"total_amount": total,
 		"version":      1,
 	})
+	auditMeta := SanitizeAuditMetadata(map[string]any{
+		"order_id":       o.ID,
+		"order_number":   o.OrderNumber,
+		"source":         "CASHIER_MANUAL",
+		"status":         "PENDING",
+		"total_amount":   total,
+		"customer_name":  in.CustomerName,
+		"customer_phone": in.CustomerPhone,
+		"version":        1,
+	})
 	statements := []struct {
 		q    string
 		args []any
 	}{
 		{`INSERT INTO order_status_history (id,order_id,to_status,order_version,actor_type,actor_id,request_id) VALUES ($1,$2,'PENDING',1,'STAFF',$3,$4)`, []any{customer.NewID(), o.ID, actorID, requestID}},
-		{`INSERT INTO audit_logs (id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES ($1,'ORDER',$2,'ORDER_CREATED','STAFF',$3,$4,$5)`, []any{customer.NewID(), o.ID, actorID, requestID, metadata}},
+		{`INSERT INTO audit_logs (id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES ($1,'ORDER',$2,'ORDER_CREATED','STAFF',$3,$4,$5)`, []any{customer.NewID(), o.ID, actorID, requestID, auditMeta}},
 		{`INSERT INTO outbox_events (id,aggregate_type,aggregate_id,event_type,payload,deduplication_key) VALUES ($1,'ORDER',$2,'ORDER_CREATED',$3,$4)`, []any{customer.NewID(), o.ID, metadata, "order-created:" + o.ID}},
 	}
 	for _, st := range statements {
@@ -607,13 +624,23 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 		"total_amount":   total,
 		"version":        1,
 	})
+	auditMeta := SanitizeAuditMetadata(map[string]any{
+		"order_id":       orderID,
+		"order_number":   orderNumber,
+		"source":         "CUSTOMER_WEB",
+		"status":         "PENDING",
+		"customer_name":  in.CustomerName,
+		"customer_phone": in.CustomerPhone,
+		"total_amount":   total,
+		"version":        1,
+	})
 
 	statements := []struct {
 		q    string
 		args []any
 	}{
 		{`INSERT INTO order_status_history (id, order_id, to_status, order_version, actor_type, actor_id, request_id) VALUES ($1, $2, 'PENDING', 1, 'CUSTOMER', $3, $4)`, []any{customer.NewID(), orderID, customerID, requestID}},
-		{`INSERT INTO audit_logs (id, aggregate_type, aggregate_id, action, actor_type, actor_id, request_id, metadata_redacted) VALUES ($1, 'ORDER', $2, 'ORDER_CREATED', 'CUSTOMER', $3, $4, $5)`, []any{customer.NewID(), orderID, customerID, requestID, metadata}},
+		{`INSERT INTO audit_logs (id, aggregate_type, aggregate_id, action, actor_type, actor_id, request_id, metadata_redacted) VALUES ($1, 'ORDER', $2, 'ORDER_CREATED', 'CUSTOMER', $3, $4, $5)`, []any{customer.NewID(), orderID, customerID, requestID, auditMeta}},
 		{`INSERT INTO outbox_events (id, aggregate_type, aggregate_id, event_type, payload, deduplication_key) VALUES ($1, 'ORDER', $2, 'ORDER_CREATED', $3, $4)`, []any{customer.NewID(), orderID, metadata, "order-created:" + orderID}},
 	}
 	for _, st := range statements {
@@ -727,4 +754,50 @@ func (s *Store) GetByPublicToken(ctx context.Context, token string) (PublicTrack
 		UpdatedAt:    o.UpdatedAt,
 		Items:        o.Items,
 	}, nil
+}
+
+func (s *Store) GetAuditLogs(ctx context.Context, orderID, actorID, requestID string) ([]AuditLogEntry, error) {
+	orderID = strings.TrimSpace(orderID)
+	if orderID == "" {
+		return nil, ErrNotFound
+	}
+
+	var exists bool
+	err := s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM orders WHERE id = $1)`, orderID).Scan(&exists)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, ErrNotFound
+	}
+
+	// Self-audited: record that audit logs were accessed
+	_, _ = s.db.Exec(ctx, `INSERT INTO audit_logs (id, aggregate_type, aggregate_id, action, actor_type, actor_id, request_id, metadata_redacted)
+		VALUES ($1, 'ORDER', $2, 'AUDIT_LOGS_ACCESSED', 'STAFF', $3, $4, '{}'::jsonb)`,
+		customer.NewID(), orderID, actorID, requestID)
+
+	rows, err := s.db.Query(ctx, `SELECT id::text, aggregate_type, aggregate_id::text, action, actor_type, COALESCE(actor_id, ''), request_id, metadata_redacted, created_at
+		FROM audit_logs
+		WHERE aggregate_type = 'ORDER' AND aggregate_id = $1
+		ORDER BY created_at ASC, id ASC`, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []AuditLogEntry
+	for rows.Next() {
+		var e AuditLogEntry
+		if err = rows.Scan(&e.ID, &e.AggregateType, &e.AggregateID, &e.Action, &e.ActorType, &e.ActorID, &e.RequestID, &e.Metadata, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	if entries == nil {
+		entries = []AuditLogEntry{}
+	}
+	return entries, nil
 }
