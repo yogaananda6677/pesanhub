@@ -34,11 +34,16 @@ type WebOrderStore interface {
 	GetByPublicToken(context.Context, string) (PublicTrackingDetail, error)
 }
 
+type AuditStore interface {
+	GetAuditLogs(context.Context, string, string, string) ([]AuditLogEntry, error)
+}
+
 type Service struct {
 	store       Creator
 	transitions Transitioner
 	reader      Reader
 	webStore    WebOrderStore
+	auditStore  AuditStore
 }
 
 func NewService(store Creator) *Service {
@@ -46,6 +51,7 @@ func NewService(store Creator) *Service {
 	s.transitions, _ = store.(Transitioner)
 	s.reader, _ = store.(Reader)
 	s.webStore, _ = store.(WebOrderStore)
+	s.auditStore, _ = store.(AuditStore)
 	return s
 }
 
@@ -341,4 +347,26 @@ func (s *Service) GetByPublicToken(ctx context.Context, token string) (PublicTra
 		return PublicTrackingDetail{}, errors.New("web store not configured")
 	}
 	return s.webStore.GetByPublicToken(ctx, token)
+}
+
+func (s *Service) GetAuditLogs(ctx context.Context, orderID string, p customer.Principal, requestID string) ([]AuditLogEntry, error) {
+	if p.Role != "STAFF" {
+		return nil, customer.ErrUnauthorized
+	}
+	orderID = strings.TrimSpace(orderID)
+	if orderID == "" {
+		return nil, ErrNotFound
+	}
+	var u pgtype.UUID
+	if err := u.Scan(orderID); err != nil || !u.Valid {
+		return nil, ErrNotFound
+	}
+	if s.auditStore == nil {
+		return nil, errors.New("audit store unavailable")
+	}
+	actorID := p.Subject
+	if actorID == "" {
+		actorID = "STAFF"
+	}
+	return s.auditStore.GetAuditLogs(ctx, orderID, actorID, requestID)
 }

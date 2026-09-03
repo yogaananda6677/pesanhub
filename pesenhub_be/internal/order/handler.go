@@ -320,6 +320,28 @@ func (h *Handler) GetByPublicToken(w http.ResponseWriter, r *http.Request) {
 	httpapi.WriteJSON(w, http.StatusOK, map[string]any{"data": res})
 }
 
+func (h *Handler) GetAuditLogs(w http.ResponseWriter, r *http.Request) {
+	p := customer.PrincipalFromRequest(r)
+	if p.Subject == "" || p.Role != "STAFF" {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+
+	orderID := r.PathValue("id")
+	if orderID == "" {
+		h.writeError(w, r, ErrNotFound)
+		return
+	}
+
+	entries, err := h.service.GetAuditLogs(r.Context(), orderID, p, httpserver.RequestID(r.Context()))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+
+	httpapi.WriteJSON(w, http.StatusOK, map[string]any{"data": entries})
+}
+
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
 	status, code, message := http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred."
 	details := []httpapi.FieldError(nil)
