@@ -74,11 +74,11 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
 - Current Issue: [#76 — Selaraskan PRD dan MEMORY dengan roadmap milestone Phase 0–3](https://github.com/yogaananda6677/pesanhub/issues/76)
 - Current Branch: `docs/76-align-phase-roadmap`
-- Pull Request: `NOT_CREATED`
+- Pull Request: [#80 — docs: align roadmap with GitHub phases](https://github.com/yogaananda6677/pesanhub/pull/80)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#79](https://github.com/yogaananda6677/pesanhub/pull/79)
 - Status: `IN_PROGRESS`
 - Exit Criteria: lihat checklist Phase 0; belum seluruhnya terpenuhi
-- Validation: link #1–#8 diverifikasi melalui GitHub CLI; sinkronisasi dokumen dan CI menunggu
+- Validation: link #1–#8, tujuh phase, istilah stale, dan scope diff lulus lokal; CI menunggu pada PR #80
 - Blocker: Issue #76 dan Phase Closing PR #2 belum selesai
 - Next Issue: Phase Closing PR #2 setelah #76 direview dan di-merge
 
@@ -220,14 +220,14 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 
 **Validation**
 - Metadata Epic #1 dan Phase Issue #2–#8 diverifikasi melalui GitHub CLI.
-- Konsistensi tujuh phase, link, istilah stale, dan scope dokumentasi menunggu validasi akhir/CI.
+- Konsistensi tujuh phase, link, istilah stale, dan scope dokumentasi lulus lokal; CI menunggu pada PR #80.
 
 **Known Issues**
 - Phase 0 tetap `IN_PROGRESS`; Issue #76 bukan Phase Closing PR dan tidak menutup #2.
 - Prototype desain untuk #23 masih memerlukan akses Owner/Design Owner (Q-014).
 
 **Next**
-- Review dan merge PR #76, lalu buat Phase Closing PR #2 hanya setelah seluruh child issue dan exit criteria terverifikasi.
+- Review dan merge PR #80, lalu buat Phase Closing PR #2 hanya setelah seluruh child issue dan exit criteria terverifikasi.
 
 ### 3 September 2026 — Issue #75 Phase 0 Product Decision Proposal
 
