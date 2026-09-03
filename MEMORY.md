@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 3 September 2026 |
-| Updated by | Issue #15 customer identity and profile |
+| Updated by | Issue #16 menu catalog |
 
 ## 2. Product Intent
 
@@ -57,7 +57,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | Phase | Scope | Status | Started | Completed | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2) | Project readiness | DONE | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md` |
-| [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | IN_PROGRESS | 2026-09-03 | — | Issues #13–#15 |
+| [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | IN_PROGRESS | 2026-09-03 | — | Issues #13–#16 |
 | [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | NOT_STARTED | — | — | Menunggu kontrak 1A |
 | [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment | NOT_STARTED | — | — | Menunggu domain 1A |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release | NOT_STARTED | — | — | Menunggu 1A–1C |
@@ -72,15 +72,15 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#3 — Phase 1A Core Backend](https://github.com/yogaananda6677/pesanhub/issues/3)
 - Child Issues: #13–#22
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#15 — Implementasi identifikasi dan profil pelanggan](https://github.com/yogaananda6677/pesanhub/issues/15)
-- Current Branch: `feature/15-customer-profile`
-- Pull Request: [#85 — feat: implement customer identity profiles](https://github.com/yogaananda6677/pesanhub/pull/85)
+- Current Issue: [#16 — Implementasi menu, category, modifier, harga, dan availability](https://github.com/yogaananda6677/pesanhub/issues/16)
+- Current Branch: `feature/16-menu-catalog`
+- Pull Request: [#86 — feat: implement menu catalog](https://github.com/yogaananda6677/pesanhub/pull/86)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81)
 - Status: `IN_PROGRESS`
-- Exit Criteria: lihat acceptance criteria #15; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
-- Validation: phone normalization, retry/collision, authorization, handler/race suite, dan PostgreSQL migration/concurrency lulus lokal; CI menunggu PR #85
-- Blocker: auth/OTP production sengaja di luar #15; protected routes default-deny sampai principal middleware tersedia
-- Next Issue: #16 setelah #15 direview dan di-merge
+- Exit Criteria: lihat acceptance criteria #16; Phase 1A tetap terbuka sampai seluruh child issue dan Phase Closing PR #3 selesai
+- Validation: price/modifier validation, handler/race suite, OpenAPI, dan PostgreSQL catalog migration/visibility lulus lokal; CI menunggu PR #86
+- Blocker: admin writes default-deny sampai verified staff principal middleware tersedia; public/agent read tetap tersedia
+- Next Issue: #17 setelah #16 direview dan di-merge
 
 ## 6. Current Phase Checklist
 
@@ -206,6 +206,28 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 3 September 2026 — Issue #16 Menu Catalog
+
+**Goal**
+- Menyediakan katalog category/menu/modifier group/option sebagai sumber harga integer dan availability seluruh channel.
+
+**Changed**
+- Menambah migration reversible `000004` untuk modifier group/option, stable menu sort, dan snapshot option reference.
+- Menambah catalog model/service/store/handler untuk admin category/menu/availability dan public/agent read dengan filter category serta stable ordering.
+- Menambah server-side price/modifier validator yang menolak menu/option unavailable, foreign/duplicate option, dan min/max ilegal dengan safe field path.
+- Menambah OpenAPI dan `docs/MENU_CATALOG.md`; tabel flat lama dipertahankan untuk migration compatibility.
+
+**Validation**
+- Go format/unit/vet, handler contract, OpenAPI parse, shell syntax, dan `git diff --check`: PASS.
+- PostgreSQL 16 migration/rollback/reapply, CRUD fixture, availability visibility, modifier bounds, serta seluruh fixture migration lama: PASS.
+
+**Known Issues**
+- Admin write runtime default `FORBIDDEN` sampai auth middleware memasukkan verified `STAFF` principal.
+- Promo kompleks dan inventory di luar #16; order snapshot/atomic calculation dilanjutkan #17.
+
+**Next**
+- Review dan merge PR #86; setelah itu lanjut #17 untuk order creation manual, source tracking, dan idempotency.
 
 ### 3 September 2026 — Issue #15 Customer Identity and Profile
 

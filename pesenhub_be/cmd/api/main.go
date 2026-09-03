@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"pesenhub/backend/internal/catalog"
 	"pesenhub/backend/internal/config"
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/database"
@@ -36,12 +37,18 @@ func main() {
 	wc := waha.New(cfg.WAHA.BaseURL, cfg.WAHA.APIKey, cfg.WAHA.Session, cfg.WAHA.Timeout)
 	h := health.New("pesenhub-api", pool, wc)
 	customers := customer.NewHandler(customer.NewService(customer.NewStore(pool), customer.NewID))
+	catalogHandler := catalog.NewHandler(catalog.NewService(catalog.NewStore(pool), customer.NewID))
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", h.Live)
 	mux.HandleFunc("GET /health/ready", h.Ready)
 	mux.HandleFunc("POST /api/v1/customers", customers.Create)
 	mux.HandleFunc("PATCH /api/v1/customers/{id}", customers.Update)
 	mux.HandleFunc("GET /api/v1/customers/{id}/orders", customers.History)
+	mux.HandleFunc("GET /api/v1/public/menu", catalogHandler.Public)
+	mux.HandleFunc("GET /api/v1/agent/menu", catalogHandler.Public)
+	mux.HandleFunc("POST /api/v1/admin/categories", catalogHandler.CreateCategory)
+	mux.HandleFunc("POST /api/v1/admin/menus", catalogHandler.CreateMenu)
+	mux.HandleFunc("PATCH /api/v1/admin/menus/{id}/availability", catalogHandler.Availability)
 	mux.Handle("GET /", http.FileServer(http.Dir("web")))
 	server := &http.Server{Addr: cfg.Address(), Handler: httpserver.Middleware(logger, mux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
