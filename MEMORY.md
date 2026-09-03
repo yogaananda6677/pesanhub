@@ -77,7 +77,7 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Merged Pull Requests: `NOT_CREATED`
 - Status: `IN_PROGRESS`
 - Exit Criteria: lihat checklist Phase 0; belum seluruhnya terpenuhi
-- Validation: Backend CI, Mobile CI, Backend CD, dan Mobile CD memiliki successful push run; Contribution Policy, Backend Quality, dan Mobile Quality berjalan pada PR #77
+- Validation: Contribution Policy, Backend Quality, dan Mobile Quality lulus pada PR #77; push run Backend/Mobile CI dan CD sebelumnya juga sukses
 - Blocker: branch protection #10, CODEOWNERS #11, environment/secret matrix #12, keputusan produk #75, dan sinkronisasi roadmap #76
 - Next Issue: #10 setelah #9 direview dan di-merge; #11/#12 dapat berjalan paralel hanya dengan persetujuan Owner
 
@@ -224,7 +224,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - CODEOWNERS aktif: FAIL expected — belum tersedia dan ditangani #11.
 - Secret tracking: PASS — hanya `.env.example` yang tracked; tidak ada nilai `.env` dibaca atau diubah.
 - `git diff --check`: PASS.
-- Contribution Policy, Backend Quality, dan Mobile Quality: berjalan pada Pull Request #77.
+- Contribution Policy, Backend Quality, dan Mobile Quality pada Pull Request #77: PASS.
 
 **Known Issues**
 - #10, #11, #12, #75, dan #76 tetap terbuka; Phase 0 belum memenuhi exit criteria.
