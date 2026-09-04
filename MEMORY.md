@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS                                                          |
 | MVP target     | 30 hari sejak kickoff                                                |
 | Last updated   | 4 September 2026                                                     |
-| Updated by     | Issue #31 menu availability management implementation and validation |
+| Updated by     | Issue #33 offline outbox and background sync implementation and validation |
 
 ## 2. Product Intent
 
@@ -72,14 +72,14 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#4 — Phase 1B Cashier Mobile & Tablet](https://github.com/yogaananda6677/pesanhub/issues/4)
 - Child Issues: #23–#35
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#31 — Implementasi pengelolaan menu availability pada Flutter](https://github.com/yogaananda6677/pesanhub/issues/31)
-- Current Branch: `feature/31-menu-availability-management`
+- Current Issue: [#33 — Implementasi offline outbox dan background synchronization](https://github.com/yogaananda6677/pesanhub/issues/33)
+- Current Branch: `feature/33-offline-outbox-sync`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh acceptance criteria #31 terpenuhi (toggle sukses memperbarui seluruh view via event/version, rollback & pesan actionable pada failure, role guard non-staf, item unavailable tidak dapat dipesan di POS, tata letak responsif mobile & tablet)
-- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (78/78 pass), backend check pass
-- Next Step: Review/merge Issue #31, lalu lanjut ke Issue #32 (Pilih dan implementasikan local database serta cache Flutter)
+- Exit Criteria: Seluruh acceptance criteria #33 terpenuhi (order manual offline tersimpan PENDING lokal, outbox bertahan saat restart aplikasi via SQLite durable store, background sync mengirim mutasi sequential sampai ack tanpa duplikasi, kegagalan transient retry dengan exponential backoff dan permanent error berhenti dengan alert actionable, UI indikator sync responsif pada mobile dan tablet)
+- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (106/106 pass), backend check pass
+- Next Step: Buka PR dan merge Issue #33, lalu lanjut ke Issue #34 (Implementasi conflict handling dan duplicate prevention Flutter)
 
 ## 6. Current Phase Checklist
 
@@ -128,9 +128,9 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [x] #28: Implementasi cart, catatan bungkus, order review, dan submit manual (PR #100)
 - [x] #29: Implementasi order detail, status timeline, dan contextual quick action (PR #101)
 - [x] #30: Implementasi KDS adaptif untuk tablet dan mobile (PR #102)
-- [x] #31: Implementasi pengelolaan menu availability pada Flutter (PR pending)
-- [ ] #32: Pilih dan implementasikan local database serta cache Flutter
-- [ ] #33: Implementasi offline outbox dan background synchronization
+- [x] #31: Implementasi pengelolaan menu availability pada Flutter (PR #103)
+- [x] #32: Pilih dan implementasikan local database serta cache Flutter (PR #104)
+- [x] #33: Implementasi offline outbox dan background synchronization (PR pending)
 - [ ] #34: Implementasi conflict handling dan duplicate prevention Flutter
 - [ ] #35: Implementasi network indicator, local notification, audio, dan heads-up alert
 
@@ -1153,3 +1153,41 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 
 - Bebaskan port 5432 atau gunakan override development yang disepakati, lalu ulangi command Compose default.
 - Kunci pertanyaan bisnis Phase 0 dan lanjutkan spike integrasi/CI yang belum dikerjakan tanpa memperluas ke implementasi fitur order.
+
+### 4 September 2026 — Offline Outbox & Background Synchronization (Issue #33)
+
+**Goal**
+
+- Mengimplementasikan offline outbox dan background synchronization pada Flutter POS sesuai kriteria Issue #33 (pesanan offline tersimpan PENDING lokal, outbox bertahan setelah restart aplikasi, sequential FIFO background sync tanpa duplicate creation, retry exponential backoff untuk transient network failure, error permanent berhenti actionable, indikator status sync mobile & tablet).
+
+**Changed**
+
+- `pesenhub_app/lib/data/local/models/outbox_mutation.dart`: Model `OutboxMutation` dan enum `OutboxSyncStatus` (`pending`, `syncing`, `synced`, `failedTransient`, `failedPermanent`) dengan serialisasi `toMap`/`fromMap` dan helper `isReadyForSync`.
+- `pesenhub_app/lib/data/local/local_database.dart`: Upgrade database version ke `v3` dengan migration `_migrateToV3` membuat tabel `outbox_mutations` dan indeks komposit `(sync_status, next_retry_at)` serta `(client_order_id)`.
+- `pesenhub_app/lib/data/local/outbox_repository.dart`: Repository atomic outbox SQLite (`enqueueMutation`, `getPendingMutations`, `markSyncing`, `markSynced`, `markTransientFailure`, `markPermanentFailure`, `getPendingCount`, dsb.).
+- `pesenhub_app/lib/data/sync/sync_service.dart`: Engine background synchronization dengan penjadwalan berurutan FIFO, exponential backoff ($1\text{s} \times 2^{\text{retry}}$, max 60s), idempotency contract handling (409 Conflict diakui sebagai successful ACK tanpa duplikasi), dan reaktif state `SyncServiceState`.
+- `pesenhub_app/lib/cart/models/cart_order_draft.dart`: Penambahan `toJson()` untuk serialisasi aman payload outbox.
+- `pesenhub_app/lib/cart/controllers/cart_controller.dart`: Penambahan `submitOfflineOrder` yang menyimpan pesanan ke SQLite lokal dengan status `PENDING` dan memasukkan mutasi ke SQLite outbox secara aman (PII masking `0812****7890` untuk nomor telepon), serta helper `addItem`.
+- `pesenhub_app/lib/widgets/sync_status_badge.dart`: Komponen UI status sinkronisasi reaktif (Syncing spinner, Permanent Error alert, Pending Offline count, Idle/Synced badge) adaptif mobile dan tablet.
+- `docs/OFFLINE_OUTBOX_SYNC.md`: Dokumentasi arsitektur offline outbox pattern, state machine, idempotency acknowledgment, dan backoff algorithm.
+- `pesenhub_app/test/outbox_sync_test.dart`: Test suite komprehensif menguji 5 acceptance criteria (durable restart, sequential ack, idempotent deduplication, exponential backoff & permanent failure, UI status badge responsiveness mobile & tablet).
+
+**Decisions**
+
+- Model outbox disimpan secara durable di SQLite (`outbox_mutations`), bukan memory-only, sehingga bertahan melewati app restart / crash kasir.
+- Idempotent ACK Contract: Backend HTTP 409 Conflict diperlakukan sebagai ACK sukses (`isDuplicate: true`), memetakan `server_order_id` dan menandai outbox `SYNCED` tanpa membuat kartu pesanan ganda.
+- PII Sanitization Invariant: Seluruh payload outbox dan local queue order menyimpan nomor HP tersanitasi/termasking (`0812****7890`) sesuai Invariant 11.
+
+**Validation**
+
+- `dart format --output=none --set-exit-if-changed .`: PASS (0 format changes).
+- `flutter analyze`: PASS (0 issues found).
+- `flutter test test/outbox_sync_test.dart`: PASS (13/13 test cases passed).
+- `flutter test`: PASS (106/106 tests passed, 0 regression).
+- Backend check `./run.sh check`: PASS (all modules verified).
+
+**Next**
+
+- Buka Pull Request dan merge Issue #33 ke `main`.
+- Lanjut ke Issue #34: Implementasi conflict handling dan duplicate prevention Flutter.
+

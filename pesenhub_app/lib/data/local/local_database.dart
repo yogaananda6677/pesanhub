@@ -6,7 +6,7 @@ import '../../core/utils/pii_sanitizer.dart';
 /// and relational storage for PesenHub POS and KDS.
 /// Fulfills Issue #32 Acceptance Criteria #1, #3, and #4.
 class LocalDatabase {
-  static const int currentVersion = 2;
+  static const int currentVersion = 3;
   static const String defaultDbName = 'pesenhub.db';
 
   final String? customPath;
@@ -49,10 +49,16 @@ class LocalDatabase {
           if (version >= 2) {
             await _migrateToV2(db);
           }
+          if (version >= 3) {
+            await _migrateToV3(db);
+          }
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2 && newVersion >= 2) {
             await _migrateToV2(db);
+          }
+          if (oldVersion < 3 && newVersion >= 3) {
+            await _migrateToV3(db);
           }
         },
       ),
@@ -146,6 +152,36 @@ class LocalDatabase {
     ''');
   }
 
+  /// v3 Schema migration: adds outbox_mutations table and sync indexes.
+  static Future<void> _migrateToV3(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS outbox_mutations (
+        id TEXT PRIMARY KEY,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        client_order_id TEXT NOT NULL UNIQUE,
+        mutation_type TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        sync_status TEXT NOT NULL,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        last_attempted_at TEXT,
+        next_retry_at TEXT,
+        server_order_id TEXT,
+        error_message TEXT,
+        created_at TEXT NOT NULL
+      );
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_outbox_status_retry 
+      ON outbox_mutations (sync_status, next_retry_at);
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_outbox_client_order_id 
+      ON outbox_mutations (client_order_id);
+    ''');
+  }
+
   /// Sets metadata entry with validation against sensitive tokens/secrets.
   Future<void> setMetadata(String key, String value) async {
     PiiSanitizer.validateMetadataKey(key);
@@ -175,6 +211,7 @@ class LocalDatabase {
   Future<void> clearAllData() async {
     final db = await database;
     await db.transaction((txn) async {
+      await txn.delete('outbox_mutations');
       await txn.delete('queue_order_items');
       await txn.delete('queue_orders');
       await txn.delete('menus');
