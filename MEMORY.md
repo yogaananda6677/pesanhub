@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
 | Last updated   | 4 September 2026                                           |
-| Updated by     | Issue #40 Agent-to-human handoff and pause automation      |
+| Updated by     | Issue #41 Konfirmasi pelanggan dan pembuatan order WHATSAPP |
 
 ## 2. Product Intent
 
@@ -72,14 +72,14 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#5 — Phase 1C WhatsApp, Agent & Payment](https://github.com/yogaananda6677/pesanhub/issues/5)
 - Child Issues: #36–#47
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#40 — Implementasi agent-to-human handoff dan pause automation](https://github.com/yogaananda6677/pesanhub/issues/40)
-- Current Branch: `feature/40-agent-human-handoff-pause-automation`
+- Current Issue: [#41 — Implementasi konfirmasi pelanggan dan pembuatan order WHATSAPP](https://github.com/yogaananda6677/pesanhub/issues/41)
+- Current Branch: `feature/41-whatsapp-order-confirmation-creation`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104), [#105](https://github.com/yogaananda6677/pesanhub/pull/105), [#106](https://github.com/yogaananda6677/pesanhub/pull/106), [#107](https://github.com/yogaananda6677/pesanhub/pull/107), [#108](https://github.com/yogaananda6677/pesanhub/pull/108), [#109](https://github.com/yogaananda6677/pesanhub/pull/109), [#110](https://github.com/yogaananda6677/pesanhub/pull/110), [#111](https://github.com/yogaananda6677/pesanhub/pull/111), [#112](https://github.com/yogaananda6677/pesanhub/pull/112)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104), [#105](https://github.com/yogaananda6677/pesanhub/pull/105), [#106](https://github.com/yogaananda6677/pesanhub/pull/106), [#107](https://github.com/yogaananda6677/pesanhub/pull/107), [#108](https://github.com/yogaananda6677/pesanhub/pull/108), [#109](https://github.com/yogaananda6677/pesanhub/pull/109), [#110](https://github.com/yogaananda6677/pesanhub/pull/110), [#111](https://github.com/yogaananda6677/pesanhub/pull/111), [#112](https://github.com/yogaananda6677/pesanhub/pull/112), [#113](https://github.com/yogaananda6677/pesanhub/pull/113)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh acceptance criteria Issue #40 terpenuhi (agent-to-human handoff, trigger komplain, out-of-scope, repeated tool failure threshold, pause/resume per percakapan dengan actor/audit, queue metadata untuk staf backend, zero auto-reply saat takeover, resume tanpa kirim pesan lama)
+- Exit Criteria: Seluruh acceptance criteria Issue #41 terpenuhi (tanpa konfirmasi eksplisit tidak ada order final, konfirmasi draft stale/harga berubah meminta review ulang, retry konfirmasi membuat satu order WHATSAPP idempotent, ringkasan memuat data minimal dan total kalkulasi backend, test case sukses/validasi/duplikat/timeout terukur)
 - Validation: module verify, format, vet, unit/integration test, race test, full check PASS
-- Next Issue: #41 setelah Issue #40 selesai
+- Next Issue: #42 setelah Issue #41 selesai
 
 ## 6. Current Phase Checklist
 
@@ -140,7 +140,7 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [x] #37: Implementasi webhook pesan masuk, normalisasi nomor, dan deduplikasi WAHA (PR #110)
 - [x] #38: Implementasi Hermes structured order extraction dan confidence policy (PR #111)
 - [x] #39: Implementasi guided clarification untuk detail order ambigu (PR #112)
-- [ ] #40: Implementasi agent-to-human handoff dan pause automation
+- [x] #40: Implementasi agent-to-human handoff dan pause automation (PR #113)
 - [ ] #41: Implementasi konfirmasi pelanggan dan pembuatan order WHATSAPP
 - [ ] #42: Implementasi pesan konfirmasi dan completion notification melalui WAHA
 - [ ] #43: Implementasi WhatsApp outbox, retry, dan failure logging

@@ -45,16 +45,6 @@ func main() {
 	catalogService := catalog.NewService(catalog.NewStore(pool), customer.NewID)
 	catalogHandler := catalog.NewHandler(catalogService)
 
-	hermesStore := hermes.NewStore(pool)
-	hermesConvStore := hermes.NewPGConversationStore(pool)
-	hermesService := hermes.NewService(hermes.Config{
-		Client:            &hermes.MockLLMClient{},
-		CatalogProvider:   catalogService,
-		Store:             hermesStore,
-		ConversationStore: hermesConvStore,
-	})
-	hermesHandler := hermes.NewHandler(hermesService)
-
 	orderStore := orderapi.NewStore(pool)
 	orderHub := ws.NewHub()
 	defer orderHub.Close()
@@ -62,7 +52,19 @@ func main() {
 	orderStore.SetNotifier(publisher)
 	go publisher.Start(ctx, 500*time.Millisecond)
 
-	orders := orderapi.NewHandler(orderapi.NewService(orderStore), orderHub)
+	orderService := orderapi.NewService(orderStore)
+	orders := orderapi.NewHandler(orderService, orderHub)
+
+	hermesStore := hermes.NewStore(pool)
+	hermesConvStore := hermes.NewPGConversationStore(pool)
+	hermesService := hermes.NewService(hermes.Config{
+		Client:            &hermes.MockLLMClient{},
+		CatalogProvider:   catalogService,
+		OrderCreator:      orderService,
+		Store:             hermesStore,
+		ConversationStore: hermesConvStore,
+	})
+	hermesHandler := hermes.NewHandler(hermesService)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", h.Live)
 	mux.HandleFunc("GET /health/ready", h.Ready)

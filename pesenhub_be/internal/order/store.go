@@ -656,6 +656,170 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 	return res, true, nil
 }
 
+func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput, key, hash, requestID string) (WhatsAppOrderResponse, bool, error) {
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return WhatsAppOrderResponse{}, false, err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "WHATSAPP:"+key); err != nil {
+		return WhatsAppOrderResponse{}, false, err
+	}
+
+	var existing WhatsAppOrderResponse
+	var storedHash string
+	err = tx.QueryRow(ctx, `SELECT id::text, order_number, COALESCE(public_tracking_token, ''), status, total_amount, created_at, request_hash
+		FROM orders
+		WHERE source = 'WHATSAPP' AND idempotency_key = $1`, key).Scan(
+		&existing.ID, &existing.OrderNumber, &existing.PublicTrackingToken, &existing.Status, &existing.TotalAmount, &existing.CreatedAt, &storedHash,
+	)
+	if err == nil {
+		if storedHash != hash {
+			return WhatsAppOrderResponse{}, false, ErrIdempotencyConflict
+		}
+		return existing, false, nil
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return WhatsAppOrderResponse{}, false, err
+	}
+
+	items := make([]Item, 0, len(in.Items))
+	var total int64
+	for _, requested := range in.Items {
+		menu, err := loadMenu(ctx, tx, requested.MenuID)
+		if err != nil {
+			return WhatsAppOrderResponse{}, false, err
+		}
+		unit, err := catalog.Price(menu, requested.Selections)
+		if err != nil {
+			return WhatsAppOrderResponse{}, false, err
+		}
+		if unit > (1<<63-1)/int64(requested.Quantity) {
+			return WhatsAppOrderResponse{}, false, ErrInvalidInput
+		}
+		line := unit * int64(requested.Quantity)
+		if total > 1<<63-1-line {
+			return WhatsAppOrderResponse{}, false, ErrInvalidInput
+		}
+		total += line
+		items = append(items, Item{
+			ID:              customer.NewID(),
+			MenuID:          menu.ID,
+			Name:            menu.Name,
+			SKU:             menu.SKU,
+			UnitPriceAmount: unit,
+			Quantity:        requested.Quantity,
+			LineTotalAmount: line,
+		})
+	}
+
+	custName := strings.TrimSpace(in.CustomerName)
+	if custName == "" {
+		custName = "Pelanggan WhatsApp"
+	}
+
+	var customerID string
+	err = tx.QueryRow(ctx, `INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (phone_e164) DO UPDATE SET display_name = EXCLUDED.display_name
+		RETURNING id::text`, customer.NewID(), in.CustomerPhone, custName, "cust-"+in.CustomerPhone).Scan(&customerID)
+	if err != nil {
+		return WhatsAppOrderResponse{}, false, err
+	}
+
+	orderID := customer.NewID()
+	orderNumber := "ORD-" + strings.ToUpper(strings.ReplaceAll(customer.NewID(), "-", "")[:16])
+	trackingToken := "trk_" + strings.ToLower(strings.ReplaceAll(customer.NewID(), "-", "")+strings.ReplaceAll(customer.NewID(), "-", "")[:8])
+
+	res := WhatsAppOrderResponse{
+		ID:                  orderID,
+		OrderNumber:         orderNumber,
+		PublicTrackingToken: trackingToken,
+		Status:              "PENDING",
+		TotalAmount:         total,
+	}
+
+	err = tx.QueryRow(ctx, `INSERT INTO orders (id, order_number, customer_id, source, fulfillment, status, customer_name_snapshot, customer_phone_snapshot, notes, subtotal_amount, total_amount, idempotency_key, version, request_hash, public_tracking_token)
+		VALUES ($1, $2, $3, 'WHATSAPP', 'PICKUP', 'PENDING', $4, $5, NULLIF($6, ''), $7, $7, $8, 1, $9, $10)
+		RETURNING created_at`, orderID, orderNumber, customerID, custName, in.CustomerPhone, in.Notes, total, key, hash, trackingToken).Scan(&res.CreatedAt)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return WhatsAppOrderResponse{}, false, ErrIdempotencyConflict
+		}
+		return WhatsAppOrderResponse{}, false, err
+	}
+
+	for i, requested := range in.Items {
+		item := items[i]
+		_, err = tx.Exec(ctx, `INSERT INTO order_items (id, order_id, menu_id, menu_name_snapshot, sku_snapshot, unit_price_amount, quantity, line_total_amount, notes)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''))`,
+			item.ID, orderID, item.MenuID, item.Name, item.SKU, item.UnitPriceAmount, item.Quantity, item.LineTotalAmount, requested.Notes)
+		if err != nil {
+			return WhatsAppOrderResponse{}, false, err
+		}
+
+		menu, _ := loadMenu(ctx, tx, item.MenuID)
+		options := map[string]catalog.Option{}
+		for _, g := range menu.Groups {
+			for _, op := range g.Options {
+				options[op.ID] = op
+			}
+		}
+		for _, sel := range requested.Selections {
+			for _, optionID := range sel.OptionIDs {
+				op := options[optionID]
+				_, err = tx.Exec(ctx, `INSERT INTO order_item_modifiers (id, order_item_id, modifier_option_id, name_snapshot, price_delta_amount)
+					VALUES ($1, $2, $3, $4, $5)`, customer.NewID(), item.ID, op.ID, op.Name, op.PriceDeltaAmount)
+				if err != nil {
+					return WhatsAppOrderResponse{}, false, err
+				}
+			}
+		}
+	}
+
+	metadata, _ := json.Marshal(map[string]any{
+		"order_id":       orderID,
+		"order_number":   orderNumber,
+		"source":         "WHATSAPP",
+		"status":         "PENDING",
+		"customer_name":  custName,
+		"customer_phone": in.CustomerPhone,
+		"total_amount":   total,
+		"version":        1,
+	})
+	auditMeta := SanitizeAuditMetadata(map[string]any{
+		"order_id":       orderID,
+		"order_number":   orderNumber,
+		"source":         "WHATSAPP",
+		"status":         "PENDING",
+		"customer_name":  custName,
+		"customer_phone": in.CustomerPhone,
+		"total_amount":   total,
+		"version":        1,
+	})
+
+	statements := []struct {
+		q    string
+		args []any
+	}{
+		{`INSERT INTO order_status_history (id, order_id, to_status, order_version, actor_type, actor_id, request_id) VALUES ($1, $2, 'PENDING', 1, 'AGENT', $3, $4)`, []any{customer.NewID(), orderID, "AGENT", requestID}},
+		{`INSERT INTO audit_logs (id, aggregate_type, aggregate_id, action, actor_type, actor_id, request_id, metadata_redacted) VALUES ($1, 'ORDER', $2, 'ORDER_CREATED', 'AGENT', $3, $4, $5)`, []any{customer.NewID(), orderID, "AGENT", requestID, auditMeta}},
+		{`INSERT INTO outbox_events (id, aggregate_type, aggregate_id, event_type, payload, deduplication_key) VALUES ($1, 'ORDER', $2, 'ORDER_CREATED', $3, $4)`, []any{customer.NewID(), orderID, metadata, "order-created:" + orderID}},
+	}
+	for _, st := range statements {
+		if _, err = tx.Exec(ctx, st.q, st.args...); err != nil {
+			return WhatsAppOrderResponse{}, false, err
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return WhatsAppOrderResponse{}, false, err
+	}
+	s.notifyOutbox()
+	return res, true, nil
+}
+
 func (s *Store) PreviewWeb(ctx context.Context, items []ItemInput) (PreviewResponse, error) {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {

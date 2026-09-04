@@ -193,6 +193,22 @@ type PublicOrderResponse struct {
 	CreatedAt           time.Time `json:"created_at"`
 }
 
+type WhatsAppOrderCreateInput struct {
+	CustomerPhone string      `json:"customer_phone"`
+	CustomerName  string      `json:"customer_name"`
+	Notes         string      `json:"notes,omitempty"`
+	Items         []ItemInput `json:"items"`
+}
+
+type WhatsAppOrderResponse struct {
+	ID                  string    `json:"id"`
+	OrderNumber         string    `json:"order_number"`
+	PublicTrackingToken string    `json:"public_tracking_token"`
+	Status              string    `json:"status"`
+	TotalAmount         int64     `json:"total_amount"`
+	CreatedAt           time.Time `json:"created_at"`
+}
+
 type PreviewInput struct {
 	Items []ItemInput `json:"items"`
 }
