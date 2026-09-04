@@ -19,11 +19,38 @@ const (
 	ConversationAwaitingClarification = "AWAITING_CLARIFICATION"
 	ConversationReadyForConfirmation  = "READY_FOR_CONFIRMATION"
 	ConversationHandoff               = "HANDOFF"
+	ConversationPaused                = "PAUSED"
+)
+
+// Handoff status constants.
+const (
+	HandoffStatusNone     = "NONE"
+	HandoffStatusPending  = "PENDING"
+	HandoffStatusAssigned = "ASSIGNED"
+	HandoffStatusResolved = "RESOLVED"
+)
+
+// Handoff priority constants.
+const (
+	HandoffPriorityLow    = "LOW"
+	HandoffPriorityNormal = "NORMAL"
+	HandoffPriorityHigh   = "HIGH"
+	HandoffPriorityUrgent = "URGENT"
+)
+
+// Handoff audit action constants.
+const (
+	HandoffActionTriggered = "HANDOFF_TRIGGERED"
+	HandoffActionPaused    = "PAUSED"
+	HandoffActionResumed   = "RESUMED"
+	HandoffActionAssigned  = "ASSIGNED"
+	HandoffActionResolved  = "RESOLVED"
 )
 
 // Policy limits.
 const (
 	MaxClarificationAttempts = 3
+	MaxToolFailures          = 3
 )
 
 // Prompt and Model constants.
@@ -138,6 +165,19 @@ type ConversationState struct {
 	LastQuestion          string          `json:"last_question,omitempty"`
 	LastInboundMessageID  *string         `json:"last_inbound_message_id,omitempty"`
 	CorrelationID         string          `json:"correlation_id"`
+	IsPaused              bool            `json:"is_paused"`
+	PausedBy              *string         `json:"paused_by,omitempty"`
+	PausedAt              *time.Time      `json:"paused_at,omitempty"`
+	PausedReason          *string         `json:"paused_reason,omitempty"`
+	ResumedBy             *string         `json:"resumed_by,omitempty"`
+	ResumedAt             *time.Time      `json:"resumed_at,omitempty"`
+	HandoffStatus         string          `json:"handoff_status"`
+	HandoffReason         *string         `json:"handoff_reason,omitempty"`
+	HandoffPriority       string          `json:"handoff_priority"`
+	AssignedTo            *string         `json:"assigned_to,omitempty"`
+	AssignedAt            *time.Time      `json:"assigned_at,omitempty"`
+	ResolvedAt            *time.Time      `json:"resolved_at,omitempty"`
+	ToolFailureCount      int             `json:"tool_failure_count"`
 	CreatedAt             time.Time       `json:"created_at"`
 	UpdatedAt             time.Time       `json:"updated_at"`
 }
@@ -164,9 +204,54 @@ type TurnRequest struct {
 
 // TurnResponse represents the agent's turn output including reply text and updated conversation state.
 type TurnResponse struct {
-	State           *ConversationState `json:"state"`
-	Draft           *DraftCandidate    `json:"draft,omitempty"`
-	ReplyText       string             `json:"reply_text"`
-	RequiresHandoff bool               `json:"requires_handoff"`
-	Run             *AgentRun          `json:"run,omitempty"`
+	State            *ConversationState `json:"state"`
+	Draft            *DraftCandidate    `json:"draft,omitempty"`
+	ReplyText        string             `json:"reply_text"`
+	RequiresHandoff  bool               `json:"requires_handoff"`
+	HandledByAgent   bool               `json:"handled_by_agent"`
+	AutomationPaused bool               `json:"automation_paused"`
+	Run              *AgentRun          `json:"run,omitempty"`
+}
+
+// ConversationAuditEvent records an audit trail entry for handoff and pause lifecycle events.
+type ConversationAuditEvent struct {
+	ID             string          `json:"id"`
+	ConversationID string          `json:"conversation_id"`
+	Session        string          `json:"session"`
+	CustomerPhone  string          `json:"customer_phone"`
+	Action         string          `json:"action"`
+	Actor          string          `json:"actor"`
+	ActorRole      string          `json:"actor_role"`
+	Reason         string          `json:"reason"`
+	Metadata       json.RawMessage `json:"metadata"`
+	CorrelationID  string          `json:"correlation_id"`
+	CreatedAt      time.Time       `json:"created_at"`
+}
+
+// HandoffQueueFilter parameters for querying staff handoffs.
+type HandoffQueueFilter struct {
+	Status   string `json:"status,omitempty"`
+	Priority string `json:"priority,omitempty"`
+	Limit    int    `json:"limit,omitempty"`
+	Offset   int    `json:"offset,omitempty"`
+}
+
+// HandoffQueueItem represents a conversation in the staff handoff queue.
+type HandoffQueueItem struct {
+	ID                    string          `json:"id"`
+	Session               string          `json:"session"`
+	CustomerPhone         string          `json:"customer_phone"`
+	Status                string          `json:"status"`
+	IsPaused              bool            `json:"is_paused"`
+	HandoffStatus         string          `json:"handoff_status"`
+	HandoffReason         *string         `json:"handoff_reason,omitempty"`
+	HandoffPriority       string          `json:"handoff_priority"`
+	AssignedTo            *string         `json:"assigned_to,omitempty"`
+	AssignedAt            *time.Time      `json:"assigned_at,omitempty"`
+	ClarificationAttempts int             `json:"clarification_attempts"`
+	LastQuestion          string          `json:"last_question,omitempty"`
+	LastInboundMessageID  *string         `json:"last_inbound_message_id,omitempty"`
+	CurrentDraft          *DraftCandidate `json:"current_draft,omitempty"`
+	CreatedAt             time.Time       `json:"created_at"`
+	UpdatedAt             time.Time       `json:"updated_at"`
 }

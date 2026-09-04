@@ -23,7 +23,7 @@ func main() {
 	}
 	m, err := migrate.New("file://migrations", cfg.Database.DSN())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "initialize migration failed")
+		fmt.Fprintln(os.Stderr, "initialize migration failed:", err)
 		os.Exit(1)
 	}
 	if os.Args[1] == "status" {

@@ -15,6 +15,7 @@ import (
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/database"
 	"pesenhub/backend/internal/health"
+	"pesenhub/backend/internal/hermes"
 	"pesenhub/backend/internal/httpserver"
 	orderapi "pesenhub/backend/internal/order"
 	"pesenhub/backend/internal/waha"
@@ -41,7 +42,18 @@ func main() {
 	wahaWebhook := waha.NewWebhookHandler(cfg.WAHA.WebhookHMACKey, logger, waha.WithStore(wahaStore))
 	h := health.New("pesenhub-api", pool, wc)
 	customers := customer.NewHandler(customer.NewService(customer.NewStore(pool), customer.NewID))
-	catalogHandler := catalog.NewHandler(catalog.NewService(catalog.NewStore(pool), customer.NewID))
+	catalogService := catalog.NewService(catalog.NewStore(pool), customer.NewID)
+	catalogHandler := catalog.NewHandler(catalogService)
+
+	hermesStore := hermes.NewStore(pool)
+	hermesConvStore := hermes.NewPGConversationStore(pool)
+	hermesService := hermes.NewService(hermes.Config{
+		Client:            &hermes.MockLLMClient{},
+		CatalogProvider:   catalogService,
+		Store:             hermesStore,
+		ConversationStore: hermesConvStore,
+	})
+	hermesHandler := hermes.NewHandler(hermesService)
 
 	orderStore := orderapi.NewStore(pool)
 	orderHub := ws.NewHub()
@@ -63,6 +75,12 @@ func main() {
 	mux.HandleFunc("POST /api/v1/public/orders", orders.CreateWeb)
 	mux.HandleFunc("GET /api/v1/public/orders/{token}", orders.GetByPublicToken)
 	mux.HandleFunc("GET /api/v1/agent/menu", catalogHandler.Public)
+	mux.HandleFunc("GET /api/v1/agent/handoffs", hermesHandler.ListHandoffs)
+	mux.HandleFunc("POST /api/v1/agent/conversations/pause", hermesHandler.Pause)
+	mux.HandleFunc("POST /api/v1/agent/conversations/resume", hermesHandler.Resume)
+	mux.HandleFunc("POST /api/v1/agent/conversations/assign", hermesHandler.Assign)
+	mux.HandleFunc("POST /api/v1/agent/conversations/resolve", hermesHandler.Resolve)
+	mux.HandleFunc("GET /api/v1/agent/conversations/{id}/audit-logs", hermesHandler.GetAuditLogs)
 	mux.HandleFunc("POST /api/v1/admin/categories", catalogHandler.CreateCategory)
 	mux.HandleFunc("POST /api/v1/admin/menus", catalogHandler.CreateMenu)
 	mux.HandleFunc("PATCH /api/v1/admin/menus/{id}/availability", catalogHandler.Availability)
