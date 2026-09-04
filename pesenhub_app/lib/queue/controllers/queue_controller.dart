@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/event_deduplicator.dart';
+import '../../data/local/conflict_audit_repository.dart';
+import '../../order/models/order_conflict.dart';
 import '../models/queue_order.dart';
 import '../models/queue_state.dart';
 
 /// QueueController manages unified order queue collection, deduplication, filtering, and stable sorting.
-/// Fulfills Issue #26 Acceptance Criteria #1, #2, #3, and #4.
+/// Fulfills Issue #26 & #34 Acceptance Criteria (deduplication, server-wins protection, conflict resolution).
 class QueueController extends ChangeNotifier {
   final Map<String, QueueOrder> _ordersMap = {};
+  final EventDeduplicator _deduplicator = EventDeduplicator();
   DateTime? _timeOverride;
 
   QueueState _state = const QueueState.loading();
@@ -70,13 +74,40 @@ class QueueController extends ChangeNotifier {
     notifyListeners();
   }
 
+  EventDeduplicator get deduplicator => _deduplicator;
+
   /// Ingests a single order event (e.g. from WebSocket or local mutation).
-  /// Fulfills Acceptance Criteria #2: prevents duplicate cards.
-  void upsertOrder(QueueOrder order) {
-    final existing = _ordersMap[order.id];
-    if (existing != null && order.version < existing.version) {
-      // Ignore older out-of-order event
+  /// Fulfills Issue #34 Criteria #1 (server-wins) and #2 (duplicate prevention).
+  void upsertOrder(QueueOrder order, {String? eventId}) {
+    if (eventId != null && !_deduplicator.shouldProcess(eventId)) {
+      // Event ID already processed (Criteria #2)
       return;
+    }
+
+    final existing = _ordersMap[order.id];
+    if (existing != null) {
+      if (order.version < existing.version) {
+        // Ignore older out-of-order event
+        return;
+      }
+
+      // Server-wins protection (Criteria #1): terminal states and paid status cannot be regressed
+      const finalStatuses = {'COMPLETED', 'CANCELLED', 'REJECTED'};
+      if (finalStatuses.contains(existing.orderStatus) &&
+          !finalStatuses.contains(order.orderStatus)) {
+        return;
+      }
+      if (existing.paymentStatus == 'PAID' && order.paymentStatus != 'PAID') {
+        return;
+      }
+
+      // Duplicate event check: if version and core fields are identical, avoid unnecessary notifyListeners
+      if (order.version == existing.version &&
+          order.orderStatus == existing.orderStatus &&
+          order.paymentStatus == existing.paymentStatus &&
+          order.takeawayNotes == existing.takeawayNotes) {
+        return;
+      }
     }
 
     _ordersMap[order.id] = order;
@@ -88,15 +119,62 @@ class QueueController extends ChangeNotifier {
   }
 
   /// Updates status of an existing order locally with version bump.
-  void updateOrderStatus(String orderId, String newStatus) {
+  /// Returns false if prevented by server-wins terminal state guard.
+  bool updateOrderStatus(String orderId, String newStatus) {
     final existing = _ordersMap[orderId];
-    if (existing == null) return;
+    if (existing == null) return false;
+
+    // Server-wins protection: cannot modify already terminal orders
+    const finalStatuses = {'COMPLETED', 'CANCELLED', 'REJECTED'};
+    if (finalStatuses.contains(existing.orderStatus)) {
+      return false;
+    }
 
     _ordersMap[orderId] = existing.copyWith(
       orderStatus: newStatus,
       version: existing.version + 1,
     );
     notifyListeners();
+    return true;
+  }
+
+  /// Applies a conflict resolution decision deterministically and logs audit trail.
+  /// Fulfills Criteria #3 & #4.
+  Future<QueueOrder> applyConflictResolution({
+    required ConflictClassification classification,
+    required ResolutionStrategy strategy,
+    ConflictAuditRepository? auditRepo,
+  }) async {
+    final resolved = ConflictResolver.resolve(
+      classification: classification,
+      strategy: strategy,
+    );
+
+    _ordersMap[resolved.id] = resolved;
+    notifyListeners();
+
+    if (auditRepo != null) {
+      try {
+        await auditRepo.logConflict(
+          id: 'conf-${DateTime.now().millisecondsSinceEpoch}',
+          orderId: resolved.id,
+          clientOrderId: classification.localOrder.id,
+          conflictType: classification.type.name,
+          resolutionStrategy: strategy.name,
+          clientVersion: classification.localOrder.version,
+          serverVersion: classification.serverOrder.version,
+          resolvedPayload: {
+            'order_status': resolved.orderStatus,
+            'payment_status': resolved.paymentStatus,
+            'takeaway_notes': resolved.takeawayNotes,
+            'version': resolved.version,
+          },
+          notes: classification.reason,
+        );
+      } catch (_) {}
+    }
+
+    return resolved;
   }
 
   /// Sets presentation error state.
