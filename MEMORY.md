@@ -72,14 +72,14 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#5 — Phase 1C WhatsApp, Agent & Payment](https://github.com/yogaananda6677/pesanhub/issues/5)
 - Child Issues: #36–#47
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#42 — Implementasi pesan konfirmasi dan completion notification melalui WAHA](https://github.com/yogaananda6677/pesanhub/issues/42)
-- Current Branch: `feature/42-waha-order-confirmation-completion-notifications`
+- Current Issue: [#43 — Implementasi WhatsApp outbox, retry, dan failure logging](https://github.com/yogaananda6677/pesanhub/issues/43)
+- Current Branch: `feature/43-whatsapp-outbox-retry-logging`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104), [#105](https://github.com/yogaananda6677/pesanhub/pull/105), [#106](https://github.com/yogaananda6677/pesanhub/pull/106), [#107](https://github.com/yogaananda6677/pesanhub/pull/107), [#108](https://github.com/yogaananda6677/pesanhub/pull/108), [#109](https://github.com/yogaananda6677/pesanhub/pull/109), [#110](https://github.com/yogaananda6677/pesanhub/pull/110), [#111](https://github.com/yogaananda6677/pesanhub/pull/111), [#112](https://github.com/yogaananda6677/pesanhub/pull/112), [#113](https://github.com/yogaananda6677/pesanhub/pull/113), [#114](https://github.com/yogaananda6677/pesanhub/pull/114)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104), [#105](https://github.com/yogaananda6677/pesanhub/pull/105), [#106](https://github.com/yogaananda6677/pesanhub/pull/106), [#107](https://github.com/yogaananda6677/pesanhub/pull/107), [#108](https://github.com/yogaananda6677/pesanhub/pull/108), [#109](https://github.com/yogaananda6677/pesanhub/pull/109), [#110](https://github.com/yogaananda6677/pesanhub/pull/110), [#111](https://github.com/yogaananda6677/pesanhub/pull/111), [#112](https://github.com/yogaananda6677/pesanhub/pull/112), [#113](https://github.com/yogaananda6677/pesanhub/pull/113), [#114](https://github.com/yogaananda6677/pesanhub/pull/114), [#115](https://github.com/yogaananda6677/pesanhub/pull/115)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh acceptance criteria Issue #42 terpenuhi (event order yang sama menghasilkan maksimal satu pesan per jenis/template version, COMPLETED memicu pesan selesai hanya setelah transaction order committed, nomor opt-out atau conversation paused tidak menerima automation, failure WAHA tidak rollback status order, test case sukses/validasi/duplikat/timeout terukur)
+- Exit Criteria: Seluruh acceptance criteria Issue #43 terpenuhi (transient failure dijadwalkan ulang dengan backoff dan idempotency key tetap, success ack menutup outbox dan retry berikutnya menjadi no-op, permanent/max-attempt failure masuk dead-letter dengan alasan aman, restart worker tidak kehilangan atau menggandakan job secara logis, test case sukses/validasi/duplikat/timeout terukur)
 - Validation: module verify, format, vet, unit/integration test, race test, full check PASS
-- Next Issue: #43 setelah Issue #42 selesai
+- Next Issue: #44 setelah Issue #43 selesai
 
 ## 6. Current Phase Checklist
 
@@ -142,8 +142,8 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [x] #39: Implementasi guided clarification untuk detail order ambigu (PR #112)
 - [x] #40: Implementasi agent-to-human handoff dan pause automation (PR #113)
 - [x] #41: Implementasi konfirmasi pelanggan dan pembuatan order WHATSAPP (PR #114)
-- [ ] #42: Implementasi pesan konfirmasi dan completion notification melalui WAHA
-- [ ] #43: Implementasi WhatsApp outbox, retry, dan failure logging
+- [x] #42: Implementasi pesan konfirmasi dan completion notification melalui WAHA (PR #115)
+- [x] #43: Implementasi WhatsApp outbox, retry, dan failure logging (PR pending)
 - [ ] #44: Implementasi pencatatan pembayaran tunai
 - [ ] #45: Implementasi transaksi dan QRIS Midtrans sandbox
 - [ ] #46: Implementasi verifikasi webhook dan mapping status pembayaran Midtrans
@@ -255,6 +255,35 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 4 September 2026 — Issue #43 WhatsApp Outbox, Retry, dan Failure Logging
+
+**Goal**
+
+- Menjamin pesan outbound transient failure dijadwalkan ulang secara otomatis dengan exponential backoff dan idempotency key tetap, success ack menutup outbox sehingga retry berikutnya menjadi no-op, permanent failure masuk dead-letter dengan alasan tersanitasi tanpa secret atau PII, serta worker background yang tahan terhadap crash dan restart aplikasi tanpa kehilangan atau menduplikasi job.
+
+**Changed**
+
+- Membuat migrasi database `000015_create_waha_outbox_retry_logging.up.sql` dan `.down.sql` untuk memperluas tabel `order_notifications` dengan kolom `next_retry_at`, `max_attempts` (default 5), `error_category`, status constraint (`PENDING`, `PROCESSING`, `SENT`, `FAILED`, `SUPPRESSED`, `DEAD_LETTER`), serta indeks `idx_order_notifications_outbox`.
+- Mengimplementasikan `OutboxWorker` pada `pesenhub_be/internal/notification/worker.go` dengan polling loop, channel non-blocking `Notify()`, klaim batch transaksi pendek berbasis `FOR UPDATE SKIP LOCKED` (zero DB connection pool exhaustion), recovery job saat startup dan berkala (`RecoverStaleProcessing`), re-evaluasi guard opt-out dan conversation pause/handoff sebelum dispatch, serta penutupan outbox saat success ACK.
+- Menambahkan fungsi pembantu `CalculateBackoff` (rumus exponential backoff $1\text{s} \times 2^{\text{attempt}-1}$, capped 60s), `ClassifyError` (klasifikasi aman `PERMANENT_VALIDATION`, `PERMANENT_AUTH`, `TRANSIENT_TIMEOUT`, `SESSION_NOT_READY`, `TRANSIENT_PROVIDER`, `TRANSIENT_NETWORK`, `MAX_ATTEMPTS_EXCEEDED`, `UNKNOWN`), dan `SanitizeError` (masking nomor telepon `+6281****7890` dan scrubbing token/api-key).
+- Memperluas interface `Store` dan implementasi `PGStore` serta `MemoryStore` dengan method `ScheduleRetry`, `MarkDeadLetter`, `ClaimBatchForProcessing`, dan `RecoverStaleProcessing`.
+- Mengintegrasikan `OutboxWorker` dengan `notification.Service` dan memulai worker background goroutine pada `pesenhub_be/cmd/api/main.go`.
+- Menambahkan test suite komprehensif di `pesenhub_be/internal/notification/worker_test.go` dan integration test di `store_integration_test.go`.
+- Memperbarui `pesenhub_be/scripts/test-migrations.sh` untuk menguji migrasi 000015 up/down/up.
+- Membuat dokumentasi arsitektur di `docs/WHATSAPP_OUTBOX_RETRY.md`.
+
+**Validation**
+
+- `go test -v -race ./internal/notification/...`: PASS (seluruh 17 unit/race tests lulus).
+- `./scripts/test-migrations.sh`: PASS (15 migrasi up/down/up/down/up tervalidasi di Docker Postgres).
+- `./scripts/test-orders.sh`: PASS (seluruh integration tests order, waha, hermes, dan notification tervalidasi di Docker Postgres).
+- `./run.sh check`: PASS (seluruh format, vet, dan test modules lulus).
+- `flutter test`: PASS (125/125 mobile test cases lulus).
+
+**Next**
+
+- Buka Pull Request untuk Issue #43, pantau CI, merge ke `main`, lalu lanjutkan ke Issue #44.
 
 ### 4 September 2026 — Issue #42 WAHA Order Confirmation & Completion Notifications
 
