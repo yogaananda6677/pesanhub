@@ -48,6 +48,9 @@ END $$;
 SQL
 
 run_migration down
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='order_notifications' AND column_name='next_retry_at'")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='order_notifications' AND column_name='error_category'")" = "t"
+run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.order_notifications') IS NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.customer_opt_outs') IS NULL")" = "t"
 run_migration down
@@ -100,6 +103,7 @@ run_migration down
 run_migration down
 run_migration down
 run_migration down
+run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.orders') IS NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.app_metadata') IS NOT NULL")" = "t"
 run_migration up
@@ -112,6 +116,7 @@ test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='agent_conversations' AND column_name='confirmation_token'")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.order_notifications') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.customer_opt_outs') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='order_notifications' AND column_name='next_retry_at'")" = "t"
 
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U pesenhub_test -d pesenhub_test -c "INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key) VALUES ('81000000-0000-0000-0000-000000000001', '+628111111111', 'Race Test', 'race-key-1') ON CONFLICT DO NOTHING" >/dev/null &
 first_pid=$!
@@ -147,6 +152,7 @@ run_migration down
 run_migration down
 run_migration down
 run_migration down
+run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_groups') IS NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.customers') IS NOT NULL")" = "t"
 run_migration up
@@ -158,4 +164,5 @@ test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='agent_conversations' AND column_name='confirmation_token'")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.order_notifications') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.customer_opt_outs') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='order_notifications' AND column_name='next_retry_at'")" = "t"
 echo "Migration up/down/up, customer collision, and catalog constraint/visibility checks passed."

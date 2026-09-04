@@ -3,6 +3,7 @@ package notification
 import (
 	"context"
 	"errors"
+	"sort"
 	"sync"
 	"time"
 
@@ -23,6 +24,11 @@ type Store interface {
 	SetOptOut(ctx context.Context, phoneE164, reason string) error
 	RemoveOptOut(ctx context.Context, phoneE164 string) error
 	IsConversationPaused(ctx context.Context, phoneE164 string) (bool, SuppressReason, error)
+
+	ScheduleRetry(ctx context.Context, id string, nextRetryAt time.Time, category ErrorCategory, safeError string) error
+	MarkDeadLetter(ctx context.Context, id string, category ErrorCategory, safeError string) error
+	ClaimBatchForProcessing(ctx context.Context, limit int) ([]*NotificationRecord, error)
+	RecoverStaleProcessing(ctx context.Context, staleThreshold time.Duration) (int64, error)
 }
 
 // PGStore is the PostgreSQL implementation of Store.
@@ -47,25 +53,31 @@ func (s *PGStore) CreatePending(ctx context.Context, r *NotificationRecord) (*No
 		r.TemplateVersion = DefaultTemplateVersion
 	}
 
+	if r.MaxAttempts <= 0 {
+		r.MaxAttempts = 5
+	}
+
 	query := `
 		INSERT INTO order_notifications (
 			id, order_id, customer_phone, notification_type, template_version,
-			idempotency_key, message_text, status, attempts, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', 1, now(), now())
+			idempotency_key, message_text, status, attempts, max_attempts, next_retry_at, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', 0, $8, $9, now(), now())
 		ON CONFLICT (idempotency_key) DO NOTHING
 		RETURNING id, order_id, customer_phone, notification_type, template_version,
 		          idempotency_key, message_text, status, suppress_reason,
-		          provider_message_id, attempts, last_error, sent_at, created_at, updated_at
+		          provider_message_id, attempts, max_attempts, next_retry_at,
+		          error_category, last_error, sent_at, created_at, updated_at
 	`
 
 	var rec NotificationRecord
 	err := s.db.QueryRow(ctx, query,
 		r.ID, r.OrderID, r.CustomerPhone, string(r.NotificationType), r.TemplateVersion,
-		r.IdempotencyKey, r.MessageText,
+		r.IdempotencyKey, r.MessageText, r.MaxAttempts, r.NextRetryAt,
 	).Scan(
 		&rec.ID, &rec.OrderID, &rec.CustomerPhone, &rec.NotificationType, &rec.TemplateVersion,
 		&rec.IdempotencyKey, &rec.MessageText, &rec.Status, &rec.SuppressReason,
-		&rec.ProviderMessageID, &rec.Attempts, &rec.LastError, &rec.SentAt, &rec.CreatedAt, &rec.UpdatedAt,
+		&rec.ProviderMessageID, &rec.Attempts, &rec.MaxAttempts, &rec.NextRetryAt,
+		&rec.ErrorCategory, &rec.LastError, &rec.SentAt, &rec.CreatedAt, &rec.UpdatedAt,
 	)
 
 	if err == nil {
@@ -92,7 +104,8 @@ func (s *PGStore) GetByIdempotencyKey(ctx context.Context, key string) (*Notific
 	query := `
 		SELECT id, order_id, customer_phone, notification_type, template_version,
 		       idempotency_key, message_text, status, suppress_reason,
-		       provider_message_id, attempts, last_error, sent_at, created_at, updated_at
+		       provider_message_id, attempts, max_attempts, next_retry_at,
+		       error_category, last_error, sent_at, created_at, updated_at
 		FROM order_notifications
 		WHERE idempotency_key = $1
 	`
@@ -101,7 +114,8 @@ func (s *PGStore) GetByIdempotencyKey(ctx context.Context, key string) (*Notific
 	err := s.db.QueryRow(ctx, query, key).Scan(
 		&rec.ID, &rec.OrderID, &rec.CustomerPhone, &rec.NotificationType, &rec.TemplateVersion,
 		&rec.IdempotencyKey, &rec.MessageText, &rec.Status, &rec.SuppressReason,
-		&rec.ProviderMessageID, &rec.Attempts, &rec.LastError, &rec.SentAt, &rec.CreatedAt, &rec.UpdatedAt,
+		&rec.ProviderMessageID, &rec.Attempts, &rec.MaxAttempts, &rec.NextRetryAt,
+		&rec.ErrorCategory, &rec.LastError, &rec.SentAt, &rec.CreatedAt, &rec.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -206,6 +220,125 @@ func (s *PGStore) IsConversationPaused(ctx context.Context, phoneE164 string) (b
 	return false, "", nil
 }
 
+func (s *PGStore) ScheduleRetry(ctx context.Context, id string, nextRetryAt time.Time, category ErrorCategory, safeError string) error {
+	if s == nil || s.db == nil {
+		return errors.New("pgstore db is nil")
+	}
+	query := `
+		UPDATE order_notifications
+		SET status = 'FAILED',
+		    attempts = attempts + 1,
+		    next_retry_at = $2,
+		    error_category = $3,
+		    last_error = $4,
+		    updated_at = now()
+		WHERE id = $1
+	`
+	_, err := s.db.Exec(ctx, query, id, nextRetryAt, string(category), safeError)
+	return err
+}
+
+func (s *PGStore) MarkDeadLetter(ctx context.Context, id string, category ErrorCategory, safeError string) error {
+	if s == nil || s.db == nil {
+		return errors.New("pgstore db is nil")
+	}
+	query := `
+		UPDATE order_notifications
+		SET status = 'DEAD_LETTER',
+		    error_category = $2,
+		    last_error = $3,
+		    next_retry_at = NULL,
+		    updated_at = now()
+		WHERE id = $1
+	`
+	_, err := s.db.Exec(ctx, query, id, string(category), safeError)
+	return err
+}
+
+func (s *PGStore) ClaimBatchForProcessing(ctx context.Context, limit int) ([]*NotificationRecord, error) {
+	if s == nil || s.db == nil {
+		return nil, errors.New("pgstore db is nil")
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+
+	query := `
+		WITH selected AS (
+			SELECT id
+			FROM order_notifications
+			WHERE (status = 'PENDING' OR status = 'FAILED')
+			  AND (next_retry_at IS NULL OR next_retry_at <= now())
+			ORDER BY created_at ASC, id ASC
+			LIMIT $1
+			FOR UPDATE SKIP LOCKED
+		)
+		UPDATE order_notifications n
+		SET status = 'PROCESSING', updated_at = now()
+		FROM selected
+		WHERE n.id = selected.id
+		RETURNING n.id, n.order_id, n.customer_phone, n.notification_type, n.template_version,
+		          n.idempotency_key, n.message_text, n.status, n.suppress_reason,
+		          n.provider_message_id, n.attempts, n.max_attempts, n.next_retry_at,
+		          n.error_category, n.last_error, n.sent_at, n.created_at, n.updated_at
+	`
+
+	rows, err := s.db.Query(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var records []*NotificationRecord
+	for rows.Next() {
+		var rec NotificationRecord
+		if err := rows.Scan(
+			&rec.ID, &rec.OrderID, &rec.CustomerPhone, &rec.NotificationType, &rec.TemplateVersion,
+			&rec.IdempotencyKey, &rec.MessageText, &rec.Status, &rec.SuppressReason,
+			&rec.ProviderMessageID, &rec.Attempts, &rec.MaxAttempts, &rec.NextRetryAt,
+			&rec.ErrorCategory, &rec.LastError, &rec.SentAt, &rec.CreatedAt, &rec.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		records = append(records, &rec)
+	}
+	return records, rows.Err()
+}
+
+func (s *PGStore) RecoverStaleProcessing(ctx context.Context, staleThreshold time.Duration) (int64, error) {
+	if s == nil || s.db == nil {
+		return 0, errors.New("pgstore db is nil")
+	}
+	if staleThreshold <= 0 {
+		tag, err := s.db.Exec(ctx, `
+			UPDATE order_notifications
+			SET status = 'FAILED',
+			    error_category = 'TRANSIENT_TIMEOUT',
+			    last_error = 'recovered from stale processing state on startup',
+			    updated_at = now()
+			WHERE status = 'PROCESSING'
+		`)
+		if err != nil {
+			return 0, err
+		}
+		return tag.RowsAffected(), nil
+	}
+
+	cutoff := time.Now().Add(-staleThreshold)
+	tag, err := s.db.Exec(ctx, `
+		UPDATE order_notifications
+		SET status = 'FAILED',
+		    error_category = 'TRANSIENT_TIMEOUT',
+		    last_error = 'recovered from stale processing state',
+		    updated_at = now()
+		WHERE status = 'PROCESSING' AND updated_at < $1
+	`, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}
+
 // MemoryStore provides in-memory implementation of Store for tests.
 type MemoryStore struct {
 	mu            sync.Mutex
@@ -241,9 +374,11 @@ func (m *MemoryStore) CreatePending(_ context.Context, r *NotificationRecord) (*
 	if r.TemplateVersion == "" {
 		r.TemplateVersion = DefaultTemplateVersion
 	}
+	if r.MaxAttempts <= 0 {
+		r.MaxAttempts = 5
+	}
 	now := time.Now().UTC()
 	r.Status = StatusPending
-	r.Attempts = 1
 	r.CreatedAt = now
 	r.UpdatedAt = now
 
@@ -308,6 +443,99 @@ func (m *MemoryStore) MarkSuppressed(_ context.Context, id string, reason Suppre
 	rec.SuppressReason = &rStr
 	rec.UpdatedAt = time.Now().UTC()
 	return nil
+}
+
+func (m *MemoryStore) ScheduleRetry(_ context.Context, id string, nextRetryAt time.Time, category ErrorCategory, safeError string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	rec, ok := m.recordsByID[id]
+	if !ok {
+		return errors.New("not found")
+	}
+	now := time.Now().UTC()
+	rec.Status = StatusFailed
+	rec.Attempts++
+	rec.NextRetryAt = &nextRetryAt
+	rec.ErrorCategory = &category
+	rec.LastError = &safeError
+	rec.UpdatedAt = now
+	return nil
+}
+
+func (m *MemoryStore) MarkDeadLetter(_ context.Context, id string, category ErrorCategory, safeError string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	rec, ok := m.recordsByID[id]
+	if !ok {
+		return errors.New("not found")
+	}
+	now := time.Now().UTC()
+	rec.Status = StatusDeadLetter
+	rec.ErrorCategory = &category
+	rec.LastError = &safeError
+	rec.NextRetryAt = nil
+	rec.UpdatedAt = now
+	return nil
+}
+
+func (m *MemoryStore) ClaimBatchForProcessing(_ context.Context, limit int) ([]*NotificationRecord, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if limit <= 0 {
+		limit = 10
+	}
+	now := time.Now().UTC()
+	var candidates []*NotificationRecord
+	for _, rec := range m.recordsByID {
+		if (rec.Status == StatusPending || rec.Status == StatusFailed) &&
+			(rec.NextRetryAt == nil || !rec.NextRetryAt.After(now)) {
+			candidates = append(candidates, rec)
+		}
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].CreatedAt.Equal(candidates[j].CreatedAt) {
+			return candidates[i].ID < candidates[j].ID
+		}
+		return candidates[i].CreatedAt.Before(candidates[j].CreatedAt)
+	})
+
+	var claimed []*NotificationRecord
+	for _, rec := range candidates {
+		if len(claimed) >= limit {
+			break
+		}
+		rec.Status = StatusProcessing
+		rec.UpdatedAt = now
+		copied := *rec
+		claimed = append(claimed, &copied)
+	}
+	return claimed, nil
+}
+
+func (m *MemoryStore) RecoverStaleProcessing(_ context.Context, staleThreshold time.Duration) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	now := time.Now().UTC()
+	var count int64
+	for _, rec := range m.recordsByID {
+		if rec.Status == StatusProcessing {
+			if staleThreshold <= 0 || rec.UpdatedAt.Before(now.Add(-staleThreshold)) {
+				rec.Status = StatusFailed
+				cat := CategoryTransientTimeout
+				rec.ErrorCategory = &cat
+				msg := "recovered from stale processing state"
+				rec.LastError = &msg
+				rec.UpdatedAt = now
+				count++
+			}
+		}
+	}
+	return count, nil
 }
 
 func (m *MemoryStore) IsOptedOut(_ context.Context, phoneE164 string) (bool, error) {

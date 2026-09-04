@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"pesenhub/backend/internal/waha"
 )
@@ -22,6 +23,7 @@ type Notifier interface {
 type Service struct {
 	store           Store
 	sender          waha.Sender
+	worker          *OutboxWorker
 	trackingBaseURL string
 	logger          *slog.Logger
 }
@@ -30,6 +32,7 @@ type Service struct {
 type Config struct {
 	Store           Store
 	Sender          waha.Sender
+	Worker          *OutboxWorker
 	TrackingBaseURL string
 	Logger          *slog.Logger
 }
@@ -47,8 +50,16 @@ func NewService(cfg Config) *Service {
 	return &Service{
 		store:           cfg.Store,
 		sender:          cfg.Sender,
+		worker:          cfg.Worker,
 		trackingBaseURL: baseURL,
 		logger:          logger,
+	}
+}
+
+// AttachWorker binds an outbox worker to this service so that transient errors can signal it immediately.
+func (s *Service) AttachWorker(w *OutboxWorker) {
+	if s != nil {
+		s.worker = w
 	}
 }
 
@@ -121,8 +132,8 @@ func (s *Service) Dispatch(ctx context.Context, notifType NotificationType, data
 
 	if !isNew {
 		// Existing notification found
-		if pending.Status == StatusSent || pending.Status == StatusSuppressed {
-			s.logger.Info("notification deduplicated: already dispatched",
+		if pending.Status == StatusSent || pending.Status == StatusSuppressed || pending.Status == StatusDeadLetter {
+			s.logger.Info("notification deduplicated: already resolved",
 				"order_id", data.OrderID,
 				"masked_phone", waha.MaskPhone(data.CustomerPhone),
 				"type", notifType,
@@ -184,30 +195,67 @@ func (s *Service) Dispatch(ctx context.Context, notifType NotificationType, data
 
 	// 6. External transport dispatch via WAHA
 	if s.sender == nil {
-		_ = s.store.MarkFailed(ctx, recordID, "sender_not_configured")
+		safeErr := "sender_not_configured"
+		cat := CategoryPermanentValidation
+		_ = s.store.MarkDeadLetter(ctx, recordID, cat, safeErr)
 		return &NotificationResult{
 			RecordID:         recordID,
 			OrderID:          data.OrderID,
 			NotificationType: notifType,
-			Status:           StatusFailed,
+			Status:           StatusDeadLetter,
+			ErrorCategory:    &cat,
 			Error:            errors.New("sender_not_configured"),
 		}, nil
 	}
 
 	providerMsgID, sendErr := s.sender.SendMessage(ctx, data.CustomerPhone, msgText)
 	if sendErr != nil {
-		_ = s.store.MarkFailed(ctx, recordID, sendErr.Error())
-		s.logger.Warn("failed to send WhatsApp message via WAHA",
+		category, retryable := ClassifyError(sendErr)
+		safeErr := SanitizeError(sendErr)
+
+		if !retryable {
+			_ = s.store.MarkDeadLetter(ctx, recordID, category, safeErr)
+			s.logger.Warn("failed to send WhatsApp message via WAHA: permanent failure (dead-letter)",
+				"order_id", data.OrderID,
+				"masked_phone", waha.MaskPhone(data.CustomerPhone),
+				"type", notifType,
+				"category", category,
+				"error", safeErr,
+			)
+			return &NotificationResult{
+				RecordID:         recordID,
+				OrderID:          data.OrderID,
+				NotificationType: notifType,
+				Status:           StatusDeadLetter,
+				ErrorCategory:    &category,
+				Error:            sendErr,
+			}, nil
+		}
+
+		// Transient failure: schedule retry with exponential backoff and notify worker
+		delay := CalculateBackoff(1, 1*time.Second, 60*time.Second)
+		nextRetry := time.Now().UTC().Add(delay)
+		_ = s.store.ScheduleRetry(ctx, recordID, nextRetry, category, safeErr)
+		if s.worker != nil {
+			s.worker.Notify()
+		}
+		s.logger.Warn("failed to send WhatsApp message via WAHA: scheduled retry",
 			"order_id", data.OrderID,
 			"masked_phone", waha.MaskPhone(data.CustomerPhone),
 			"type", notifType,
-			"error", sendErr.Error(),
+			"attempt", 1,
+			"next_retry_at", nextRetry.Format(time.RFC3339),
+			"category", category,
+			"error", safeErr,
 		)
 		return &NotificationResult{
 			RecordID:         recordID,
 			OrderID:          data.OrderID,
 			NotificationType: notifType,
 			Status:           StatusFailed,
+			Attempts:         1,
+			NextRetryAt:      &nextRetry,
+			ErrorCategory:    &category,
 			Error:            sendErr,
 		}, nil
 	}

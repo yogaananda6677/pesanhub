@@ -54,11 +54,18 @@ func main() {
 	go publisher.Start(ctx, 500*time.Millisecond)
 	orderService := orderapi.NewService(orderStore)
 	notifStore := notification.NewPGStore(pool)
-	notifService := notification.NewService(notification.Config{
+	notifWorker := notification.NewOutboxWorker(notification.WorkerConfig{
 		Store:  notifStore,
 		Sender: wc,
 		Logger: logger,
 	})
+	notifService := notification.NewService(notification.Config{
+		Store:  notifStore,
+		Sender: wc,
+		Worker: notifWorker,
+		Logger: logger,
+	})
+	go notifWorker.Start(ctx, 1*time.Second)
 	notifDispatcher := orderapi.NewNotificationDispatcher(orderStore, notifService, logger)
 	orderService.SetNotificationDispatcher(notifDispatcher)
 	orders := orderapi.NewHandler(orderService, orderHub)
