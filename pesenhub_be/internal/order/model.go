@@ -122,21 +122,22 @@ type OrderStatusHistoryEntry struct {
 }
 
 type OrderDetail struct {
-	ID            string                    `json:"id"`
-	OrderNumber   string                    `json:"order_number"`
-	ClientOrderID string                    `json:"client_order_id,omitempty"`
-	CustomerID    string                    `json:"customer_id,omitempty"`
-	Source        string                    `json:"source"`
-	Status        string                    `json:"status"`
-	CustomerName  string                    `json:"customer_name"`
-	CustomerPhone *string                   `json:"customer_phone,omitempty"`
-	Notes         string                    `json:"notes,omitempty"`
-	TotalAmount   int64                     `json:"total_amount"`
-	Version       int64                     `json:"version"`
-	CreatedAt     time.Time                 `json:"created_at"`
-	UpdatedAt     time.Time                 `json:"updated_at"`
-	Items         []OrderItemDetail         `json:"items"`
-	History       []OrderStatusHistoryEntry `json:"history,omitempty"`
+	ID                  string                    `json:"id"`
+	OrderNumber         string                    `json:"order_number"`
+	ClientOrderID       string                    `json:"client_order_id,omitempty"`
+	CustomerID          string                    `json:"customer_id,omitempty"`
+	Source              string                    `json:"source"`
+	Status              string                    `json:"status"`
+	CustomerName        string                    `json:"customer_name"`
+	CustomerPhone       *string                   `json:"customer_phone,omitempty"`
+	Notes               string                    `json:"notes,omitempty"`
+	TotalAmount         int64                     `json:"total_amount"`
+	Version             int64                     `json:"version"`
+	CreatedAt           time.Time                 `json:"created_at"`
+	UpdatedAt           time.Time                 `json:"updated_at"`
+	PublicTrackingToken string                    `json:"public_tracking_token,omitempty"`
+	Items               []OrderItemDetail         `json:"items"`
+	History             []OrderStatusHistoryEntry `json:"history,omitempty"`
 }
 
 func (o *OrderDetail) RedactForRole(role string) {

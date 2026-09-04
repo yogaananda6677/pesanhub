@@ -17,6 +17,7 @@ import (
 	"pesenhub/backend/internal/health"
 	"pesenhub/backend/internal/hermes"
 	"pesenhub/backend/internal/httpserver"
+	"pesenhub/backend/internal/notification"
 	orderapi "pesenhub/backend/internal/order"
 	"pesenhub/backend/internal/waha"
 	"pesenhub/backend/internal/ws"
@@ -51,8 +52,15 @@ func main() {
 	publisher := orderapi.NewOutboxPublisher(pool, orderapi.NewHubBroadcasterAdapter(orderHub), logger)
 	orderStore.SetNotifier(publisher)
 	go publisher.Start(ctx, 500*time.Millisecond)
-
 	orderService := orderapi.NewService(orderStore)
+	notifStore := notification.NewPGStore(pool)
+	notifService := notification.NewService(notification.Config{
+		Store:  notifStore,
+		Sender: wc,
+		Logger: logger,
+	})
+	notifDispatcher := orderapi.NewNotificationDispatcher(orderStore, notifService, logger)
+	orderService.SetNotificationDispatcher(notifDispatcher)
 	orders := orderapi.NewHandler(orderService, orderHub)
 
 	hermesStore := hermes.NewStore(pool)

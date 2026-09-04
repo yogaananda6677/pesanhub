@@ -389,8 +389,9 @@ func (s *Store) GetByID(ctx context.Context, orderID string) (OrderDetail, error
 	var phone *string
 	err := s.db.QueryRow(ctx, `SELECT o.id::text, o.order_number, COALESCE(o.client_order_id::text, ''), COALESCE(o.customer_id::text, ''),
 		o.source, o.status, o.customer_name_snapshot, o.customer_phone_snapshot,
-		COALESCE(o.notes, ''), o.total_amount, o.version, o.created_at, o.updated_at
-		FROM orders o WHERE o.id = $1`, orderID).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt)
+		COALESCE(o.notes, ''), o.total_amount, o.version, o.created_at, o.updated_at,
+		COALESCE(o.public_tracking_token, '')
+		FROM orders o WHERE o.id = $1`, orderID).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt, &o.PublicTrackingToken)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return OrderDetail{}, ErrNotFound
 	}

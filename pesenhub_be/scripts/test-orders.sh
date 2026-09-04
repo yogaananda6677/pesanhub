@@ -16,3 +16,5 @@ go run ./cmd/migrate up
 TEST_DATABASE_URL="postgres://pesenhub_test:${password}@127.0.0.1:${port}/pesenhub_test?sslmode=disable" go test ./internal/order -run Integration -count=1
 TEST_DATABASE_URL="postgres://pesenhub_test:${password}@127.0.0.1:${port}/pesenhub_test?sslmode=disable" go test ./internal/waha -run Integration -count=1
 TEST_DATABASE_URL="postgres://pesenhub_test:${password}@127.0.0.1:${port}/pesenhub_test?sslmode=disable" go test ./internal/hermes -run Integration -count=1
+TEST_DATABASE_URL="postgres://pesenhub_test:${password}@127.0.0.1:${port}/pesenhub_test?sslmode=disable" go test ./internal/notification -run Integration -count=1
+
