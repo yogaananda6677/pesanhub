@@ -8,10 +8,11 @@ trap cleanup EXIT
 
 docker run -d --rm --name "$container" -e POSTGRES_DB=pesenhub_test -e POSTGRES_USER=pesenhub_test -e POSTGRES_PASSWORD="$password" -p 127.0.0.1::5432 postgres:16-alpine >/dev/null
 for _ in $(seq 1 30); do
-  docker exec "$container" pg_isready -U pesenhub_test -d pesenhub_test >/dev/null 2>&1 && break
+  docker exec "$container" pg_isready -h 127.0.0.1 -p 5432 -U pesenhub_test -d pesenhub_test >/dev/null 2>&1 && break
   sleep 1
 done
-docker exec "$container" pg_isready -U pesenhub_test -d pesenhub_test >/dev/null
+docker exec "$container" pg_isready -h 127.0.0.1 -p 5432 -U pesenhub_test -d pesenhub_test >/dev/null
+sleep 1
 port="$(docker port "$container" 5432/tcp | sed 's/.*://')"
 
 run_migration() {
@@ -47,6 +48,10 @@ END $$;
 SQL
 
 run_migration down
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='agent_conversations' AND column_name='confirmation_token'")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='agent_conversations' AND column_name='draft_version'")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='agent_conversations' AND column_name='last_order_id'")" = "t"
+run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_conversation_audits') IS NULL")" = "t"
 run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_conversations') IS NULL")" = "t"
@@ -76,6 +81,8 @@ test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_runs') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_conversations') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_conversation_audits') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='agent_conversations' AND column_name='confirmation_token'")" = "t"
+run_migration down
 run_migration down
 run_migration down
 run_migration down
@@ -96,6 +103,7 @@ test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_runs') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_conversations') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_conversation_audits') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='agent_conversations' AND column_name='confirmation_token'")" = "t"
 
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U pesenhub_test -d pesenhub_test -c "INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key) VALUES ('81000000-0000-0000-0000-000000000001', '+628111111111', 'Race Test', 'race-key-1') ON CONFLICT DO NOTHING" >/dev/null &
 first_pid=$!
@@ -129,6 +137,7 @@ run_migration down
 run_migration down
 run_migration down
 run_migration down
+run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_groups') IS NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.customers') IS NOT NULL")" = "t"
 run_migration up
@@ -137,4 +146,5 @@ test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_runs') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_conversations') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_conversation_audits') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='agent_conversations' AND column_name='confirmation_token'")" = "t"
 echo "Migration up/down/up, customer collision, and catalog constraint/visibility checks passed."

@@ -65,7 +65,8 @@ func (s *PGConversationStore) GetOrCreate(ctx context.Context, session, customer
 		       correlation_id, is_paused, paused_by, paused_at, paused_reason,
 		       resumed_by, resumed_at, handoff_status, handoff_reason,
 		       handoff_priority, assigned_to, assigned_at, resolved_at,
-		       tool_failure_count, created_at, updated_at
+		       tool_failure_count, COALESCE(confirmation_token, ''), draft_version, last_order_id::text,
+		       created_at, updated_at
 		FROM agent_conversations
 		WHERE session = $1 AND customer_phone = $2
 	`
@@ -88,6 +89,7 @@ func (s *PGConversationStore) GetOrCreate(ctx context.Context, session, customer
 		HandoffStatus:   HandoffStatusNone,
 		HandoffPriority: HandoffPriorityNormal,
 		CorrelationID:   correlationID,
+		DraftVersion:    1,
 		CreatedAt:       time.Now().UTC(),
 		UpdatedAt:       time.Now().UTC(),
 	}
@@ -98,13 +100,15 @@ func (s *PGConversationStore) GetOrCreate(ctx context.Context, session, customer
 			pending_ambiguity, clarification_attempts, last_question,
 			last_inbound_message_id, correlation_id, is_paused,
 			handoff_status, handoff_priority, tool_failure_count,
+			confirmation_token, draft_version, last_order_id,
 			created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8,
 			$9, $10, $11,
 			$12, $13, $14,
-			$15, $16
+			$15, $16, $17,
+			$18, $19
 		)
 		ON CONFLICT (session, customer_phone) DO NOTHING
 		RETURNING id::text, session, customer_phone, status, current_draft,
@@ -113,7 +117,8 @@ func (s *PGConversationStore) GetOrCreate(ctx context.Context, session, customer
 		          correlation_id, is_paused, paused_by, paused_at, paused_reason,
 		          resumed_by, resumed_at, handoff_status, handoff_reason,
 		          handoff_priority, assigned_to, assigned_at, resolved_at,
-		          tool_failure_count, created_at, updated_at
+		          tool_failure_count, COALESCE(confirmation_token, ''), draft_version, last_order_id::text,
+		          created_at, updated_at
 	`
 
 	insertRow := s.db.QueryRow(ctx, queryInsert,
@@ -131,6 +136,9 @@ func (s *PGConversationStore) GetOrCreate(ctx context.Context, session, customer
 		newRecord.HandoffStatus,
 		newRecord.HandoffPriority,
 		0,
+		nil,
+		newRecord.DraftVersion,
+		nil,
 		newRecord.CreatedAt,
 		newRecord.UpdatedAt,
 	)
@@ -178,8 +186,14 @@ func (s *PGConversationStore) Save(ctx context.Context, state *ConversationState
 	if state.HandoffStatus == "" {
 		state.HandoffStatus = HandoffStatusNone
 	}
-	if state.HandoffPriority == "" {
-		state.HandoffPriority = HandoffPriorityNormal
+	var confToken *string
+	if state.ConfirmationToken != "" {
+		t := state.ConfirmationToken
+		confToken = &t
+	}
+	draftVersion := state.DraftVersion
+	if draftVersion < 1 {
+		draftVersion = 1
 	}
 
 	query := `
@@ -204,6 +218,9 @@ func (s *PGConversationStore) Save(ctx context.Context, state *ConversationState
 		    assigned_at = $20,
 		    resolved_at = $21,
 		    tool_failure_count = $22,
+		    confirmation_token = $23,
+		    draft_version = $24,
+		    last_order_id = $25,
 		    updated_at = now()
 		WHERE session = $1 AND customer_phone = $2
 	`
@@ -231,6 +248,9 @@ func (s *PGConversationStore) Save(ctx context.Context, state *ConversationState
 		state.AssignedAt,
 		state.ResolvedAt,
 		state.ToolFailureCount,
+		confToken,
+		draftVersion,
+		state.LastOrderID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to save conversation: %w", err)
@@ -490,7 +510,8 @@ func (s *PGConversationStore) ListHandoffQueue(ctx context.Context, filter Hando
 		       handoff_status, handoff_reason, handoff_priority,
 		       assigned_to, assigned_at, clarification_attempts,
 		       COALESCE(last_question, ''), last_inbound_message_id::text,
-		       current_draft, created_at, updated_at
+		       current_draft, COALESCE(confirmation_token, ''), draft_version, last_order_id::text,
+		       created_at, updated_at
 		FROM agent_conversations
 		WHERE %s
 		ORDER BY CASE handoff_priority
@@ -530,6 +551,9 @@ func (s *PGConversationStore) ListHandoffQueue(ctx context.Context, filter Hando
 			&it.LastQuestion,
 			&it.LastInboundMessageID,
 			&draftRaw,
+			&it.ConfirmationToken,
+			&it.DraftVersion,
+			&it.LastOrderID,
 			&it.CreatedAt,
 			&it.UpdatedAt,
 		)
@@ -654,6 +678,9 @@ func scanConversationState(row rowScanner) (*ConversationState, error) {
 	var assignedTo *string
 	var assignedAt *time.Time
 	var resolvedAt *time.Time
+	var confToken string
+	var draftVersion int
+	var lastOrderID *string
 
 	err := row.Scan(
 		&state.ID,
@@ -679,6 +706,9 @@ func scanConversationState(row rowScanner) (*ConversationState, error) {
 		&assignedAt,
 		&resolvedAt,
 		&state.ToolFailureCount,
+		&confToken,
+		&draftVersion,
+		&lastOrderID,
 		&state.CreatedAt,
 		&state.UpdatedAt,
 	)
@@ -701,6 +731,9 @@ func scanConversationState(row rowScanner) (*ConversationState, error) {
 	state.AssignedTo = assignedTo
 	state.AssignedAt = assignedAt
 	state.ResolvedAt = resolvedAt
+	state.ConfirmationToken = confToken
+	state.DraftVersion = draftVersion
+	state.LastOrderID = lastOrderID
 
 	if len(draftRaw) > 0 && string(draftRaw) != "{}" && string(draftRaw) != "null" {
 		var draft DraftCandidate
@@ -788,6 +821,9 @@ func (m *MemoryConversationStore) Reset(ctx context.Context, session, customerPh
 		state.AssignedAt = nil
 		state.ResolvedAt = nil
 		state.ToolFailureCount = 0
+		state.ConfirmationToken = ""
+		state.DraftVersion = 1
+		state.LastOrderID = nil
 		state.UpdatedAt = time.Now().UTC()
 	}
 	return nil
@@ -1012,6 +1048,9 @@ func (m *MemoryConversationStore) ListHandoffQueue(ctx context.Context, filter H
 			LastQuestion:          conv.LastQuestion,
 			LastInboundMessageID:  conv.LastInboundMessageID,
 			CurrentDraft:          conv.CurrentDraft,
+			ConfirmationToken:     conv.ConfirmationToken,
+			DraftVersion:          conv.DraftVersion,
+			LastOrderID:           conv.LastOrderID,
 			CreatedAt:             conv.CreatedAt,
 			UpdatedAt:             conv.UpdatedAt,
 		})

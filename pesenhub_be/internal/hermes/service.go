@@ -7,7 +7,15 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"pesenhub/backend/internal/catalog"
+	"pesenhub/backend/internal/order"
 )
+
+// OrderCreator creates a final order from a WhatsApp draft.
+type OrderCreator interface {
+	CreateWhatsApp(ctx context.Context, in order.WhatsAppOrderCreateInput, idempotencyKey, requestID string) (order.WhatsAppOrderResponse, bool, error)
+}
 
 // Service coordinates LLM extraction, catalog resolution, confidence policy, and audit logging.
 type Service struct {
@@ -19,6 +27,7 @@ type Service struct {
 	clarifier       *ClarificationEngine
 	merger          *DraftMerger
 	catalogProvider CatalogProvider
+	orderCreator    OrderCreator
 	modelName       string
 	promptVersion   string
 }
@@ -27,6 +36,7 @@ type Service struct {
 type Config struct {
 	Client              LLMClient
 	CatalogProvider     CatalogProvider
+	OrderCreator        OrderCreator
 	Store               RunStore
 	ConversationStore   ConversationStore
 	ModelName           string
@@ -70,6 +80,7 @@ func NewService(cfg Config) *Service {
 		clarifier:       clarifier,
 		merger:          merger,
 		catalogProvider: cfg.CatalogProvider,
+		orderCreator:    cfg.OrderCreator,
 		modelName:       modelName,
 		promptVersion:   promptVer,
 	}
@@ -500,9 +511,12 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 		state.LastQuestion = ""
 		state.ClarificationAttempts = 0
 		state.ToolFailureCount = 0
+		state.DraftVersion++
+		state.ConfirmationToken = fmt.Sprintf("tok-%s-%d", newID(), state.DraftVersion)
+		summaryText := formatOrderSummary(updatedDraft)
+		state.LastQuestion = summaryText
 		_ = s.convStore.Save(ctx, state)
 
-		summaryText := formatOrderSummary(updatedDraft)
 		return &TurnResponse{
 			State:            state,
 			Draft:            updatedDraft,
@@ -511,6 +525,237 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 			HandledByAgent:   true,
 			AutomationPaused: false,
 		}, nil
+	}
+
+	// 6. If currently ready for confirmation:
+	if state.Status == ConversationReadyForConfirmation && state.CurrentDraft != nil {
+		intent := DetectConfirmationIntent(req.MessageText)
+		switch intent {
+		case IntentConfirm:
+			// 1. Revalidate draft against current catalog (Zero Stale / Price Change)
+			isFresh, updatedDraft, changeReason := ValidateDraftFreshness(ctx, state.CurrentDraft, categories)
+			if !isFresh {
+				state.CurrentDraft = updatedDraft
+				state.DraftVersion++
+				state.ConfirmationToken = fmt.Sprintf("tok-%s-%d", newID(), state.DraftVersion)
+				replyText := fmt.Sprintf("Mohon maaf kak, terdapat perubahan: %s.\nTotal pesanan baru adalah Rp %d.\n\nApakah kakak setuju melanjutkan pesanan dengan total baru ini? (Ketik Ya untuk konfirmasi, atau Batal untuk membatalkan)", changeReason, updatedDraft.TotalAmount)
+				state.LastQuestion = replyText
+				_ = s.convStore.Save(ctx, state)
+
+				return &TurnResponse{
+					State:            state,
+					Draft:            updatedDraft,
+					ReplyText:        replyText,
+					RequiresHandoff:  false,
+					HandledByAgent:   true,
+					AutomationPaused: false,
+				}, nil
+			}
+
+			// 2. Draft is fresh! Create WhatsApp order idempotently
+			if s.orderCreator == nil {
+				return nil, errors.New("order creator unavailable")
+			}
+
+			orderItems := make([]order.ItemInput, 0, len(state.CurrentDraft.Items))
+			for _, it := range state.CurrentDraft.Items {
+				var selections []catalog.Selection
+				groupOptions := make(map[string][]string)
+				for _, mod := range it.SelectedModifiers {
+					groupOptions[mod.GroupID] = append(groupOptions[mod.GroupID], mod.OptionID)
+				}
+				for gID, optIDs := range groupOptions {
+					selections = append(selections, catalog.Selection{
+						GroupID:   gID,
+						OptionIDs: optIDs,
+					})
+				}
+				orderItems = append(orderItems, order.ItemInput{
+					MenuID:     it.MenuID,
+					Quantity:   it.Quantity,
+					Notes:      it.Notes,
+					Selections: selections,
+				})
+			}
+
+			idempotencyKey := fmt.Sprintf("wa-conf-%s-%d", state.ID, state.DraftVersion)
+			createIn := order.WhatsAppOrderCreateInput{
+				CustomerPhone: req.SenderPhone,
+				CustomerName:  "Pelanggan WhatsApp",
+				Notes:         state.CurrentDraft.Notes,
+				Items:         orderItems,
+			}
+
+			orderRes, _, err := s.orderCreator.CreateWhatsApp(ctx, createIn, idempotencyKey, correlationID)
+			if err != nil {
+				state.ToolFailureCount++
+				if state.ToolFailureCount >= MaxToolFailures {
+					state.Status = ConversationHandoff
+					state.HandoffStatus = HandoffStatusPending
+					reason := "order_creation_failed"
+					state.HandoffReason = &reason
+					state.HandoffPriority = HandoffPriorityHigh
+					reply := "Mohon maaf kak, sistem kami mengalami kendala teknis saat memproses pesanan kakak. Percakapan ini kami alihkan ke staf kami."
+					state.LastQuestion = reply
+					_ = s.convStore.Save(ctx, state)
+					s.recordHandoffAudit(ctx, state, HandoffActionTriggered, "SYSTEM", "SYSTEM", reason, correlationID, map[string]any{
+						"priority": HandoffPriorityHigh,
+						"error":    err.Error(),
+					})
+
+					return &TurnResponse{
+						State:            state,
+						Draft:            state.CurrentDraft,
+						ReplyText:        reply,
+						RequiresHandoff:  true,
+						HandledByAgent:   false,
+						AutomationPaused: true,
+					}, nil
+				}
+				_ = s.convStore.Save(ctx, state)
+				return nil, fmt.Errorf("failed to create whatsapp order: %w", err)
+			}
+
+			state.ToolFailureCount = 0
+			state.Status = ConversationCompleted
+			state.LastOrderID = &orderRes.ID
+			state.LastQuestion = ""
+			_ = s.convStore.Save(ctx, state)
+
+			orderSummary := &WhatsAppOrderSummary{
+				ID:                  orderRes.ID,
+				OrderNumber:         orderRes.OrderNumber,
+				PublicTrackingToken: orderRes.PublicTrackingToken,
+				Status:              orderRes.Status,
+				TotalAmount:         orderRes.TotalAmount,
+				CreatedAt:           orderRes.CreatedAt,
+			}
+
+			successReply := FormatOrderSuccessMessage(orderRes.OrderNumber, orderRes.PublicTrackingToken, orderRes.TotalAmount)
+			return &TurnResponse{
+				State:            state,
+				Draft:            state.CurrentDraft,
+				ReplyText:        successReply,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+				Order:            orderSummary,
+			}, nil
+
+		case IntentCancel:
+			state.Status = ConversationCollecting
+			state.CurrentDraft = nil
+			state.ConfirmationToken = ""
+			state.DraftVersion = 1
+			state.PendingAmbiguity = ""
+			state.LastQuestion = ""
+			_ = s.convStore.Save(ctx, state)
+
+			reply := "Baik kak, draft pesanan telah dibatalkan. Jika ingin memesan kembali di lain waktu, silakan hubungi kami lagi ya!"
+			return &TurnResponse{
+				State:            state,
+				ReplyText:        reply,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+			}, nil
+
+		case IntentModify:
+			newDraft, run, err := s.ExtractOrder(ctx, ExtractionRequest{
+				InboundMessageID: req.InboundMessageID,
+				MessageText:      req.MessageText,
+				SenderPhone:      req.SenderPhone,
+				CorrelationID:    correlationID,
+				Session:          session,
+			})
+			if err != nil {
+				reply := "Mohon maaf kak, kami belum memahami perubahan yang dimaksud. Silakan sebutkan kembali menu dan jumlah yang ingin dipesan, atau ketik Ya untuk melanjutkan pesanan sebelumnya."
+				return &TurnResponse{
+					State:            state,
+					Draft:            state.CurrentDraft,
+					ReplyText:        reply,
+					RequiresHandoff:  false,
+					HandledByAgent:   true,
+					AutomationPaused: false,
+				}, nil
+			}
+			plan := s.clarifier.PlanClarification(newDraft, 0, categories)
+			if plan.RequiresClarification {
+				state.Status = ConversationAwaitingClarification
+				state.CurrentDraft = newDraft
+				state.PendingAmbiguity = plan.PriorityAmbiguity
+				state.LastQuestion = plan.QuestionText
+				state.ClarificationAttempts = 0
+				state.DraftVersion++
+				_ = s.convStore.Save(ctx, state)
+
+				return &TurnResponse{
+					State:            state,
+					Draft:            newDraft,
+					ReplyText:        plan.QuestionText,
+					RequiresHandoff:  false,
+					HandledByAgent:   true,
+					AutomationPaused: false,
+					Run:              run,
+				}, nil
+			}
+
+			state.Status = ConversationReadyForConfirmation
+			state.CurrentDraft = newDraft
+			state.PendingAmbiguity = ""
+			state.ClarificationAttempts = 0
+			state.DraftVersion++
+			state.ConfirmationToken = fmt.Sprintf("tok-%s-%d", newID(), state.DraftVersion)
+			summaryText := formatOrderSummary(newDraft)
+			state.LastQuestion = summaryText
+			_ = s.convStore.Save(ctx, state)
+
+			return &TurnResponse{
+				State:            state,
+				Draft:            newDraft,
+				ReplyText:        summaryText,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+				Run:              run,
+			}, nil
+
+		case IntentUnknown:
+			reply := "Pesanan kakak belum terkonfirmasi. Silakan ketik *Ya* untuk melanjutkan pembuatan pesanan, atau ketik *Batal* untuk membatalkan."
+			state.LastQuestion = reply
+			_ = s.convStore.Save(ctx, state)
+
+			return &TurnResponse{
+				State:            state,
+				Draft:            state.CurrentDraft,
+				ReplyText:        reply,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+			}, nil
+		}
+	}
+
+	// 7. If currently completed:
+	if state.Status == ConversationCompleted {
+		lower := strings.ToLower(strings.TrimSpace(req.MessageText))
+		if lower == "terima kasih" || lower == "makasih" || lower == "terimakasih" || lower == "tq" || lower == "ok" || lower == "oke" || lower == "siap" {
+			return &TurnResponse{
+				State:            state,
+				ReplyText:        "Sama-sama kak! Pesanan kakak sedang kami siapkan.",
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+			}, nil
+		}
+		// Reset to start a new order
+		state.Status = ConversationCollecting
+		state.CurrentDraft = nil
+		state.PendingAmbiguity = ""
+		state.ClarificationAttempts = 0
+		state.LastQuestion = ""
+		state.ConfirmationToken = ""
+		state.DraftVersion = 1
 	}
 
 	// 6. Initial message / Collecting state
@@ -604,9 +849,12 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 	state.PendingAmbiguity = ""
 	state.LastQuestion = ""
 	state.ClarificationAttempts = 0
+	state.DraftVersion = 1
+	state.ConfirmationToken = fmt.Sprintf("tok-%s-%d", newID(), state.DraftVersion)
+	summaryText := formatOrderSummary(draft)
+	state.LastQuestion = summaryText
 	_ = s.convStore.Save(ctx, state)
 
-	summaryText := formatOrderSummary(draft)
 	return &TurnResponse{
 		State:            state,
 		Draft:            draft,
@@ -633,13 +881,13 @@ func formatOrderSummary(draft *DraftCandidate) string {
 		sb.WriteString(fmt.Sprintf("- %d %s%s: Rp %d\n", it.Quantity, it.Name, modStr, it.LineTotalAmount))
 	}
 	sb.WriteString(fmt.Sprintf("\nTotal: Rp %d\n", draft.SubtotalAmount))
-	if draft.FulfillmentType != "" {
-		sb.WriteString(fmt.Sprintf("Pengambilan: %s\n", draft.FulfillmentType))
+	fulfillment := draft.FulfillmentType
+	if fulfillment == "" {
+		fulfillment = "PICKUP"
 	}
-	if draft.PaymentMethod != "" {
-		sb.WriteString(fmt.Sprintf("Pembayaran: %s\n", draft.PaymentMethod))
-	}
-	sb.WriteString("\nApakah pesanan sudah sesuai kak? (Ketik Ya untuk konfirmasi)")
+	sb.WriteString(fmt.Sprintf("Pengambilan: %s\n", fulfillment))
+	sb.WriteString("Pembayaran: Tunai / QRIS saat pengambilan\n")
+	sb.WriteString("\nApakah pesanan sudah sesuai kak? (Ketik Ya untuk konfirmasi, atau Batal untuk membatalkan)")
 	return sb.String()
 }
 

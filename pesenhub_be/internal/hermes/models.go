@@ -18,6 +18,7 @@ const (
 	ConversationCollecting            = "COLLECTING"
 	ConversationAwaitingClarification = "AWAITING_CLARIFICATION"
 	ConversationReadyForConfirmation  = "READY_FOR_CONFIRMATION"
+	ConversationCompleted             = "COMPLETED"
 	ConversationHandoff               = "HANDOFF"
 	ConversationPaused                = "PAUSED"
 )
@@ -178,8 +179,21 @@ type ConversationState struct {
 	AssignedAt            *time.Time      `json:"assigned_at,omitempty"`
 	ResolvedAt            *time.Time      `json:"resolved_at,omitempty"`
 	ToolFailureCount      int             `json:"tool_failure_count"`
+	ConfirmationToken     string          `json:"confirmation_token,omitempty"`
+	DraftVersion          int             `json:"draft_version"`
+	LastOrderID           *string         `json:"last_order_id,omitempty"`
 	CreatedAt             time.Time       `json:"created_at"`
 	UpdatedAt             time.Time       `json:"updated_at"`
+}
+
+// WhatsAppOrderSummary contains essential order information returned when an order is finalized.
+type WhatsAppOrderSummary struct {
+	ID                  string    `json:"id"`
+	OrderNumber         string    `json:"order_number"`
+	PublicTrackingToken string    `json:"public_tracking_token"`
+	Status              string    `json:"status"`
+	TotalAmount         int64     `json:"total_amount"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 // ClarificationPlan specifies the focused question and options generated for an ambiguous draft.
@@ -204,13 +218,14 @@ type TurnRequest struct {
 
 // TurnResponse represents the agent's turn output including reply text and updated conversation state.
 type TurnResponse struct {
-	State            *ConversationState `json:"state"`
-	Draft            *DraftCandidate    `json:"draft,omitempty"`
-	ReplyText        string             `json:"reply_text"`
-	RequiresHandoff  bool               `json:"requires_handoff"`
-	HandledByAgent   bool               `json:"handled_by_agent"`
-	AutomationPaused bool               `json:"automation_paused"`
-	Run              *AgentRun          `json:"run,omitempty"`
+	State            *ConversationState    `json:"state"`
+	Draft            *DraftCandidate       `json:"draft,omitempty"`
+	ReplyText        string                `json:"reply_text"`
+	RequiresHandoff  bool                  `json:"requires_handoff"`
+	HandledByAgent   bool                  `json:"handled_by_agent"`
+	AutomationPaused bool                  `json:"automation_paused"`
+	Run              *AgentRun             `json:"run,omitempty"`
+	Order            *WhatsAppOrderSummary `json:"order,omitempty"`
 }
 
 // ConversationAuditEvent records an audit trail entry for handoff and pause lifecycle events.
@@ -252,6 +267,9 @@ type HandoffQueueItem struct {
 	LastQuestion          string          `json:"last_question,omitempty"`
 	LastInboundMessageID  *string         `json:"last_inbound_message_id,omitempty"`
 	CurrentDraft          *DraftCandidate `json:"current_draft,omitempty"`
+	ConfirmationToken     string          `json:"confirmation_token,omitempty"`
+	DraftVersion          int             `json:"draft_version"`
+	LastOrderID           *string         `json:"last_order_id,omitempty"`
 	CreatedAt             time.Time       `json:"created_at"`
 	UpdatedAt             time.Time       `json:"updated_at"`
 }

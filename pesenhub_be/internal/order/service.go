@@ -34,16 +34,25 @@ type WebOrderStore interface {
 	GetByPublicToken(context.Context, string) (PublicTrackingDetail, error)
 }
 
+type WhatsAppOrderStore interface {
+	CreateWhatsApp(context.Context, WhatsAppOrderCreateInput, string, string, string) (WhatsAppOrderResponse, bool, error)
+}
+
+type WhatsAppOrderCreator interface {
+	CreateWhatsApp(context.Context, WhatsAppOrderCreateInput, string, string) (WhatsAppOrderResponse, bool, error)
+}
+
 type AuditStore interface {
 	GetAuditLogs(context.Context, string, string, string) ([]AuditLogEntry, error)
 }
 
 type Service struct {
-	store       Creator
-	transitions Transitioner
-	reader      Reader
-	webStore    WebOrderStore
-	auditStore  AuditStore
+	store         Creator
+	transitions   Transitioner
+	reader        Reader
+	webStore      WebOrderStore
+	whatsAppStore WhatsAppOrderStore
+	auditStore    AuditStore
 }
 
 func NewService(store Creator) *Service {
@@ -51,6 +60,7 @@ func NewService(store Creator) *Service {
 	s.transitions, _ = store.(Transitioner)
 	s.reader, _ = store.(Reader)
 	s.webStore, _ = store.(WebOrderStore)
+	s.whatsAppStore, _ = store.(WhatsAppOrderStore)
 	s.auditStore, _ = store.(AuditStore)
 	return s
 }
@@ -369,4 +379,46 @@ func (s *Service) GetAuditLogs(ctx context.Context, orderID string, p customer.P
 		actorID = "STAFF"
 	}
 	return s.auditStore.GetAuditLogs(ctx, orderID, actorID, requestID)
+}
+
+func (s *Service) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput, idempotencyKey, requestID string) (WhatsAppOrderResponse, bool, error) {
+	if s.whatsAppStore == nil {
+		return WhatsAppOrderResponse{}, false, errors.New("whatsapp order store not configured")
+	}
+
+	normPhone, err := NormalizePhone(in.CustomerPhone)
+	if err != nil {
+		return WhatsAppOrderResponse{}, false, err
+	}
+	in.CustomerPhone = normPhone
+
+	in.CustomerName = strings.TrimSpace(in.CustomerName)
+	if in.CustomerName == "" {
+		in.CustomerName = "Pelanggan WhatsApp"
+	}
+	if len(in.CustomerName) > 120 {
+		return WhatsAppOrderResponse{}, false, &ValidationError{Field: "customer_name", Reason: "Nama pelanggan maksimal 120 karakter"}
+	}
+
+	if len(in.Items) == 0 {
+		return WhatsAppOrderResponse{}, false, &ValidationError{Field: "items", Reason: "Minimal harus memilih 1 item"}
+	}
+	if len(in.Items) > 100 {
+		return WhatsAppOrderResponse{}, false, &ValidationError{Field: "items", Reason: "Maksimal 100 item"}
+	}
+	for _, it := range in.Items {
+		if it.Quantity <= 0 || it.Quantity > 99 {
+			return WhatsAppOrderResponse{}, false, &ValidationError{Field: "quantity", Reason: "Jumlah item harus antara 1 dan 99"}
+		}
+	}
+
+	idempotencyKey = strings.TrimSpace(idempotencyKey)
+	if idempotencyKey == "" {
+		idempotencyKey = "wa-" + customer.NewID()
+	}
+
+	reqBytes, _ := json.Marshal(in)
+	hash := fmt.Sprintf("%x", sha256.Sum256(reqBytes))
+
+	return s.whatsAppStore.CreateWhatsApp(ctx, in, idempotencyKey, hash, requestID)
 }
