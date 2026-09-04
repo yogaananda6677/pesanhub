@@ -8,14 +8,14 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 
 ## 1. Project Snapshot
 
-| Field | Current value |
-| --- | --- |
-| Product | PesenHub |
-| Current phase | Phase 1B — Cashier Mobile & Tablet |
-| Current status | IN_PROGRESS |
-| MVP target | 30 hari sejak kickoff |
-| Last updated | 4 September 2026 |
-| Updated by | Issue #31 menu availability management implementation and validation |
+| Field          | Current value                                                        |
+| -------------- | -------------------------------------------------------------------- |
+| Product        | PesenHub                                                             |
+| Current phase  | Phase 1B — Cashier Mobile & Tablet                                   |
+| Current status | IN_PROGRESS                                                          |
+| MVP target     | 30 hari sejak kickoff                                                |
+| Last updated   | 4 September 2026                                                     |
+| Updated by     | Issue #31 menu availability management implementation and validation |
 
 ## 2. Product Intent
 
@@ -37,32 +37,32 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 
 ## 4. Confirmed Architecture Decisions
 
-| ID | Decision | Status | Reason |
-| --- | --- | --- | --- |
-| ADR-001 | Flutter untuk aplikasi POS/KDS | ACCEPTED | Satu codebase mobile lintas platform |
-| ADR-002 | Golang sebagai backend dan system of record | ACCEPTED | Cocok untuk REST, WebSocket, dan concurrent event handling |
-| ADR-003 | WAHA sebagai gateway development/pilot dengan exit trigger menuju platform resmi | ACCEPTED — PD-007 | PR #79 di-merge; tidak mengizinkan data production sebelum #58 |
-| ADR-004 | Hermes sebagai conversational order agent | ACCEPTED | Membantu ekstraksi dan klarifikasi order melalui tool terbatas |
-| ADR-005 | Midtrans untuk payment gateway | ACCEPTED | Mendukung kanal pembayaran lokal dan webhook status |
-| ADR-006 | SQLite untuk local offline store; package divalidasi pada #32 | ACCEPTED — PD-006 | PR #79 di-merge; model relational/transactional sesuai menu, order, queue snapshot, dan outbox |
-| ADR-007 | WebSocket + REST untuk antrean | ACCEPTED | Real-time update dengan jalur recovery |
-| ADR-008 | PostgreSQL 16 sebagai database backend | ACCEPTED | Diminta eksplisit untuk fondasi Backend Phase 0; memakai image Alpine dengan persistent volume |
-| ADR-009 | Satu root `PRD.md` untuk Backend, Mobile, dan Web Customer | ACCEPTED | Seluruh komponen memakai aturan bisnis dan roadmap yang sama |
-| ADR-010 | Dua folder utama: `pesenhub_be/` dan `pesenhub_app/` | ACCEPTED | Nama komponen konsisten; Web Customer sederhana ditempatkan di `pesenhub_be/web/` |
-| ADR-012 | Stack utama dijalankan dengan Docker Compose | ACCEPTED | API dibangun multi-stage, PostgreSQL 16 Alpine dan WAHA berjalan sebagai service dalam satu network |
-| ADR-011 | Web Customer tanpa akun menggunakan nama dan nomor HP | ACCEPTED | Mengurangi hambatan pelanggan saat membuat order |
+| ID      | Decision                                                                         | Status            | Reason                                                                                              |
+| ------- | -------------------------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------- |
+| ADR-001 | Flutter untuk aplikasi POS/KDS                                                   | ACCEPTED          | Satu codebase mobile lintas platform                                                                |
+| ADR-002 | Golang sebagai backend dan system of record                                      | ACCEPTED          | Cocok untuk REST, WebSocket, dan concurrent event handling                                          |
+| ADR-003 | WAHA sebagai gateway development/pilot dengan exit trigger menuju platform resmi | ACCEPTED — PD-007 | PR #79 di-merge; tidak mengizinkan data production sebelum #58                                      |
+| ADR-004 | Hermes sebagai conversational order agent                                        | ACCEPTED          | Membantu ekstraksi dan klarifikasi order melalui tool terbatas                                      |
+| ADR-005 | Midtrans untuk payment gateway                                                   | ACCEPTED          | Mendukung kanal pembayaran lokal dan webhook status                                                 |
+| ADR-006 | SQLite untuk local offline store; package divalidasi pada #32                    | ACCEPTED — PD-006 | PR #79 di-merge; model relational/transactional sesuai menu, order, queue snapshot, dan outbox      |
+| ADR-007 | WebSocket + REST untuk antrean                                                   | ACCEPTED          | Real-time update dengan jalur recovery                                                              |
+| ADR-008 | PostgreSQL 16 sebagai database backend                                           | ACCEPTED          | Diminta eksplisit untuk fondasi Backend Phase 0; memakai image Alpine dengan persistent volume      |
+| ADR-009 | Satu root `PRD.md` untuk Backend, Mobile, dan Web Customer                       | ACCEPTED          | Seluruh komponen memakai aturan bisnis dan roadmap yang sama                                        |
+| ADR-010 | Dua folder utama: `pesenhub_be/` dan `pesenhub_app/`                             | ACCEPTED          | Nama komponen konsisten; Web Customer sederhana ditempatkan di `pesenhub_be/web/`                   |
+| ADR-012 | Stack utama dijalankan dengan Docker Compose                                     | ACCEPTED          | API dibangun multi-stage, PostgreSQL 16 Alpine dan WAHA berjalan sebagai service dalam satu network |
+| ADR-011 | Web Customer tanpa akun menggunakan nama dan nomor HP                            | ACCEPTED          | Mengurangi hambatan pelanggan saat membuat order                                                    |
 
 ## 5. Phase Tracker
 
-| Phase | Scope | Status | Started | Completed | Evidence |
-| --- | --- | --- | --- | --- | --- |
-| [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2) | Project readiness | DONE | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md` |
-| [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | DONE | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
-| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | IN_PROGRESS | 2026-09-03 | — | Issues #23, #24, #25, #26, #27, #28, #29, #30 |
-| [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment | NOT_STARTED | — | — | Menunggu domain 1A |
-| [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release | NOT_STARTED | — | — | Menunggu 1A–1C |
-| [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7) | Food Aggregator Integration | NOT_STARTED | — | — | Menunggu MVP stabil dan kontrak resmi |
-| [3 — #8](https://github.com/yogaananda6677/pesanhub/issues/8) | Production Hardening | NOT_STARTED | — | — | Menunggu hasil pilot dan target kapasitas |
+| Phase                                                          | Scope                       | Status      | Started    | Completed  | Evidence                                                |
+| -------------------------------------------------------------- | --------------------------- | ----------- | ---------- | ---------- | ------------------------------------------------------- |
+| [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2)  | Project readiness           | DONE        | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md`       |
+| [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend                | DONE        | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
+| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet     | IN_PROGRESS | 2026-09-03 | —          | Issues #23, #24, #25, #26, #27, #28, #29, #30           |
+| [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | NOT_STARTED | —          | —          | Menunggu domain 1A                                      |
+| [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release   | NOT_STARTED | —          | —          | Menunggu 1A–1C                                          |
+| [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7)  | Food Aggregator Integration | NOT_STARTED | —          | —          | Menunggu MVP stabil dan kontrak resmi                   |
+| [3 — #8](https://github.com/yogaananda6677/pesanhub/issues/8)  | Production Hardening        | NOT_STARTED | —          | —          | Menunggu hasil pilot dan target kapasitas               |
 
 Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
@@ -156,22 +156,22 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 ## 8. Current Blockers and Open Questions
 
-| ID | Question / blocker | Owner | Needed by | Status |
-| --- | --- | --- | --- | --- |
-| Q-001 | Satu outlet atau multi-outlet sejak MVP? | Product owner | Phase 0 | RESOLVED — satu outlet, PD-001/PR #79 |
-| Q-002 | Satu perangkat POS/KDS atau beberapa perangkat? | Product owner | Phase 0 | RESOLVED — satu kasir + satu KDS, PD-002/PR #79 |
-| Q-003 | Pickup saja atau termasuk delivery? | Product owner | Phase 0 | RESOLVED — pickup-only, PD-003/PR #79 |
-| Q-004 | Kapan order dianggap sah? | Product owner | Phase 0 | RESOLVED — konfirmasi, validasi, commit atomik, PD-004/PR #79 |
-| Q-005 | Kanal pembayaran Midtrans yang diaktifkan? | Product owner | Phase 0 | RESOLVED — QRIS, PD-005/PR #79 |
-| Q-006 | SQLite atau Isar? | Lead engineer | Phase 0 | RESOLVED — SQLite; package dipilih pada #32, PD-006/PR #79 |
-| Q-007 | PostgreSQL sebagai database backend? | Lead engineer | Phase 0 | RESOLVED — PostgreSQL 16 |
-| Q-008 | Risiko penggunaan WAHA diterima atau perlu WhatsApp Business Platform resmi? | Product owner | Phase 0 | RESOLVED — dev/pilot dengan exit trigger, PD-007/PR #79 |
-| Q-009 | Web Customer mengizinkan pembayaran tunai, Midtrans, atau keduanya? | Product owner | Phase 0 | RESOLVED — cash-at-pickup + QRIS saat siap, PD-005/PR #79 |
-| Q-010 | Perlukah OTP untuk membuka detail/riwayat pesanan lama? | Product owner | Phase 1A | OPEN |
-| Q-011 | Akun/team mana yang menjadi Code Owner root, Backend, Mobile, workflow, dan dokumentasi? | Repository owner | Phase 0 | RESOLVED — `@yogaananda6677`, PR #78 |
-| Q-012 | Kredensial signing Android dan target distribusi produksi? | Repository owner | Phase 1D | OPEN |
-| Q-013 | Kosakata status order/payment canonical mana yang dipakai oleh schema, API, dan Flutter? | Product owner + lead engineer | Phase 0 | RESOLVED — PD-008/PR #79 |
-| Q-014 | Bagaimana contributor memperoleh akses ke prototype desain kasir yang saat ini HTTP 401? | Product/design owner | Phase 0 | OPEN — diperlukan sebelum #23 |
+| ID    | Question / blocker                                                                       | Owner                         | Needed by | Status                                                        |
+| ----- | ---------------------------------------------------------------------------------------- | ----------------------------- | --------- | ------------------------------------------------------------- |
+| Q-001 | Satu outlet atau multi-outlet sejak MVP?                                                 | Product owner                 | Phase 0   | RESOLVED — satu outlet, PD-001/PR #79                         |
+| Q-002 | Satu perangkat POS/KDS atau beberapa perangkat?                                          | Product owner                 | Phase 0   | RESOLVED — satu kasir + satu KDS, PD-002/PR #79               |
+| Q-003 | Pickup saja atau termasuk delivery?                                                      | Product owner                 | Phase 0   | RESOLVED — pickup-only, PD-003/PR #79                         |
+| Q-004 | Kapan order dianggap sah?                                                                | Product owner                 | Phase 0   | RESOLVED — konfirmasi, validasi, commit atomik, PD-004/PR #79 |
+| Q-005 | Kanal pembayaran Midtrans yang diaktifkan?                                               | Product owner                 | Phase 0   | RESOLVED — QRIS, PD-005/PR #79                                |
+| Q-006 | SQLite atau Isar?                                                                        | Lead engineer                 | Phase 0   | RESOLVED — SQLite; package dipilih pada #32, PD-006/PR #79    |
+| Q-007 | PostgreSQL sebagai database backend?                                                     | Lead engineer                 | Phase 0   | RESOLVED — PostgreSQL 16                                      |
+| Q-008 | Risiko penggunaan WAHA diterima atau perlu WhatsApp Business Platform resmi?             | Product owner                 | Phase 0   | RESOLVED — dev/pilot dengan exit trigger, PD-007/PR #79       |
+| Q-009 | Web Customer mengizinkan pembayaran tunai, Midtrans, atau keduanya?                      | Product owner                 | Phase 0   | RESOLVED — cash-at-pickup + QRIS saat siap, PD-005/PR #79     |
+| Q-010 | Perlukah OTP untuk membuka detail/riwayat pesanan lama?                                  | Product owner                 | Phase 1A  | OPEN                                                          |
+| Q-011 | Akun/team mana yang menjadi Code Owner root, Backend, Mobile, workflow, dan dokumentasi? | Repository owner              | Phase 0   | RESOLVED — `@yogaananda6677`, PR #78                          |
+| Q-012 | Kredensial signing Android dan target distribusi produksi?                               | Repository owner              | Phase 1D  | OPEN                                                          |
+| Q-013 | Kosakata status order/payment canonical mana yang dipakai oleh schema, API, dan Flutter? | Product owner + lead engineer | Phase 0   | RESOLVED — PD-008/PR #79                                      |
+| Q-014 | Bagaimana contributor memperoleh akses ke prototype desain kasir yang saat ini HTTP 401? | Product/design owner          | Phase 0   | OPEN — diperlukan sebelum #23                                 |
 
 ## 9. Next Recommended Work
 
@@ -190,22 +190,28 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ### YYYY-MM-DD — Judul Sesi
 
 **Goal**
+
 - Tujuan sesi.
 
 **Changed**
+
 - File/fitur yang berubah.
 
 **Decisions**
+
 - Keputusan baru beserta alasannya.
 
 **Validation**
+
 - `command`: PASS/FAIL
 - Skenario manual: PASS/FAIL
 
 **Known Issues**
+
 - Masalah yang belum selesai.
 
 **Next**
+
 - Langkah paling aman berikutnya.
 ```
 
@@ -227,9 +233,9 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 
 ## 12. Decision Log Template
 
-| ID | Date | Decision | Alternatives | Reason | Status |
-| --- | --- | --- | --- | --- | --- |
-| ADR-XXX | YYYY-MM-DD | Keputusan | Opsi lain | Alasan | PROPOSED/ACCEPTED/SUPERSEDED |
+| ID      | Date       | Decision  | Alternatives | Reason | Status                       |
+| ------- | ---------- | --------- | ------------ | ------ | ---------------------------- |
+| ADR-XXX | YYYY-MM-DD | Keputusan | Opsi lain    | Alasan | PROPOSED/ACCEPTED/SUPERSEDED |
 
 ## 13. Work Log
 
@@ -238,9 +244,11 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 ### 4 September 2026 — Issue #31 Menu Availability Management
 
 **Goal**
+
 - Memungkinkan staf berwenang mengubah ketersediaan item menu secara cepat pada kasir mobile dan tablet PesenHub dengan umpan balik optimistik, proteksi role guard (staf aktif vs mode pantau), rollback otomatis ke state server bila terjadi kegagalan atau konflik versi (Invarian #8), sinkronisasi langsung ke katalog pemesanan POS agar item habis terkunci seketika, serta tata letak responsif pada mobile dan tablet.
 
 **Changed**
+
 - Mengimplementasikan `MenuAvailabilityController` di `pesenhub_app/lib/menu/controllers/menu_availability_controller.dart` dengan role guard (`STAFF`), status filtering (`ALL`, `AVAILABLE`, `UNAVAILABLE`), category filtering, search dengan debounce 250ms, in-flight action protection, optimistic toggle, version contract (`PATCH /api/v1/admin/menus/{id}/availability`), rollback otomatis saat failure, serta callback sinkronisasi POS `onAvailabilityChanged`.
 - Membangun komponen UI `MenuAvailabilityCard` di `pesenhub_app/lib/menu/widgets/menu_availability_card.dart` dengan visual nama/SKU/kategori, badge status `Tersedia` (hijau) vs `Habis` (merah), chip versi `v{version}`, in-flight loading spinner, switch toggle ergonomis (>= 48px), dan penonaktifan interaksi dengan catatan otorisasi jika role bukan `STAFF`.
 - Membangun antarmuka `MenuAvailabilityView` di `pesenhub_app/lib/menu/menu_availability_view.dart` dengan header role status, banner aksi/error, input pencarian, filter chip status dan kategori, grid responsif 2 kolom pada tablet (>= 600dp) serta kolom tunggal pada mobile (< 600dp), lengkap dengan loading, empty, dan error state.
@@ -250,20 +258,24 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambahkan dokumentasi arsitektur di `docs/MENU_AVAILABILITY.md`.
 
 **Validation**
+
 - `dart format --output=none --set-exit-if-changed .`: PASS.
 - `flutter analyze`: PASS (0 issue found).
 - `flutter test`: PASS (78/78 tests passed).
 - `cd pesenhub_be && ./run.sh check`: PASS.
 
 **Next**
+
 - Review/merge Issue #31, lalu lanjut ke Issue #32 (Pilih dan implementasikan local database serta cache Flutter).
 
 ### 4 September 2026 — Issue #30 Adaptive Kitchen Display System (KDS) for Tablet and Mobile
 
 **Goal**
+
 - Menyediakan Kitchen Display System (KDS) adaptif yang mengoptimalkan alur kerja kru dapur/barista pada tablet (multi-order grid tanpa horizontal overflow) dan mobile (single-column card stack), mengurutkan tiket secara deterministik dengan prioritas tiket overdue (> 15 menit) disusul FIFO, memisahkan secara visual item makanan vs minuman barista serta menonjolkan level kepedasan dan catatan bungkus (takeaway packaging notes), dan menyediakan aksi status 1-tap (`Mulai Masak` / `Tandai Siap`) yang mematuhi kontrak versi optimistik serta mencegah double action / double tap.
 
 **Changed**
+
 - Mengimplementasikan `KdsController` di `pesenhub_app/lib/kds/controllers/kds_controller.dart` dengan filter status (`ALL`, `ACCEPTED`, `PREPARING`), sorting deterministik (overdue first, lalu FIFO timestamp), pencegahan double-action via `processingOrderIds`, dan aksi transisi 1-tap yang memperbarui state secara atomik.
 - Membangun komponen UI `KdsTicketCard` di `pesenhub_app/lib/kds/widgets/kds_ticket_card.dart` dengan visual badge sumber dan nama/nomor order, banner merah mencolok untuk tiket overdue (> 15 menit) beserta timer durasi, kontainer catatan bungkus pesanan takeaway, pemisahan item makanan dengan kuantitas tebal & sorotan level kepedasan, seksi minuman barista terpisah dengan ikon cangkir kopi, dan tombol aksi 1-tap kontekstual.
 - Membangun `KdsView` di `pesenhub_app/lib/kds/kds_view.dart` dengan filter chips status, tata letak adaptif (1 kolom pada layar mobile < 600dp, grid 2/3 kolom pada tablet >= 600dp / >= 960dp) tanpa horizontal overflow, dan penanganan state lengkap (`empty`, `loading`, `error`).
@@ -272,20 +284,24 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambahkan dokumentasi arsitektur di `docs/ADAPTIVE_KDS.md`.
 
 **Validation**
+
 - `dart format --output=none --set-exit-if-changed .`: PASS.
 - `flutter analyze`: PASS (0 issue found).
 - `flutter test`: PASS (72/72 tests passed).
 - `cd pesenhub_be && ./run.sh check`: PASS.
 
 **Next**
+
 - Review/merge Issue #30, lalu lanjut ke Issue #31 (Implementasi pengelolaan menu availability pada Flutter).
 
 ### 4 September 2026 — Issue #29 Order Detail, Status Timeline, and Contextual Quick Actions
 
 **Goal**
-- Menampilkan detail operasional lengkap pesanan pada kasir mobile dan tablet PesenHub, memisahkan timeline status pesanan dari status pembayaran (Invarian #7), menangani konflik versi optimistik (*stale version conflict*) tanpa menimpa data server, menerapkan pembatasan hak akses (*role guard*), serta menyajikan tepat satu aksi status utama kontekstual sesuai state saat ini (misal: `PREPARING` -> *"Tandai Siap"* menuju `READY_FOR_PICKUP`).
+
+- Menampilkan detail operasional lengkap pesanan pada kasir mobile dan tablet PesenHub, memisahkan timeline status pesanan dari status pembayaran (Invarian #7), menangani konflik versi optimistik (_stale version conflict_) tanpa menimpa data server, menerapkan pembatasan hak akses (_role guard_), serta menyajikan tepat satu aksi status utama kontekstual sesuai state saat ini (misal: `PREPARING` -> _"Tandai Siap"_ menuju `READY_FOR_PICKUP`).
 
 **Changed**
+
 - Menambahkan model `OrderAction` di `pesenhub_app/lib/order/models/order_action.dart` (`targetStatus`, `label`, `icon`, `isDestructive`, `helperText`).
 - Mengimplementasikan `OrderDetailController` di `pesenhub_app/lib/order/controllers/order_detail_controller.dart` dengan role guard (`STAFF`, `KDS`, `CUSTOMER`), seleksi tepat satu `primaryAction` kontekstual, aksi sekunder, dan penanganan konkurensi versi optimistik (`VERSION_CONFLICT`) yang memuat state terbaru tanpa overwrite.
 - Membangun komponen UI `OrderStatusTimeline` di `pesenhub_app/lib/order/widgets/order_status_timeline.dart` yang memvisualisasikan siklus pesanan (`Diterima` -> `Memasak` -> `Siap Diambil` -> `Selesai`) secara terpisah dari status pembayaran.
@@ -296,20 +312,24 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambahkan dokumentasi di `docs/ORDER_DETAIL_TIMELINE_ACTIONS.md`.
 
 **Validation**
+
 - `dart format --output=none --set-exit-if-changed .`: PASS.
 - `flutter analyze`: PASS (0 issue found).
 - `flutter test`: PASS (67/67 tests passed).
 - `cd pesenhub_be && ./run.sh check`: PASS.
 
 **Next**
+
 - Review/merge Issue #29, lalu lanjut ke Issue #30 (Implementasi KDS adaptif untuk tablet dan mobile).
 
 ### 4 September 2026 — Issue #27 Menu Search, Category Filter, and Modifiers
 
 **Goal**
-- Menyediakan katalog menu interaktif untuk kasir POS/KDS PesenHub yang mendukung pencarian menu dengan debounce, filter kategori, penandaan status ketersediaan item (*unavailable/habis*), konfigurasi modifier (*level kepedasan*, *topping*, *varian manis*) sesuai batasan backend, perhitungan harga dinamis, serta validasi *required modifier* sebelum masuk ke keranjang pesanan.
+
+- Menyediakan katalog menu interaktif untuk kasir POS/KDS PesenHub yang mendukung pencarian menu dengan debounce, filter kategori, penandaan status ketersediaan item (_unavailable/habis_), konfigurasi modifier (_level kepedasan_, _topping_, _varian manis_) sesuai batasan backend, perhitungan harga dinamis, serta validasi _required modifier_ sebelum masuk ke keranjang pesanan.
 
 **Changed**
+
 - Menambahkan model domain menu di `pesenhub_app/lib/menu/models/`: `menu_category.dart`, `menu_option.dart`, `menu_modifier_group.dart`, `menu_item.dart`, `menu_state.dart`, dan `sample_menu_data.dart`.
 - Mengimplementasikan `MenuController` di `pesenhub_app/lib/menu/controllers/menu_controller.dart` dengan debounce search 250ms, pemilihan kategori, dan kalkulasi counter item.
 - Mengimplementasikan `ModifierSelectionState` di `pesenhub_app/lib/menu/controllers/modifier_selection_state.dart` dengan validasi batasan `minSelect` & `maxSelect` backend, pencegahan pemilihan opsi habis, stepper kuantitas, dan perhitungan harga dinamis.
@@ -320,20 +340,24 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambahkan dokumentasi di `docs/MENU_CATALOG_MODIFIERS.md`.
 
 **Validation**
+
 - `dart format --output=none --set-exit-if-changed .`: PASS.
 - `flutter analyze`: PASS (0 issue found).
 - `flutter test`: PASS (54/54 tests passed).
 - `cd pesenhub_be && ./run.sh check`: PASS.
 
 **Next**
+
 - Review/merge Issue #27, lalu lanjut ke Issue #28 (Implementasi cart, catatan bungkus, order review, dan submit manual).
 
 ### 4 September 2026 — Issue #26 Unified Order Queue, Source Badges, and Visual Alerts
 
 **Goal**
-- Menyediakan antrean order terpadu (*Unified Order Queue*) pada aplikasi kasir POS/KDS PesenHub yang menggabungkan seluruh sumber pesanan (`WHATSAPP`, `CASHIER_MANUAL`, `CUSTOMER_WEB`), menandai pesanan baru & terlambat (*late/overdue* > 15 mnt), menampilkan minuman dan catatan bungkus secara langsung pada kartu tanpa perlu membuka layar baru, serta menjamin pengurutan stabil dan deduplikasi saat konsumsi event real-time atau rekoneksi.
+
+- Menyediakan antrean order terpadu (_Unified Order Queue_) pada aplikasi kasir POS/KDS PesenHub yang menggabungkan seluruh sumber pesanan (`WHATSAPP`, `CASHIER_MANUAL`, `CUSTOMER_WEB`), menandai pesanan baru & terlambat (_late/overdue_ > 15 mnt), menampilkan minuman dan catatan bungkus secara langsung pada kartu tanpa perlu membuka layar baru, serta menjamin pengurutan stabil dan deduplikasi saat konsumsi event real-time atau rekoneksi.
 
 **Changed**
+
 - Menambahkan model `QueueOrderItem` di `pesenhub_app/lib/queue/models/queue_order_item.dart` (`name`, `quantity`, `unitPrice`, `notes`, `isDrink`).
 - Menambahkan model `QueueOrder` di `pesenhub_app/lib/queue/models/queue_order.dart` (`id`, `orderNumber`, `customerName`, `customerPhone`, `source`, `orderStatus`, `paymentStatus`, `isTakeaway`, `takeawayNotes`, `items`, `createdAt`, `version`, `isOverdue`, `drinkItems`, `foodItems`).
 - Menambahkan model state `QueueState` di `pesenhub_app/lib/queue/models/queue_state.dart` (`loading`, `success`, `empty`, `error`, `isStale`, `isOffline`).
@@ -346,20 +370,24 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambahkan dokumentasi di `docs/UNIFIED_ORDER_QUEUE.md`.
 
 **Validation**
+
 - `dart format --output=none --set-exit-if-changed .`: PASS.
 - `flutter analyze`: PASS (0 issue found).
 - `flutter test`: PASS (47/47 tests passed).
 - `cd pesenhub_be && ./run.sh check`: PASS.
 
 **Next**
+
 - Review/merge Issue #26, lalu lanjut ke Issue #27 (Implementasi menu search, category filter, modifier, dan level kepedasan).
 
 ### 3 September 2026 — Issue #25 Cashier Dashboard and Operational Summary
 
 **Goal**
+
 - Menyediakan dashboard ringkasan operasional kasir PesenHub yang scannable, menampilkan count antrean per status, overdue alert, antrean sinkronisasi offline, penanda keusangan data (stale/offline timestamp), serta akses 1-tap ke alur utama (POS, Antrean, KDS).
 
 **Changed**
+
 - Menambahkan model snapshot data operasional `OperationalSummary` di `pesenhub_app/lib/dashboard/models/operational_summary.dart` (`pendingCount`, `preparingCount`, `readyCount`, `overdueCount`, `completedCount`, `pendingSyncCount`, `lastUpdatedAt`, `isStale`, `isOffline`).
 - Menambahkan representasi presentation state `DashboardState` di `pesenhub_app/lib/dashboard/models/dashboard_state.dart` (`loading`, `success`, `empty`, `error`).
 - Membangun komponen UI metrik scannable di `pesenhub_app/lib/dashboard/widgets/`: `metric_card.dart` (target sentuh >= 48px, kontras tinggi, alert border) dan `freshness_indicator.dart` (timestamp format HH:mm, badge offline outbox, dan warning banner).
@@ -369,20 +397,24 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambahkan dokumentasi di `docs/CASHIER_DASHBOARD.md`.
 
 **Validation**
+
 - `dart format --output=none --set-exit-if-changed .`: PASS.
 - `flutter analyze`: PASS (0 issue found).
 - `flutter test`: PASS (40/40 tests passed).
 - `cd pesenhub_be && ./run.sh check`: PASS.
 
 **Next**
+
 - Review/merge Issue #25, lalu lanjut ke Issue #26 (Implementasi unified order queue, source badge, dan alert visual).
 
 ### 3 September 2026 — Issue #24 Responsive App Shell Mobile and Tablet
 
 **Goal**
+
 - Menyediakan kerangka navigasi adaptif (App Shell) untuk aplikasi kasir (POS) dan dapur (KDS) PesenHub yang bekerja mulus pada viewport ponsel (< 600dp) dan tablet (>= 600dp), mempertahankan state saat rotasi layar atau resize, serta menangani system insets dan keyboard secara ergonomis.
 
 **Changed**
+
 - Menambahkan enum destinasi `AppDestination` di `pesenhub_app/lib/navigation/app_destination.dart` (`pos`, `queue`, `kds`, `menu`, `settings`).
 - Membangun tampilan placeholder berstruktur di `pesenhub_app/lib/shell/destination_views.dart`: `PosDestinationView` (dengan identitas pelanggan, pemilihan menu, total, dan submit), `QueueDestinationView` (antrean order aktif), `KdsDestinationView` (tiket memasak dapur), `MenuDestinationView` (toggle ketersediaan menu), dan `SettingsDestinationView` (pengaturan outlet dan akses katalog showcase).
 - Mengimplementasikan `AppShell` di `pesenhub_app/lib/shell/app_shell.dart` dengan scaffold adaptif tunggal, `NavigationBar` pada mobile (< 600dp), `NavigationRail` permanen di sisi kiri pada tablet (>= 600dp), header outlet dengan status koneksi (`Online`), serta retensi state tak terputus menggunakan `GlobalKey` dan `IndexedStack`.
@@ -391,20 +423,24 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambahkan dokumentasi spesifikasi di `docs/APP_SHELL_RESPONSIVE.md`.
 
 **Validation**
+
 - `dart format --output=none --set-exit-if-changed .`: PASS.
 - `flutter analyze`: PASS (0 issue found).
 - `flutter test`: PASS (33/33 tests passed).
 - `cd pesenhub_be && ./run.sh check`: PASS.
 
 **Next**
+
 - Review/merge Issue #24, lalu lanjut ke Issue #25 (Implementasi dashboard kasir dan operational summary).
 
 ### 3 September 2026 — Issue #23 Flutter Design System
 
 **Goal**
+
 - Membangun fondasi visual dan interaksi yang konsisten untuk POS/KDS mobile & tablet PesenHub: token warna, tipografi, spacing, iconography, semantik status order/pembayaran (teks + ikon + warna), komponen interaktif dengan target sentuh minimal 48px, serta feedback states (loading, empty, error, banner).
 
 **Changed**
+
 - Menambahkan token desain di `pesenhub_app/lib/theme/`: `app_colors.dart`, `app_typography.dart`, `app_spacing.dart`, `status_semantics.dart`, dan konfigurasi Material 3 `app_theme.dart`.
 - Mengimplementasikan pemetaan status order (7 status), status pembayaran (5 status), dan sumber order (3 kanal) yang menjamin setiap status selalu memiliki label teks Indonesia dan ikon unik (tidak bergantung warna saja).
 - Membangun komponen UI inti di `pesenhub_app/lib/widgets/`: `app_button.dart` (target sentuh 48px, varian primary/secondary/outlined/danger, loading, disabled), `app_card.dart`, `app_status_badge.dart`, `app_text_field.dart`, `app_feedback.dart` (`AppLoadingState`, `AppEmptyState`, `AppErrorState`, `AppBanner`), dan `responsive_layout.dart` (breakpoint 600dp).
@@ -413,25 +449,30 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambahkan dokumentasi di `docs/FLUTTER_DESIGN_SYSTEM.md`.
 
 **Validation**
+
 - `dart format --output=none --set-exit-if-changed .`: PASS.
 - `flutter analyze`: PASS (0 issue found).
 - `flutter test`: PASS (27/27 tests passed).
 - `cd pesenhub_be && ./run.sh check`: PASS.
 
 **Next**
+
 - Review/merge Issue #23, lalu lanjut ke Issue #24 (Implementasi responsive app shell mobile dan tablet).
 
 ### 3 September 2026 — Phase 1A Core Backend Closing Evidence and Transition
 
 **Goal**
+
 - Menutup Phase Issue #3 setelah seluruh 10 child issue (#13–#22) selesai diimplementasikan, diverifikasi, dan di-merge melalui PR #81–#93.
 - Mengumpulkan bukti penutupan di `docs/PHASE_1A_CLOSING_EVIDENCE.md` dan mempersiapkan transisi ke Phase 1B (Cashier Mobile & Tablet, #4).
 
 **Changed**
+
 - Membuat `docs/PHASE_1A_CLOSING_EVIDENCE.md` yang merangkum hasil child issues, pemenuhan acceptance criteria, repositories matrix, dan validasi operasional.
 - Memperbarui `MEMORY.md`: status Phase 1A menjadi `DONE`, status Phase 1B menjadi `NOT_STARTED` (siap dimulai), dan checklist Phase 1A ditandai selesai.
 
 **Validation**
+
 - `cd pesenhub_be && ./run.sh check`: PASS.
 - `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS.
 - `cd pesenhub_be && ./scripts/test-orders.sh`: PASS.
@@ -440,14 +481,17 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Parse `docs/api/openapi.yaml`: PASS.
 
 **Next**
+
 - Merge Phase Closing PR, menutup Issue #3, dan memulai child issue pertama Phase 1B (#23: Audit kesiapan UI kasir/KDS dan dependensi Flutter).
 
 ### 3 September 2026 — Issue #22 Order Mutation Audit Logging
 
 **Goal**
+
 - Menyediakan audit log append-only dan immutable untuk setiap mutasi penting order (`ORDER_CREATED`, `ORDER_STATUS_CHANGED`, `AUDIT_LOGS_ACCESSED`) dengan pencatatan actor, request ID, timestamp UTC, redaksi PII ketat (tanpa nomor HP utuh, token, atau secret), serta query terotorisasi yang dibatasi role dan tercatat (self-audited).
 
 **Changed**
+
 - Menambahkan `MaskPhone` dan `SanitizeAuditMetadata` di `internal/order/audit.go` untuk menyamarkan nomor handphone (`+62812****7890`) dan menyensor token/secret (`[REDACTED]`) sebelum disimpan di kolom `metadata_redacted`.
 - Menambahkan struct `AuditLogEntry` di `internal/order/model.go`.
 - Menerapkan `SanitizeAuditMetadata` pada insert audit log di `Create`, `Transition`, dan `CreateWeb` di `internal/order/store.go`.
@@ -457,6 +501,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambahkan dokumentasi spesifikasi di `docs/ORDER_AUDIT_LOGS.md` dan memperbarui `docs/api/openapi.yaml`.
 
 **Validation**
+
 - `cd pesenhub_be && ./run.sh check`: PASS.
 - `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS.
 - `cd pesenhub_be && ./scripts/test-orders.sh`: PASS.
@@ -464,17 +509,21 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Parse `docs/api/openapi.yaml`: PASS.
 
 **Known Issues**
+
 - Tidak ada.
 
 **Next**
+
 - Review/merge Issue #22, lalu lanjutkan ke Phase 1A closing checklist dan PR penutup Phase #3.
 
 ### 3 September 2026 — Issue #21 Customer Web Ordering and Identity Validation
 
 **Goal**
+
 - Memungkinkan pelanggan mobile-web membuat pesanan `CUSTOMER_WEB` tanpa akun secara aman, ringan, dan responsif dengan validasi identitas, total preview dihitung backend, pencegahan double-submit, dan token pelacakan status publik tanpa mengekspos nomor HP (Invariant 11).
 
 **Changed**
+
 - Menambahkan migrasi `000008_add_order_public_tracking_token.up.sql` dan `.down.sql` untuk kolom `public_tracking_token` dan indeks parsial.
 - Menambahkan `PublicOrderCreateInput`, `PublicOrderResponse`, `PreviewInput`, `PreviewResponse`, dan `PublicTrackingDetail` di `internal/order/model.go`.
 - Menambahkan `NormalizePhone` (E.164 +628) dan `ValidateCustomerName` di `internal/order/service.go`.
@@ -485,6 +534,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambahkan dokumentasi arsitektur di `docs/CUSTOMER_WEB_ORDERING.md` dan memperbarui `docs/api/openapi.yaml`.
 
 **Validation**
+
 - `cd pesenhub_be && ./run.sh check`: PASS.
 - `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS.
 - `cd pesenhub_be && ./scripts/test-orders.sh`: PASS.
@@ -492,17 +542,21 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Parse `docs/api/openapi.yaml`: PASS.
 
 **Known Issues**
+
 - Tidak ada.
 
 **Next**
+
 - Review/merge Issue #21, lalu lanjutkan ke #22 (issue terakhir Phase 1A).
 
 ### 3 September 2026 — Issue #20 WebSocket Order Events and Recovery
 
 **Goal**
+
 - Mendistribusikan perubahan antrean order secara real-time ke client POS/KDS melalui WebSocket dengan autentikasi (role `STAFF` & `KDS`), heartbeat ping-pong, ordering berbasis version, outbox processing, dan snapshot recovery REST saat terjadi gap / disconnect.
 
 **Changed**
+
 - Menambah package `internal/ws` untuk upgrade RFC 6455 tanpa external dependency, ping/pong heartbeat, thread-safe frame reading/writing, dan `Hub` untuk role-aware broadcast serta backpressure handling.
 - Menambah `OutboxPublisher` di `internal/order/publisher.go` untuk membaca transactional outbox events (`ORDER_CREATED`, `ORDER_STATUS_CHANGED`), membungkus dalam `OrderEventEnvelope`, meredaksi PII untuk role `KDS`, dan mem-broadcast ke `Hub`.
 - Menghubungkan `order.Store` ke `OutboxPublisher` agar commit mutasi order langsung memicu pengiriman event instan.
@@ -511,6 +565,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambah dokumentasi arsitektur di `docs/ORDER_EVENTS_WS.md` dan memperbarui kontrak OpenAPI di `docs/api/openapi.yaml`.
 
 **Validation**
+
 - `cd pesenhub_be && ./run.sh check`: PASS.
 - `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS.
 - `cd pesenhub_be && ./scripts/test-orders.sh`: PASS.
@@ -518,17 +573,21 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Parse `docs/api/openapi.yaml`: PASS.
 
 **Known Issues**
+
 - Principal staff/KDS produksi masih menunggu middleware autentikasi pada issue terkait; endpoint sengaja default-deny.
 
 **Next**
+
 - Review/merge Issue #20, lalu lanjutkan ke #21.
 
 ### 3 September 2026 — Issue #19 Unified Order Query and Queue Filter
 
 **Goal**
+
 - Menyediakan read model antrean tunggal yang cepat untuk seluruh sumber dan status dengan keyset cursor pagination, filter dinamis, dan RBAC PII redaction.
 
 **Changed**
+
 - Menambah endpoint `GET /api/v1/orders`, `GET /api/v1/orders/queue`, dan `GET /api/v1/orders/{id}`.
 - Menambah composite index `(source, status, created_at, id)`, `(created_at, id)`, dan `order_item_modifiers(order_item_id)`.
 - Menambah keyset cursor pagination `(created_at, id)` deterministik tanpa duplicate record antarhalaman.
@@ -537,6 +596,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambah kontrak OpenAPI, dokumentasi query di `docs/ORDER_QUERIES.md`, unit tests, dan integration tests PostgreSQL.
 
 **Validation**
+
 - `cd pesenhub_be && ./run.sh check`: PASS.
 - `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS.
 - `cd pesenhub_be && ./scripts/test-orders.sh`: PASS.
@@ -544,212 +604,261 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Parse `docs/api/openapi.yaml`: PASS.
 
 **Known Issues**
+
 - Principal staff/KDS produksi masih menunggu middleware autentikasi pada issue terkait; endpoint sengaja default-deny.
 
 **Next**
+
 - Review/merge Issue #19, lalu lanjutkan ke #20.
 
 ### 3 September 2026 — Issue #18 Order Lifecycle
 
 **Goal**
+
 - Menjamin hanya transisi status legal yang dapat diterapkan dengan optimistic concurrency, audit, dan event atomik.
 
 **Changed**
+
 - Menambah state machine eksplisit dan endpoint staff `POST /api/v1/orders/{id}/status-transitions`.
 - Menambah idempotency key/request hash pada status history untuk replay identik yang tidak menggandakan history, audit, atau outbox.
 - Menambah optimistic version check, actor-scoped replay, reason code, serta safe errors untuk stale version, illegal transition, dan terminal state.
 - Menambah kontrak OpenAPI, panduan lifecycle, unit test table-driven, dan integration test PostgreSQL concurrent retry.
 
 **Validation**
+
 - `go test ./...`, `go vet ./...`, dan `go test -race ./...`: PASS.
 - `scripts/test-migrations.sh` dan `scripts/test-orders.sh`: PASS.
 - Parse `docs/api/openapi.yaml`: PASS.
 
 **Known Issues**
+
 - Principal staff produksi masih menunggu middleware autentikasi pada issue terkait; endpoint sengaja default-deny.
 
 **Next**
+
 - Review/merge Issue #18, lalu lanjutkan unified order query pada #19.
 
 ### 3 September 2026 — Issue #17 Manual Cashier Order
 
 **Goal**
+
 - Membuat order `CASHIER_MANUAL` yang atomik, dihitung backend, dan aman terhadap retry bersamaan.
 
 **Changed**
+
 - Menambah endpoint staff `POST /api/v1/orders`, kontrak OpenAPI, serta panduan operasi.
 - Menambah request hash dan client order ID, snapshot item/modifier, status history awal, audit log, dan outbox dalam satu transaksi.
 - Menambah advisory transaction lock per source/idempotency key dan integration test PostgreSQL untuk concurrent replay, payload conflict, serta unavailable catalog.
 
 **Validation**
+
 - `go test ./...`, `go vet ./...`, dan `go test -race ./...`: PASS.
 - `scripts/test-migrations.sh` dan `scripts/test-orders.sh`: PASS.
 - Parse `docs/api/openapi.yaml`: PASS.
 
 **Known Issues**
+
 - Principal staff produksi masih menunggu middleware autentikasi pada issue terkait; endpoint sengaja default-deny.
 
 **Next**
+
 - Review/merge Issue #17, lalu lanjutkan lifecycle order pada #18.
 
 ### 3 September 2026 — Issue #16 Menu Catalog
 
 **Goal**
+
 - Menyediakan katalog category/menu/modifier group/option sebagai sumber harga integer dan availability seluruh channel.
 
 **Changed**
+
 - Menambah migration reversible `000004` untuk modifier group/option, stable menu sort, dan snapshot option reference.
 - Menambah catalog model/service/store/handler untuk admin category/menu/availability dan public/agent read dengan filter category serta stable ordering.
 - Menambah server-side price/modifier validator yang menolak menu/option unavailable, foreign/duplicate option, dan min/max ilegal dengan safe field path.
 - Menambah OpenAPI dan `docs/MENU_CATALOG.md`; tabel flat lama dipertahankan untuk migration compatibility.
 
 **Validation**
+
 - Go format/unit/vet, handler contract, OpenAPI parse, shell syntax, dan `git diff --check`: PASS.
 - PostgreSQL 16 migration/rollback/reapply, CRUD fixture, availability visibility, modifier bounds, serta seluruh fixture migration lama: PASS.
 
 **Known Issues**
+
 - Admin write runtime default `FORBIDDEN` sampai auth middleware memasukkan verified `STAFF` principal.
 - Promo kompleks dan inventory di luar #16; order snapshot/atomic calculation dilanjutkan #17.
 
 **Next**
+
 - Review dan merge PR #86; setelah itu lanjut #17 untuk order creation manual, source tracking, dan idempotency.
 
 ### 3 September 2026 — Issue #15 Customer Identity and Profile
 
 **Goal**
+
 - Mengidentifikasi customer melalui nomor Indonesia ternormalisasi serta menyediakan create/update/history yang collision-safe dan authorization-first.
 
 **Changed**
+
 - Menambah normalizer `08…`/`628…`/`+628…`/`8…` ke E.164, customer service/store/handler, UUID internal, expected version, dan principal authorization.
 - Menambah migration reversible `000003` untuk preferences object, optimistic version, dan create idempotency key.
 - Menambah OpenAPI customer create/update/history dan `docs/CUSTOMER_IDENTITY.md` untuk collision, shared/recycled phone, privacy, dan default-deny behavior.
 - Menambah unit/contract test serta memperluas migration test dengan rollback/reapply dan concurrent unique collision.
 
 **Validation**
+
 - Go format/unit/vet, OpenAPI parse, shell syntax, dan `git diff --check`: PASS.
 - PostgreSQL 16 migration up/down/up, customer extension rollback, dan concurrent phone collision: PASS.
 
 **Known Issues**
+
 - Auth/OTP production tidak termasuk #15. Update/history runtime aman dengan default `UNAUTHENTICATED` sampai middleware memasukkan verified principal.
 - Tidak ada auto-merge customer; collision memerlukan resolusi staf eksplisit pada issue lanjutan.
 
 **Next**
+
 - Review dan merge PR #85; setelah itu lanjut #16 untuk menu/category/modifier/availability.
 
 ### 3 September 2026 — Issue #14 Core Domain Schema
 
 **Goal**
+
 - Menyediakan model customer, menu, order snapshot, payment, history, audit, dan outbox dengan constraint aman pada PostgreSQL 16.
 
 **Changed**
+
 - Menambah migration reversible `000002_create_core_domain` tanpa mengubah migration terpakai `000001`.
 - Menambah ERD/data invariants pada `docs/CORE_DOMAIN_MODEL.md` dan canonical enum mapping pada `internal/domain`.
 - Menambah test migration container terisolasi untuk siklus up/down/up, insert sukses, duplicate idempotency, invalid status, rollback scope, dan multiple null channel reference.
 
 **Validation**
+
 - Domain unit test, Go format, shell syntax, dan `git diff --check`: PASS.
 - PostgreSQL 16 migration up/down/up serta positive/negative constraint checks: PASS.
 
 **Known Issues**
+
 - Repository transaction untuk insert atomik order/items/history/audit/outbox menjadi scope #17/#22; migration hanya menyediakan constraint dan relational boundary.
 - Tidak ada data production atau credential nyata yang digunakan.
 
 **Next**
+
 - Review dan merge PR #84; setelah itu lanjut #15 untuk identifikasi/profil pelanggan.
 
 ### 3 September 2026 — Issue #13 HTTP API Conventions
 
 **Goal**
+
 - Mengunci kontrak HTTP bersama sebelum endpoint domain Phase 1A dikembangkan.
 
 **Changed**
+
 - Menambah `docs/API_CONVENTIONS.md` dan OpenAPI 3.1 machine-readable untuk versioning, response, error, pagination, filter/sort, mutation, idempotency, version conflict, dan status code.
 - Menambah package `internal/httpapi` untuk JSON/error envelope aman dan parser cursor pagination dengan default 20/maksimum 100 serta sort allowlist.
 - Memvalidasi/menghasilkan `X-Request-ID` pada middleware dan mengubah panic recovery ke error envelope canonical.
 - Menambah unit/contract tests untuk success primitive, validation error, invalid pagination, request ID, dan panic redaction.
 
 **Validation**
+
 - `gofmt`, `pesenhub_be/run.sh check`, race test, `go vet`, dan parse OpenAPI YAML: PASS.
 - Integration persistence tidak relevan karena issue ini tidak mengubah database atau endpoint domain.
 - Flutter tidak terdampak; contract menjadi input untuk #48/#49.
 
 **Known Issues**
+
 - `/api/v1/examples` pada OpenAPI hanya contoh kontrak dan bukan route runtime; endpoint domain ditambahkan oleh issue pemiliknya.
 
 **Next**
+
 - Review dan merge PR #83; setelah itu lanjut #14 untuk domain model dan migration inti.
 
 ### 3 September 2026 — Phase 0 Closing Audit
 
 **Goal**
+
 - Menutup Phase Issue #2 hanya berdasarkan child issue, repository governance, dokumentasi, dan validasi yang dapat diaudit.
 
 **Changed**
+
 - Menambah `docs/PHASE_0_CLOSING_EVIDENCE.md` dengan matriks acceptance criteria, hasil test, deferral, risiko, dan deviasi approval.
 - Menandai Phase 0 `DONE` efektif hanya ketika Phase Closing PR di-merge dan Issue #2 ditutup.
 - Memetakan spike integrasi lama ke child issue Phase 1B–1D tanpa menghapus requirement.
 
 **Validation**
+
 - Seluruh child issue #9–#12, #75, dan #76 `CLOSED`; tidak ada PR terbuka sebelum closing branch dibuat.
 - Backend check, Docker Compose config, Flutter format/analyze/test, required checks, dan latest `main` CI/CD: PASS.
 
 **Known Issues**
+
 - Required approval count diubah Owner menjadi nol untuk self-merge; deviasi dari teks awal #2 dicatat eksplisit dan tidak diklaim sebagai independent review.
 - Akses prototype desain Q-014 tetap dibutuhkan sebelum #23, tetapi bukan blocker Project Readiness #2.
 
 **Next**
+
 - Merge Phase Closing PR #81 untuk menutup #2, kemudian mulai Phase 1A dari #13.
 
 ### 3 September 2026 — Issue #76 Roadmap Synchronization
 
 **Goal**
+
 - Menjadikan Epic #1 dan Phase Issue #2–#8 sebagai roadmap eksekusi tanpa menghilangkan requirement PRD lama.
 
 **Changed**
+
 - Memetakan Phase lama 0–6 ke Phase GitHub 0, 1A, 1B, 1C, 1D, 2, dan 3 pada PRD.
 - Memperbarui deliverable serta exit criteria tiap phase baru berdasarkan Phase Issue terkait.
 - Memperbarui phase tracker, Current GitHub Work, next work, decision status, open question, dan checklist setelah PR #78/#79 merged.
 - Menambahkan navigasi roadmap pada README; tidak ada source aplikasi, schema, API, secret, atau deployment yang diubah.
 
 **Validation**
+
 - Metadata Epic #1 dan Phase Issue #2–#8 diverifikasi melalui GitHub CLI.
 - Konsistensi tujuh phase, link, istilah stale, dan scope dokumentasi lulus lokal; CI menunggu pada PR #80.
 
 **Known Issues**
+
 - Phase 0 tetap `IN_PROGRESS`; Issue #76 bukan Phase Closing PR dan tidak menutup #2.
 - Prototype desain untuk #23 masih memerlukan akses Owner/Design Owner (Q-014).
 
 **Next**
+
 - Review dan merge PR #80, lalu buat Phase Closing PR #2 hanya setelah seluruh child issue dan exit criteria terverifikasi.
 
 ### 3 September 2026 — Issue #75 Phase 0 Product Decision Proposal
 
 **Goal**
+
 - Menyediakan baseline eksplisit untuk scope outlet/perangkat, fulfillment, order validity, payment, local database, risiko WAHA, serta status canonical.
 
 **Changed**
+
 - Menambah `docs/PHASE_0_PRODUCT_DECISIONS.md` dengan PD-001–PD-008 berstatus `EFFECTIVE_ON_MERGE`.
 - Merekomendasikan single outlet, satu kasir + satu KDS (target uji maksimal tiga perangkat staf), pickup-only, cash + Midtrans QRIS, SQLite, dan penggunaan WAHA terbatas untuk development/pilot.
 - Menetapkan proposal status order/payment/source canonical serta mapping istilah lama tanpa mengubah schema atau source aplikasi.
 - Menautkan proposal dari PRD; sinkronisasi penuh tetap menjadi scope #76 setelah Owner menyetujui keputusan.
 
 **Validation**
+
 - `git diff --check`, kelengkapan Q/PD, dan pembatasan path dokumentasi lulus lokal.
 - Backend/Mobile source, `.env`, Docker, migration, dan deployment tidak diubah.
 
 **Known Issues**
+
 - Seluruh keputusan belum efektif sebelum PR direview dan di-merge Owner.
 - Detail operasional outlet dapat mengubah rekomendasi; perubahan wajib dicatat pada review PR, bukan diasumsikan.
 
 **Next**
+
 - Review dan merge PR #79 sebagai Owner; setelah merge, kerjakan #76 untuk menyelaraskan PRD/MEMORY dan dependency roadmap.
 
 ### 3 September 2026 — Issues #10–#12 Repository Governance
 
 **Goal**
+
 - Menggabungkan tiga Issue Phase 0 yang saling terkait atas persetujuan Owner: branch protection, CODEOWNERS, serta dokumentasi environment dan secret.
 
 **Changed**
+
 - Mengaktifkan protection `main` dengan strict required checks, satu approval, Code Owner review, stale/last-push approval, conversation resolution, admin enforcement, linear history, serta larangan force-push/deletion.
 - Menonaktifkan merge commit dan rebase merge; hanya squash merge tersedia dan branch dihapus otomatis setelah merge.
 - Mengaktifkan `.github/CODEOWNERS` untuk akun repository Owner `@yogaananda6677` dan mencatat kebutuhan reviewer kedua.
@@ -758,6 +867,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Memperbarui panduan kontribusi, PR template, README, dan setup GitHub agar sesuai state aktual.
 
 **Validation**
+
 - GitHub branch protection, repository merge settings, dan label multi-issue: PASS melalui REST/CLI read-only verification.
 - Parse 10 file YAML, syntax JavaScript Contribution Policy, CODEOWNERS, documentation contract, dan `git diff --check`: PASS.
 - Secret-file tracking: PASS — tidak ada `.env`, `local.properties`, keystore, atau JKS tracked.
@@ -766,24 +876,29 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Contribution Policy, Backend Quality, dan Mobile Quality pada multi-issue PR #78: PASS.
 
 **Known Issues**
+
 - Hanya satu akun Owner yang diketahui. Approval dan Code Owner review membutuhkan collaborator kedua; author tidak boleh self-review.
 - #75 dan #76 tetap terbuka dan tidak termasuk dalam PR ini.
 
 **Next**
+
 - Buka multi-issue PR untuk #10, #11, dan #12, tambahkan label approval Owner, tunggu seluruh CI serta review dari akun lain, lalu squash merge.
 
 ### 3 September 2026 — Issue #9 Phase 0 Readiness Audit
 
 **Goal**
+
 - Menghasilkan inventaris terverifikasi atas blocker Phase 0 tanpa mengubah source aplikasi, runtime, atau pengaturan GitHub yang memerlukan keputusan Owner.
 
 **Changed**
+
 - Membuat `docs/PHASE_0_READINESS_AUDIT.md` berisi evidence repository/GitHub, owner, status, pekerjaan yang tidak diulang, dan urutan penyelesaian.
 - Mengganti placeholder Current GitHub Work dengan Epic #1, Phase Issue #2, Issue #9, branch aktif, serta blocker nyata.
 - Membuat follow-up #75 untuk keputusan bisnis/integrasi Phase 0 dan #76 untuk sinkronisasi roadmap lokal dengan milestone GitHub.
 - Memperbarui Q-011 dan menambah Q-013/Q-014 berdasarkan evidence audit.
 
 **Validation**
+
 - Git root, remote `origin`, default branch `main`, dan clean state sebelum branch dibuat: PASS.
 - Backend CI, Mobile CI, Backend CD, dan Mobile CD push run terakhir: PASS.
 - Branch protection/ruleset: FAIL expected — belum aktif dan ditangani #10.
@@ -793,18 +908,22 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Contribution Policy, Backend Quality, dan Mobile Quality pada Pull Request #77: PASS.
 
 **Known Issues**
+
 - #10, #11, #12, #75, dan #76 tetap terbuka; Phase 0 belum memenuhi exit criteria.
 - Prototype desain kasir merespons HTTP 401 sehingga detail visual belum dapat diverifikasi.
 
 **Next**
+
 - Buka PR untuk #9, tunggu seluruh required checks dan review Owner, lalu squash merge sebelum mengerjakan child issue berikutnya.
 
 ### 1 September 2026 — Mandatory Phase and Feature Workflow
 
 **Goal**
+
 - Menjadikan Issue → Branch → Implementasi → Pull Request → Review Owner → CI → Merge sebagai aturan wajib untuk setiap phase dan fitur.
 
 **Changed**
+
 - Menambah template `phase.yml` dengan scope, impact, child issue, exit criteria, bukti validasi, Definition of Done, dan checklist penutupan phase.
 - Memperluas Feature Issue agar wajib memiliki Parent Phase, scope/non-scope, dampak API/database/UI/security, test scenario, dan Definition of Done.
 - Memperbarui panduan kontribusi dan PR template untuk hierarki Phase Issue → child issue → Phase Closing PR serta larangan long-lived phase branch.
@@ -812,6 +931,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menambah bagian Current GitHub Work menggunakan `NOT_CREATED`; tidak ada nomor Issue, branch, atau PR aktual yang dikarang.
 
 **Validation**
+
 - Parse seluruh 10 file YAML `.github`: PASS.
 - Kontrak field Phase Issue, Feature Issue, dan Pull Request template: PASS.
 - Skenario regex branch serta kecocokan nomor branch–issue utama: PASS.
@@ -820,17 +940,21 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - `actionlint`: NOT_RUN — binary tidak tersedia dan tidak diinstal.
 
 **Known Issues**
+
 - Remote GitHub dan username/team Owner belum tersedia; Phase Issue, child issue, branch implementasi, PR, dan branch protection belum dapat dibuat.
 
 **Next**
+
 - Setelah remote tersedia, buat Phase Issue Phase 0 terlebih dahulu, pecah sisa exit criteria menjadi child issue, lalu minta persetujuan Owner sebelum implementasi berikutnya.
 
 ### 1 September 2026 — Monorepo Git and CI/CD Foundation
 
 **Goal**
+
 - Menuntaskan fondasi repository Git monorepo, memisahkan pipeline Backend dan Mobile, serta menetapkan alur kontribusi Issue → Branch → PR → Review tanpa mengubah fitur bisnis atau state Docker.
 
 **Changed**
+
 - Mengonfirmasi `.git/` root lama kosong, menghapus direktori kosong tersebut, lalu menginisialisasi satu repository Git valid pada root dengan branch `main`; tidak ada nested repository.
 - Menambah `CONTRIBUTING.md`, template Pull Request, tiga form Issue, konfigurasi Issue, dan `CODEOWNERS.example` yang aman karena username/team GitHub belum diketahui.
 - Menambah workflow `Contribution Policy` untuk memvalidasi nama branch dan referensi Issue lokal pada Pull Request ke `main`.
@@ -840,6 +964,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Menyelaraskan major version GitHub Actions dengan dokumentasi resmi yang berlaku pada sesi ini.
 
 **Validation**
+
 - Repository root, branch `main`, dan tepat satu direktori `.git`: PASS; belum ada commit atau remote dan keduanya sengaja tidak dibuat tanpa tujuan remote/Issue yang nyata.
 - Parse seluruh sembilan file YAML dengan PyYAML: PASS.
 - `actionlint`: NOT_RUN — binary tidak tersedia dan tidak diinstal.
@@ -848,6 +973,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Percobaan awal inisialisasi Git di sandbox gagal karena pembatasan filesystem; retry dengan izin yang disetujui berhasil. Tidak ada container dihentikan, volume dihapus, atau `.env` diubah.
 
 **Known Issues**
+
 - Remote GitHub belum diketahui, sehingga push pertama, eksekusi workflow, dan branch protection belum dapat dilakukan.
 - Required checks yang harus dipilih setelah workflow pertama berjalan: `Contribution Policy`, `Backend Quality`, dan `Mobile Quality`.
 - `CODEOWNERS.example` harus diisi username/team nyata lalu diubah menjadi `.github/CODEOWNERS`; file aktif sengaja belum dibuat agar tidak berisi owner palsu.
@@ -855,15 +981,18 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Phase 0 tetap `IN_PROGRESS` karena blocker bisnis dan spike integrasi lain masih terbuka.
 
 **Next**
+
 - Buat repository GitHub/remote, lakukan initial commit melalui Issue dan branch yang sesuai, push, lalu aktifkan aturan pada `docs/GITHUB_SETUP.md` setelah workflow pertama menghasilkan status checks.
 - Isi owner nyata untuk CODEOWNERS dan tentukan signing Android saat memasuki fase release produksi.
 
 ### 1 September 2026 — Backend Operational Guide and Automation
 
 **Goal**
+
 - Menyediakan satu panduan operasional dan satu script idempotent untuk setup, build, lifecycle, health, test, serta migration Backend tanpa mengubah fitur bisnis.
 
 **Changed**
+
 - Membuat `pesenhub_be/ATURAN.md` sebagai panduan utama berbahasa Indonesia untuk arsitektur, prasyarat, setup, command harian, keamanan, development, dan troubleshooting.
 - Membuat executable `pesenhub_be/run.sh` dengan subcommand `help`, `setup`, `dev`, `start`, `build`, `rebuild`, `stop`, `down`, `restart`, `status`, `logs`, `health`, `test`, `check`, `fmt`, `migrate-up`, `migrate-down`, `migrate-status`, dan `version`.
 - Menjadikan `pesenhub_be/Makefile` wrapper tipis ke `run.sh` agar tidak ada recursion atau duplikasi logika.
@@ -872,6 +1001,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Membuat root `.gitignore` untuk `.env`, session/QR WAHA, log, dan artefak lokal Backend.
 
 **Validation**
+
 - `chmod +x pesenhub_be/run.sh`: PASS — mode aktual 775/executable.
 - `bash -n pesenhub_be/run.sh`: PASS.
 - `shellcheck pesenhub_be/run.sh`: NOT_RUN — `shellcheck` tidak tersedia dan tidak diinstal.
@@ -892,6 +1022,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Health akhir: PASS — live HTTP 200; ready HTTP 200 `degraded`, database `up`, WAHA `down` hanya karena session `default` belum dibuat.
 
 **Known Issues**
+
 - Root `.git/` masih kosong/bukan repository valid, sehingga executable bit dan file baru tidak dapat diverifikasi sebagai tracked oleh Git; mode filesystem sudah benar.
 - Host port PostgreSQL 5432 masih dipakai container pengguna lain; `.env` lokal tetap menggunakan 55432 dan tidak diubah script.
 - Session WAHA belum dibuat sesuai batasan Phase 0; tidak ada pairing atau pesan WhatsApp nyata.
@@ -899,15 +1030,18 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Phase 0 tetap `IN_PROGRESS`; pertanyaan bisnis, CI, dan spike integrasi lainnya belum selesai.
 
 **Next**
+
 - Pulihkan/inisialisasi repository Git, lalu tambahkan perubahan melalui issue/branch/PR dan pastikan mode executable `run.sh` tercatat.
 - Jalankan ShellCheck ketika tersedia dan lanjutkan exit criteria Phase 0 yang belum selesai.
 
 ### 1 September 2026 — Backend Folder and Docker Architecture Correction
 
 **Goal**
+
 - Memperbaiki nama folder Backend dan menjadikan Docker Compose tiga-service sebagai cara utama menjalankan stack tanpa membangun ulang source yang sudah benar.
 
 **Changed**
+
 - Memastikan target `pesenhub_be/` lama benar-benar kosong termasuk file tersembunyi, menghapusnya dengan `rmdir`, lalu memindahkan seluruh implementasi `BE/` menjadi `pesenhub_be/` menggunakan `mv` karena `.git/` bukan repository valid.
 - Tidak mengubah atau menghapus `pesenhub_app/`.
 - Menambah `pesenhub_be/Dockerfile` multi-stage dan `pesenhub_be/.dockerignore`.
@@ -915,6 +1049,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Memperbarui seluruh referensi struktur lama di root `PRD.md` dan `MEMORY.md` menjadi `pesenhub_be/` serta `pesenhub_app/`.
 
 **Decisions**
+
 - Builder dipatok ke `golang:1.26.0-alpine`, sesuai `go 1.26.0` pada `go.mod`; percobaan tag `golang:1.26.0-alpine3.24` gagal karena tag tersebut tidak tersedia.
 - Runtime dipatok ke `alpine:3.24.1`, memasang hanya `ca-certificates` dan `tzdata`, serta berjalan sebagai `pesenhub` UID/GID 10001.
 - Image runtime membawa binary statis `pesenhub-api`, binary migration `pesenhub-migrate`, SQL migration, dan asset web; tidak membawa Go toolchain atau source Go.
@@ -922,6 +1057,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Stack utama berjalan melalui Docker Compose. Mode `go run ./cmd/api` tetap didokumentasikan untuk development host.
 
 **Validation**
+
 - `git status`: FAIL — `.git/` ada tetapi kosong dan bukan repository Git valid; `git mv` tidak tersedia.
 - Audit `find pesenhub_be`: PASS — folder target lama kosong sebelum `rmdir`.
 - `rmdir pesenhub_be` dan `mv BE pesenhub_be`: PASS.
@@ -952,21 +1088,25 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Audit struktur dokumentasi: PASS — seluruh struktur aktif memakai `pesenhub_be/` dan `pesenhub_app/`; nama sumber lama hanya disebut pada catatan rename yang diwajibkan.
 
 **Known Issues**
+
 - Host port 5432 masih dipakai container pengguna `abel-postgres`. `.env` lokal yang diabaikan memakai `POSTGRES_HOST_PORT=55432`; API tetap mengakses `postgres:5432` di network Docker dan `.env.example` tetap mendokumentasikan default 5432.
 - WAHA container sehat, tetapi belum ada session `default`; readiness API sengaja `degraded`. Tidak ada pairing atau pesan nyata.
 - Root belum menjadi repository Git valid karena `.git/` kosong, sehingga rename tidak dapat direkam dengan `git mv` dan ignore belum dapat dibuktikan melalui `git status`.
 - Phase 0 tetap `IN_PROGRESS`; pertanyaan bisnis, CI, serta spike Flutter, Hermes, Midtrans, dan webhook WAHA belum selesai.
 
 **Next**
+
 - Inisialisasi atau pulihkan metadata Git bila repository ini seharusnya versioned.
 - Bebaskan port host 5432 atau sepakati override 55432 untuk development, lalu lanjutkan exit criteria Phase 0 yang masih terbuka.
 
 ### 1 September 2026 — Backend Phase 0 Foundation
 
 **Goal**
+
 - Menyiapkan fondasi Backend Golang, PostgreSQL, WAHA, migration, health check, dan Web Customer placeholder tanpa fitur order, Hermes, Midtrans, pairing, atau pengiriman WhatsApp.
 
 **Changed**
+
 - Membuat `pesenhub_be/.env.example`, `pesenhub_be/.gitignore`, `pesenhub_be/docker-compose.yml`, `pesenhub_be/go.mod`, `pesenhub_be/go.sum`, `pesenhub_be/Makefile`, `pesenhub_be/README.md`, dan `pesenhub_be/REQUIREMENTS.md`.
 - Membuat bootstrap `pesenhub_be/cmd/api/main.go` dan runner migration `pesenhub_be/cmd/migrate/main.go`.
 - Membuat package `pesenhub_be/internal/config`, `pesenhub_be/internal/database`, `pesenhub_be/internal/health`, `pesenhub_be/internal/httpserver`, dan `pesenhub_be/internal/waha`, termasuk unit test config, health, dan WAHA.
@@ -974,6 +1114,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Memperbarui `MEMORY.md`; tidak mengubah aplikasi Flutter yang sudah ada di `pesenhub_app/`.
 
 **Decisions**
+
 - Go yang benar-benar digunakan: `go1.26.0 linux/amd64`.
 - PostgreSQL: `postgres:16-alpine`; default host port 5432 dan container port 5432.
 - WAHA: `devlikeapro/waha:latest-2026.8.1`; host/container port 3000. Format tag terversi WAHA memakai prefix engine `latest-`.
@@ -981,6 +1122,7 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Database wajib `up` untuk readiness; WAHA tanpa session menghasilkan status `degraded` dengan HTTP 200. Pairing dan pengiriman pesan tidak dilakukan.
 
 **Validation**
+
 - `go version`: PASS — `go1.26.0 linux/amd64`.
 - `docker version`: PASS — client/server dapat dipakai; CLI `29.6.1`.
 - `docker compose version`: PASS — `v5.2.0`.
@@ -1001,11 +1143,13 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Penghentian API dengan SIGINT: PASS — log `API stopped` membuktikan graceful shutdown.
 
 **Known Issues**
+
 - Default port PostgreSQL 5432 sedang ditempati `abel-postgres`; service PesenHub tervalidasi pada override host port 55432. Container pengguna tidak dihentikan atau diubah.
 - WAHA container sehat, tetapi readiness melaporkan WAHA `down` karena session `default` sengaja tidak dibuat/dipasangkan pada Phase 0.
 - Repository root belum berupa Git repository, sehingga status perubahan Git dan efektivitas ignore belum dapat diverifikasi lewat `git status`.
 - Exit criteria Phase 0 keseluruhan belum terpenuhi: pertanyaan bisnis, CI, spike Flutter, webhook WAHA/pesan dev, Hermes, dan Midtrans masih terbuka. Status tetap `IN_PROGRESS`.
 
 **Next**
+
 - Bebaskan port 5432 atau gunakan override development yang disepakati, lalu ulangi command Compose default.
 - Kunci pertanyaan bisnis Phase 0 dan lanjutkan spike integrasi/CI yang belum dikerjakan tanpa memperluas ke implementasi fitur order.
