@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../cart/controllers/cart_controller.dart';
+import '../kds/controllers/kds_controller.dart';
+import '../kds/kds_view.dart';
 import '../menu/controllers/menu_controller.dart' as mc;
 import '../menu/menu_catalog_view.dart';
 import '../menu/models/sample_menu_data.dart';
@@ -13,8 +15,6 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_card.dart';
-import '../widgets/app_feedback.dart';
-import '../widgets/app_status_badge.dart';
 
 /// PosDestinationView provides the cashier order creation UI.
 class PosDestinationView extends StatelessWidget {
@@ -167,63 +167,81 @@ class _QueueDestinationViewState extends State<QueueDestinationView> {
 }
 
 /// KdsDestinationView provides the Kitchen Display Screen ticket monitor.
-class KdsDestinationView extends StatelessWidget {
-  const KdsDestinationView({super.key});
+class KdsDestinationView extends StatefulWidget {
+  final KdsController? controller;
+
+  const KdsDestinationView({super.key, this.controller});
+
+  @override
+  State<KdsDestinationView> createState() => _KdsDestinationViewState();
+}
+
+class _KdsDestinationViewState extends State<KdsDestinationView> {
+  late final KdsController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.controller != null) {
+      _controller = widget.controller!;
+    } else {
+      final now = DateTime.now();
+      _controller = KdsController(
+        initialOrders: [
+          QueueOrder(
+            id: 'kds-001',
+            orderNumber: 'ORD-101',
+            customerName: 'Budi Santoso',
+            customerPhone: '081234567890',
+            source: 'WHATSAPP',
+            orderStatus: 'ACCEPTED',
+            paymentStatus: 'PAID',
+            isTakeaway: false,
+            createdAt: now.subtract(const Duration(minutes: 6)),
+            items: const [
+              QueueOrderItem(
+                name: 'Nasi Goreng Spesial',
+                quantity: 2,
+                unitPrice: 28000,
+                notes: 'Pedas Level 2, Telur Ceplok',
+              ),
+              QueueOrderItem(
+                name: 'Es Teh Manis',
+                quantity: 2,
+                unitPrice: 5000,
+                notes: 'Gula Normal',
+                isDrink: true,
+              ),
+            ],
+          ),
+          QueueOrder(
+            id: 'kds-002',
+            orderNumber: 'ORD-102',
+            customerName: 'Siti Rahma',
+            customerPhone: '081987654321',
+            source: 'CUSTOMER_WEB',
+            orderStatus: 'PREPARING',
+            paymentStatus: 'PAID',
+            isTakeaway: true,
+            takeawayNotes: 'Pisah bumbu & kuah',
+            createdAt: now.subtract(const Duration(minutes: 18)),
+            items: const [
+              QueueOrderItem(
+                name: 'Mie Goreng Seafood',
+                quantity: 1,
+                unitPrice: 32000,
+                notes: 'Pedas Sedang',
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      key: const PageStorageKey('kds_view_scroll'),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const AppBanner(
-            message:
-                'Mode KDS Aktif: Menampilkan tiket pesanan yang perlu dimasak.',
-            type: AppBannerType.info,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    const Text(
-                      'Tiket Dapur #101',
-                      style: AppTypography.titleLarge,
-                    ),
-                    AppStatusBadge.order('PREPARING'),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  '2x Nasi Goreng Spesial',
-                  style: AppTypography.headline,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                const Text(
-                  'Catatan: 1 Pedas Banget, 1 Tidak Pedas',
-                  style: AppTypography.bodyMedium,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                AppButton(
-                  label: 'Tandai Siap Diambil',
-                  icon: Icons.check_rounded,
-                  isFullWidth: true,
-                  onPressed: () {},
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    return KdsView(controller: _controller);
   }
 }
 
