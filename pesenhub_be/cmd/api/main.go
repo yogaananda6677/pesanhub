@@ -37,7 +37,8 @@ func main() {
 	}
 	defer pool.Close()
 	wc := waha.New(cfg.WAHA.BaseURL, cfg.WAHA.APIKey, cfg.WAHA.Session, cfg.WAHA.Timeout)
-	wahaWebhook := waha.NewWebhookHandler(cfg.WAHA.WebhookHMACKey, logger)
+	wahaStore := waha.NewStore(pool)
+	wahaWebhook := waha.NewWebhookHandler(cfg.WAHA.WebhookHMACKey, logger, waha.WithStore(wahaStore))
 	h := health.New("pesenhub-api", pool, wc)
 	customers := customer.NewHandler(customer.NewService(customer.NewStore(pool), customer.NewID))
 	catalogHandler := catalog.NewHandler(catalog.NewService(catalog.NewStore(pool), customer.NewID))

@@ -1,6 +1,7 @@
 package waha
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/hex"
@@ -72,23 +73,43 @@ func (g *replayGuard) Seen(id string, now time.Time) bool {
 	return false
 }
 
-type WebhookHandler struct {
-	secret   []byte
-	logger   *slog.Logger
-	now      func() time.Time
-	maxSkew  time.Duration
-	replays  *replayGuard
-	counters webhookCounters
+type WebhookOption func(*WebhookHandler)
+
+func WithStore(store InboundStore) WebhookOption {
+	return func(h *WebhookHandler) {
+		h.store = store
+	}
 }
 
-func NewWebhookHandler(secret string, logger *slog.Logger) *WebhookHandler {
-	return &WebhookHandler{
+func WithOnMessage(fn func(context.Context, *InboundMessage)) WebhookOption {
+	return func(h *WebhookHandler) {
+		h.onMessage = fn
+	}
+}
+
+type WebhookHandler struct {
+	secret    []byte
+	logger    *slog.Logger
+	now       func() time.Time
+	maxSkew   time.Duration
+	replays   *replayGuard
+	counters  webhookCounters
+	store     InboundStore
+	onMessage func(context.Context, *InboundMessage)
+}
+
+func NewWebhookHandler(secret string, logger *slog.Logger, opts ...WebhookOption) *WebhookHandler {
+	h := &WebhookHandler{
 		secret:  []byte(secret),
 		logger:  logger,
 		now:     time.Now,
 		maxSkew: 5 * time.Minute,
 		replays: newReplayGuard(10*time.Minute, 10_000),
 	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
 }
 
 func (h *WebhookHandler) Metrics() WebhookMetrics {
@@ -145,6 +166,8 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.rejectValidation(w, http.StatusBadRequest, "invalid_payload", requestID, started)
 		return
 	}
+
+	// Layer 1: In-memory request ID replay guard
 	if h.replays.Seen(requestID, now) {
 		h.counters.duplicate.Add(1)
 		h.counters.retry.Add(1)
@@ -153,6 +176,50 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+
+	// Layer 2: Message-level parsing, persistent deduplication and quarantine
+	if IsMessageEvent(envelope.Event) {
+		msg, isMsg, isFromMe, err := ParseInboundMessage(body, requestID, now)
+		if err != nil {
+			h.rejectValidation(w, http.StatusBadRequest, "invalid_message_payload", requestID, started)
+			return
+		}
+		if isFromMe {
+			h.observe("outgoing_message_ignored", requestID, started)
+			h.counters.accepted.Add(1)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if isMsg && msg != nil && h.store != nil {
+			stored, isDuplicate, err := h.store.StoreInbound(r.Context(), msg)
+			if err != nil {
+				h.rejectInternal(w, "store_error", requestID, started, err)
+				return
+			}
+			if isDuplicate {
+				h.counters.duplicate.Add(1)
+				h.counters.retry.Add(1)
+				h.observe("duplicate_message", requestID, started)
+				w.Header().Set("X-PesenHub-Deduplicated", "true")
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			if stored.Status == StatusQuarantined {
+				h.observe("quarantined", requestID, started)
+			} else {
+				h.observe("accepted_message", requestID, started)
+				if h.onMessage != nil {
+					h.onMessage(r.Context(), stored)
+				}
+			}
+
+			h.counters.accepted.Add(1)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+	}
+
 	h.counters.accepted.Add(1)
 	h.observe("accepted", requestID, started)
 	w.WriteHeader(http.StatusNoContent)
@@ -178,6 +245,21 @@ func (h *WebhookHandler) rejectAuthentication(w http.ResponseWriter, reason, req
 	h.reject(w, http.StatusUnauthorized, reason, requestID, started)
 }
 
+func (h *WebhookHandler) rejectInternal(w http.ResponseWriter, reason, requestID string, started time.Time, err error) {
+	h.observe(reason, requestID, started)
+	if h.logger != nil {
+		h.logger.Error("WAHA webhook internal error", "reason", reason, "request_id", requestID, "error", err)
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusInternalServerError)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"error": map[string]string{
+			"code":    "INTERNAL_SERVER_ERROR",
+			"message": "Internal error occurred while processing webhook.",
+		},
+	})
+}
+
 func (h *WebhookHandler) reject(w http.ResponseWriter, status int, reason, requestID string, started time.Time) {
 	h.observe(reason, requestID, started)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -196,6 +278,6 @@ func (h *WebhookHandler) observe(outcome, requestID string, started time.Time) {
 		if validWebhookRequestID.MatchString(requestID) {
 			attributes = append(attributes, "webhook_request_id", requestID)
 		}
-		h.logger.Info("WAHA webhook verified", attributes...)
+		h.logger.Info("WAHA webhook processed", attributes...)
 	}
 }
