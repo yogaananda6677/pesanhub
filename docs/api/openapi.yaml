@@ -22,10 +22,16 @@ paths:
         content:
           application/json: {schema: {type: object, additionalProperties: true}}
       responses:
-        '204': {description: Authenticated request accepted, or authenticated retry deduplicated}
+        '204':
+          description: Authenticated request accepted, quarantined, or authenticated retry deduplicated
+          headers:
+            X-PesenHub-Deduplicated:
+              schema: {type: string}
+              description: Set to "true" when the webhook payload or message was deduplicated
         '400': {description: Required metadata or body is invalid}
         '401': {description: HMAC is invalid or timestamp is stale}
         '413': {description: Body exceeds 1 MiB}
+        '500': {description: Internal processing failure, retryable by provider}
   /public/menu:
     get:
       summary: Read active and available public catalog

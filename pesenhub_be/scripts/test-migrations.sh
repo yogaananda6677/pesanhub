@@ -15,7 +15,7 @@ docker exec "$container" pg_isready -U pesenhub_test -d pesenhub_test >/dev/null
 port="$(docker port "$container" 5432/tcp | sed 's/.*://')"
 
 run_migration() {
-  DATABASE_HOST=127.0.0.1 DATABASE_PORT="$port" DATABASE_NAME=pesenhub_test DATABASE_USER=pesenhub_test DATABASE_PASSWORD="$password" DATABASE_SSLMODE=disable WAHA_BASE_URL=http://127.0.0.1:3000 WAHA_API_KEY=test-only GOCACHE=/tmp/pesenhub-migration-test-cache go run ./cmd/migrate "$1"
+  DATABASE_HOST=127.0.0.1 DATABASE_PORT="$port" DATABASE_NAME=pesenhub_test DATABASE_USER=pesenhub_test DATABASE_PASSWORD="$password" DATABASE_SSLMODE=disable WAHA_BASE_URL=http://127.0.0.1:3000 WAHA_API_KEY=test-only WAHA_WEBHOOK_HMAC_KEY=test-hmac-key-at-least-32-chars-long GOCACHE=/tmp/pesenhub-migration-test-cache go run ./cmd/migrate "$1"
 }
 
 run_migration up
@@ -29,6 +29,7 @@ INSERT INTO order_items (id, order_id, menu_id, menu_name_snapshot, sku_snapshot
 INSERT INTO order_status_history (id, order_id, to_status, order_version, actor_type, request_id) VALUES ('50000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'PENDING', 1, 'STAFF', 'migration-test');
 INSERT INTO payments (id, order_id, method, status, amount, idempotency_key) VALUES ('60000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'CASH', 'UNPAID', 15000, 'payment-test-1');
 INSERT INTO outbox_events (id, aggregate_type, aggregate_id, event_type, payload, deduplication_key) VALUES ('70000000-0000-0000-0000-000000000001', 'ORDER', '30000000-0000-0000-0000-000000000001', 'ORDER_CREATED', '{}', 'outbox-test-1');
+INSERT INTO waha_inbound_messages (id, provider_message_id, session, event_type, from_raw, phone_e164, status) VALUES ('75000000-0000-0000-0000-000000000001', 'wamid-test-1', 'default', 'message', '628123456789@c.us', '+628123456789', 'RECEIVED');
 DO $$ BEGIN
   BEGIN
     INSERT INTO orders (id, order_number, source, customer_name_snapshot, subtotal_amount, total_amount, idempotency_key) VALUES ('30000000-0000-0000-0000-000000000002', 'ORD-TEST-2', 'CASHIER_MANUAL', 'Test Customer', 0, 0, 'order-test-1');
@@ -43,6 +44,8 @@ DO $$ BEGIN
 END $$;
 SQL
 
+run_migration down
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.waha_inbound_messages') IS NULL")" = "t"
 run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='orders' AND column_name='public_tracking_token'")" = "t"
 run_migration down
@@ -61,6 +64,8 @@ test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "
 run_migration up
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='customers' AND column_name='preferences'")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_groups') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.waha_inbound_messages') IS NOT NULL")" = "t"
+run_migration down
 run_migration down
 run_migration down
 run_migration down
@@ -73,6 +78,7 @@ test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "
 run_migration up
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.outbox_events') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='customers' AND column_name='preferences'")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.waha_inbound_messages') IS NOT NULL")" = "t"
 
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U pesenhub_test -d pesenhub_test -c "INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key) VALUES ('81000000-0000-0000-0000-000000000001', '+628111111111', 'Race Test', 'race-key-1') ON CONFLICT DO NOTHING" >/dev/null &
 first_pid=$!
@@ -102,8 +108,10 @@ run_migration down
 run_migration down
 run_migration down
 run_migration down
+run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_groups') IS NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.customers') IS NOT NULL")" = "t"
 run_migration up
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_options') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.waha_inbound_messages') IS NOT NULL")" = "t"
 echo "Migration up/down/up, customer collision, and catalog constraint/visibility checks passed."
