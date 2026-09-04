@@ -12,10 +12,10 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | -------------- | -------------------------------------------------------------------- |
 | Product        | PesenHub                                                             |
 | Current phase  | Phase 1B — Cashier Mobile & Tablet                                   |
-| Current status | IN_PROGRESS                                                          |
+| Current status | DONE (efektif setelah Phase Closing PR di-merge)                    |
 | MVP target     | 30 hari sejak kickoff                                                |
 | Last updated   | 4 September 2026                                                     |
-| Updated by     | Issue #35 network indicator and order alerts implementation and validation |
+| Updated by     | Phase 1B closing evidence and transition to Phase 1C                |
 
 ## 2. Product Intent
 
@@ -58,7 +58,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | -------------------------------------------------------------- | --------------------------- | ----------- | ---------- | ---------- | ------------------------------------------------------- |
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2)  | Project readiness           | DONE        | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md`       |
 | [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend                | DONE        | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
-| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet     | IN_PROGRESS | 2026-09-03 | —          | Issues #23–#35; phase closing pending                     |
+| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet     | DONE        | 2026-09-03 | 2026-09-04 | PR #95–#107 dan `docs/PHASE_1B_CLOSING_EVIDENCE.md`       |
 | [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | NOT_STARTED | —          | —          | Menunggu domain 1A                                      |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release   | NOT_STARTED | —          | —          | Menunggu 1A–1C                                          |
 | [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7)  | Food Aggregator Integration | NOT_STARTED | —          | —          | Menunggu MVP stabil dan kontrak resmi                   |
@@ -72,14 +72,14 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#4 — Phase 1B Cashier Mobile & Tablet](https://github.com/yogaananda6677/pesanhub/issues/4)
 - Child Issues: #23–#35
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#35 — Implementasi network indicator, local notification, audio, dan heads-up alert](https://github.com/yogaananda6677/pesanhub/issues/35)
-- Current Branch: `feature/35-network-indicator-notifications`
-- Pull Request: [#107 — feat(mobile): add network status and order alerts](https://github.com/yogaananda6677/pesanhub/pull/107)
+- Current Issue: [#4 — Phase 1B Cashier Mobile & Tablet](https://github.com/yogaananda6677/pesanhub/issues/4)
+- Current Branch: `phase/4-close-phase-1b`
+- Pull Request: pending
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104), [#105](https://github.com/yogaananda6677/pesanhub/pull/105), [#106](https://github.com/yogaananda6677/pesanhub/pull/106)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh acceptance criteria #35 terpenuhi (network indicator real-time tampil di app shell mobile dan tablet, local notification push saat order masuk atau status berubah, audio alert dengan ringer/vibration kontekstual, heads-up alert overlay tanpa menginterupsi alur aktif)
-- Validation: `dart format` PASS, `flutter analyze` 0 issue, `flutter test` 125/125 PASS, `flutter build apk --debug` PASS
-- Next Step: Buka dan merge PR #35, lalu buat Phase 1B Closing PR untuk #4
+- Exit Criteria: Seluruh acceptance criteria Phase #4 terpenuhi dan terdokumentasi di `docs/PHASE_1B_CLOSING_EVIDENCE.md`
+- Validation: format PASS, analyzer 0 issue, Flutter test 125/125 PASS, APK debug PASS, backend regression PASS
+- Next Phase: Phase 1C — WhatsApp, Agent & Payment ([#5](https://github.com/yogaananda6677/pesanhub/issues/5)); mulai #36 setelah closing merge
 
 ## 6. Current Phase Checklist
 
@@ -240,6 +240,26 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 4 September 2026 — Phase 1B Closing
+
+**Goal**
+
+- Menutup Phase #4 berdasarkan bukti lintas Issue #23–#35 dan mempersiapkan transisi tertib ke Phase 1C.
+
+**Changed**
+
+- Menambah `docs/PHASE_1B_CLOSING_EVIDENCE.md` dengan child matrix, acceptance evidence, closing validation, known follow-up, dan transition.
+- Menandai Phase 1B `DONE` efektif setelah closing PR di-merge serta mengarahkan next phase ke #5/#36.
+
+**Validation**
+
+- Format/analyzer: PASS; `flutter test`: 125/125 PASS; APK debug: PASS; backend regression: PASS.
+- GitHub audit: Issue #23–#35 CLOSED dan PR #95–#107 MERGED.
+
+**Next**
+
+- Merge Phase Closing PR #4, lalu mulai Issue #36 pada Phase 1C.
 
 ### 4 September 2026 — Issue #35 Network Indicator dan Order Alerts
 
