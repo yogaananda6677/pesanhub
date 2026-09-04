@@ -10,12 +10,16 @@ import (
 
 // Service coordinates LLM extraction, catalog resolution, confidence policy, and audit logging.
 type Service struct {
-	client        LLMClient
-	resolver      *CatalogResolver
-	evaluator     *ConfidenceEvaluator
-	store         RunStore
-	modelName     string
-	promptVersion string
+	client          LLMClient
+	resolver        *CatalogResolver
+	evaluator       *ConfidenceEvaluator
+	store           RunStore
+	convStore       ConversationStore
+	clarifier       *ClarificationEngine
+	merger          *DraftMerger
+	catalogProvider CatalogProvider
+	modelName       string
+	promptVersion   string
 }
 
 // Config holds configuration options for Hermes Service.
@@ -23,9 +27,11 @@ type Config struct {
 	Client              LLMClient
 	CatalogProvider     CatalogProvider
 	Store               RunStore
+	ConversationStore   ConversationStore
 	ModelName           string
 	PromptVersion       string
 	ConfidenceThreshold float64
+	MaxAttempts         int
 }
 
 // NewService creates a new Hermes Service.
@@ -46,14 +52,25 @@ func NewService(cfg Config) *Service {
 
 	resolver := NewCatalogResolver(cfg.CatalogProvider)
 	evaluator := NewConfidenceEvaluator(threshold)
+	clarifier := NewClarificationEngine(cfg.MaxAttempts)
+	merger := NewDraftMerger(cfg.CatalogProvider)
+
+	convStore := cfg.ConversationStore
+	if convStore == nil {
+		convStore = NewMemoryConversationStore()
+	}
 
 	return &Service{
-		client:        cfg.Client,
-		resolver:      resolver,
-		evaluator:     evaluator,
-		store:         cfg.Store,
-		modelName:     modelName,
-		promptVersion: promptVer,
+		client:          cfg.Client,
+		resolver:        resolver,
+		evaluator:       evaluator,
+		store:           cfg.Store,
+		convStore:       convStore,
+		clarifier:       clarifier,
+		merger:          merger,
+		catalogProvider: cfg.CatalogProvider,
+		modelName:       modelName,
+		promptVersion:   promptVer,
 	}
 }
 
@@ -278,4 +295,224 @@ func (s *Service) ExtractOrder(ctx context.Context, req ExtractionRequest) (*Dra
 	}
 
 	return draft, run, nil
+}
+
+// ProcessTurn processes an inbound turn in a conversation session, deciding whether to ask clarification, trigger handoff, or confirm order.
+func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnResponse, error) {
+	correlationID := strings.TrimSpace(req.CorrelationID)
+	if correlationID == "" {
+		correlationID = newID()
+	}
+
+	session := strings.TrimSpace(req.Session)
+	if session == "" {
+		session = "default"
+	}
+
+	state, err := s.convStore.GetOrCreate(ctx, session, req.SenderPhone, correlationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get or create conversation state: %w", err)
+	}
+	state.LastInboundMessageID = req.InboundMessageID
+	state.CorrelationID = correlationID
+
+	categories, err := s.catalogProvider.ListPublic(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list catalog: %w", err)
+	}
+
+	// 1. Check prompt injection immediately
+	if isInjected, reason := DetectPromptInjection(req.MessageText); isInjected {
+		state.Status = ConversationHandoff
+		state.PendingAmbiguity = "prompt_injection_detected"
+		state.LastQuestion = "Mohon maaf kak, permintaan tersebut tidak dapat kami proses. Percakapan ini kami alihkan ke staf kami."
+		_ = s.convStore.Save(ctx, state)
+
+		run := &AgentRun{
+			ID:               newID(),
+			InboundMessageID: req.InboundMessageID,
+			Session:          session,
+			CustomerPhone:    req.SenderPhone,
+			Model:            s.modelName,
+			PromptVersion:    s.promptVersion,
+			ConfidenceScore:  0.0,
+			IsAmbiguous:      true,
+			AmbiguityReasons: []string{"prompt_injection_detected", reason},
+			DurationMs:       0,
+			Status:           StatusRejectedInjection,
+			ErrorMessage:     &reason,
+			CorrelationID:    correlationID,
+			CreatedAt:        time.Now().UTC(),
+		}
+		if s.store != nil {
+			_ = s.store.RecordRun(ctx, run)
+		}
+
+		return &TurnResponse{
+			State:           state,
+			ReplyText:       state.LastQuestion,
+			RequiresHandoff: true,
+			Run:             run,
+		}, nil
+	}
+
+	// 2. If currently awaiting clarification:
+	if state.Status == ConversationAwaitingClarification && state.CurrentDraft != nil {
+		updatedDraft, resolved, err := s.merger.MergeClarification(ctx, state.CurrentDraft, state.PendingAmbiguity, req.MessageText, categories)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge clarification: %w", err)
+		}
+
+		if !resolved {
+			// Clarification attempt failed
+			state.ClarificationAttempts++
+			plan := s.clarifier.PlanClarification(updatedDraft, state.ClarificationAttempts, categories)
+			if plan.RequiresHandoff {
+				state.Status = ConversationHandoff
+				state.LastQuestion = plan.QuestionText
+				_ = s.convStore.Save(ctx, state)
+
+				return &TurnResponse{
+					State:           state,
+					Draft:           updatedDraft,
+					ReplyText:       plan.QuestionText,
+					RequiresHandoff: true,
+				}, nil
+			}
+
+			state.LastQuestion = plan.QuestionText
+			state.PendingAmbiguity = plan.PriorityAmbiguity
+			state.CurrentDraft = updatedDraft
+			_ = s.convStore.Save(ctx, state)
+
+			return &TurnResponse{
+				State:           state,
+				Draft:           updatedDraft,
+				ReplyText:       plan.QuestionText,
+				RequiresHandoff: false,
+			}, nil
+		}
+
+		// Resolved! Check if any remaining ambiguities
+		plan := s.clarifier.PlanClarification(updatedDraft, 0, categories)
+		if plan.RequiresClarification {
+			// Ask next priority ambiguity
+			state.Status = ConversationAwaitingClarification
+			state.CurrentDraft = updatedDraft
+			state.PendingAmbiguity = plan.PriorityAmbiguity
+			state.LastQuestion = plan.QuestionText
+			state.ClarificationAttempts = 0 // reset attempts for the new question
+			_ = s.convStore.Save(ctx, state)
+
+			return &TurnResponse{
+				State:           state,
+				Draft:           updatedDraft,
+				ReplyText:       plan.QuestionText,
+				RequiresHandoff: false,
+			}, nil
+		}
+
+		// Unambiguous and complete!
+		state.Status = ConversationReadyForConfirmation
+		state.CurrentDraft = updatedDraft
+		state.PendingAmbiguity = ""
+		state.LastQuestion = ""
+		state.ClarificationAttempts = 0
+		_ = s.convStore.Save(ctx, state)
+
+		summaryText := formatOrderSummary(updatedDraft)
+		return &TurnResponse{
+			State:           state,
+			Draft:           updatedDraft,
+			ReplyText:       summaryText,
+			RequiresHandoff: false,
+		}, nil
+	}
+
+	// 3. Initial message / Collecting state
+	draft, run, err := s.ExtractOrder(ctx, ExtractionRequest{
+		InboundMessageID: req.InboundMessageID,
+		MessageText:      req.MessageText,
+		SenderPhone:      req.SenderPhone,
+		CorrelationID:    correlationID,
+		Session:          session,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	plan := s.clarifier.PlanClarification(draft, 0, categories)
+	if plan.RequiresHandoff {
+		state.Status = ConversationHandoff
+		state.CurrentDraft = draft
+		state.LastQuestion = plan.QuestionText
+		_ = s.convStore.Save(ctx, state)
+
+		return &TurnResponse{
+			State:           state,
+			Draft:           draft,
+			ReplyText:       plan.QuestionText,
+			RequiresHandoff: true,
+			Run:             run,
+		}, nil
+	}
+
+	if plan.RequiresClarification {
+		state.Status = ConversationAwaitingClarification
+		state.CurrentDraft = draft
+		state.PendingAmbiguity = plan.PriorityAmbiguity
+		state.LastQuestion = plan.QuestionText
+		state.ClarificationAttempts = 0
+		_ = s.convStore.Save(ctx, state)
+
+		return &TurnResponse{
+			State:           state,
+			Draft:           draft,
+			ReplyText:       plan.QuestionText,
+			RequiresHandoff: false,
+			Run:             run,
+		}, nil
+	}
+
+	// Complete on first turn
+	state.Status = ConversationReadyForConfirmation
+	state.CurrentDraft = draft
+	state.PendingAmbiguity = ""
+	state.LastQuestion = ""
+	state.ClarificationAttempts = 0
+	_ = s.convStore.Save(ctx, state)
+
+	summaryText := formatOrderSummary(draft)
+	return &TurnResponse{
+		State:           state,
+		Draft:           draft,
+		ReplyText:       summaryText,
+		RequiresHandoff: false,
+		Run:             run,
+	}, nil
+}
+
+func formatOrderSummary(draft *DraftCandidate) string {
+	var sb strings.Builder
+	sb.WriteString("Berikut ringkasan pesanan kak:\n")
+	for _, it := range draft.Items {
+		var modNames []string
+		for _, m := range it.SelectedModifiers {
+			modNames = append(modNames, m.OptionName)
+		}
+		modStr := ""
+		if len(modNames) > 0 {
+			modStr = fmt.Sprintf(" (%s)", strings.Join(modNames, ", "))
+		}
+		sb.WriteString(fmt.Sprintf("- %d %s%s: Rp %d\n", it.Quantity, it.Name, modStr, it.LineTotalAmount))
+	}
+	sb.WriteString(fmt.Sprintf("\nTotal: Rp %d\n", draft.SubtotalAmount))
+	if draft.FulfillmentType != "" {
+		sb.WriteString(fmt.Sprintf("Pengambilan: %s\n", draft.FulfillmentType))
+	}
+	if draft.PaymentMethod != "" {
+		sb.WriteString(fmt.Sprintf("Pembayaran: %s\n", draft.PaymentMethod))
+	}
+	sb.WriteString("\nApakah pesanan sudah sesuai kak? (Ketik Ya untuk konfirmasi)")
+	return sb.String()
 }

@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS                                                          |
 | MVP target     | 30 hari sejak kickoff                                                |
 | Last updated   | 4 September 2026                                                     |
-| Updated by     | Issue #38 Hermes structured order extraction and confidence policy   |
+| Updated by     | Issue #39 Hermes guided clarification for ambiguous orders           |
 
 ## 2. Product Intent
 
@@ -72,14 +72,14 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#5 — Phase 1C WhatsApp, Agent & Payment](https://github.com/yogaananda6677/pesanhub/issues/5)
 - Child Issues: #36–#47
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#38 — Implementasi Hermes structured order extraction dan confidence policy](https://github.com/yogaananda6677/pesanhub/issues/38)
-- Current Branch: `feature/38-hermes-structured-extraction`
+- Current Issue: [#39 — Implementasi guided clarification untuk detail order ambigu](https://github.com/yogaananda6677/pesanhub/issues/39)
+- Current Branch: `feature/39-guided-clarification-ambiguous-orders`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104), [#105](https://github.com/yogaananda6677/pesanhub/pull/105), [#106](https://github.com/yogaananda6677/pesanhub/pull/106), [#107](https://github.com/yogaananda6677/pesanhub/pull/107), [#108](https://github.com/yogaananda6677/pesanhub/pull/108), [#109](https://github.com/yogaananda6677/pesanhub/pull/109), [#110](https://github.com/yogaananda6677/pesanhub/pull/110)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104), [#105](https://github.com/yogaananda6677/pesanhub/pull/105), [#106](https://github.com/yogaananda6677/pesanhub/pull/106), [#107](https://github.com/yogaananda6677/pesanhub/pull/107), [#108](https://github.com/yogaananda6677/pesanhub/pull/108), [#109](https://github.com/yogaananda6677/pesanhub/pull/109), [#110](https://github.com/yogaananda6677/pesanhub/pull/110), [#111](https://github.com/yogaananda6677/pesanhub/pull/111)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh acceptance criteria Issue #38 terpenuhi (ekstraksi entitas order terstruktur via Hermes AI, confidence scoring, confidence threshold policy, fallback ke klarifikasi jika skor rendah, prompt injection defense, dan fixture dummy tanpa dependency model production di unit test)
+- Exit Criteria: Seluruh acceptance criteria Issue #39 terpenuhi (guided clarification untuk detail order ambigu, prioritas ambiguity blocking, partial update tanpa menghapus field valid lain, bounded retry/handoff, dan revalidasi katalog real-time)
 - Validation: module verify, format, vet, unit/integration test, race test, full check PASS
-- Next Issue: #39 setelah Issue #38 selesai
+- Next Issue: #40 setelah Issue #39 selesai
 
 ## 6. Current Phase Checklist
 
@@ -138,8 +138,8 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 - [x] #36: Implementasi WAHA session health, readiness, dan webhook authentication (PR #109)
 - [x] #37: Implementasi webhook pesan masuk, normalisasi nomor, dan deduplikasi WAHA (PR #110)
-- [x] #38: Implementasi Hermes structured order extraction dan confidence policy (PR pending)
-- [ ] #39: Implementasi guided clarification untuk detail order ambigu
+- [x] #38: Implementasi Hermes structured order extraction dan confidence policy (PR #111)
+- [x] #39: Implementasi guided clarification untuk detail order ambigu (PR pending)
 - [ ] #40: Implementasi agent-to-human handoff dan pause automation
 - [ ] #41: Implementasi konfirmasi pelanggan dan pembuatan order WHATSAPP
 - [ ] #42: Implementasi pesan konfirmasi dan completion notification melalui WAHA
@@ -255,6 +255,34 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 4 September 2026 — Issue #39 Hermes Guided Clarification for Ambiguous Orders
+
+**Goal**
+
+- Mengimplementasikan guided clarification engine untuk mengklarifikasi detail order yang ambigu atau belum lengkap: memprioritaskan satu pertanyaan paling blocking per turn, format pertanyaan sopan dengan pilihan opsi katalog, penggabungan parsial non-destruktif tanpa mereset data valid lain, revalidasi ketersediaan katalog secara dinamis tiap turn, pembatasan perulangan (max 3 kali) dengan pengalihan otomatis ke staf manusia saat batas tercapai, dan pencatatan state percakapan di PostgreSQL `agent_conversations`.
+
+**Changed**
+
+- Membuat migrasi PostgreSQL `000011_create_agent_conversations.up.sql` dan `.down.sql` dengan constraint unik `(session, customer_phone)` untuk mencatat `status`, `current_draft`, `pending_ambiguity`, `clarification_attempts`, `last_question`, dan correlation ID.
+- Memperluas model domain di `pesenhub_be/internal/hermes/models.go` dengan konstanta status percakapan (`COLLECTING`, `AWAITING_CLARIFICATION`, `READY_FOR_CONFIRMATION`, `HANDOFF`), batas percobaan `MaxClarificationAttempts = 3`, `ConversationState`, `ClarificationPlan`, `TurnRequest`, dan `TurnResponse`.
+- Mengimplementasikan `ClarificationEngine` di `pesenhub_be/internal/hermes/clarification.go` dan `clarification_test.go`: hierarki prioritas ambiguitas (menu_unavailable -> menu_not_found -> missing_required_modifier -> invalid_quantity -> unrecognized_modifier -> empty_order_items -> fulfillment -> payment), ekstraksi opsi varian dari grup katalog, dan pengalihan ke staf manusia jika mencapai batas retry atau terdeteksi prompt injection.
+- Mengimplementasikan `DraftMerger` di `pesenhub_be/internal/hermes/merger.go` dan `merger_test.go`: matching cerdas dengan skor negasi `matchOptionScore` agar tidak tertukar antara "pedas" dan "tidak pedas", update parsial field yang ditanyakan tanpa menghapus item/catatan/kuantitas lain yang sudah valid, kalkulasi ulang total menggunakan harga resmi katalog backend, dan revalidasi real-time ketersediaan menu/modifier terhadap katalog backend (`RevalidateAgainstCatalog`).
+- Mengimplementasikan repository persistence `PGConversationStore` dan in-memory `MemoryConversationStore` di `pesenhub_be/internal/hermes/conversation_store.go` lengkap dengan integrasi PostgreSQL di `store_integration_test.go`.
+- Mengintegrasikan alur percakapan multi-turn `Service.ProcessTurn` dan ringkasan order `formatOrderSummary` di `pesenhub_be/internal/hermes/service.go` dan `service_clarification_test.go`.
+- Memperbarui `pesenhub_be/scripts/test-migrations.sh` untuk menguji migrasi 000011 up/down/up dalam Docker PostgreSQL.
+- Menambahkan dokumentasi arsitektur di `docs/HERMES_GUIDED_CLARIFICATION.md`.
+
+**Validation**
+
+- `go test -v -race ./internal/hermes/...`: PASS (22 unit test cases lulus, race condition detector bersih).
+- `cd pesenhub_be && ./run.sh check`: PASS (formatting, vet, all module packages pass).
+- `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS (migrasi 000011 up/down/up lulus dalam Docker PostgreSQL).
+- `cd pesenhub_be && ./scripts/test-orders.sh`: PASS (seluruh integration tests PostgreSQL pass).
+
+**Next**
+
+- Buka Pull Request untuk Issue #39, pantau CI, merge ke `main`, lalu lanjutkan ke Issue #40.
 
 ### 4 September 2026 — Issue #38 Hermes Structured Order Extraction & Confidence Policy
 

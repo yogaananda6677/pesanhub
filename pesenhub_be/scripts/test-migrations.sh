@@ -31,6 +31,7 @@ INSERT INTO payments (id, order_id, method, status, amount, idempotency_key) VAL
 INSERT INTO outbox_events (id, aggregate_type, aggregate_id, event_type, payload, deduplication_key) VALUES ('70000000-0000-0000-0000-000000000001', 'ORDER', '30000000-0000-0000-0000-000000000001', 'ORDER_CREATED', '{}', 'outbox-test-1');
 INSERT INTO waha_inbound_messages (id, provider_message_id, session, event_type, from_raw, phone_e164, status) VALUES ('75000000-0000-0000-0000-000000000001', 'wamid-test-1', 'default', 'message', '628123456789@c.us', '+628123456789', 'RECEIVED');
 INSERT INTO agent_runs (id, inbound_message_id, session, customer_phone, model, prompt_version, confidence_score, status, correlation_id) VALUES ('76000000-0000-0000-0000-000000000001', '75000000-0000-0000-0000-000000000001', 'default', '+628123456789', 'hermes-3-llama-3.1-8b', 'v1.0.0', 0.95, 'SUCCESS', 'corr-migration-test');
+INSERT INTO agent_conversations (id, session, customer_phone, status, correlation_id) VALUES ('77000000-0000-0000-0000-000000000001', 'default', '+628123456789', 'COLLECTING', 'corr-conv-test');
 DO $$ BEGIN
   BEGIN
     INSERT INTO orders (id, order_number, source, customer_name_snapshot, subtotal_amount, total_amount, idempotency_key) VALUES ('30000000-0000-0000-0000-000000000002', 'ORD-TEST-2', 'CASHIER_MANUAL', 'Test Customer', 0, 0, 'order-test-1');
@@ -45,6 +46,8 @@ DO $$ BEGIN
 END $$;
 SQL
 
+run_migration down
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_conversations') IS NULL")" = "t"
 run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_runs') IS NULL")" = "t"
 run_migration down
@@ -69,6 +72,8 @@ test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_groups') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.waha_inbound_messages') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_runs') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_conversations') IS NOT NULL")" = "t"
+run_migration down
 run_migration down
 run_migration down
 run_migration down
@@ -85,6 +90,7 @@ test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='customers' AND column_name='preferences'")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.waha_inbound_messages') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_runs') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_conversations') IS NOT NULL")" = "t"
 
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U pesenhub_test -d pesenhub_test -c "INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key) VALUES ('81000000-0000-0000-0000-000000000001', '+628111111111', 'Race Test', 'race-key-1') ON CONFLICT DO NOTHING" >/dev/null &
 first_pid=$!
@@ -116,10 +122,12 @@ run_migration down
 run_migration down
 run_migration down
 run_migration down
+run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_groups') IS NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.customers') IS NOT NULL")" = "t"
 run_migration up
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.modifier_options') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.waha_inbound_messages') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_runs') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.agent_conversations') IS NOT NULL")" = "t"
 echo "Migration up/down/up, customer collision, and catalog constraint/visibility checks passed."
