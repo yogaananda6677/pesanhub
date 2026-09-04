@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"pesenhub/backend/internal/waha"
+	"pesenhub/backend/internal/gowa"
 )
 
 // Notifier defines the interface for triggering notifications.
@@ -22,7 +22,7 @@ type Notifier interface {
 // Service coordinates notification dispatch, template rendering, idempotency, and guard checks.
 type Service struct {
 	store           Store
-	sender          waha.Sender
+	sender          gowa.Sender
 	worker          *OutboxWorker
 	trackingBaseURL string
 	logger          *slog.Logger
@@ -31,7 +31,7 @@ type Service struct {
 // Config configures the Notification Service.
 type Config struct {
 	Store           Store
-	Sender          waha.Sender
+	Sender          gowa.Sender
 	Worker          *OutboxWorker
 	TrackingBaseURL string
 	Logger          *slog.Logger
@@ -79,18 +79,18 @@ func (s *Service) NotifyCompleted(ctx context.Context, data OrderNotificationDat
 }
 
 // Dispatch processes and sends a single order notification with idempotency and guard verification.
-// Even if sending to WAHA fails, this returns a structured result without rolling back domain state.
+// Even if sending to GOWA fails, this returns a structured result without rolling back domain state.
 func (s *Service) Dispatch(ctx context.Context, notifType NotificationType, data OrderNotificationData) (*NotificationResult, error) {
 	if strings.TrimSpace(data.OrderID) == "" {
 		return nil, errors.New("order_id is required")
 	}
 
 	// 1. Recipient phone normalization
-	phone, quarantined, reason := waha.NormalizeSenderPhone(data.CustomerPhone)
+	phone, quarantined, reason := gowa.NormalizeSenderPhone(data.CustomerPhone)
 	if quarantined || phone == "" {
 		s.logger.Warn("notification suppressed: invalid customer phone",
 			"order_id", data.OrderID,
-			"masked_phone", waha.MaskPhone(data.CustomerPhone),
+			"masked_phone", gowa.MaskPhone(data.CustomerPhone),
 			"quarantine_reason", reason,
 		)
 		return &NotificationResult{
@@ -135,7 +135,7 @@ func (s *Service) Dispatch(ctx context.Context, notifType NotificationType, data
 		if pending.Status == StatusSent || pending.Status == StatusSuppressed || pending.Status == StatusDeadLetter {
 			s.logger.Info("notification deduplicated: already resolved",
 				"order_id", data.OrderID,
-				"masked_phone", waha.MaskPhone(data.CustomerPhone),
+				"masked_phone", gowa.MaskPhone(data.CustomerPhone),
 				"type", notifType,
 				"status", pending.Status,
 			)
@@ -155,12 +155,12 @@ func (s *Service) Dispatch(ctx context.Context, notifType NotificationType, data
 	// 4. Opt-Out Guard
 	optedOut, err := s.store.IsOptedOut(ctx, data.CustomerPhone)
 	if err != nil {
-		s.logger.Error("error checking opt-out status", "error", err, "phone", waha.MaskPhone(data.CustomerPhone))
+		s.logger.Error("error checking opt-out status", "error", err, "phone", gowa.MaskPhone(data.CustomerPhone))
 	} else if optedOut {
 		_ = s.store.MarkSuppressed(ctx, recordID, SuppressCustomerOptedOut)
 		s.logger.Info("notification suppressed: customer opted out",
 			"order_id", data.OrderID,
-			"masked_phone", waha.MaskPhone(data.CustomerPhone),
+			"masked_phone", gowa.MaskPhone(data.CustomerPhone),
 			"type", notifType,
 		)
 		return &NotificationResult{
@@ -175,12 +175,12 @@ func (s *Service) Dispatch(ctx context.Context, notifType NotificationType, data
 	// 5. Conversation Paused & Handoff Guard
 	isPaused, pauseReason, err := s.store.IsConversationPaused(ctx, data.CustomerPhone)
 	if err != nil {
-		s.logger.Error("error checking conversation pause status", "error", err, "phone", waha.MaskPhone(data.CustomerPhone))
+		s.logger.Error("error checking conversation pause status", "error", err, "phone", gowa.MaskPhone(data.CustomerPhone))
 	} else if isPaused {
 		_ = s.store.MarkSuppressed(ctx, recordID, pauseReason)
 		s.logger.Info("notification suppressed: conversation paused or handoff active",
 			"order_id", data.OrderID,
-			"masked_phone", waha.MaskPhone(data.CustomerPhone),
+			"masked_phone", gowa.MaskPhone(data.CustomerPhone),
 			"type", notifType,
 			"reason", pauseReason,
 		)
@@ -193,7 +193,7 @@ func (s *Service) Dispatch(ctx context.Context, notifType NotificationType, data
 		}, nil
 	}
 
-	// 6. External transport dispatch via WAHA
+	// 6. External transport dispatch via GOWA
 	if s.sender == nil {
 		safeErr := "sender_not_configured"
 		cat := CategoryPermanentValidation
@@ -215,9 +215,9 @@ func (s *Service) Dispatch(ctx context.Context, notifType NotificationType, data
 
 		if !retryable {
 			_ = s.store.MarkDeadLetter(ctx, recordID, category, safeErr)
-			s.logger.Warn("failed to send WhatsApp message via WAHA: permanent failure (dead-letter)",
+			s.logger.Warn("failed to send WhatsApp message via GOWA: permanent failure (dead-letter)",
 				"order_id", data.OrderID,
-				"masked_phone", waha.MaskPhone(data.CustomerPhone),
+				"masked_phone", gowa.MaskPhone(data.CustomerPhone),
 				"type", notifType,
 				"category", category,
 				"error", safeErr,
@@ -239,9 +239,9 @@ func (s *Service) Dispatch(ctx context.Context, notifType NotificationType, data
 		if s.worker != nil {
 			s.worker.Notify()
 		}
-		s.logger.Warn("failed to send WhatsApp message via WAHA: scheduled retry",
+		s.logger.Warn("failed to send WhatsApp message via GOWA: scheduled retry",
 			"order_id", data.OrderID,
-			"masked_phone", waha.MaskPhone(data.CustomerPhone),
+			"masked_phone", gowa.MaskPhone(data.CustomerPhone),
 			"type", notifType,
 			"attempt", 1,
 			"next_retry_at", nextRetry.Format(time.RFC3339),
@@ -261,9 +261,9 @@ func (s *Service) Dispatch(ctx context.Context, notifType NotificationType, data
 	}
 
 	_ = s.store.MarkSent(ctx, recordID, providerMsgID)
-	s.logger.Info("successfully sent WhatsApp notification via WAHA",
+	s.logger.Info("successfully sent WhatsApp notification via GOWA",
 		"order_id", data.OrderID,
-		"masked_phone", waha.MaskPhone(data.CustomerPhone),
+		"masked_phone", gowa.MaskPhone(data.CustomerPhone),
 		"type", notifType,
 		"provider_message_id", providerMsgID,
 	)

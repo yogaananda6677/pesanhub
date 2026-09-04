@@ -179,11 +179,11 @@ func TestDispatch_HandoffActiveGuard(t *testing.T) {
 	}
 }
 
-func TestDispatch_WAHAFailure_DoesNotFailFatal(t *testing.T) {
+func TestDispatch_GOWAFailure_DoesNotFailFatal(t *testing.T) {
 	store := NewMemoryStore()
 	sender := &mockSender{
 		sendFunc: func(ctx context.Context, toPhone, text string) (string, error) {
-			return "", errors.New("waha gateway timeout 504")
+			return "", errors.New("gowa gateway timeout 504")
 		},
 	}
 	svc := NewService(Config{
@@ -194,12 +194,12 @@ func TestDispatch_WAHAFailure_DoesNotFailFatal(t *testing.T) {
 	// Must NOT return a fatal error that would break domain callers
 	res, err := svc.NotifyCompleted(context.Background(), sampleData())
 	if err != nil {
-		t.Fatalf("dispatch should return non-fatal result on WAHA failure, but returned err: %v", err)
+		t.Fatalf("dispatch should return non-fatal result on GOWA failure, but returned err: %v", err)
 	}
 	if res.Status != StatusFailed {
 		t.Fatalf("expected StatusFailed, got %s", res.Status)
 	}
-	if res.Error == nil || res.Error.Error() != "waha gateway timeout 504" {
+	if res.Error == nil || res.Error.Error() != "gowa gateway timeout 504" {
 		t.Fatalf("expected error message preserved in result, got %v", res.Error)
 	}
 

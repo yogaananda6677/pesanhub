@@ -1,4 +1,4 @@
-package waha
+package gowa
 
 import (
 	"encoding/json"
@@ -15,12 +15,13 @@ const (
 	StatusFailed      = "FAILED"
 )
 
-// InboundMessage represents a received WhatsApp message from WAHA stored in the database.
+// InboundMessage represents a received WhatsApp message from GOWA stored in the database.
 type InboundMessage struct {
 	ID                string     `json:"id"`
 	ProviderMessageID string     `json:"provider_message_id"`
 	WebhookRequestID  string     `json:"webhook_request_id,omitempty"`
-	Session           string     `json:"session"`
+	DeviceID          string     `json:"device_id"`
+	SessionID         string     `json:"session_id,omitempty"`
 	EventType         string     `json:"event_type"`
 	FromRaw           string     `json:"from_raw"`
 	PhoneE164         *string    `json:"phone_e164,omitempty"`
@@ -35,39 +36,32 @@ type InboundMessage struct {
 	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
-// WebhookEnvelope represents the outer JSON structure sent by WAHA.
+// WebhookEnvelope represents the outer JSON structure sent by GOWA.
 type WebhookEnvelope struct {
-	Event   string          `json:"event"`
-	Session string          `json:"session"`
-	Engine  string          `json:"engine,omitempty"`
-	Payload json.RawMessage `json:"payload,omitempty"`
+	Event     string          `json:"event"`
+	DeviceID  string          `json:"device_id"`
+	SessionID string          `json:"session_id,omitempty"`
+	Payload   json.RawMessage `json:"payload,omitempty"`
 }
 
-// WAHAMessageData represents inner message payload structure.
-type WAHAMessageData struct {
-	ID        string `json:"id"`
-	Timestamp int64  `json:"timestamp,omitempty"`
-	From      string `json:"from"`
-	FromMe    bool   `json:"fromMe"`
-	To        string `json:"to,omitempty"`
-	Body      string `json:"body"`
-	PushName  string `json:"pushName,omitempty"`
-	Data      struct {
-		NotifyName string `json:"notifyName,omitempty"`
-	} `json:"_data"`
+// GOWAMessageData represents inner message payload structure.
+type GOWAMessageData struct {
+	ID                string `json:"id"`
+	Timestamp         string `json:"timestamp,omitempty"`
+	From              string `json:"from"`
+	FromMe            bool   `json:"is_from_me"`
+	To                string `json:"to,omitempty"`
+	Body              string `json:"body"`
+	PushName          string `json:"from_name,omitempty"`
+	SenderDisplayName string `json:"sender_display_name,omitempty"`
 }
 
 // IsMessageEvent returns true if the event represents an inbound message.
 func IsMessageEvent(event string) bool {
-	switch strings.ToLower(strings.TrimSpace(event)) {
-	case "message", "message.any", "message.created":
-		return true
-	default:
-		return false
-	}
+	return strings.EqualFold(strings.TrimSpace(event), "message")
 }
 
-// ParseInboundMessage parses a raw WAHA webhook JSON body into an InboundMessage entity.
+// ParseInboundMessage parses a raw GOWA webhook JSON body into an InboundMessage entity.
 // It normalizes the sender phone number and applies the quarantine policy.
 func ParseInboundMessage(body []byte, webhookRequestID string, now time.Time) (*InboundMessage, bool, bool, error) {
 	var env WebhookEnvelope
@@ -79,7 +73,7 @@ func ParseInboundMessage(body []byte, webhookRequestID string, now time.Time) (*
 		return nil, false, false, nil
 	}
 
-	var data WAHAMessageData
+	var data GOWAMessageData
 	if err := json.Unmarshal(env.Payload, &data); err != nil {
 		return nil, true, false, err
 	}
@@ -100,7 +94,7 @@ func ParseInboundMessage(body []byte, webhookRequestID string, now time.Time) (*
 
 	senderName := strings.TrimSpace(data.PushName)
 	if senderName == "" {
-		senderName = strings.TrimSpace(data.Data.NotifyName)
+		senderName = strings.TrimSpace(data.SenderDisplayName)
 	}
 	if len(senderName) > 120 {
 		senderName = senderName[:120]
@@ -120,7 +114,8 @@ func ParseInboundMessage(body []byte, webhookRequestID string, now time.Time) (*
 		ID:                newID(),
 		ProviderMessageID: providerID,
 		WebhookRequestID:  webhookRequestID,
-		Session:           env.Session,
+		DeviceID:          env.DeviceID,
+		SessionID:         env.SessionID,
 		EventType:         env.Event,
 		FromRaw:           data.From,
 		PhoneE164:         phonePtr,

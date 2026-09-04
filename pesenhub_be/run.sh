@@ -31,9 +31,9 @@ Commands:
   rebuild                      Build bersih image API tanpa cache
   stop                         Hentikan container tanpa menghapusnya
   down                         Hapus container/network, pertahankan volume
-  restart [api|postgres|waha]  Restart seluruh stack atau satu service
+  restart [api|postgres|gowa]  Restart seluruh stack atau satu service
   status                       Tampilkan status container dan ringkasan health
-  logs [api|postgres|waha]     Ikuti maksimum 100 baris awal log
+  logs [api|postgres|gowa]     Ikuti maksimum 100 baris awal log
   health                       Periksa endpoint live dan ready
   test                         Jalankan unit test Go
   check                        Verify module, format, vet, test, dan Compose
@@ -47,7 +47,7 @@ Examples:
   ./run.sh setup
   ./run.sh dev
   ./run.sh logs api
-  ./run.sh restart waha
+  ./run.sh restart gowa
   ./run.sh migrate-down --yes
 EOF
 }
@@ -61,7 +61,7 @@ need_env() { [[ -f .env ]] || die ".env belum tersedia. Jalankan './run.sh setup
 compose() { docker compose "$@"; }
 
 validate_service() {
-  case "${1:-}" in api|postgres|waha) ;; *) die "Service '${1:-<kosong>}' tidak dikenal. Gunakan api, postgres, atau waha." ;; esac
+  case "${1:-}" in api|postgres|gowa) ;; *) die "Service '${1:-<kosong>}' tidak dikenal. Gunakan api, postgres, atau gowa." ;; esac
 }
 
 env_value() {
@@ -121,7 +121,7 @@ json_field() {
 }
 
 health() {
-  local base tmp_live tmp_ready live_http ready_http live_status ready_status db_status waha_status
+  local base tmp_live tmp_ready live_http ready_http live_status ready_status db_status gowa_status
   base="$(api_base_url)"
   tmp_live="$(mktemp)"; tmp_ready="$(mktemp)"
   if ! live_http="$(http_request "$base/health/live" "$tmp_live")"; then
@@ -135,13 +135,13 @@ health() {
   live_status="$(json_field status "$tmp_live")"
   ready_status="$(json_field status "$tmp_ready")"
   db_status="$(json_field database "$tmp_ready")"
-  waha_status="$(json_field waha "$tmp_ready")"
+  gowa_status="$(json_field gowa_device "$tmp_ready")"
   rm -f "$tmp_live" "$tmp_ready"
   printf 'live:  HTTP %s, api=%s\n' "$live_http" "${live_status:-unknown}"
-  printf 'ready: HTTP %s, api=%s, database=%s, waha=%s\n' "$ready_http" "${ready_status:-unknown}" "${db_status:-unknown}" "${waha_status:-unknown}"
+  printf 'ready: HTTP %s, api=%s, database=%s, gowa=%s\n' "$ready_http" "${ready_status:-unknown}" "${db_status:-unknown}" "${gowa_status:-unknown}"
   [[ "$live_http" =~ ^2 ]] || die "Liveness API gagal."
   if [[ "$ready_status" == "degraded" && "$db_status" == "up" ]]; then
-    warn "API degraded karena WAHA belum siap; ini tidak fatal pada Phase 0."
+    warn "API degraded karena GOWA belum siap; ini tidak fatal pada Phase 0."
     return 0
   fi
   [[ "$ready_http" =~ ^2 && "$db_status" == "up" ]] || die "Readiness API gagal."
@@ -168,7 +168,7 @@ setup() {
   compose config --quiet
   ok "Konfigurasi Docker Compose valid."
   info "Langkah berikutnya: ./run.sh dev"
-  warn "Setup tidak membuat atau memasangkan session WAHA."
+  warn "Setup tidak membuat atau memasangkan device GOWA."
 }
 
 run_test() { need_command go; GOCACHE="${GOCACHE:-/tmp/pesenhub-go-cache}" go test ./...; }
@@ -204,15 +204,15 @@ migrate_down() {
 }
 
 show_version() {
-  local go_version builder runtime postgres waha
+  local go_version builder runtime postgres gowa
   go_version="$(sed -n 's/^go //p' go.mod | head -n 1)"
   builder="$(sed -n '1s/^FROM \([^ ]*\).*/\1/p' Dockerfile)"
   runtime="$(sed -n 's/^FROM \([^ ]*\) AS runtime$/\1/p' Dockerfile)"
   postgres="$(sed -n '/^  postgres:/,/^  [a-z]/s/^    image: //p' docker-compose.yml | head -n 1)"
-  waha="$(sed -n '/^  waha:/,/^volumes:/s/^    image: //p' docker-compose.yml | head -n 1)"
+  gowa="$(sed -n '/^  gowa:/,/^volumes:/s/^    image: //p' docker-compose.yml | head -n 1)"
   printf 'Go (go.mod): %s\n' "$go_version"
   if command -v docker >/dev/null 2>&1; then docker --version; docker compose version; else printf 'Docker: tidak tersedia\n'; fi
-  printf 'PostgreSQL image: %s\nWAHA image: %s\nBuilder image: %s\nRuntime image: %s\nAPI image: pesenhub-api:dev\n' "$postgres" "$waha" "$builder" "$runtime"
+  printf 'PostgreSQL image: %s\nGOWA image: %s\nBuilder image: %s\nRuntime image: %s\nAPI image: pesenhub-api:dev\n' "$postgres" "$gowa" "$builder" "$runtime"
 }
 
 command_name="${1:-help}"
@@ -228,14 +228,14 @@ case "$command_name" in
   stop) [[ $# -eq 0 ]] || die "Command stop tidak menerima argumen."; need_docker; need_env; compose stop; ok "Container berhenti; network, volume, dan data dipertahankan." ;;
   down) [[ $# -eq 0 ]] || die "Command down tidak menerima argumen."; need_docker; need_env; compose down --remove-orphans; ok "Container/network dihapus; volume dan data PostgreSQL dipertahankan." ;;
   restart)
-    [[ $# -le 1 ]] || die "Gunakan: ./run.sh restart [api|postgres|waha]"
+    [[ $# -le 1 ]] || die "Gunakan: ./run.sh restart [api|postgres|gowa]"
     need_docker; need_env
     if [[ $# -eq 1 ]]; then validate_service "$1"; compose restart "$1"; else compose restart; fi
     wait_ready; compose ps; health
     ;;
   status) [[ $# -eq 0 ]] || die "Command status tidak menerima argumen."; need_docker; need_env; compose ps; [[ "$(container_state api)" == "healthy" ]] && health || warn "API belum berjalan atau belum healthy." ;;
   logs)
-    [[ $# -le 1 ]] || die "Gunakan: ./run.sh logs [api|postgres|waha]"
+    [[ $# -le 1 ]] || die "Gunakan: ./run.sh logs [api|postgres|gowa]"
     need_docker; need_env
     if [[ $# -eq 1 ]]; then validate_service "$1"; compose logs --follow --tail=100 "$1"; else compose logs --follow --tail=100; fi
     ;;

@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"time"
 
-	"pesenhub/backend/internal/waha"
+	"pesenhub/backend/internal/gowa"
 )
 
 type Database interface{ Ping(context.Context) error }
 type Handler struct {
 	service string
 	db      Database
-	waha    waha.Checker
+	gowa    gowa.Checker
 }
 type response struct {
 	Status  string            `json:"status"`
@@ -21,28 +21,28 @@ type response struct {
 	Checks  map[string]string `json:"checks,omitempty"`
 }
 
-func New(service string, db Database, wc waha.Checker) *Handler { return &Handler{service, db, wc} }
+func New(service string, db Database, wc gowa.Checker) *Handler { return &Handler{service, db, wc} }
 func (h *Handler) Live(w http.ResponseWriter, _ *http.Request) {
 	write(w, http.StatusOK, response{"live", h.service, nil})
 }
 func (h *Handler) Ready(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
-	checks := map[string]string{"database": "up", "waha_api": "up", "waha_session": "ready"}
+	checks := map[string]string{"database": "up", "gowa_api": "up", "gowa_device": "ready"}
 	status, code := "ready", http.StatusOK
 	if h.db == nil || h.db.Ping(ctx) != nil {
 		checks["database"], status, code = "down", "not_ready", http.StatusServiceUnavailable
 	}
-	result := waha.Readiness{API: waha.APIDown, Session: waha.SessionUnknown}
-	if h.waha != nil {
-		result = h.waha.Readiness(ctx)
+	result := gowa.Readiness{API: gowa.APIDown, Device: gowa.DeviceUnknown}
+	if h.gowa != nil {
+		result = h.gowa.Readiness(ctx)
 	}
-	checks["waha_api"] = string(result.API)
-	checks["waha_session"] = string(result.Session)
+	checks["gowa_api"] = string(result.API)
+	checks["gowa_device"] = string(result.Device)
 	if result.Reason != "" {
-		checks["waha_reason"] = result.Reason
+		checks["gowa_reason"] = result.Reason
 	}
-	if result.Session != waha.SessionReady {
+	if result.Device != gowa.DeviceReady {
 		if status == "ready" {
 			status = "degraded"
 		}

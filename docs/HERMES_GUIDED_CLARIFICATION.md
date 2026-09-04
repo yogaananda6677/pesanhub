@@ -89,14 +89,14 @@ State percakapan disimpan pada tabel PostgreSQL `agent_conversations`:
 | Kolom | Tipe | Deskripsi |
 | --- | --- | --- |
 | `id` | UUID | Primary key percakapan |
-| `session` | TEXT | Nama sesi WAHA (default: `default`) |
+| `session` | TEXT | Nama sesi GOWA (default: `default`) |
 | `customer_phone` | TEXT | Nomor telepon pengirim (E.164) |
 | `status` | TEXT | `COLLECTING`, `AWAITING_CLARIFICATION`, `READY_FOR_CONFIRMATION`, `HANDOFF` |
 | `current_draft` | JSONB | Data `DraftCandidate` yang sedang diisi |
 | `pending_ambiguity` | TEXT | Ambiguitas yang sedang ditanyakan saat ini |
 | `clarification_attempts` | INTEGER | Jumlah percobaan klarifikasi berturut-turut |
 | `last_question` | TEXT | Teks pertanyaan terakhir yang dikirim ke pelanggan |
-| `last_inbound_message_id` | UUID | Relasi ke pesan WAHA terakhir |
+| `last_inbound_message_id` | UUID | Relasi ke pesan GOWA terakhir |
 | `correlation_id` | TEXT | ID penelusuran request |
 | `created_at` / `updated_at` | TIMESTAMPTZ | Waktu pembuatan & pembaruan |
 

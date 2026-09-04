@@ -1,4 +1,4 @@
-package waha
+package gowa
 
 import (
 	"context"
@@ -32,9 +32,9 @@ func TestInboundStoreIntegration(t *testing.T) {
 		ID:                newID(),
 		ProviderMessageID: "wamid-integration-" + newID(),
 		WebhookRequestID:  "req-integ-1",
-		Session:           "default",
+		DeviceID:          "pesenhub-dev",
 		EventType:         "message",
-		FromRaw:           "6281234567890@c.us",
+		FromRaw:           "6281234567890@s.whatsapp.net",
 		PhoneE164:         &phone,
 		SenderName:        "Integ Customer",
 		MessageBody:       "Halo dari integration test",
@@ -65,9 +65,9 @@ func TestInboundStoreIntegration(t *testing.T) {
 		ID:                newID(),
 		ProviderMessageID: msg.ProviderMessageID,
 		WebhookRequestID:  "req-integ-2",
-		Session:           "default",
+		DeviceID:          "pesenhub-dev",
 		EventType:         "message",
-		FromRaw:           "6281234567890@c.us",
+		FromRaw:           "6281234567890@s.whatsapp.net",
 		PhoneE164:         &phone,
 		SenderName:        "Integ Customer",
 		MessageBody:       "Pesan duplikat",
@@ -103,7 +103,7 @@ func TestInboundStoreIntegration(t *testing.T) {
 		ID:                newID(),
 		ProviderMessageID: "wamid-quarantine-" + newID(),
 		WebhookRequestID:  "req-integ-3",
-		Session:           "default",
+		DeviceID:          "pesenhub-dev",
 		EventType:         "message",
 		FromRaw:           "120363025412345678@g.us",
 		PhoneE164:         nil,

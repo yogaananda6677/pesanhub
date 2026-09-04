@@ -1,4 +1,4 @@
-package waha
+package gowa
 
 import (
 	"encoding/json"
@@ -13,17 +13,15 @@ func TestParseInboundMessage(t *testing.T) {
 	t.Run("valid inbound message", func(t *testing.T) {
 		body := []byte(`{
 			"event": "message",
-			"session": "default",
+			"device_id": "pesenhub-dev", "session_id": "default",
 			"payload": {
-				"id": "false_6281234567890@c.us_3EB0123456",
-				"timestamp": 1725451200,
-				"from": "6281234567890@c.us",
-				"fromMe": false,
-				"to": "628999999999@c.us",
+				"id": "3EB0123456",
+				"timestamp": "2026-09-04T12:00:00Z",
+				"from": "6281234567890@s.whatsapp.net",
+				"is_from_me": false,
+				"to": "628999999999@s.whatsapp.net",
 				"body": "halo pesan nasi goreng 2 porsi",
-				"_data": {
-					"notifyName": "Budi Santoso"
-				}
+				"sender_display_name": "Budi Santoso"
 			}
 		}`)
 
@@ -40,7 +38,7 @@ func TestParseInboundMessage(t *testing.T) {
 		if msg == nil {
 			t.Fatal("expected msg to not be nil")
 		}
-		if msg.ProviderMessageID != "false_6281234567890@c.us_3EB0123456" {
+		if msg.ProviderMessageID != "3EB0123456" {
 			t.Fatalf("unexpected provider ID: %s", msg.ProviderMessageID)
 		}
 		if msg.PhoneE164 == nil || *msg.PhoneE164 != "+6281234567890" {
@@ -62,12 +60,12 @@ func TestParseInboundMessage(t *testing.T) {
 
 	t.Run("outgoing message fromMe ignored", func(t *testing.T) {
 		body := []byte(`{
-			"event": "message.any",
-			"session": "default",
+			"event": "message",
+			"device_id": "pesenhub-dev", "session_id": "default",
 			"payload": {
-				"id": "true_6281234567890@c.us_3EB09999",
-				"from": "628999999999@c.us",
-				"fromMe": true,
+				"id": "3EB09999",
+				"from": "628999999999@s.whatsapp.net",
+				"is_from_me": true,
 				"body": "Pesanan Anda sedang dimasak"
 			}
 		}`)
@@ -87,11 +85,11 @@ func TestParseInboundMessage(t *testing.T) {
 	t.Run("group message is quarantined", func(t *testing.T) {
 		body := []byte(`{
 			"event": "message",
-			"session": "default",
+			"device_id": "pesenhub-dev", "session_id": "default",
 			"payload": {
 				"id": "false_120363025412345678@g.us_3EB01111",
 				"from": "120363025412345678@g.us",
-				"fromMe": false,
+				"is_from_me": false,
 				"body": "pesan di grup"
 			}
 		}`)
@@ -120,11 +118,11 @@ func TestParseInboundMessage(t *testing.T) {
 	t.Run("invalid phone number is quarantined without customer", func(t *testing.T) {
 		body := []byte(`{
 			"event": "message",
-			"session": "default",
+			"device_id": "pesenhub-dev", "session_id": "default",
 			"payload": {
-				"id": "false_15551234567@c.us_3EB02222",
-				"from": "15551234567@c.us",
-				"fromMe": false,
+				"id": "3EB02222",
+				"from": "15551234567@s.whatsapp.net",
+				"is_from_me": false,
 				"body": "international spam"
 			}
 		}`)
@@ -150,8 +148,8 @@ func TestParseInboundMessage(t *testing.T) {
 	t.Run("non-message event", func(t *testing.T) {
 		body := []byte(`{
 			"event": "session.status",
-			"session": "default",
-			"payload": {"status": "WORKING"}
+			"device_id": "pesenhub-dev", "session_id": "default",
+			"payload": {"status": "DISCONNECTED"}
 		}`)
 
 		msg, isMsg, _, err := ParseInboundMessage(body, "req-5", now)

@@ -13,29 +13,29 @@ import (
 type Config struct {
 	App      App
 	Database Database
-	WAHA     WAHA
+	GOWA     GOWA
 }
 
 type App struct{ Name, Env, Host, Port, Timezone string }
 type Database struct{ Host, Port, Name, User, Password, SSLMode string }
-type WAHA struct {
-	BaseURL, APIKey, Session, WebhookHMACKey string
-	Timeout                                  time.Duration
+type GOWA struct {
+	BaseURL, Username, Password, DeviceID, WebhookSecret string
+	Timeout                                              time.Duration
 }
 
 func Load() (Config, error) {
 	c := Config{
 		App:      App{get("APP_NAME", "PesenHub"), get("APP_ENV", "development"), get("APP_HOST", "0.0.0.0"), get("APP_PORT", "8080"), get("APP_TIMEZONE", "Asia/Jakarta")},
 		Database: Database{os.Getenv("DATABASE_HOST"), get("DATABASE_PORT", "5432"), os.Getenv("DATABASE_NAME"), os.Getenv("DATABASE_USER"), os.Getenv("DATABASE_PASSWORD"), get("DATABASE_SSLMODE", "disable")},
-		WAHA:     WAHA{BaseURL: os.Getenv("WAHA_BASE_URL"), APIKey: os.Getenv("WAHA_API_KEY"), Session: get("WAHA_SESSION", "default"), WebhookHMACKey: os.Getenv("WAHA_WEBHOOK_HMAC_KEY")},
+		GOWA:     GOWA{BaseURL: os.Getenv("GOWA_BASE_URL"), Username: os.Getenv("GOWA_BASIC_AUTH_USERNAME"), Password: os.Getenv("GOWA_BASIC_AUTH_PASSWORD"), DeviceID: get("GOWA_DEVICE_ID", "pesenhub-dev"), WebhookSecret: os.Getenv("GOWA_WEBHOOK_SECRET")},
 	}
 	var err error
-	c.WAHA.Timeout, err = time.ParseDuration(get("WAHA_REQUEST_TIMEOUT", "3s"))
-	if err != nil || c.WAHA.Timeout <= 0 {
-		return Config{}, errors.New("WAHA_REQUEST_TIMEOUT must be a positive duration")
+	c.GOWA.Timeout, err = time.ParseDuration(get("GOWA_REQUEST_TIMEOUT", "3s"))
+	if err != nil || c.GOWA.Timeout <= 0 {
+		return Config{}, errors.New("GOWA_REQUEST_TIMEOUT must be a positive duration")
 	}
 	missing := []string{}
-	for k, v := range map[string]string{"DATABASE_HOST": c.Database.Host, "DATABASE_NAME": c.Database.Name, "DATABASE_USER": c.Database.User, "DATABASE_PASSWORD": c.Database.Password, "WAHA_BASE_URL": c.WAHA.BaseURL, "WAHA_API_KEY": c.WAHA.APIKey, "WAHA_WEBHOOK_HMAC_KEY": c.WAHA.WebhookHMACKey} {
+	for k, v := range map[string]string{"DATABASE_HOST": c.Database.Host, "DATABASE_NAME": c.Database.Name, "DATABASE_USER": c.Database.User, "DATABASE_PASSWORD": c.Database.Password, "GOWA_BASE_URL": c.GOWA.BaseURL, "GOWA_BASIC_AUTH_USERNAME": c.GOWA.Username, "GOWA_BASIC_AUTH_PASSWORD": c.GOWA.Password, "GOWA_DEVICE_ID": c.GOWA.DeviceID, "GOWA_WEBHOOK_SECRET": c.GOWA.WebhookSecret} {
 		if strings.TrimSpace(v) == "" {
 			missing = append(missing, k)
 		}
@@ -43,11 +43,11 @@ func Load() (Config, error) {
 	if len(missing) > 0 {
 		return Config{}, fmt.Errorf("missing required environment configuration: %s", strings.Join(missing, ", "))
 	}
-	if len(c.WAHA.WebhookHMACKey) < 32 {
-		return Config{}, errors.New("WAHA_WEBHOOK_HMAC_KEY must contain at least 32 characters")
+	if len(c.GOWA.WebhookSecret) < 32 {
+		return Config{}, errors.New("GOWA_WEBHOOK_SECRET must contain at least 32 characters")
 	}
-	if _, err := url.ParseRequestURI(c.WAHA.BaseURL); err != nil {
-		return Config{}, errors.New("WAHA_BASE_URL must be a valid URL")
+	if _, err := url.ParseRequestURI(c.GOWA.BaseURL); err != nil {
+		return Config{}, errors.New("GOWA_BASE_URL must be a valid URL")
 	}
 	if _, err := time.LoadLocation(c.App.Timezone); err != nil {
 		return Config{}, errors.New("APP_TIMEZONE must be a valid timezone")

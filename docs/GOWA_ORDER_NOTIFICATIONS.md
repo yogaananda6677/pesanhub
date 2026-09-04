@@ -1,4 +1,4 @@
-# WAHA Order Confirmation & Completion Notifications
+# GOWA Order Confirmation & Completion Notifications
 
 Dokumentasi arsitektur dan operasional pengiriman notifikasi WhatsApp pelanggan untuk memenuhi **Issue #42** (bagian dari Parent Epic: #1, Parent Phase: #5).
 
@@ -8,10 +8,10 @@ Dokumentasi arsitektur dan operasional pengiriman notifikasi WhatsApp pelanggan 
 
 1. **Backend Golang System of Record**:
    - Seluruh mutasi status order dan kalkulasi harga berasal dari Backend Golang.
-   - Kegagalan transport WAHA (timeout, error 500/503, session terputus) **TIDAK BOLEH** menggagalkan atau me-rollback transaksi domain pesanan yang sudah di-commit.
+   - Kegagalan transport GOWA (timeout, error 500/503, session terputus) **TIDAK BOLEH** menggagalkan atau me-rollback transaksi domain pesanan yang sudah di-commit.
 2. **At-Most-Once Delivery per Template Version**:
    - Setiap notifikasi memiliki kunci idempoten unik format `order:<order_id>:type:<type>:v:<version>` dengan constraint unik di PostgreSQL (`order_notifications.idempotency_key`).
-   - Replay event atau pemanggilan berulang tidak akan memicu pengiriman pesan kedua ke WAHA.
+   - Replay event atau pemanggilan berulang tidak akan memicu pengiriman pesan kedua ke GOWA.
 3. **Zero AI Price Hallucination**:
    - Seluruh pesan notifikasi dibuat menggunakan template deterministik backend.
    - Angka nominal, rincian modifier, dan total tagihan diambil langsung dari snapshot pesanan database terverifikasi.
@@ -43,7 +43,7 @@ Order Domain Event (Committed Transaction)
         │
         ├─► 5. Render Approved Template (v1)
         │
-        └─► 6. Send via WAHA Client (POST /api/sendText)
+        └─► 6. Send via GOWA Client (POST /send/message)
                ├─ Success: Simpan status = SENT (provider_message_id)
                └─ Failure (Timeout / 5xx): Simpan status = FAILED (last_error)
                   └─ Domain order tetap sukses (HTTP 200) tanpa rollback!
@@ -120,7 +120,7 @@ Terima kasih telah memesan di PesenHub! 🙏
 | `message_text` | text NOT NULL | Teks pesan final yang dirender |
 | `status` | text NOT NULL DEFAULT 'PENDING' | `'PENDING'`, `'SENT'`, `'FAILED'`, `'SUPPRESSED'` |
 | `suppress_reason` | text | `'CUSTOMER_OPTED_OUT'`, `'CONVERSATION_PAUSED'`, `'HANDOFF_ACTIVE'` |
-| `provider_message_id` | text | ID pesan dari provider WAHA |
+| `provider_message_id` | text | ID pesan dari provider GOWA |
 | `attempts` | integer DEFAULT 0 | Jumlah percobaan pengiriman |
 | `last_error` | text | Kategori/pesan error tersanitasi |
 | `sent_at` | timestamptz | Waktu pesan berhasil dikirim |
@@ -133,9 +133,9 @@ Terima kasih telah memesan di PesenHub! 🙏
 
 | Skenario | Kode Status | Status Notifikasi | Dampak ke Status Order |
 |---|---|---|---|
-| WAHA 200/201 OK | HTTP 200 | `SENT` | Committed `COMPLETED` |
-| WAHA 500/502/503 | HTTP 200 | `FAILED` (logged) | Committed `COMPLETED` (No rollback) |
-| WAHA Timeout | HTTP 200 | `FAILED` (logged) | Committed `COMPLETED` (No rollback) |
+| GOWA 200/201 OK | HTTP 200 | `SENT` | Committed `COMPLETED` |
+| GOWA 500/502/503 | HTTP 200 | `FAILED` (logged) | Committed `COMPLETED` (No rollback) |
+| GOWA Timeout | HTTP 200 | `FAILED` (logged) | Committed `COMPLETED` (No rollback) |
 | Customer Opted-Out | HTTP 200 | `SUPPRESSED` | Committed `COMPLETED` (No message sent) |
 | Conversation Paused / Handoff | HTTP 200 | `SUPPRESSED` | Committed `COMPLETED` (No message sent) |
 | Invalid Phone Format | HTTP 200 | `FAILED` | Committed `COMPLETED` (No message sent) |

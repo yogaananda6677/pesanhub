@@ -1,4 +1,4 @@
-package waha
+package gowa
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// InboundStore defines the persistence interface for WAHA inbound messages and deduplication.
+// InboundStore defines the persistence interface for GOWA inbound messages and deduplication.
 type InboundStore interface {
 	StoreInbound(ctx context.Context, msg *InboundMessage) (*InboundMessage, bool, error)
 	GetByProviderMessageID(ctx context.Context, providerID string) (*InboundMessage, error)
@@ -34,19 +34,19 @@ func (s *Store) StoreInbound(ctx context.Context, msg *InboundMessage) (*Inbound
 	}
 
 	queryInsert := `
-		INSERT INTO waha_inbound_messages (
-			id, provider_message_id, webhook_request_id, session, event_type,
+		INSERT INTO whatsapp_inbound_messages (
+			id, provider_message_id, webhook_request_id, device_id, session_id, event_type,
 			from_raw, phone_e164, sender_name, message_body, payload_redacted,
 			status, quarantine_reason, received_at, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		) VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		ON CONFLICT (provider_message_id) DO NOTHING
-		RETURNING id::text, provider_message_id, COALESCE(webhook_request_id, ''), session, event_type,
+		RETURNING id::text, provider_message_id, COALESCE(webhook_request_id, ''), device_id, COALESCE(session_id, ''), event_type,
 		          from_raw, phone_e164, COALESCE(sender_name, ''), COALESCE(message_body, ''), payload_redacted,
 		          status, COALESCE(quarantine_reason, ''), received_at, processed_at, created_at, updated_at
 	`
 
 	row := s.db.QueryRow(ctx, queryInsert,
-		msg.ID, msg.ProviderMessageID, msg.WebhookRequestID, msg.Session, msg.EventType,
+		msg.ID, msg.ProviderMessageID, msg.WebhookRequestID, msg.DeviceID, msg.SessionID, msg.EventType,
 		msg.FromRaw, msg.PhoneE164, msg.SenderName, msg.MessageBody, msg.PayloadRedacted,
 		msg.Status, msg.QuarantineReason, msg.ReceivedAt, msg.CreatedAt, msg.UpdatedAt,
 	)
@@ -74,10 +74,10 @@ func (s *Store) GetByProviderMessageID(ctx context.Context, providerID string) (
 	}
 
 	query := `
-		SELECT id::text, provider_message_id, COALESCE(webhook_request_id, ''), session, event_type,
+		SELECT id::text, provider_message_id, COALESCE(webhook_request_id, ''), device_id, COALESCE(session_id, ''), event_type,
 		       from_raw, phone_e164, COALESCE(sender_name, ''), COALESCE(message_body, ''), payload_redacted,
 		       status, COALESCE(quarantine_reason, ''), received_at, processed_at, created_at, updated_at
-		FROM waha_inbound_messages
+		FROM whatsapp_inbound_messages
 		WHERE provider_message_id = $1
 	`
 	row := s.db.QueryRow(ctx, query, providerID)
@@ -91,10 +91,10 @@ func (s *Store) GetByID(ctx context.Context, id string) (*InboundMessage, error)
 	}
 
 	query := `
-		SELECT id::text, provider_message_id, COALESCE(webhook_request_id, ''), session, event_type,
+		SELECT id::text, provider_message_id, COALESCE(webhook_request_id, ''), device_id, COALESCE(session_id, ''), event_type,
 		       from_raw, phone_e164, COALESCE(sender_name, ''), COALESCE(message_body, ''), payload_redacted,
 		       status, COALESCE(quarantine_reason, ''), received_at, processed_at, created_at, updated_at
-		FROM waha_inbound_messages
+		FROM whatsapp_inbound_messages
 		WHERE id = $1
 	`
 	row := s.db.QueryRow(ctx, query, id)
@@ -113,7 +113,7 @@ func scanInboundMessage(r rowScanner) (*InboundMessage, error) {
 	)
 
 	err := r.Scan(
-		&m.ID, &m.ProviderMessageID, &m.WebhookRequestID, &m.Session, &m.EventType,
+		&m.ID, &m.ProviderMessageID, &m.WebhookRequestID, &m.DeviceID, &m.SessionID, &m.EventType,
 		&m.FromRaw, &phone, &m.SenderName, &m.MessageBody, &m.PayloadRedacted,
 		&m.Status, &m.QuarantineReason, &m.ReceivedAt, &processedAt, &m.CreatedAt, &m.UpdatedAt,
 	)
