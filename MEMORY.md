@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS                                                          |
 | MVP target     | 30 hari sejak kickoff                                                |
 | Last updated   | 4 September 2026                                                     |
-| Updated by     | Issue #33 offline outbox and background sync implementation and validation |
+| Updated by     | Issue #35 network indicator and order alerts implementation and validation |
 
 ## 2. Product Intent
 
@@ -58,7 +58,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | -------------------------------------------------------------- | --------------------------- | ----------- | ---------- | ---------- | ------------------------------------------------------- |
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2)  | Project readiness           | DONE        | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md`       |
 | [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend                | DONE        | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
-| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet     | IN_PROGRESS | 2026-09-03 | —          | Issues #23, #24, #25, #26, #27, #28, #29, #30           |
+| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet     | IN_PROGRESS | 2026-09-03 | —          | Issues #23–#35; phase closing pending                     |
 | [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | NOT_STARTED | —          | —          | Menunggu domain 1A                                      |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release   | NOT_STARTED | —          | —          | Menunggu 1A–1C                                          |
 | [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7)  | Food Aggregator Integration | NOT_STARTED | —          | —          | Menunggu MVP stabil dan kontrak resmi                   |
@@ -72,14 +72,14 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#4 — Phase 1B Cashier Mobile & Tablet](https://github.com/yogaananda6677/pesanhub/issues/4)
 - Child Issues: #23–#35
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#33 — Implementasi offline outbox dan background synchronization](https://github.com/yogaananda6677/pesanhub/issues/33)
-- Current Branch: `feature/33-offline-outbox-sync`
+- Current Issue: [#35 — Implementasi network indicator, local notification, audio, dan heads-up alert](https://github.com/yogaananda6677/pesanhub/issues/35)
+- Current Branch: `feature/35-network-indicator-notifications`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104), [#105](https://github.com/yogaananda6677/pesanhub/pull/105), [#106](https://github.com/yogaananda6677/pesanhub/pull/106)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh acceptance criteria #33 terpenuhi (order manual offline tersimpan PENDING lokal, outbox bertahan saat restart aplikasi via SQLite durable store, background sync mengirim mutasi sequential sampai ack tanpa duplikasi, kegagalan transient retry dengan exponential backoff dan permanent error berhenti dengan alert actionable, UI indikator sync responsif pada mobile dan tablet)
-- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (106/106 pass), backend check pass
-- Next Step: Buka PR dan merge Issue #33, lalu lanjut ke Issue #34 (Implementasi conflict handling dan duplicate prevention Flutter)
+- Exit Criteria: Seluruh acceptance criteria #35 terpenuhi (network indicator real-time tampil di app shell mobile dan tablet, local notification push saat order masuk atau status berubah, audio alert dengan ringer/vibration kontekstual, heads-up alert overlay tanpa menginterupsi alur aktif)
+- Validation: `dart format` PASS, `flutter analyze` 0 issue, `flutter test` 125/125 PASS, `flutter build apk --debug` PASS
+- Next Step: Buka dan merge PR #35, lalu buat Phase 1B Closing PR untuk #4
 
 ## 6. Current Phase Checklist
 
@@ -130,9 +130,9 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [x] #30: Implementasi KDS adaptif untuk tablet dan mobile (PR #102)
 - [x] #31: Implementasi pengelolaan menu availability pada Flutter (PR #103)
 - [x] #32: Pilih dan implementasikan local database serta cache Flutter (PR #104)
-- [x] #33: Implementasi offline outbox dan background synchronization (PR pending)
-- [ ] #34: Implementasi conflict handling dan duplicate prevention Flutter
-- [ ] #35: Implementasi network indicator, local notification, audio, dan heads-up alert
+- [x] #33: Implementasi offline outbox dan background synchronization (PR #105)
+- [x] #34: Implementasi conflict handling dan duplicate prevention Flutter (PR #106)
+- [x] #35: Implementasi network indicator, local notification, audio, dan heads-up alert (PR pending)
 
 ## 7. Work Completed
 
@@ -240,6 +240,72 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 4 September 2026 — Issue #35 Network Indicator dan Order Alerts
+
+**Goal**
+
+- Menampilkan state koneksi yang aksesibel dan memastikan satu event order memicu maksimal satu alert dengan fallback permission/lifecycle yang aman.
+
+**Changed**
+
+- Menambah `ConnectivityController` berbasis `connectivity_plus` untuk state Online, Offline, dan Menyinkronkan.
+- Mengganti badge koneksi statis pada app shell dengan badge reaktif berteks, ikon, warna, dan semantic live-region.
+- Menambah `OrderAlertController` dengan event dedupe, throttle lima detik, foreground heads-up, audio/haptic, background local notification, serta fallback saat permission ditolak.
+- Menghubungkan event queue dengan alert tanpa memasukkan nama atau nomor telepon pelanggan ke payload notifikasi.
+- Menambah konfigurasi Android/iOS, permission yang minimal, dokumentasi perilaku platform, dan test gateway agar suite deterministik.
+
+**Validation**
+
+- `dart format --output=none --set-exit-if-changed .`: PASS.
+- `flutter analyze`: PASS (0 issue).
+- `flutter test`: PASS (125/125).
+- `flutter build apk --debug`: PASS.
+
+**Known Issues**
+
+- Notification tray, speaker, vibration, dan ringer mode tetap memerlukan smoke test emulator/perangkat sebelum pilot; CI memverifikasi gateway dan APK build.
+
+**Next**
+
+- Review/merge Issue #35, kemudian siapkan Phase 1B Closing PR #4.
+
+### 4 September 2026 — Issue #34 Conflict Handling dan Duplicate Prevention Flutter
+
+**Goal**
+
+- Mengimplementasikan mekanisme deteksi dan penyelesaian konflik versi order pada aplikasi Flutter PesenHub saat terjadi mutasi bersamaan dari perangkat berbeda, mencegah duplikasi event order, menyediakan strategi resolusi eksplisit (server-wins, client-wins, merge), menyimpan audit log konflik tanpa PII, dan menampilkan UI resolusi responsif pada mobile dan tablet.
+
+**Changed**
+
+- Membuat model domain konflik di `pesenhub_app/lib/order/models/order_conflict.dart`: `ConflictType` enum (unsafeFinalState, unsafePaymentMismatch, unsafeVersionDrift, safeEditableField), `ResolutionStrategy` enum (serverWins, clientWins, merge, forceReload), `ConflictClassification` model, `ConflictClassifier.classify()` dengan prioritas 4 level, dan `ConflictResolver.resolve()` dengan guard unsafe.
+- Membuat `EventDeduplicator` di `pesenhub_app/lib/core/utils/event_deduplicator.dart` dengan bounded LRU set (default kapasitas 500, O(1) lookup dan eviction berbasis `LinkedHashSet`).
+- Membuat `OrderTimelineEvent` di `pesenhub_app/lib/order/models/order_timeline_event.dart` dengan static `deduplicate()` yang menghapus duplikat berdasarkan event ID lalu composite key `orderId_status_version`.
+- Membuat `ConflictAuditRepository` di `pesenhub_app/lib/data/local/conflict_audit_repository.dart` dengan CRUD SQLite untuk tabel `conflict_logs` dan masking PII pada kolom `customer_phone` di payload resolusi.
+- Membuat `ConflictResolutionDialog` di `pesenhub_app/lib/order/widgets/conflict_resolution_dialog.dart`: modal perbandingan side-by-side untuk safe conflict (3 tombol: Gunakan Server / Pertahankan Lokal / Gabungkan Catatan) dan unsafe conflict (1 tombol: Muat Ulang Data Server), responsif pada mobile dan tablet.
+- Memperbarui `LocalDatabase` di `pesenhub_app/lib/data/local/local_database.dart`: versi bumped ke 4, migrasi `_migrateToV4()` menambahkan tabel `conflict_logs` dengan indeks, `clearAllData()` diperluas untuk menghapus `conflict_logs`.
+- Memperbarui `QueueController` di `pesenhub_app/lib/queue/controllers/queue_controller.dart`: menambahkan `_deduplicator` field, `upsertOrder()` menerima `eventId` opsional dan menerapkan server-wins untuk status terminal serta PAID, `updateOrderStatus()` mengembalikan `bool` (false jika terminal), `applyConflictResolution()` dengan audit logging.
+- Memperbarui `OrderDetailController` di `pesenhub_app/lib/order/controllers/order_detail_controller.dart`: menambahkan `_activeConflict` field, getter `activeConflict`/`hasConflict`, integrasi `ConflictClassifier` di catch block, `resolveConflict()` method.
+- Memperbarui `OrderDetailView` di `pesenhub_app/lib/order/order_detail_view.dart`: banner konflik ditambahkan tombol "Pilih Resolusi Konflik" untuk safe conflict, toggle `AppBannerType` antara warning/error sesuai `classification.isSafe`.
+- Menambahkan test suite komprehensif di `pesenhub_app/test/conflict_handling_test.dart`: 13 test cases untuk 5 acceptance criteria groups (semua lulus).
+- Menambahkan dokumentasi arsitektur di `docs/CONFLICT_HANDLING_DEDUPLICATION.md`.
+
+**Decisions**
+
+- `conflictMessage` diprefiksi dengan `'Konflik Versi: '` agar backward-compatible dengan test #29 yang mengecek string tersebut.
+- `DateTime(2026)` tidak const, sehingga variabel `QueueOrder` di test diubah dari `const` ke `final`.
+
+**Validation**
+
+- `dart format --output=none --set-exit-if-changed .`: PASS (format fix di-commit setelah CI gagal pertama kali).
+- `flutter analyze`: PASS (0 issue found).
+- `flutter test test/conflict_handling_test.dart`: PASS (13/13 tests passed).
+- `flutter test`: PASS (119/119 tests passed).
+- CI: Contribution Policy ✓, Backend CI ✓, Mobile CI ✓ — PR #106 squash-merged ke main.
+
+**Next**
+
+- Lanjut ke Issue #35 (Implementasi network indicator, local notification, audio, dan heads-up alert).
 
 ### 4 September 2026 — Issue #31 Menu Availability Management
 
@@ -1190,4 +1256,3 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 
 - Buka Pull Request dan merge Issue #33 ke `main`.
 - Lanjut ke Issue #34: Implementasi conflict handling dan duplicate prevention Flutter.
-
