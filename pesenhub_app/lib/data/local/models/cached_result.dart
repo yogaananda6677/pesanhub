@@ -5,11 +5,7 @@ class CachedResult<T> {
   final DateTime? cachedAt;
   final bool isStale;
 
-  const CachedResult({
-    required this.data,
-    this.cachedAt,
-    this.isStale = false,
-  });
+  const CachedResult({required this.data, this.cachedAt, this.isStale = false});
 
   /// Time elapsed since the data was cached in local database.
   Duration get age {
@@ -25,11 +21,7 @@ class CachedResult<T> {
     return '$hour:$minute';
   }
 
-  CachedResult<T> copyWith({
-    T? data,
-    DateTime? cachedAt,
-    bool? isStale,
-  }) {
+  CachedResult<T> copyWith({T? data, DateTime? cachedAt, bool? isStale}) {
     return CachedResult<T>(
       data: data ?? this.data,
       cachedAt: cachedAt ?? this.cachedAt,
@@ -37,4 +29,3 @@ class CachedResult<T> {
     );
   }
 }
-

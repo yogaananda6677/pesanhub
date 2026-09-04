@@ -47,8 +47,8 @@ class ColdStartCacheService {
     required this.localDb,
     MenuLocalRepository? menuRepo,
     QueueLocalRepository? queueRepo,
-  })  : menuRepo = menuRepo ?? MenuLocalRepository(localDb),
-        queueRepo = queueRepo ?? QueueLocalRepository(localDb);
+  }) : menuRepo = menuRepo ?? MenuLocalRepository(localDb),
+       queueRepo = queueRepo ?? QueueLocalRepository(localDb);
 
   /// Loads cached catalog and queue state with freshness evaluation.
   Future<ColdStartSnapshot> hydrate({
@@ -164,9 +164,6 @@ class ColdStartCacheService {
       ),
     ];
 
-    await queueRepo.saveOrders(
-      orders: sampleOrders,
-      cachedAt: now,
-    );
+    await queueRepo.saveOrders(orders: sampleOrders, cachedAt: now);
   }
 }

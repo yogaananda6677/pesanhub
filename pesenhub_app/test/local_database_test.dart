@@ -26,20 +26,23 @@ void main() {
   });
 
   group('Acceptance Criteria #1: ADR & SQLite Engine Initialization', () {
-    test('Initializes SQLite database with foreign keys enabled in-memory', () async {
-      final localDb = LocalDatabase(
-        customPath: inMemoryDatabasePath,
-        customFactory: databaseFactoryFfi,
-      );
+    test(
+      'Initializes SQLite database with foreign keys enabled in-memory',
+      () async {
+        final localDb = LocalDatabase(
+          customPath: inMemoryDatabasePath,
+          customFactory: databaseFactoryFfi,
+        );
 
-      final db = await localDb.database;
-      expect(db.isOpen, isTrue);
+        final db = await localDb.database;
+        expect(db.isOpen, isTrue);
 
-      final pragmaRows = await db.rawQuery('PRAGMA foreign_keys;');
-      expect(pragmaRows.first.values.first, equals(1));
+        final pragmaRows = await db.rawQuery('PRAGMA foreign_keys;');
+        expect(pragmaRows.first.values.first, equals(1));
 
-      await localDb.close();
-    });
+        await localDb.close();
+      },
+    );
   });
 
   group('Acceptance Criteria #2: Cold Start Caching & Stale Marker', () {
@@ -94,9 +97,7 @@ void main() {
                 id: 'mod-1',
                 code: 'SPICE',
                 name: 'Level Pedas',
-                options: [
-                  MenuOption(id: 'opt-1', code: 'L1', name: 'Sedang'),
-                ],
+                options: [MenuOption(id: 'opt-1', code: 'L1', name: 'Sedang')],
               ),
             ],
           ),
@@ -116,7 +117,11 @@ void main() {
             paymentStatus: 'PAID',
             createdAt: now,
             items: const [
-              QueueOrderItem(name: 'Nasi Goreng Spesial', quantity: 1, unitPrice: 25000),
+              QueueOrderItem(
+                name: 'Nasi Goreng Spesial',
+                quantity: 1,
+                unitPrice: 25000,
+              ),
             ],
           ),
         ],
@@ -141,9 +146,7 @@ void main() {
       final pastTime = DateTime.now().subtract(const Duration(minutes: 25));
 
       await menuRepo.saveCatalog(
-        categories: [
-          const MenuCategory(id: 'cat-1', name: 'Makanan'),
-        ],
+        categories: [const MenuCategory(id: 'cat-1', name: 'Makanan')],
         items: [
           const MenuItem(
             id: 'menu-1',
@@ -156,10 +159,7 @@ void main() {
         cachedAt: pastTime,
       );
 
-      await queueRepo.saveOrders(
-        orders: [],
-        cachedAt: pastTime,
-      );
+      await queueRepo.saveOrders(orders: [], cachedAt: pastTime);
 
       final snapshot = await coldStartService.hydrate(
         staleThreshold: const Duration(minutes: 15),
@@ -171,19 +171,22 @@ void main() {
       expect(snapshot.catalog.formattedCachedAt, isNotEmpty);
     });
 
-    test('Seeding sample data populates initial catalog and queue with PII masking', () async {
-      await coldStartService.seedInitialSampleDataIfEmpty();
+    test(
+      'Seeding sample data populates initial catalog and queue with PII masking',
+      () async {
+        await coldStartService.seedInitialSampleDataIfEmpty();
 
-      final snapshot = await coldStartService.hydrate();
-      expect(snapshot.hasCachedData, isTrue);
-      expect(snapshot.catalog.data.items.length, greaterThanOrEqualTo(6));
-      expect(snapshot.queue.data.length, greaterThanOrEqualTo(2));
+        final snapshot = await coldStartService.hydrate();
+        expect(snapshot.hasCachedData, isTrue);
+        expect(snapshot.catalog.data.items.length, greaterThanOrEqualTo(6));
+        expect(snapshot.queue.data.length, greaterThanOrEqualTo(2));
 
-      // Check all seeded phone numbers are masked
-      for (final order in snapshot.queue.data) {
-        expect(order.customerPhone.contains('*'), isTrue);
-      }
-    });
+        // Check all seeded phone numbers are masked
+        for (final order in snapshot.queue.data) {
+          expect(order.customerPhone.contains('*'), isTrue);
+        }
+      },
+    );
   });
 
   group('Acceptance Criteria #3: Local Migration v1 to v2 Without Record Loss', () {
@@ -300,11 +303,19 @@ void main() {
       expect(countItemsV2, equals(1));
 
       // Verify row details in v2
-      final menuRow = (await dbV2.query('menus', where: 'id = ?', whereArgs: ['menu-fixture-1'])).first;
+      final menuRow = (await dbV2.query(
+        'menus',
+        where: 'id = ?',
+        whereArgs: ['menu-fixture-1'],
+      )).first;
       expect(menuRow['name'], equals('Nasi Goreng Fixture'));
       expect(menuRow['price_amount'], equals(28000));
 
-      final orderRow = (await dbV2.query('queue_orders', where: 'id = ?', whereArgs: ['ord-fixture-1'])).first;
+      final orderRow = (await dbV2.query(
+        'queue_orders',
+        where: 'id = ?',
+        whereArgs: ['ord-fixture-1'],
+      )).first;
       expect(orderRow['customer_name'], equals('Pelanggan Tetap'));
       expect(orderRow['customer_phone_masked'], equals('0812****9999'));
 
@@ -333,212 +344,251 @@ void main() {
     });
   });
 
-  group('Acceptance Criteria #4: PII Redaction & Storage Security (Invariant 11)', () {
-    late LocalDatabase localDb;
-    late QueueLocalRepository queueRepo;
+  group(
+    'Acceptance Criteria #4: PII Redaction & Storage Security (Invariant 11)',
+    () {
+      late LocalDatabase localDb;
+      late QueueLocalRepository queueRepo;
 
-    setUp(() {
-      localDb = LocalDatabase(
-        customPath: inMemoryDatabasePath,
-        customFactory: databaseFactoryFfi,
-      );
-      queueRepo = QueueLocalRepository(localDb);
-    });
+      setUp(() {
+        localDb = LocalDatabase(
+          customPath: inMemoryDatabasePath,
+          customFactory: databaseFactoryFfi,
+        );
+        queueRepo = QueueLocalRepository(localDb);
+      });
 
-    tearDown(() async {
-      await localDb.close();
-    });
+      tearDown(() async {
+        await localDb.close();
+      });
 
-    test('PiiSanitizer masks various phone formats accurately', () {
-      expect(PiiSanitizer.maskPhone('081234567890'), equals('0812****7890'));
-      expect(PiiSanitizer.maskPhone('0857-1122-3344'), equals('0857****3344'));
-      expect(PiiSanitizer.maskPhone('0812****7890'), equals('0812****7890'));
-      expect(PiiSanitizer.maskPhone('Kasir'), equals('Kasir'));
-      expect(PiiSanitizer.maskPhone(''), equals(''));
-      expect(PiiSanitizer.maskPhone(null), equals(''));
-    });
+      test('PiiSanitizer masks various phone formats accurately', () {
+        expect(PiiSanitizer.maskPhone('081234567890'), equals('0812****7890'));
+        expect(
+          PiiSanitizer.maskPhone('0857-1122-3344'),
+          equals('0857****3344'),
+        );
+        expect(PiiSanitizer.maskPhone('0812****7890'), equals('0812****7890'));
+        expect(PiiSanitizer.maskPhone('Kasir'), equals('Kasir'));
+        expect(PiiSanitizer.maskPhone(''), equals(''));
+        expect(PiiSanitizer.maskPhone(null), equals(''));
+      });
 
-    test('Raw customer phone numbers are sanitized before SQLite persistence', () async {
-      await queueRepo.saveOrders(
-        orders: [
-          QueueOrder(
-            id: 'ord-pii-1',
-            orderNumber: '#ORD-PII',
-            customerName: 'Ahmad Dahlan',
-            customerPhone: '081298765432', // raw phone
-            source: 'WHATSAPP',
-            orderStatus: 'PENDING',
-            paymentStatus: 'PAID',
-            createdAt: DateTime.now(),
-            items: const [],
-          ),
-        ],
-      );
+      test(
+        'Raw customer phone numbers are sanitized before SQLite persistence',
+        () async {
+          await queueRepo.saveOrders(
+            orders: [
+              QueueOrder(
+                id: 'ord-pii-1',
+                orderNumber: '#ORD-PII',
+                customerName: 'Ahmad Dahlan',
+                customerPhone: '081298765432', // raw phone
+                source: 'WHATSAPP',
+                orderStatus: 'PENDING',
+                paymentStatus: 'PAID',
+                createdAt: DateTime.now(),
+                items: const [],
+              ),
+            ],
+          );
 
-      final db = await localDb.database;
-      final rows = await db.query('queue_orders', where: 'id = ?', whereArgs: ['ord-pii-1']);
-      final storedPhone = rows.first['customer_phone_masked'] as String;
+          final db = await localDb.database;
+          final rows = await db.query(
+            'queue_orders',
+            where: 'id = ?',
+            whereArgs: ['ord-pii-1'],
+          );
+          final storedPhone = rows.first['customer_phone_masked'] as String;
 
-      expect(storedPhone, equals('0812****5432'));
-      expect(storedPhone.contains('9876'), isFalse); // raw middle digits must never be present
-    });
-
-    test('Prohibits storing auth tokens and sensitive credentials in sync_metadata', () async {
-      // Benign keys must succeed
-      await localDb.setMetadata('last_sync_timestamp', '2026-09-04T07:00:00Z');
-      await localDb.setMetadata('device_id', 'pos-pos-terminal-01');
-
-      final timestamp = await localDb.getMetadata('last_sync_timestamp');
-      expect(timestamp, equals('2026-09-04T07:00:00Z'));
-
-      // Sensitive keys must be rejected with ArgumentError
-      expect(
-        () => localDb.setMetadata('auth_token', 'jwt.secret.token'),
-        throwsA(isA<ArgumentError>()),
-      );
-      expect(
-        () => localDb.setMetadata('refresh_token', 'jwt.refresh.token'),
-        throwsA(isA<ArgumentError>()),
-      );
-      expect(
-        () => localDb.setMetadata('user_password', 'p@ssword123'),
-        throwsA(isA<ArgumentError>()),
-      );
-      expect(
-        () => localDb.setMetadata('api_secret_key', 'supersecret'),
-        throwsA(isA<ArgumentError>()),
-      );
-      expect(
-        () => localDb.setMetadata('bearer_token', 'Bearer eyJhbGciOi...'),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
-  });
-
-  group('Acceptance Criteria #5: Responsive UI Cache States on Mobile & Tablet', () {
-    testWidgets('Renders loading state with progress indicator', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: CacheStatusView(status: CacheViewStatus.loading),
-          ),
-        ),
+          expect(storedPhone, equals('0812****5432'));
+          expect(
+            storedPhone.contains('9876'),
+            isFalse,
+          ); // raw middle digits must never be present
+        },
       );
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Memuat data dari database lokal...'), findsOneWidget);
-    });
+      test(
+        'Prohibits storing auth tokens and sensitive credentials in sync_metadata',
+        () async {
+          // Benign keys must succeed
+          await localDb.setMetadata(
+            'last_sync_timestamp',
+            '2026-09-04T07:00:00Z',
+          );
+          await localDb.setMetadata('device_id', 'pos-pos-terminal-01');
 
-    testWidgets('Renders stale cache banner with formatted time and refresh action', (tester) async {
-      bool refreshTapped = false;
+          final timestamp = await localDb.getMetadata('last_sync_timestamp');
+          expect(timestamp, equals('2026-09-04T07:00:00Z'));
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: CacheStatusView(
-              status: CacheViewStatus.stale,
-              cachedAtFormatted: '12:30',
-              onRefresh: () => refreshTapped = true,
-              child: const Text('Cached Content Visible'),
+          // Sensitive keys must be rejected with ArgumentError
+          expect(
+            () => localDb.setMetadata('auth_token', 'jwt.secret.token'),
+            throwsA(isA<ArgumentError>()),
+          );
+          expect(
+            () => localDb.setMetadata('refresh_token', 'jwt.refresh.token'),
+            throwsA(isA<ArgumentError>()),
+          );
+          expect(
+            () => localDb.setMetadata('user_password', 'p@ssword123'),
+            throwsA(isA<ArgumentError>()),
+          );
+          expect(
+            () => localDb.setMetadata('api_secret_key', 'supersecret'),
+            throwsA(isA<ArgumentError>()),
+          );
+          expect(
+            () => localDb.setMetadata('bearer_token', 'Bearer eyJhbGciOi...'),
+            throwsA(isA<ArgumentError>()),
+          );
+        },
+      );
+    },
+  );
+
+  group(
+    'Acceptance Criteria #5: Responsive UI Cache States on Mobile & Tablet',
+    () {
+      testWidgets('Renders loading state with progress indicator', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: CacheStatusView(status: CacheViewStatus.loading),
             ),
           ),
-        ),
+        );
+
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.text('Memuat data dari database lokal...'), findsOneWidget);
+      });
+
+      testWidgets(
+        'Renders stale cache banner with formatted time and refresh action',
+        (tester) async {
+          bool refreshTapped = false;
+
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: CacheStatusView(
+                  status: CacheViewStatus.stale,
+                  cachedAtFormatted: '12:30',
+                  onRefresh: () => refreshTapped = true,
+                  child: const Text('Cached Content Visible'),
+                ),
+              ),
+            ),
+          );
+
+          expect(find.byKey(const Key('stale-cache-banner')), findsOneWidget);
+          expect(
+            find.textContaining(
+              'Mode Offline: Menampilkan data cache lokal (Terakhir disimpan: 12:30)',
+            ),
+            findsOneWidget,
+          );
+          expect(find.text('Cached Content Visible'), findsOneWidget);
+
+          await tester.tap(find.byIcon(Icons.refresh_rounded));
+          await tester.pump();
+          expect(refreshTapped, isTrue);
+        },
       );
 
-      expect(find.byKey(const Key('stale-cache-banner')), findsOneWidget);
-      expect(find.textContaining('Mode Offline: Menampilkan data cache lokal (Terakhir disimpan: 12:30)'), findsOneWidget);
-      expect(find.text('Cached Content Visible'), findsOneWidget);
+      testWidgets('Renders empty cache state with sync action', (tester) async {
+        bool syncTapped = false;
 
-      await tester.tap(find.byIcon(Icons.refresh_rounded));
-      await tester.pump();
-      expect(refreshTapped, isTrue);
-    });
-
-    testWidgets('Renders empty cache state with sync action', (tester) async {
-      bool syncTapped = false;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: CacheStatusView(
-              status: CacheViewStatus.empty,
-              onRefresh: () => syncTapped = true,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: CacheStatusView(
+                status: CacheViewStatus.empty,
+                onRefresh: () => syncTapped = true,
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('Database Lokal Kosong'), findsOneWidget);
-      expect(find.text('Sinkronkan Sekarang'), findsOneWidget);
+        expect(find.text('Database Lokal Kosong'), findsOneWidget);
+        expect(find.text('Sinkronkan Sekarang'), findsOneWidget);
 
-      await tester.tap(find.text('Sinkronkan Sekarang'));
-      await tester.pump();
-      expect(syncTapped, isTrue);
-    });
+        await tester.tap(find.text('Sinkronkan Sekarang'));
+        await tester.pump();
+        expect(syncTapped, isTrue);
+      });
 
-    testWidgets('Renders error state with retry action', (tester) async {
-      bool retryTapped = false;
+      testWidgets('Renders error state with retry action', (tester) async {
+        bool retryTapped = false;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: CacheStatusView(
-              status: CacheViewStatus.error,
-              errorMessage: 'Database disk I/O failure',
-              onRetry: () => retryTapped = true,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: CacheStatusView(
+                status: CacheViewStatus.error,
+                errorMessage: 'Database disk I/O failure',
+                onRetry: () => retryTapped = true,
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('Database disk I/O failure'), findsOneWidget);
-      expect(find.text('Coba Lagi'), findsOneWidget);
+        expect(find.text('Database disk I/O failure'), findsOneWidget);
+        expect(find.text('Coba Lagi'), findsOneWidget);
 
-      await tester.tap(find.text('Coba Lagi'));
-      await tester.pump();
-      expect(retryTapped, isTrue);
-    });
+        await tester.tap(find.text('Coba Lagi'));
+        await tester.pump();
+        expect(retryTapped, isTrue);
+      });
 
-    testWidgets('Renders without overflow on mobile viewport (390 x 844)', (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+      testWidgets('Renders without overflow on mobile viewport (390 x 844)', (
+        tester,
+      ) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: CacheStatusView(
-              status: CacheViewStatus.stale,
-              cachedAtFormatted: '14:15',
-              child: Center(child: Text('Mobile Viewport')),
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: CacheStatusView(
+                status: CacheViewStatus.stale,
+                cachedAtFormatted: '14:15',
+                child: Center(child: Text('Mobile Viewport')),
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(tester.takeException(), isNull);
-      expect(find.text('Mobile Viewport'), findsOneWidget);
-    });
+        expect(tester.takeException(), isNull);
+        expect(find.text('Mobile Viewport'), findsOneWidget);
+      });
 
-    testWidgets('Renders without overflow on tablet viewport (1024 x 768)', (tester) async {
-      tester.view.physicalSize = const Size(1024, 768);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+      testWidgets('Renders without overflow on tablet viewport (1024 x 768)', (
+        tester,
+      ) async {
+        tester.view.physicalSize = const Size(1024, 768);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: CacheStatusView(
-              status: CacheViewStatus.stale,
-              cachedAtFormatted: '14:15',
-              child: Center(child: Text('Tablet Viewport')),
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: CacheStatusView(
+                status: CacheViewStatus.stale,
+                cachedAtFormatted: '14:15',
+                child: Center(child: Text('Tablet Viewport')),
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(tester.takeException(), isNull);
-      expect(find.text('Tablet Viewport'), findsOneWidget);
-    });
-  });
+        expect(tester.takeException(), isNull);
+        expect(find.text('Tablet Viewport'), findsOneWidget);
+      });
+    },
+  );
 }

@@ -34,77 +34,59 @@ class QueueLocalRepository {
         // Enforce PII Sanitization (Invariant 11)
         final maskedPhone = PiiSanitizer.maskPhone(order.customerPhone);
 
-        await txn.insert(
-          'queue_orders',
-          {
-            'id': order.id,
-            'order_number': order.orderNumber,
-            'customer_name': order.customerName,
-            'customer_phone_masked': maskedPhone,
-            'source': order.source,
-            'order_status': order.orderStatus,
-            'payment_status': order.paymentStatus,
-            'is_takeaway': order.isTakeaway ? 1 : 0,
-            'takeaway_notes': order.takeawayNotes,
-            'created_at': order.createdAt.toIso8601String(),
-            'version': order.version,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert('queue_orders', {
+          'id': order.id,
+          'order_number': order.orderNumber,
+          'customer_name': order.customerName,
+          'customer_phone_masked': maskedPhone,
+          'source': order.source,
+          'order_status': order.orderStatus,
+          'payment_status': order.paymentStatus,
+          'is_takeaway': order.isTakeaway ? 1 : 0,
+          'takeaway_notes': order.takeawayNotes,
+          'created_at': order.createdAt.toIso8601String(),
+          'version': order.version,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
 
         // Insert items for this order
         for (final item in order.items) {
-          await txn.insert(
-            'queue_order_items',
-            {
-              'order_id': order.id,
-              'name': item.name,
-              'quantity': item.quantity,
-              'unit_price': item.unitPrice,
-              'notes': item.notes,
-              'is_drink': item.isDrink ? 1 : 0,
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
+          await txn.insert('queue_order_items', {
+            'order_id': order.id,
+            'name': item.name,
+            'quantity': item.quantity,
+            'unit_price': item.unitPrice,
+            'notes': item.notes,
+            'is_drink': item.isDrink ? 1 : 0,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
         }
 
         // Maintain recent_customers if table exists (v2 schema feature)
         try {
-          await txn.insert(
-            'recent_customers',
-            {
-              'id': 'cust-${order.customerName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')}',
-              'name': order.customerName,
-              'masked_phone': maskedPhone,
-              'last_order_at': order.createdAt.toIso8601String(),
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
+          await txn.insert('recent_customers', {
+            'id':
+                'cust-${order.customerName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')}',
+            'name': order.customerName,
+            'masked_phone': maskedPhone,
+            'last_order_at': order.createdAt.toIso8601String(),
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
         } catch (_) {
           // Ignore if running on v1 schema before migration
         }
       }
 
       // Record queue cache timestamp
-      await txn.insert(
-        'sync_metadata',
-        {
-          'key': metadataKeyLastCached,
-          'value': timestamp,
-          'updated_at': DateTime.now().toIso8601String(),
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await txn.insert('sync_metadata', {
+        'key': metadataKeyLastCached,
+        'value': timestamp,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     });
   }
 
   /// Retrieves all cached orders along with their nested line items.
   Future<List<QueueOrder>> getOrders() async {
     final db = await _localDb.database;
-    final orderRows = await db.query(
-      'queue_orders',
-      orderBy: 'created_at ASC',
-    );
+    final orderRows = await db.query('queue_orders', orderBy: 'created_at ASC');
 
     final List<QueueOrder> result = [];
 
@@ -117,13 +99,17 @@ class QueueLocalRepository {
         orderBy: 'id ASC',
       );
 
-      final items = itemRows.map((i) => QueueOrderItem(
-        name: i['name'] as String,
-        quantity: i['quantity'] as int,
-        unitPrice: i['unit_price'] as int,
-        notes: i['notes'] as String?,
-        isDrink: (i['is_drink'] as int) == 1,
-      )).toList();
+      final items = itemRows
+          .map(
+            (i) => QueueOrderItem(
+              name: i['name'] as String,
+              quantity: i['quantity'] as int,
+              unitPrice: i['unit_price'] as int,
+              notes: i['notes'] as String?,
+              isDrink: (i['is_drink'] as int) == 1,
+            ),
+          )
+          .toList();
 
       result.add(
         QueueOrder(
@@ -137,7 +123,8 @@ class QueueLocalRepository {
           isTakeaway: (row['is_takeaway'] as int) == 1,
           takeawayNotes: row['takeaway_notes'] as String?,
           items: items,
-          createdAt: DateTime.tryParse(row['created_at'] as String) ?? DateTime.now(),
+          createdAt:
+              DateTime.tryParse(row['created_at'] as String) ?? DateTime.now(),
           version: row['version'] as int? ?? 1,
         ),
       );
@@ -147,14 +134,15 @@ class QueueLocalRepository {
   }
 
   /// Updates status and version for a specific order.
-  Future<void> updateOrderStatus(String id, String status, int newVersion) async {
+  Future<void> updateOrderStatus(
+    String id,
+    String status,
+    int newVersion,
+  ) async {
     final db = await _localDb.database;
     await db.update(
       'queue_orders',
-      {
-        'order_status': status,
-        'version': newVersion,
-      },
+      {'order_status': status, 'version': newVersion},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -171,7 +159,8 @@ class QueueLocalRepository {
       cachedAt = DateTime.tryParse(lastCachedStr);
     }
 
-    final isStale = cachedAt == null ||
+    final isStale =
+        cachedAt == null ||
         DateTime.now().difference(cachedAt) > staleThreshold;
 
     return CachedResult<List<QueueOrder>>(
@@ -181,4 +170,3 @@ class QueueLocalRepository {
     );
   }
 }
-

@@ -31,7 +31,8 @@ class LocalDatabase {
     if (customPath != null) {
       path = customPath!;
     } else {
-      final dbFolder = await (customFactory ?? databaseFactory).getDatabasesPath();
+      final dbFolder = await (customFactory ?? databaseFactory)
+          .getDatabasesPath();
       path = p.join(dbFolder, defaultDbName);
     }
 
@@ -149,15 +150,11 @@ class LocalDatabase {
   Future<void> setMetadata(String key, String value) async {
     PiiSanitizer.validateMetadataKey(key);
     final db = await database;
-    await db.insert(
-      'sync_metadata',
-      {
-        'key': key,
-        'value': value,
-        'updated_at': DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('sync_metadata', {
+      'key': key,
+      'value': value,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   /// Retrieves metadata entry by key, or null if not found.
@@ -195,4 +192,3 @@ class LocalDatabase {
     }
   }
 }
-

@@ -5,13 +5,7 @@ import '../theme/app_typography.dart';
 import 'app_button.dart';
 
 /// Status state of the local cache.
-enum CacheViewStatus {
-  loading,
-  success,
-  stale,
-  empty,
-  error,
-}
+enum CacheViewStatus { loading, success, stale, empty, error }
 
 /// CacheStatusView displays comprehensive cache states (Loading, Success, Stale, Empty, Error)
 /// for local database cold start and offline operations on mobile and tablet.
@@ -72,7 +66,9 @@ class CacheStatusView extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   errorMessage ?? 'Gagal membaca database lokal',
-                  style: AppTypography.titleMedium.copyWith(color: AppColors.error),
+                  style: AppTypography.titleMedium.copyWith(
+                    color: AppColors.error,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 if (onRetry != null) ...[

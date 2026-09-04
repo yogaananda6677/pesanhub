@@ -12,10 +12,7 @@ class MenuCatalogSnapshot {
   final List<MenuCategory> categories;
   final List<MenuItem> items;
 
-  const MenuCatalogSnapshot({
-    required this.categories,
-    required this.items,
-  });
+  const MenuCatalogSnapshot({required this.categories, required this.items});
 }
 
 /// MenuLocalRepository manages persistent SQLite storage and caching
@@ -44,86 +41,83 @@ class MenuLocalRepository {
 
       // Insert categories
       for (final cat in categories) {
-        await txn.insert(
-          'categories',
-          {
-            'id': cat.id,
-            'name': cat.name,
-            'sort_order': cat.sortOrder,
-            'is_active': cat.isActive ? 1 : 0,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert('categories', {
+          'id': cat.id,
+          'name': cat.name,
+          'sort_order': cat.sortOrder,
+          'is_active': cat.isActive ? 1 : 0,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
 
       // Insert menu items
       for (final item in items) {
         final modifierGroupsJson = jsonEncode(
-          item.modifierGroups.map((g) => {
-            'id': g.id,
-            'code': g.code,
-            'name': g.name,
-            'min_select': g.minSelect,
-            'max_select': g.maxSelect,
-            'sort_order': g.sortOrder,
-            'is_active': g.isActive,
-            'options': g.options.map((o) => {
-              'id': o.id,
-              'code': o.code,
-              'name': o.name,
-              'price_delta_amount': o.priceDeltaAmount,
-              'is_available': o.isAvailable,
-              'sort_order': o.sortOrder,
-            }).toList(),
-          }).toList(),
+          item.modifierGroups
+              .map(
+                (g) => {
+                  'id': g.id,
+                  'code': g.code,
+                  'name': g.name,
+                  'min_select': g.minSelect,
+                  'max_select': g.maxSelect,
+                  'sort_order': g.sortOrder,
+                  'is_active': g.isActive,
+                  'options': g.options
+                      .map(
+                        (o) => {
+                          'id': o.id,
+                          'code': o.code,
+                          'name': o.name,
+                          'price_delta_amount': o.priceDeltaAmount,
+                          'is_available': o.isAvailable,
+                          'sort_order': o.sortOrder,
+                        },
+                      )
+                      .toList(),
+                },
+              )
+              .toList(),
         );
 
-        await txn.insert(
-          'menus',
-          {
-            'id': item.id,
-            'category_id': item.categoryId,
-            'sku': item.sku,
-            'name': item.name,
-            'description': item.description,
-            'price_amount': item.priceAmount,
-            'is_available': item.isAvailable ? 1 : 0,
-            'version': item.version,
-            'sort_order': item.sortOrder,
-            'is_drink': item.isDrink ? 1 : 0,
-            'modifier_groups_json': modifierGroupsJson,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert('menus', {
+          'id': item.id,
+          'category_id': item.categoryId,
+          'sku': item.sku,
+          'name': item.name,
+          'description': item.description,
+          'price_amount': item.priceAmount,
+          'is_available': item.isAvailable ? 1 : 0,
+          'version': item.version,
+          'sort_order': item.sortOrder,
+          'is_drink': item.isDrink ? 1 : 0,
+          'modifier_groups_json': modifierGroupsJson,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
 
       // Record cache timestamp
-      await txn.insert(
-        'sync_metadata',
-        {
-          'key': metadataKeyLastCached,
-          'value': timestamp,
-          'updated_at': DateTime.now().toIso8601String(),
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await txn.insert('sync_metadata', {
+        'key': metadataKeyLastCached,
+        'value': timestamp,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     });
   }
 
   /// Retrieves all cached categories sorted by sort_order ASC.
   Future<List<MenuCategory>> getCategories() async {
     final db = await _localDb.database;
-    final rows = await db.query(
-      'categories',
-      orderBy: 'sort_order ASC',
-    );
+    final rows = await db.query('categories', orderBy: 'sort_order ASC');
 
-    return rows.map((row) => MenuCategory(
-      id: row['id'] as String,
-      name: row['name'] as String,
-      sortOrder: row['sort_order'] as int? ?? 0,
-      isActive: (row['is_active'] as int? ?? 1) == 1,
-    )).toList();
+    return rows
+        .map(
+          (row) => MenuCategory(
+            id: row['id'] as String,
+            name: row['name'] as String,
+            sortOrder: row['sort_order'] as int? ?? 0,
+            isActive: (row['is_active'] as int? ?? 1) == 1,
+          ),
+        )
+        .toList();
   }
 
   /// Retrieves cached menu items, optionally filtered by categoryId.
@@ -138,10 +132,7 @@ class MenuLocalRepository {
         orderBy: 'sort_order ASC',
       );
     } else {
-      rows = await db.query(
-        'menus',
-        orderBy: 'sort_order ASC',
-      );
+      rows = await db.query('menus', orderBy: 'sort_order ASC');
     }
 
     return rows.map((row) {
@@ -152,14 +143,18 @@ class MenuLocalRepository {
           final decoded = jsonDecode(rawGroups) as List<dynamic>;
           modifierGroups = decoded.map((g) {
             final rawOptions = g['options'] as List<dynamic>? ?? [];
-            final options = rawOptions.map((o) => MenuOption(
-              id: o['id'] as String? ?? '',
-              code: o['code'] as String? ?? '',
-              name: o['name'] as String? ?? '',
-              priceDeltaAmount: o['price_delta_amount'] as int? ?? 0,
-              isAvailable: o['is_available'] as bool? ?? true,
-              sortOrder: o['sort_order'] as int? ?? 0,
-            )).toList();
+            final options = rawOptions
+                .map(
+                  (o) => MenuOption(
+                    id: o['id'] as String? ?? '',
+                    code: o['code'] as String? ?? '',
+                    name: o['name'] as String? ?? '',
+                    priceDeltaAmount: o['price_delta_amount'] as int? ?? 0,
+                    isAvailable: o['is_available'] as bool? ?? true,
+                    sortOrder: o['sort_order'] as int? ?? 0,
+                  ),
+                )
+                .toList();
 
             return MenuModifierGroup(
               id: g['id'] as String? ?? '',
@@ -168,7 +163,8 @@ class MenuLocalRepository {
               minSelect: g['min_select'] as int? ?? 0,
               maxSelect: g['max_select'] as int? ?? 1,
               sortOrder: g['sort_order'] as int? ?? 0,
-              isActive: g['isActive'] as bool? ?? g['is_active'] as bool? ?? true,
+              isActive:
+                  g['isActive'] as bool? ?? g['is_active'] as bool? ?? true,
               options: options,
             );
           }).toList();
@@ -194,14 +190,15 @@ class MenuLocalRepository {
   }
 
   /// Updates availability status and version for a specific menu item.
-  Future<void> updateMenuAvailability(String id, bool isAvailable, int newVersion) async {
+  Future<void> updateMenuAvailability(
+    String id,
+    bool isAvailable,
+    int newVersion,
+  ) async {
     final db = await _localDb.database;
     await db.update(
       'menus',
-      {
-        'is_available': isAvailable ? 1 : 0,
-        'version': newVersion,
-      },
+      {'is_available': isAvailable ? 1 : 0, 'version': newVersion},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -220,7 +217,8 @@ class MenuLocalRepository {
       cachedAt = DateTime.tryParse(lastCachedStr);
     }
 
-    final isStale = cachedAt == null ||
+    final isStale =
+        cachedAt == null ||
         DateTime.now().difference(cachedAt) > staleThreshold;
 
     return CachedResult<MenuCatalogSnapshot>(
@@ -230,4 +228,3 @@ class MenuLocalRepository {
     );
   }
 }
-
