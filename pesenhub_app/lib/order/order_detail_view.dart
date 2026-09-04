@@ -8,6 +8,7 @@ import '../widgets/app_card.dart';
 import '../widgets/app_feedback.dart';
 import '../widgets/app_status_badge.dart';
 import 'controllers/order_detail_controller.dart';
+import 'widgets/conflict_resolution_dialog.dart';
 import 'widgets/order_payment_card.dart';
 import 'widgets/order_status_timeline.dart';
 
@@ -195,25 +196,47 @@ class OrderDetailView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Criteria #2: Conflict Warning Banner
+                    // Criteria #2 & #3: Conflict Warning Banner & Resolution
                     if (conflictMsg != null) ...[
                       AppBanner(
                         message: conflictMsg,
-                        type: AppBannerType.warning,
+                        type: controller.activeConflict?.isSafe == true
+                            ? AppBannerType.warning
+                            : AppBannerType.error,
                       ),
                       const SizedBox(height: AppSpacing.xs),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          icon: const Icon(Icons.refresh_rounded, size: 16),
-                          label: const Text('Muat Ulang Data Terbaru'),
-                          onPressed: () async {
-                            if (reloadFn != null) {
-                              final fresh = await reloadFn!(order.id);
-                              controller.updateOrder(fresh);
-                            }
-                          },
-                        ),
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: AppSpacing.sm,
+                        children: [
+                          if (controller.activeConflict != null &&
+                              controller.activeConflict!.isSafe)
+                            TextButton.icon(
+                              icon: const Icon(Icons.tune_rounded, size: 16),
+                              label: const Text('Pilih Resolusi Konflik'),
+                              onPressed: () {
+                                ConflictResolutionDialog.show(
+                                  context: context,
+                                  classification: controller.activeConflict!,
+                                  onResolve: (strategy) {
+                                    controller.resolveConflict(
+                                      strategy: strategy,
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          TextButton.icon(
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Muat Ulang Data Terbaru'),
+                            onPressed: () async {
+                              if (reloadFn != null) {
+                                final fresh = await reloadFn!(order.id);
+                                controller.updateOrder(fresh);
+                              }
+                            },
+                          ),
+                        ],
                       ),
                       const SizedBox(height: AppSpacing.md),
                     ],

@@ -6,7 +6,7 @@ import '../../core/utils/pii_sanitizer.dart';
 /// and relational storage for PesenHub POS and KDS.
 /// Fulfills Issue #32 Acceptance Criteria #1, #3, and #4.
 class LocalDatabase {
-  static const int currentVersion = 3;
+  static const int currentVersion = 4;
   static const String defaultDbName = 'pesenhub.db';
 
   final String? customPath;
@@ -52,6 +52,9 @@ class LocalDatabase {
           if (version >= 3) {
             await _migrateToV3(db);
           }
+          if (version >= 4) {
+            await _migrateToV4(db);
+          }
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2 && newVersion >= 2) {
@@ -59,6 +62,9 @@ class LocalDatabase {
           }
           if (oldVersion < 3 && newVersion >= 3) {
             await _migrateToV3(db);
+          }
+          if (oldVersion < 4 && newVersion >= 4) {
+            await _migrateToV4(db);
           }
         },
       ),
@@ -182,6 +188,29 @@ class LocalDatabase {
     ''');
   }
 
+  /// v4 Schema migration: adds conflict_logs table for sanitized audit records.
+  static Future<void> _migrateToV4(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS conflict_logs (
+        id TEXT PRIMARY KEY,
+        order_id TEXT NOT NULL,
+        client_order_id TEXT,
+        conflict_type TEXT NOT NULL,
+        resolution_strategy TEXT NOT NULL,
+        client_version INTEGER NOT NULL,
+        server_version INTEGER NOT NULL,
+        resolved_payload_json TEXT NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL
+      );
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_conflict_logs_order 
+      ON conflict_logs (order_id);
+    ''');
+  }
+
   /// Sets metadata entry with validation against sensitive tokens/secrets.
   Future<void> setMetadata(String key, String value) async {
     PiiSanitizer.validateMetadataKey(key);
@@ -211,6 +240,7 @@ class LocalDatabase {
   Future<void> clearAllData() async {
     final db = await database;
     await db.transaction((txn) async {
+      await txn.delete('conflict_logs');
       await txn.delete('outbox_mutations');
       await txn.delete('queue_order_items');
       await txn.delete('queue_orders');

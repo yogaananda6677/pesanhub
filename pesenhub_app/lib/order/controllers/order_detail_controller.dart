@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import '../../data/local/conflict_audit_repository.dart';
 import '../../queue/models/queue_order.dart';
 import '../models/order_action.dart';
+import '../models/order_conflict.dart';
 
 /// OrderDetailController manages order detail presentation, optimistic version conflict
 /// resolution, and role-based contextual status transitions.
-/// Fulfills Issue #29 Criteria #1, #2, #3, and #4.
+/// Fulfills Issue #29 & #34 Criteria (conflict classification, server-wins protection).
 class OrderDetailController extends ChangeNotifier {
   QueueOrder _order;
   String _role; // 'STAFF', 'KDS', 'CUSTOMER'
 
   bool _isExecutingAction = false;
   String? _conflictMessage;
+  ConflictClassification? _activeConflict;
   String? _errorMessage;
   String? _successMessage;
 
@@ -24,6 +27,8 @@ class OrderDetailController extends ChangeNotifier {
   String get role => _role;
   bool get isExecutingAction => _isExecutingAction;
   String? get conflictMessage => _conflictMessage;
+  ConflictClassification? get activeConflict => _activeConflict;
+  bool get hasConflict => _activeConflict != null || _conflictMessage != null;
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
 
@@ -34,12 +39,14 @@ class OrderDetailController extends ChangeNotifier {
 
   void updateOrder(QueueOrder freshOrder) {
     _order = freshOrder;
+    _activeConflict = null;
     _conflictMessage = null;
     _errorMessage = null;
     notifyListeners();
   }
 
   void clearMessages() {
+    _activeConflict = null;
     _conflictMessage = null;
     _errorMessage = null;
     _successMessage = null;
@@ -201,21 +208,32 @@ class OrderDetailController extends ChangeNotifier {
       _isExecutingAction = false;
       final errorStr = e.toString();
 
-      // Criteria #2: Stale version conflict detection
+      // Issue #34: Stale version conflict detection and classification
       if (errorStr.contains('VERSION_CONFLICT') ||
           errorStr.contains('conflict') ||
           errorStr.contains('stale') ||
           errorStr.contains('409')) {
-        _conflictMessage =
-            'Konflik Versi: Pesanan telah diperbarui oleh perangkat atau staf lain. Memuat data terbaru dari server...';
-        notifyListeners();
-
-        // Reload fresh order from server WITHOUT overwriting
         if (reloadFn != null) {
           try {
-            final freshOrder = await reloadFn(_order.id);
-            _order = freshOrder;
-          } catch (_) {}
+            final serverOrder = await reloadFn(_order.id);
+            final classification = ConflictClassifier.classify(
+              localOrder: _order,
+              serverOrder: serverOrder,
+            );
+            _activeConflict = classification;
+            _conflictMessage = 'Konflik Versi: ${classification.reason}';
+
+            if (classification.enforcesServerWins) {
+              // Criteria #1: Enforce server-wins for payment and terminal state
+              _order = serverOrder;
+            }
+          } catch (_) {
+            _conflictMessage =
+                'Konflik Versi: Pesanan telah diperbarui oleh perangkat atau staf lain. Memuat data terbaru dari server...';
+          }
+        } else {
+          _conflictMessage =
+              'Konflik Versi: Pesanan telah diperbarui oleh perangkat atau staf lain.';
         }
       } else {
         _errorMessage = 'Gagal memperbarui status: $errorStr';
@@ -223,5 +241,46 @@ class OrderDetailController extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// Resolves an active safe conflict using the given strategy.
+  /// Fulfills Criteria #3 (safe conflict has clear resolution choices) and #4 (audit log without PII).
+  Future<void> resolveConflict({
+    required ResolutionStrategy strategy,
+    ConflictAuditRepository? auditRepo,
+  }) async {
+    if (_activeConflict == null) return;
+
+    final resolved = ConflictResolver.resolve(
+      classification: _activeConflict!,
+      strategy: strategy,
+    );
+
+    if (auditRepo != null) {
+      try {
+        await auditRepo.logConflict(
+          id: 'conf-${DateTime.now().millisecondsSinceEpoch}',
+          orderId: resolved.id,
+          clientOrderId: _activeConflict!.localOrder.id,
+          conflictType: _activeConflict!.type.name,
+          resolutionStrategy: strategy.name,
+          clientVersion: _activeConflict!.localOrder.version,
+          serverVersion: _activeConflict!.serverOrder.version,
+          resolvedPayload: {
+            'order_status': resolved.orderStatus,
+            'payment_status': resolved.paymentStatus,
+            'takeaway_notes': resolved.takeawayNotes,
+            'version': resolved.version,
+          },
+          notes: _activeConflict!.reason,
+        );
+      } catch (_) {}
+    }
+
+    _order = resolved;
+    _activeConflict = null;
+    _conflictMessage = null;
+    _successMessage = 'Resolusi konflik berhasil diterapkan.';
+    notifyListeners();
   }
 }
