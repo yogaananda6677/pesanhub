@@ -48,6 +48,9 @@ END $$;
 SQL
 
 run_migration down
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='payments' AND column_name='request_hash'")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.payments_one_cash_per_order_idx') IS NULL")" = "t"
+run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='order_notifications' AND column_name='next_retry_at'")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='order_notifications' AND column_name='error_category'")" = "t"
 run_migration down
@@ -90,6 +93,8 @@ test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='agent_conversations' AND column_name='confirmation_token'")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.order_notifications') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.customer_opt_outs') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='payments' AND column_name='request_hash'")" = "t"
+run_migration down
 run_migration down
 run_migration down
 run_migration down
@@ -141,6 +146,7 @@ DO $$ BEGIN
 END $$;
 SQL
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT string_agg(name,',' ORDER BY sort_order,name,id) FROM menus WHERE is_available")" = "Nasi Goreng"
+run_migration down
 run_migration down
 run_migration down
 run_migration down
