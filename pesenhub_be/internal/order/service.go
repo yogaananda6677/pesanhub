@@ -53,6 +53,7 @@ type Service struct {
 	webStore      WebOrderStore
 	whatsAppStore WhatsAppOrderStore
 	auditStore    AuditStore
+	notifier      NotificationDispatcher
 }
 
 func NewService(store Creator) *Service {
@@ -63,6 +64,10 @@ func NewService(store Creator) *Service {
 	s.whatsAppStore, _ = store.(WhatsAppOrderStore)
 	s.auditStore, _ = store.(AuditStore)
 	return s
+}
+
+func (s *Service) SetNotificationDispatcher(d NotificationDispatcher) {
+	s.notifier = d
 }
 
 func (s *Service) CreateManual(ctx context.Context, in CreateInput, key, actorID, requestID string) (Order, bool, error) {
@@ -135,7 +140,14 @@ func (s *Service) Transition(ctx context.Context, orderID string, in TransitionI
 	}
 	payload, _ := json.Marshal(in)
 	sum := sha256.Sum256(payload)
-	return s.transitions.Transition(ctx, orderID, in, key, hex.EncodeToString(sum[:]), actorID, actorRole+"|"+requestID)
+	res, isNew, err := s.transitions.Transition(ctx, orderID, in, key, hex.EncodeToString(sum[:]), actorID, actorRole+"|"+requestID)
+	if err != nil || !isNew {
+		return res, isNew, err
+	}
+	if s.notifier != nil {
+		s.notifier.NotifyStatusTransition(ctx, orderID, "", in.TargetStatus)
+	}
+	return res, isNew, nil
 }
 
 func ValidTransition(from, to domain.OrderStatus) bool {
@@ -420,5 +432,12 @@ func (s *Service) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInpu
 	reqBytes, _ := json.Marshal(in)
 	hash := fmt.Sprintf("%x", sha256.Sum256(reqBytes))
 
-	return s.whatsAppStore.CreateWhatsApp(ctx, in, idempotencyKey, hash, requestID)
+	resp, isNew, err := s.whatsAppStore.CreateWhatsApp(ctx, in, idempotencyKey, hash, requestID)
+	if err != nil || !isNew {
+		return resp, isNew, err
+	}
+	if s.notifier != nil {
+		s.notifier.NotifyOrderCreated(ctx, resp.ID)
+	}
+	return resp, isNew, nil
 }
