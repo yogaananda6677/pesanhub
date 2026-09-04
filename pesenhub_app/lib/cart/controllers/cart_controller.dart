@@ -1,5 +1,10 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import '../../core/utils/pii_sanitizer.dart';
+import '../../data/local/models/outbox_mutation.dart';
+import '../../data/local/outbox_repository.dart';
+import '../../data/local/queue_local_repository.dart';
 import '../../menu/controllers/modifier_selection_state.dart';
 import '../../menu/models/menu_item.dart';
 import '../../queue/models/queue_order.dart';
@@ -96,6 +101,21 @@ class CartController extends ChangeNotifier {
 
   void clearDiscrepancy() {
     _discrepancyMessage = null;
+    notifyListeners();
+  }
+
+  /// Adds an item directly without modifiers.
+  void addItem(MenuItem menuItem, {int quantity = 1, String? notes}) {
+    final lineItem = CartItem(
+      id: _generateId(),
+      menuItem: menuItem,
+      modifierSummary: '',
+      selectedOptionIds: const {},
+      quantity: quantity,
+      unitPrice: menuItem.priceAmount,
+      notes: notes ?? '',
+    );
+    _items.add(lineItem);
     notifyListeners();
   }
 
@@ -234,5 +254,62 @@ class CartController extends ChangeNotifier {
       notifyListeners();
       return null;
     }
+  }
+
+  /// Submits order in offline mode: persists to local queue as PENDING
+  /// and queues an OutboxMutation for durable background sync.
+  /// Fulfills Issue #33 Criteria #1 and #2.
+  Future<QueueOrder?> submitOfflineOrder({
+    required OutboxRepository outboxRepo,
+    required QueueLocalRepository queueRepo,
+  }) async {
+    return submitOrder(
+      submitFn: (draft) async {
+        final orderNumber =
+            'ORD-${draft.idempotencyKey.substring(0, 8).toUpperCase()}';
+        final maskedPhone = PiiSanitizer.maskPhone(draft.customerPhone);
+        final localOrder = QueueOrder(
+          id: 'ord-${draft.clientOrderId}',
+          orderNumber: orderNumber,
+          customerName: draft.customerName,
+          customerPhone: maskedPhone,
+          source: 'CASHIER_MANUAL',
+          orderStatus: 'PENDING',
+          paymentStatus: 'UNPAID',
+          isTakeaway: draft.isTakeaway,
+          takeawayNotes: draft.takeawayNotes,
+          items: draft.items.map((i) {
+            return QueueOrderItem(
+              name: i.menuItem.name,
+              quantity: i.quantity,
+              unitPrice: i.unitPrice,
+              notes: i.modifierSummary,
+              isDrink: i.isDrink,
+            );
+          }).toList(),
+          createdAt: DateTime.now(),
+          version: 1,
+        );
+
+        // 1. Persist order locally with PENDING status (Criteria #1)
+        final existing = await queueRepo.getOrders();
+        await queueRepo.saveOrders(orders: [...existing, localOrder]);
+
+        // 2. Enqueue outbox mutation (Criteria #2)
+        final sanitizedDraft = draft.copyWith(customerPhone: maskedPhone);
+        final mutation = OutboxMutation(
+          id: 'mut-${draft.clientOrderId}',
+          idempotencyKey: draft.idempotencyKey,
+          clientOrderId: draft.clientOrderId,
+          mutationType: 'CREATE_ORDER',
+          payloadJson: jsonEncode(sanitizedDraft.toJson()),
+          syncStatus: OutboxSyncStatus.pending,
+          createdAt: DateTime.now(),
+        );
+        await outboxRepo.enqueueMutation(mutation);
+
+        return localOrder;
+      },
+    );
   }
 }

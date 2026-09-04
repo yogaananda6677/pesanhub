@@ -46,4 +46,27 @@ class CartOrderDraft {
       items: items ?? this.items,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'idempotency_key': idempotencyKey,
+      'client_order_id': clientOrderId,
+      'customer_name': customerName,
+      'customer_phone': customerPhone,
+      'is_takeaway': isTakeaway,
+      'takeaway_notes': takeawayNotes,
+      'items': items
+          .map(
+            (i) => {
+              'menu_id': i.menuItem.id,
+              'name': i.menuItem.name,
+              'quantity': i.quantity,
+              'unit_price': i.unitPrice,
+              'notes': i.modifierSummary,
+              'is_drink': i.isDrink,
+            },
+          )
+          .toList(),
+    };
+  }
 }
