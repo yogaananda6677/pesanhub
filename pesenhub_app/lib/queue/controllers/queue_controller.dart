@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../alerts/order_alert_controller.dart';
 import '../../core/utils/event_deduplicator.dart';
 import '../../data/local/conflict_audit_repository.dart';
 import '../../order/models/order_conflict.dart';
@@ -10,6 +12,7 @@ import '../models/queue_state.dart';
 class QueueController extends ChangeNotifier {
   final Map<String, QueueOrder> _ordersMap = {};
   final EventDeduplicator _deduplicator = EventDeduplicator();
+  final OrderAlertController? alertController;
   DateTime? _timeOverride;
 
   QueueState _state = const QueueState.loading();
@@ -17,7 +20,11 @@ class QueueController extends ChangeNotifier {
   String _sourceFilter = 'ALL';
   String _searchQuery = '';
 
-  QueueController({List<QueueOrder>? initialOrders, DateTime? timeOverride}) {
+  QueueController({
+    List<QueueOrder>? initialOrders,
+    DateTime? timeOverride,
+    this.alertController,
+  }) {
     _timeOverride = timeOverride;
     if (initialOrders != null) {
       setSnapshot(initialOrders);
@@ -111,6 +118,22 @@ class QueueController extends ChangeNotifier {
     }
 
     _ordersMap[order.id] = order;
+    final alertKind = existing == null ? 'NEW_ORDER' : 'STATUS_CHANGED';
+    if (eventId != null && alertController != null) {
+      unawaited(
+        alertController!.handle(
+          OrderAlert(
+            eventId: eventId,
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            kind: alertKind,
+            message: existing == null
+                ? 'Segera periksa dan konfirmasi pesanan.'
+                : 'Status menjadi ${order.orderStatus}.',
+          ),
+        ),
+      );
+    }
     if (_state.status == QueueStatus.empty ||
         _state.status == QueueStatus.loading) {
       _state = const QueueState.success();

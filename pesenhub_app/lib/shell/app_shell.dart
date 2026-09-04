@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../alerts/order_alert_controller.dart';
+import '../connectivity/connectivity_controller.dart';
 import '../dashboard/dashboard_view.dart';
 import '../dashboard/models/dashboard_state.dart';
 import '../dashboard/models/operational_summary.dart';
@@ -6,6 +8,8 @@ import '../navigation/app_destination.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import '../widgets/connectivity_badge.dart';
+import '../widgets/order_heads_up_alert.dart';
 import 'destination_views.dart';
 
 /// AppShell provides an adaptive, state-preserving navigation framework.
@@ -14,26 +18,41 @@ class AppShell extends StatefulWidget {
   final int initialIndex;
   final DashboardState? initialDashboardState;
   final VoidCallback? onRefreshDashboard;
+  final ConnectivityController? connectivityController;
+  final OrderAlertController? alertController;
 
   const AppShell({
     super.key,
     this.initialIndex = 0,
     this.initialDashboardState,
     this.onRefreshDashboard,
+    this.connectivityController,
+    this.alertController,
   });
 
   @override
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   late int _selectedIndex;
   final GlobalKey _contentStackKey = GlobalKey();
   late DashboardState _dashboardState;
+  late final ConnectivityController _connectivity;
+  late final OrderAlertController _alerts;
+  late final bool _ownsConnectivity;
+  late final bool _ownsAlerts;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _ownsConnectivity = widget.connectivityController == null;
+    _ownsAlerts = widget.alertController == null;
+    _connectivity = widget.connectivityController ?? ConnectivityController();
+    _alerts = widget.alertController ?? OrderAlertController();
+    _connectivity.start();
+    _alerts.initialize();
     _selectedIndex = widget.initialIndex;
     _dashboardState =
         widget.initialDashboardState ??
@@ -48,6 +67,17 @@ class _AppShellState extends State<AppShell> {
             lastUpdatedAt: DateTime.now(),
           ),
         );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) =>
+      _alerts.setLifecycle(state);
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (_ownsConnectivity) _connectivity.dispose();
+    if (_ownsAlerts) _alerts.dispose();
+    super.dispose();
   }
 
   void _onDestinationSelected(int index) {
@@ -89,7 +119,7 @@ class _AppShellState extends State<AppShell> {
         onNavigateToKds: () => _onDestinationSelected(AppDestination.kds.index),
       ),
       const PosDestinationView(),
-      const QueueDestinationView(),
+      QueueDestinationView(alertController: _alerts),
       const KdsDestinationView(),
       const MenuDestinationView(),
       const SettingsDestinationView(),
@@ -108,32 +138,55 @@ class _AppShellState extends State<AppShell> {
         return Scaffold(
           backgroundColor: AppColors.background,
           resizeToAvoidBottomInset: true,
-          body: Row(
+          body: Stack(
             children: [
-              if (isTablet) ...[
-                _buildNavigationRail(),
-                const VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: AppColors.border,
-                ),
-              ],
-              Expanded(
-                child: Column(
-                  children: [
-                    _buildHeader(
-                      destination: destination,
-                      showBrand: !isTablet,
-                    ),
-                    Expanded(
-                      child: IndexedStack(
-                        key: _contentStackKey,
-                        index: _selectedIndex,
-                        children: _buildViews(),
-                      ),
+              Row(
+                children: [
+                  if (isTablet) ...[
+                    _buildNavigationRail(),
+                    const VerticalDivider(
+                      width: 1,
+                      thickness: 1,
+                      color: AppColors.border,
                     ),
                   ],
-                ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _buildHeader(
+                          destination: destination,
+                          showBrand: !isTablet,
+                        ),
+                        Expanded(
+                          child: IndexedStack(
+                            key: _contentStackKey,
+                            index: _selectedIndex,
+                            children: _buildViews(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              AnimatedBuilder(
+                animation: _alerts,
+                builder: (context, _) {
+                  final alert = _alerts.activeAlert;
+                  if (alert == null) return const SizedBox.shrink();
+                  return Positioned(
+                    top: 8,
+                    left: isTablet ? 96 : 12,
+                    right: 12,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: OrderHeadsUpAlert(
+                        alert: alert,
+                        onDismiss: _alerts.dismiss,
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -283,38 +336,25 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            _buildConnectivityBadge(),
+            ConnectivityBadge(controller: _connectivity),
+            const SizedBox(width: AppSpacing.xs),
+            AnimatedBuilder(
+              animation: _alerts,
+              builder: (context, _) => IconButton(
+                key: const Key('notification-permission-button'),
+                tooltip: _alerts.permission == AlertPermission.denied
+                    ? 'Notifikasi ditolak — alert tetap tampil di aplikasi'
+                    : 'Aktifkan notifikasi',
+                onPressed: _alerts.requestPermission,
+                icon: Icon(
+                  _alerts.permission == AlertPermission.granted
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_outlined,
+                ),
+              ),
+            ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildConnectivityBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.successBg,
-        borderRadius: AppSpacing.borderRadiusFull,
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.wifi_rounded, size: 14, color: AppColors.success),
-          SizedBox(width: AppSpacing.xs),
-          Text(
-            'Online',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: AppColors.success,
-            ),
-          ),
-        ],
       ),
     );
   }

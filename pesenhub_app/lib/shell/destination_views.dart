@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../alerts/order_alert_controller.dart';
 import '../cart/controllers/cart_controller.dart';
 import '../kds/controllers/kds_controller.dart';
 import '../kds/kds_view.dart';
@@ -43,8 +44,13 @@ class PosDestinationView extends StatelessWidget {
 /// QueueDestinationView provides the unified order queue monitoring UI.
 class QueueDestinationView extends StatefulWidget {
   final QueueController? controller;
+  final OrderAlertController? alertController;
 
-  const QueueDestinationView({super.key, this.controller});
+  const QueueDestinationView({
+    super.key,
+    this.controller,
+    this.alertController,
+  });
 
   @override
   State<QueueDestinationView> createState() => _QueueDestinationViewState();
@@ -61,6 +67,7 @@ class _QueueDestinationViewState extends State<QueueDestinationView> {
     } else {
       final now = DateTime.now();
       _controller = QueueController(
+        alertController: widget.alertController,
         initialOrders: [
           QueueOrder(
             id: 'ord-104',
