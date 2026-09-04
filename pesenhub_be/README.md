@@ -17,7 +17,9 @@ cd pesenhub_be
 
 Panduan lengkap dan aturan operasional tersedia di [ATURAN.md](ATURAN.md).
 
-Readiness gagal dengan HTTP 503 bila PostgreSQL turun. WAHA yang belum memiliki session menghasilkan HTTP 200 berstatus `degraded`, sehingga API tetap dapat diperiksa tanpa pairing.
+Readiness gagal dengan HTTP 503 bila PostgreSQL turun. WAHA yang belum memiliki session menghasilkan HTTP 200 berstatus `degraded`; field `waha_api`, `waha_session`, dan `waha_reason` membedakan API gagal, session tidak ada, session terputus, dan timeout tanpa melakukan pairing otomatis.
+
+Webhook WAHA diterima pada `POST /webhooks/waha` dan wajib memakai HMAC-SHA512 WAHA. Lihat [WAHA_HEALTH_WEBHOOK_SECURITY.md](../docs/WAHA_HEALTH_WEBHOOK_SECURITY.md) sebelum mengonfigurasi session development.
 
 ## Migration
 

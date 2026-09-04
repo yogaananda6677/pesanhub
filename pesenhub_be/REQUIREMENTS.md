@@ -24,7 +24,7 @@ Di network Docker, API selalu menggunakan `DATABASE_HOST=postgres`, `DATABASE_PO
 
 ## Environment
 
-Salin `.env.example` menjadi `.env`. Aplikasi menggunakan `APP_NAME`, `APP_ENV`, `APP_HOST`, `APP_PORT`, `APP_TIMEZONE`, `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_SSLMODE`, `WAHA_BASE_URL`, `WAHA_API_KEY`, `WAHA_SESSION`, dan `WAHA_REQUEST_TIMEOUT`.
+Salin `.env.example` menjadi `.env`. Aplikasi menggunakan `APP_NAME`, `APP_ENV`, `APP_HOST`, `APP_PORT`, `APP_TIMEZONE`, `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_SSLMODE`, `WAHA_BASE_URL`, `WAHA_API_KEY`, `WAHA_SESSION`, `WAHA_REQUEST_TIMEOUT`, dan secret `WAHA_WEBHOOK_HMAC_KEY`.
 
 Compose juga menggunakan `POSTGRES_HOST_PORT`, `WAHA_DASHBOARD_USERNAME`, dan `WAHA_DASHBOARD_PASSWORD`. `.env` diabaikan dan tidak dimasukkan ke build context. Jangan menyimpan credential asli di repository.
 
@@ -56,7 +56,7 @@ docker compose logs --no-color waha
 
 - API tidak mulai: pastikan PostgreSQL mencapai `healthy`; `api` menunggu kondisi tersebut.
 - Readiness 503: PostgreSQL tidak dapat diping dari API.
-- Readiness `degraded`: PostgreSQL aktif tetapi session WAHA belum tersedia atau terputus. Ini diperbolehkan pada Phase 0.
+- Readiness `degraded`: PostgreSQL aktif tetapi API/session WAHA belum siap. Periksa `waha_api`, `waha_session`, dan `waha_reason`; `absent`/`disconnected` berbeda dari API `down` atau `timeout`.
 - Port host bentrok: ubah hanya host mapping, misalnya `POSTGRES_HOST_PORT=55432`; jangan mengubah `DATABASE_PORT=5432` untuk API dalam Docker.
 
 Hentikan stack tanpa menghapus data dengan `docker compose down`.

@@ -11,11 +11,11 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Field          | Current value                                                        |
 | -------------- | -------------------------------------------------------------------- |
 | Product        | PesenHub                                                             |
-| Current phase  | Phase 1B — Cashier Mobile & Tablet                                   |
-| Current status | DONE (efektif setelah Phase Closing PR di-merge)                    |
+| Current phase  | Phase 1C — WhatsApp, Agent & Payment                                 |
+| Current status | IN_PROGRESS                                                          |
 | MVP target     | 30 hari sejak kickoff                                                |
 | Last updated   | 4 September 2026                                                     |
-| Updated by     | Phase 1B closing evidence and transition to Phase 1C                |
+| Updated by     | Issue #36 WAHA readiness and webhook authentication                 |
 
 ## 2. Product Intent
 
@@ -59,7 +59,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2)  | Project readiness           | DONE        | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md`       |
 | [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend                | DONE        | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
 | [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet     | DONE        | 2026-09-03 | 2026-09-04 | PR #95–#107 dan `docs/PHASE_1B_CLOSING_EVIDENCE.md`       |
-| [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | NOT_STARTED | —          | —          | Menunggu domain 1A                                      |
+| [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | IN_PROGRESS | 2026-09-04 | —          | Issue #36 sedang divalidasi                              |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release   | NOT_STARTED | —          | —          | Menunggu 1A–1C                                          |
 | [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7)  | Food Aggregator Integration | NOT_STARTED | —          | —          | Menunggu MVP stabil dan kontrak resmi                   |
 | [3 — #8](https://github.com/yogaananda6677/pesanhub/issues/8)  | Production Hardening        | NOT_STARTED | —          | —          | Menunggu hasil pilot dan target kapasitas               |
@@ -69,17 +69,17 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 ## Current GitHub Work
 
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
-- Phase Issue: [#4 — Phase 1B Cashier Mobile & Tablet](https://github.com/yogaananda6677/pesanhub/issues/4)
-- Child Issues: #23–#35
+- Phase Issue: [#5 — Phase 1C WhatsApp, Agent & Payment](https://github.com/yogaananda6677/pesanhub/issues/5)
+- Child Issues: #36–#47
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#4 — Phase 1B Cashier Mobile & Tablet](https://github.com/yogaananda6677/pesanhub/issues/4)
-- Current Branch: `phase/4-close-phase-1b`
-- Pull Request: [#108 — docs(phase-1b): close cashier mobile and tablet phase](https://github.com/yogaananda6677/pesanhub/pull/108)
+- Current Issue: [#36 — WAHA session health, readiness, dan webhook authentication](https://github.com/yogaananda6677/pesanhub/issues/36)
+- Current Branch: `feature/36-waha-health-webhook-auth`
+- Pull Request: pending setelah validasi lulus
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104), [#105](https://github.com/yogaananda6677/pesanhub/pull/105), [#106](https://github.com/yogaananda6677/pesanhub/pull/106)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh acceptance criteria Phase #4 terpenuhi dan terdokumentasi di `docs/PHASE_1B_CLOSING_EVIDENCE.md`
-- Validation: format PASS, analyzer 0 issue, Flutter test 125/125 PASS, APK debug PASS, backend regression PASS
-- Next Phase: Phase 1C — WhatsApp, Agent & Payment ([#5](https://github.com/yogaananda6677/pesanhub/issues/5)); mulai #36 setelah closing merge
+- Exit Criteria: Acceptance criteria Issue #36 lulus tanpa pairing atau data production
+- Validation: module verify, format, vet, unit/integration test, race test, Compose config, dan API image build PASS; CI pending PR
+- Next Issue: #37 setelah PR #36 di-merge
 
 ## 6. Current Phase Checklist
 
@@ -1276,3 +1276,35 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 
 - Buka Pull Request dan merge Issue #33 ke `main`.
 - Lanjut ke Issue #34: Implementasi conflict handling dan duplicate prevention Flutter.
+
+### 4 September 2026 — WAHA Readiness & Webhook Authentication (Issue #36)
+
+**Goal**
+
+- Membedakan health API WAHA dari readiness session serta menambahkan boundary autentikasi webhook tanpa membuat session atau pairing otomatis.
+
+**Changed**
+
+- Adapter WAHA memetakan `WORKING` menjadi ready, status pairing/stop/failure menjadi disconnected, HTTP 404 menjadi absent, dan network/timeout/API error menjadi failure terpisah.
+- Readiness menampilkan kode aman `waha_api`, `waha_session`, dan `waha_reason` dengan timeout terikat.
+- `POST /webhooks/waha` memverifikasi HMAC-SHA512 raw body, algorithm, request ID, timestamp, batas body, serta replay request sementara.
+- Menambahkan counter/log outcome tersanitasi, konfigurasi secret wajib, Compose wiring, OpenAPI, dokumentasi operasional, dan unit/integration test fake WAHA.
+
+**Decisions**
+
+- Kontrak mengikuti dokumentasi resmi WAHA; tidak ada fallback header lemah karena HMAC tersedia pada versi yang digunakan.
+- Replay guard autentikasi bersifat bounded dan in-memory. Deduplikasi message ID durable serta pemrosesan payload tetap menjadi scope Issue #37.
+- Compose meneruskan HMAC key tetapi tidak menetapkan webhook URL/events dan tidak membuat atau memasangkan session.
+
+**Validation**
+
+- `go test ./...`: PASS.
+- `go mod verify`, format check, `go vet ./...`, dan `go test ./...`: PASS.
+- `go test ./... -race -count=1`: PASS, termasuk concurrent replay guard.
+- `docker compose --env-file .env.example config --quiet`: PASS.
+- `docker compose --env-file .env.example build api`: PASS.
+- CI: pending sebelum PR/merge.
+
+**Next**
+
+- Selesaikan seluruh validasi, buat PR Issue #36, tunggu CI hijau, lalu merge sebelum Issue #37.

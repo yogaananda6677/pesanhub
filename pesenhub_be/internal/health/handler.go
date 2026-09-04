@@ -28,13 +28,21 @@ func (h *Handler) Live(w http.ResponseWriter, _ *http.Request) {
 func (h *Handler) Ready(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
-	checks := map[string]string{"database": "up", "waha": "up"}
+	checks := map[string]string{"database": "up", "waha_api": "up", "waha_session": "ready"}
 	status, code := "ready", http.StatusOK
 	if h.db == nil || h.db.Ping(ctx) != nil {
 		checks["database"], status, code = "down", "not_ready", http.StatusServiceUnavailable
 	}
-	if h.waha == nil || h.waha.Check(ctx) != nil {
-		checks["waha"] = "down"
+	result := waha.Readiness{API: waha.APIDown, Session: waha.SessionUnknown}
+	if h.waha != nil {
+		result = h.waha.Readiness(ctx)
+	}
+	checks["waha_api"] = string(result.API)
+	checks["waha_session"] = string(result.Session)
+	if result.Reason != "" {
+		checks["waha_reason"] = result.Reason
+	}
+	if result.Session != waha.SessionReady {
 		if status == "ready" {
 			status = "degraded"
 		}
