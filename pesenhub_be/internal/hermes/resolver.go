@@ -170,7 +170,10 @@ func (r *CatalogResolver) resolveModifiers(rawModifiers []string, groups []catal
 			continue
 		}
 
-		matched := false
+		var bestOpt *catalog.Option
+		var bestGroup *catalog.Group
+		bestScore := 0
+
 		for _, g := range groups {
 			if !g.Active {
 				continue
@@ -181,27 +184,29 @@ func (r *CatalogResolver) resolveModifiers(rawModifiers []string, groups []catal
 				}
 				optNorm := normalizeText(opt.Name)
 				codeNorm := normalizeText(opt.Code)
-				if rawModNorm == optNorm || rawModNorm == codeNorm || strings.Contains(optNorm, rawModNorm) || strings.Contains(rawModNorm, optNorm) {
-					selected = append(selected, SelectedModifier{
-						GroupID:          g.ID,
-						GroupName:        g.Name,
-						OptionID:         opt.ID,
-						OptionCode:       opt.Code,
-						OptionName:       opt.Name,
-						PriceDeltaAmount: opt.PriceDeltaAmount,
-					})
-					totalDelta += opt.PriceDeltaAmount
-					selectedPerGroup[g.ID]++
-					matched = true
-					break
+				score := matchOptionScore(rawModNorm, optNorm, codeNorm)
+				if score > bestScore {
+					bestScore = score
+					optCopy := opt
+					bestOpt = &optCopy
+					gCopy := g
+					bestGroup = &gCopy
 				}
-			}
-			if matched {
-				break
 			}
 		}
 
-		if !matched {
+		if bestOpt != nil && bestScore > 0 {
+			selected = append(selected, SelectedModifier{
+				GroupID:          bestGroup.ID,
+				GroupName:        bestGroup.Name,
+				OptionID:         bestOpt.ID,
+				OptionCode:       bestOpt.Code,
+				OptionName:       bestOpt.Name,
+				PriceDeltaAmount: bestOpt.PriceDeltaAmount,
+			})
+			totalDelta += bestOpt.PriceDeltaAmount
+			selectedPerGroup[bestGroup.ID]++
+		} else {
 			// Unknown modifier mentioned by customer
 			ambiguities = append(ambiguities, fmt.Sprintf("unrecognized_modifier:%s", rawMod))
 		}

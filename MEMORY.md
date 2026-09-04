@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS                                                          |
 | MVP target     | 30 hari sejak kickoff                                                |
 | Last updated   | 4 September 2026                                                     |
-| Updated by     | Issue #38 Hermes structured order extraction and confidence policy   |
+| Updated by     | Issue #39 Hermes guided clarification for ambiguous orders           |
 
 ## 2. Product Intent
 
@@ -138,8 +138,8 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 - [x] #36: Implementasi WAHA session health, readiness, dan webhook authentication (PR #109)
 - [x] #37: Implementasi webhook pesan masuk, normalisasi nomor, dan deduplikasi WAHA (PR #110)
-- [x] #38: Implementasi Hermes structured order extraction dan confidence policy (PR pending)
-- [ ] #39: Implementasi guided clarification untuk detail order ambigu
+- [x] #38: Implementasi Hermes structured order extraction dan confidence policy (PR #111)
+- [x] #39: Implementasi guided clarification untuk detail order ambigu (PR pending)
 - [ ] #40: Implementasi agent-to-human handoff dan pause automation
 - [ ] #41: Implementasi konfirmasi pelanggan dan pembuatan order WHATSAPP
 - [ ] #42: Implementasi pesan konfirmasi dan completion notification melalui WAHA
@@ -255,6 +255,34 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 4 September 2026 — Issue #39 Hermes Guided Clarification for Ambiguous Orders
+
+**Goal**
+
+- Mengimplementasikan guided clarification engine untuk mengklarifikasi detail order yang ambigu atau belum lengkap: memprioritaskan satu pertanyaan paling blocking per turn, format pertanyaan sopan dengan pilihan opsi katalog, penggabungan parsial non-destruktif tanpa mereset data valid lain, revalidasi ketersediaan katalog secara dinamis tiap turn, pembatasan perulangan (max 3 kali) dengan pengalihan otomatis ke staf manusia saat batas tercapai, dan pencatatan state percakapan di PostgreSQL `agent_conversations`.
+
+**Changed**
+
+- Membuat migrasi PostgreSQL `000011_create_agent_conversations.up.sql` dan `.down.sql` dengan constraint unik `(session, customer_phone)` untuk mencatat `status`, `current_draft`, `pending_ambiguity`, `clarification_attempts`, `last_question`, dan correlation ID.
+- Memperluas model domain di `pesenhub_be/internal/hermes/models.go` dengan konstanta status percakapan (`COLLECTING`, `AWAITING_CLARIFICATION`, `READY_FOR_CONFIRMATION`, `HANDOFF`), batas percobaan `MaxClarificationAttempts = 3`, `ConversationState`, `ClarificationPlan`, `TurnRequest`, dan `TurnResponse`.
+- Mengimplementasikan `ClarificationEngine` di `pesenhub_be/internal/hermes/clarification.go` dan `clarification_test.go`: hierarki prioritas ambiguitas (menu_unavailable -> menu_not_found -> missing_required_modifier -> invalid_quantity -> unrecognized_modifier -> empty_order_items -> fulfillment -> payment), ekstraksi opsi varian dari grup katalog, dan pengalihan ke staf manusia jika mencapai batas retry atau terdeteksi prompt injection.
+- Mengimplementasikan `DraftMerger` di `pesenhub_be/internal/hermes/merger.go` dan `merger_test.go`: matching cerdas dengan skor negasi `matchOptionScore` agar tidak tertukar antara "pedas" dan "tidak pedas", update parsial field yang ditanyakan tanpa menghapus item/catatan/kuantitas lain yang sudah valid, kalkulasi ulang total menggunakan harga resmi katalog backend, dan revalidasi real-time ketersediaan menu/modifier terhadap katalog backend (`RevalidateAgainstCatalog`).
+- Mengimplementasikan repository persistence `PGConversationStore` dan in-memory `MemoryConversationStore` di `pesenhub_be/internal/hermes/conversation_store.go` lengkap dengan integrasi PostgreSQL di `store_integration_test.go`.
+- Mengintegrasikan alur percakapan multi-turn `Service.ProcessTurn` dan ringkasan order `formatOrderSummary` di `pesenhub_be/internal/hermes/service.go` dan `service_clarification_test.go`.
+- Memperbarui `pesenhub_be/scripts/test-migrations.sh` untuk menguji migrasi 000011 up/down/up dalam Docker PostgreSQL.
+- Menambahkan dokumentasi arsitektur di `docs/HERMES_GUIDED_CLARIFICATION.md`.
+
+**Validation**
+
+- `go test -v -race ./internal/hermes/...`: PASS (22 unit test cases lulus, race condition detector bersih).
+- `cd pesenhub_be && ./run.sh check`: PASS (formatting, vet, all module packages pass).
+- `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS (migrasi 000011 up/down/up lulus dalam Docker PostgreSQL).
+- `cd pesenhub_be && ./scripts/test-orders.sh`: PASS (seluruh integration tests PostgreSQL pass).
+
+**Next**
+
+- Buka Pull Request untuk Issue #39, pantau CI, merge ke `main`, lalu lanjutkan ke Issue #40.
 
 ### 4 September 2026 — Issue #38 Hermes Structured Order Extraction & Confidence Policy
 

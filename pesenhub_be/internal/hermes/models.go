@@ -13,6 +13,19 @@ const (
 	StatusRejectedInjection = "REJECTED_INJECTION"
 )
 
+// Conversation status constants.
+const (
+	ConversationCollecting            = "COLLECTING"
+	ConversationAwaitingClarification = "AWAITING_CLARIFICATION"
+	ConversationReadyForConfirmation  = "READY_FOR_CONFIRMATION"
+	ConversationHandoff               = "HANDOFF"
+)
+
+// Policy limits.
+const (
+	MaxClarificationAttempts = 3
+)
+
 // Prompt and Model constants.
 const (
 	DefaultPromptVersion = "v1.0.0"
@@ -111,4 +124,49 @@ type AgentRun struct {
 	ErrorMessage     *string         `json:"error_message,omitempty"`
 	CorrelationID    string          `json:"correlation_id"`
 	CreatedAt        time.Time       `json:"created_at"`
+}
+
+// ConversationState tracks active order-taking and clarification turns for a customer session.
+type ConversationState struct {
+	ID                    string          `json:"id"`
+	Session               string          `json:"session"`
+	CustomerPhone         string          `json:"customer_phone"`
+	Status                string          `json:"status"`
+	CurrentDraft          *DraftCandidate `json:"current_draft,omitempty"`
+	PendingAmbiguity      string          `json:"pending_ambiguity,omitempty"`
+	ClarificationAttempts int             `json:"clarification_attempts"`
+	LastQuestion          string          `json:"last_question,omitempty"`
+	LastInboundMessageID  *string         `json:"last_inbound_message_id,omitempty"`
+	CorrelationID         string          `json:"correlation_id"`
+	CreatedAt             time.Time       `json:"created_at"`
+	UpdatedAt             time.Time       `json:"updated_at"`
+}
+
+// ClarificationPlan specifies the focused question and options generated for an ambiguous draft.
+type ClarificationPlan struct {
+	RequiresClarification bool     `json:"requires_clarification"`
+	PriorityAmbiguity     string   `json:"priority_ambiguity,omitempty"`
+	TargetMenuName        string   `json:"target_menu_name,omitempty"`
+	QuestionText          string   `json:"question_text"`
+	Options               []string `json:"options,omitempty"`
+	RequiresHandoff       bool     `json:"requires_handoff"`
+	HandoffReason         string   `json:"handoff_reason,omitempty"`
+}
+
+// TurnRequest represents a customer turn input to the Hermes conversation service.
+type TurnRequest struct {
+	InboundMessageID *string `json:"inbound_message_id,omitempty"`
+	Session          string  `json:"session"`
+	SenderPhone      string  `json:"sender_phone"`
+	MessageText      string  `json:"message_text"`
+	CorrelationID    string  `json:"correlation_id"`
+}
+
+// TurnResponse represents the agent's turn output including reply text and updated conversation state.
+type TurnResponse struct {
+	State           *ConversationState `json:"state"`
+	Draft           *DraftCandidate    `json:"draft,omitempty"`
+	ReplyText       string             `json:"reply_text"`
+	RequiresHandoff bool               `json:"requires_handoff"`
+	Run             *AgentRun          `json:"run,omitempty"`
 }
