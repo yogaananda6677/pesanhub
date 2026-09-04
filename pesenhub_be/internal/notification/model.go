@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"pesenhub/backend/internal/waha"
+	"pesenhub/backend/internal/gowa"
 )
 
 // NotificationType defines the type of notification sent to the customer.
@@ -38,7 +38,7 @@ const (
 	CategoryTransientTimeout    ErrorCategory = "TRANSIENT_TIMEOUT"
 	CategoryTransientNetwork    ErrorCategory = "TRANSIENT_NETWORK"
 	CategoryTransientProvider   ErrorCategory = "TRANSIENT_PROVIDER"
-	CategorySessionNotReady     ErrorCategory = "SESSION_NOT_READY"
+	CategoryDeviceNotReady      ErrorCategory = "DEVICE_NOT_READY"
 	CategoryPermanentValidation ErrorCategory = "PERMANENT_VALIDATION"
 	CategoryPermanentAuth       ErrorCategory = "PERMANENT_AUTH"
 	CategoryMaxAttemptsExceeded ErrorCategory = "MAX_ATTEMPTS_EXCEEDED"
@@ -153,22 +153,22 @@ func ClassifyError(err error) (ErrorCategory, bool) {
 	if err == nil {
 		return "", false
 	}
-	if errors.Is(err, waha.ErrValidation) || errors.Is(err, ErrInvalidRecipient) {
+	if errors.Is(err, gowa.ErrValidation) || errors.Is(err, ErrInvalidRecipient) {
 		return CategoryPermanentValidation, false
 	}
-	if errors.Is(err, waha.ErrAuthentication) {
+	if errors.Is(err, gowa.ErrAuthentication) {
 		return CategoryPermanentAuth, false
 	}
-	if errors.Is(err, waha.ErrTimeout) || errors.Is(err, context.DeadlineExceeded) {
+	if errors.Is(err, gowa.ErrTimeout) || errors.Is(err, context.DeadlineExceeded) {
 		return CategoryTransientTimeout, true
 	}
-	if errors.Is(err, waha.ErrSessionNotReady) {
-		return CategorySessionNotReady, true
+	if errors.Is(err, gowa.ErrDeviceNotReady) {
+		return CategoryDeviceNotReady, true
 	}
-	if errors.Is(err, waha.ErrSessionAbsent) {
-		return CategorySessionNotReady, true
+	if errors.Is(err, gowa.ErrDeviceAbsent) {
+		return CategoryDeviceNotReady, true
 	}
-	if errors.Is(err, waha.ErrProvider) {
+	if errors.Is(err, gowa.ErrProvider) {
 		return CategoryTransientProvider, true
 	}
 
@@ -200,7 +200,7 @@ func SanitizeError(err error) string {
 	text := err.Error()
 	text = secretRegex.ReplaceAllString(text, "$1=[REDACTED]")
 	text = phoneRegex.ReplaceAllStringFunc(text, func(match string) string {
-		return waha.MaskPhone(match)
+		return gowa.MaskPhone(match)
 	})
 	text = strings.TrimSpace(text)
 	if len(text) > 255 {

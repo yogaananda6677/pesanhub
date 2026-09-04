@@ -128,4 +128,4 @@ flutter analyze
 flutter test
 ```
 
-Jangan commit `.env`, credential, keystore, output build, log sensitif, session WAHA, atau data pelanggan.
+Jangan commit `.env`, credential, keystore, output build, log sensitif, storage/device GOWA, atau data pelanggan.

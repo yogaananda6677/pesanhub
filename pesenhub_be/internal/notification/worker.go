@@ -7,13 +7,13 @@ import (
 	"sync"
 	"time"
 
-	"pesenhub/backend/internal/waha"
+	"pesenhub/backend/internal/gowa"
 )
 
 // WorkerConfig holds configuration options for OutboxWorker.
 type WorkerConfig struct {
 	Store          Store
-	Sender         waha.Sender
+	Sender         gowa.Sender
 	Logger         *slog.Logger
 	BatchSize      int
 	PollInterval   time.Duration
@@ -25,7 +25,7 @@ type WorkerConfig struct {
 // OutboxWorker processes pending and retrying notification records reliably in background.
 type OutboxWorker struct {
 	store          Store
-	sender         waha.Sender
+	sender         gowa.Sender
 	logger         *slog.Logger
 	batchSize      int
 	pollInterval   time.Duration
@@ -179,7 +179,7 @@ func (w *OutboxWorker) ProcessBatch(ctx context.Context) (int, error) {
 }
 
 func (w *OutboxWorker) processRecord(ctx context.Context, rec *NotificationRecord) {
-	maskedPhone := waha.MaskPhone(rec.CustomerPhone)
+	maskedPhone := gowa.MaskPhone(rec.CustomerPhone)
 
 	// 1. Opt-Out Guard Re-evaluation
 	optedOut, err := w.store.IsOptedOut(ctx, rec.CustomerPhone)
@@ -210,7 +210,7 @@ func (w *OutboxWorker) processRecord(ctx context.Context, rec *NotificationRecor
 		return
 	}
 
-	// 3. Dispatch to WAHA
+	// 3. Dispatch to GOWA
 	if w.sender == nil {
 		safeErr := "sender_not_configured"
 		_ = w.store.MarkDeadLetter(ctx, rec.ID, CategoryPermanentValidation, safeErr)

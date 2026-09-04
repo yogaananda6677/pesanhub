@@ -15,7 +15,7 @@ Dokumen ini mendokumentasikan implementasi dan aturan bisnis untuk konfirmasi pe
 4. **Stale Draft & Catalog Revalidation**:
    Sebelum draft dikonversi menjadi order final, status stok dan harga item/modifier divalidasi ulang ke katalog aktif. Jika terjadi perubahan harga atau menu habis, konversi dibatalkan, draft diperbarui dengan total baru, dan pelanggan diminta mengonfirmasi ulang.
 5. **Idempotent Order Conversion**:
-   Setiap order WhatsApp memiliki idempotency key terikat percakapan (`wa-conf-{conv_id}-{draft_version}`). Replay atau duplikasi webhook WAHA tidak akan membuat order ganda (`orders.source = 'WHATSAPP'`, `UNIQUE (source, idempotency_key)`).
+   Setiap order WhatsApp memiliki idempotency key terikat percakapan (`wa-conf-{conv_id}-{draft_version}`). Replay atau duplikasi webhook GOWA tidak akan membuat order ganda (`orders.source = 'WHATSAPP'`, `UNIQUE (source, idempotency_key)`).
 
 ---
 

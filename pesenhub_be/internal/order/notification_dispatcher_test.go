@@ -241,7 +241,7 @@ func TestOrderService_Transition_FailedCommitDoesNotTriggerNotification(t *testi
 	}
 }
 
-func TestOrderService_Transition_WAHAFailureDoesNotRollbackOrderStatus(t *testing.T) {
+func TestOrderService_Transition_GOWAFailureDoesNotRollbackOrderStatus(t *testing.T) {
 	phone := "+6281234567890"
 	reader := &mockOrderReader{
 		detail: OrderDetail{
@@ -250,9 +250,9 @@ func TestOrderService_Transition_WAHAFailureDoesNotRollbackOrderStatus(t *testin
 			CustomerPhone: &phone,
 		},
 	}
-	// mockNotifier that returns a WAHA error
+	// mockNotifier that returns a GOWA error
 	notif := &mockNotifier{
-		dispatchErr: errors.New("waha 503 service unavailable"),
+		dispatchErr: errors.New("gowa 503 service unavailable"),
 	}
 	realDispatcher := NewNotificationDispatcher(reader, notif, nil)
 
@@ -261,14 +261,14 @@ func TestOrderService_Transition_WAHAFailureDoesNotRollbackOrderStatus(t *testin
 	svc.transitions = transStore
 	svc.SetNotificationDispatcher(realDispatcher)
 
-	// Even though WAHA fails, the order transition MUST return success and not fail or rollback
+	// Even though GOWA fails, the order transition MUST return success and not fail or rollback
 	res, isNew, err := svc.Transition(context.Background(), "00000000-0000-0000-0000-000000000001", TransitionInput{
 		TargetStatus:    "COMPLETED",
 		ExpectedVersion: 2,
-	}, "key-waha-err", "staff-1", "STAFF", "req-waha-err")
+	}, "key-gowa-err", "staff-1", "STAFF", "req-gowa-err")
 
 	if err != nil {
-		t.Fatalf("transition must not return error when WAHA fails, got: %v", err)
+		t.Fatalf("transition must not return error when GOWA fails, got: %v", err)
 	}
 	if !isNew {
 		t.Fatal("expected isNew=true")

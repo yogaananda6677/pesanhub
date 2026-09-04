@@ -7,7 +7,7 @@ Dokumen ini adalah sumber operasional lintas komponen untuk Issue #12. Nilai sec
 | Komponen | Versi/acuan | Kegunaan |
 | --- | --- | --- |
 | Git dan GitHub CLI | Versi yang masih didukung | Workflow Issue, branch, PR, dan review |
-| Docker Engine + Compose | Compose plugin | Menjalankan API, PostgreSQL, dan WAHA |
+| Docker Engine + Compose | Compose plugin | Menjalankan API, PostgreSQL, dan GOWA |
 | Go | Mengikuti `pesenhub_be/go.mod` | Test, vet, format, dan development Backend |
 | Flutter | `3.44.4` stable | Build/test aplikasi kasir dan KDS |
 | Dart | Mengikuti Flutter; constraint project `^3.12.2` | Analyze, format, dan test |
@@ -30,9 +30,9 @@ cd pesenhub_be
 
 Expected result development:
 
-- PostgreSQL dan container WAHA sehat.
+- PostgreSQL dan container GOWA sehat.
 - API live dan database ready.
-- API boleh melaporkan `degraded` ketika session WAHA development belum dibuat.
+- API boleh melaporkan `degraded` ketika device GOWA development belum dipasangkan.
 - `./run.sh check` menyelesaikan module verification, format check, vet, unit test, dan Compose validation.
 
 ## Setup Mobile
@@ -66,15 +66,13 @@ Semua nama berikut berasal dari `pesenhub_be/.env.example`, config Go, atau Dock
 | `DATABASE_USER` | Secret-adjacent identity | API/PostgreSQL | Secret/deployment platform | Database Owner | Saat credential rotation |
 | `DATABASE_PASSWORD` | Secret | API/PostgreSQL | Password generator + secret store | Database/DevOps Owner | Berkala dan setelah suspected exposure |
 | `DATABASE_SSLMODE` | Security config | API → PostgreSQL | Deployment policy | Security/DevOps Owner | Saat topology/TLS berubah |
-| `WAHA_BASE_URL` | Sensitive config | API → WAHA | Compose/service discovery | DevOps Owner | Saat endpoint berubah |
-| `WAHA_API_KEY` | Secret | API/WAHA | Generator + secret store | WhatsApp/DevOps Owner | Berkala dan setelah suspected exposure |
-| `WAHA_SESSION` | Sensitive identifier | API/WAHA | Session development yang disetujui | WhatsApp Owner | Saat session diganti/revoked |
-| `WAHA_REQUEST_TIMEOUT` | Public config | API | `.env.example` / deployment config | Backend Owner | Berdasarkan latency evidence |
-| `WAHA_WEBHOOK_HMAC_KEY` | Secret | API/WAHA webhook | Generator + secret store | WhatsApp/DevOps Owner | Berkala dan setelah suspected exposure |
-| `WAHA_DASHBOARD_USERNAME` | Secret-adjacent identity | WAHA dashboard | Secret store | WhatsApp/DevOps Owner | Bersama dashboard credential |
-| `WAHA_DASHBOARD_PASSWORD` | Secret | WAHA dashboard | Password generator + secret store | WhatsApp/DevOps Owner | Berkala dan setelah suspected exposure |
-
-`DATABASE_HOST=postgres`, `DATABASE_PORT=5432`, dan `WAHA_BASE_URL=http://waha:3000` adalah alamat antar-container development. Nilai host-side berbeda bila API dijalankan langsung; ikuti `pesenhub_be/REQUIREMENTS.md` dan jangan mengubah default repository hanya karena port lokal bentrok.
+| `GOWA_BASE_URL` | Sensitive config | API → GOWA | Compose/service discovery | DevOps Owner | Saat endpoint berubah |
+| `GOWA_BASIC_AUTH_USERNAME` | Sensitive identity | API → GOWA | Secret store | WhatsApp/DevOps Owner | Saat credential diganti |
+| `GOWA_BASIC_AUTH_PASSWORD` | Secret | API → GOWA | Generator + secret store | WhatsApp/DevOps Owner | Berkala dan setelah suspected exposure |
+| `GOWA_DEVICE_ID` | Sensitive identifier | API/GOWA | Device development yang disetujui | WhatsApp Owner | Saat device diganti/revoked |
+| `GOWA_REQUEST_TIMEOUT` | Public config | API | `.env.example` / deployment config | Backend Owner | Berdasarkan latency evidence |
+| `GOWA_WEBHOOK_SECRET` | Secret | API/GOWA webhook | Generator + secret store | WhatsApp/DevOps Owner | Berkala dan setelah suspected exposure |
+`DATABASE_HOST=postgres`, `DATABASE_PORT=5432`, dan `GOWA_BASE_URL=http://gowa:3000` adalah alamat antar-container development. Nilai host-side berbeda bila API dijalankan langsung; ikuti `pesenhub_be/REQUIREMENTS.md` dan jangan mengubah default repository hanya karena port lokal bentrok.
 
 ## CI/CD dan Future Secret Matrix
 
@@ -93,7 +91,7 @@ Jangan membuat nama environment variable Midtrans/Hermes seolah sudah menjadi ko
 ## Kebijakan Environment
 
 - Local: data sintetis, credential development unik per developer, tanpa session/nomor WhatsApp production.
-- CI: service ephemeral atau mock; tidak pairing WAHA dan tidak mengirim pesan/transaksi nyata.
+- CI: service ephemeral atau mock; tidak pairing GOWA dan tidak mengirim pesan/transaksi nyata.
 - Sandbox: akun/provider sandbox khusus; batasi akses dan redaksi artifact/log.
 - Production: secret manager atau GitHub Environment dengan approval, least privilege, audit, dan rotasi.
 - Tidak boleh menyalin database production ke development. Fixture memakai nama dan nomor sintetis.
@@ -114,5 +112,5 @@ Expected result command pertama adalah tidak ada secret file tracked. `.env.exam
 - Missing variable: bandingkan nama key dengan `.env.example`; jangan meminta nilai secret melalui Issue/PR/chat publik.
 - Credential invalid: periksa source/owner secret dan lakukan rotasi bila perlu; jangan mencetak nilainya.
 - Port conflict: ubah host mapping lokal yang didukung, bukan alamat antar-container.
-- WAHA degraded: periksa health/log yang sudah disamarkan; jangan membuat pairing production sebagai jalan pintas.
+- GOWA degraded: periksa health/log yang sudah disamarkan; jangan membuat pairing production sebagai jalan pintas.
 - Build Android meminta keystore: gunakan debug build sampai signing production dikerjakan dalam Issue release tersendiri.

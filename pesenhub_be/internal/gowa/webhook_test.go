@@ -1,44 +1,40 @@
-package waha
+package gowa
 
 import (
 	"bytes"
 	"context"
 	"crypto/hmac"
-	"crypto/sha512"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
 
-func signedWebhook(t *testing.T, h *WebhookHandler, body, id string, at time.Time) *http.Request {
+func signedWebhook(t *testing.T, h *WebhookHandler, body, id string, _ time.Time) *http.Request {
 	t.Helper()
-	mac := hmac.New(sha512.New, h.secret)
+	mac := hmac.New(sha256.New, h.secret)
 	_, _ = mac.Write([]byte(body))
-	r := httptest.NewRequest(http.MethodPost, "/webhooks/waha", strings.NewReader(body))
-	r.Header.Set("X-Webhook-Request-Id", id)
-	r.Header.Set("X-Webhook-Timestamp", strconv.FormatInt(at.UnixMilli(), 10))
-	r.Header.Set("X-Webhook-Hmac-Algorithm", "sha512")
-	r.Header.Set("X-Webhook-Hmac", hex.EncodeToString(mac.Sum(nil)))
+	r := httptest.NewRequest(http.MethodPost, "/webhooks/gowa", strings.NewReader(body))
+	r.Header.Set("X-Request-ID", id)
+	r.Header.Set("X-Hub-Signature-256", "sha256="+hex.EncodeToString(mac.Sum(nil)))
 	return r
 }
 
-func TestWebhookAcceptsOfficialWAHAHMACShape(t *testing.T) {
+func TestWebhookAcceptsOfficialGOWAHMACShape(t *testing.T) {
 	now := time.UnixMilli(1_800_000_000_000)
 	h := NewWebhookHandler("my-secret-key", nil)
 	h.now = func() time.Time { return now }
-	body := `{"event":"message","session":"default","engine":"WEBJS"}`
-	mac := hmac.New(sha512.New, []byte("my-secret-key"))
+	body := `{"event":"message","device_id":"pesenhub-dev","session_id":"default","payload":{"id":"3EB0TEST","from":"628123456789@s.whatsapp.net","body":"test"}}`
+	mac := hmac.New(sha256.New, []byte("my-secret-key"))
 	_, _ = mac.Write([]byte(body))
-	const documentedSignature = "208f8a55dde9e05519e898b10b89bf0d0b3b0fdf11fdbf09b6b90476301b98d8097c462b2b17a6ce93b6b47a136cf2e78a33a63f6752c2c1631777076153fa89"
-	if hex.EncodeToString(mac.Sum(nil)) != documentedSignature {
-		t.Fatal("fixture no longer matches the official WAHA HMAC example")
+	if len(hex.EncodeToString(mac.Sum(nil))) != sha256.Size*2 {
+		t.Fatal("unexpected HMAC-SHA256 size")
 	}
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, signedWebhook(t, h, body, "evt-1", now))
@@ -47,23 +43,20 @@ func TestWebhookAcceptsOfficialWAHAHMACShape(t *testing.T) {
 	}
 }
 
-func TestWebhookRejectsInvalidProofAndStaleTimestamp(t *testing.T) {
+func TestWebhookRejectsInvalidProof(t *testing.T) {
 	now := time.UnixMilli(1_800_000_000_000)
 	h := NewWebhookHandler("my-secret-key", nil)
 	h.now = func() time.Time { return now }
 
 	badProof := signedWebhook(t, h, `{}`, "evt-bad", now)
-	badProof.Header.Set("X-Webhook-Hmac", strings.Repeat("0", sha512.Size*2))
+	badProof.Header.Set("X-Hub-Signature-256", strings.Repeat("0", sha256.Size*2))
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, badProof)
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("invalid proof response=%d", rr.Code)
 	}
-
-	rr = httptest.NewRecorder()
-	h.ServeHTTP(rr, signedWebhook(t, h, `{}`, "evt-stale", now.Add(-6*time.Minute)))
-	if rr.Code != http.StatusUnauthorized || h.Metrics().AuthenticationFailed != 2 {
-		t.Fatalf("stale response=%d metrics=%+v", rr.Code, h.Metrics())
+	if h.Metrics().AuthenticationFailed != 1 {
+		t.Fatalf("metrics=%+v", h.Metrics())
 	}
 }
 
@@ -73,7 +66,7 @@ func TestWebhookDuplicateIsAcknowledgedWithoutSecondAcceptance(t *testing.T) {
 	h.now = func() time.Time { return now }
 	for range 2 {
 		rr := httptest.NewRecorder()
-		h.ServeHTTP(rr, signedWebhook(t, h, `{"event":"message","session":"default"}`, "evt-retry", now))
+		h.ServeHTTP(rr, signedWebhook(t, h, `{"event":"message","device_id":"pesenhub-dev","session_id":"default"}`, "evt-retry", now))
 		if rr.Code != http.StatusNoContent {
 			t.Fatalf("response=%d", rr.Code)
 		}
@@ -104,7 +97,7 @@ func TestWebhookReplayGuardIsAtomic(t *testing.T) {
 	const requests = 20
 	var wg sync.WaitGroup
 	for range requests {
-		request := signedWebhook(t, h, `{"event":"message","session":"default"}`, "evt-concurrent", now)
+		request := signedWebhook(t, h, `{"event":"message","device_id":"pesenhub-dev","session_id":"default"}`, "evt-concurrent", now)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -121,7 +114,7 @@ func TestWebhookLimitsBodyAndDoesNotLogPayloadOrSecret(t *testing.T) {
 	var logs bytes.Buffer
 	h := NewWebhookHandler("do-not-log-secret", slog.New(slog.NewJSONHandler(&logs, nil)))
 	rr := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/webhooks/waha", strings.NewReader(strings.Repeat("private-payload", 100_000)))
+	r := httptest.NewRequest(http.MethodPost, "/webhooks/gowa", strings.NewReader(strings.Repeat("private-payload", 100_000)))
 	h.ServeHTTP(rr, r)
 	if rr.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("response=%d", rr.Code)
@@ -194,13 +187,13 @@ func TestWebhookInboundMessageProcessing(t *testing.T) {
 
 	body := `{
 		"event": "message",
-		"session": "default",
+		"device_id": "pesenhub-dev", "session_id": "default",
 		"payload": {
 			"id": "wamid_123456",
-			"timestamp": 1800000000,
-			"from": "628123456789@c.us",
-			"fromMe": false,
-			"to": "628999999999@c.us",
+			"timestamp": "2026-09-04T12:00:00Z",
+			"from": "628123456789@s.whatsapp.net",
+			"is_from_me": false,
+			"to": "628999999999@s.whatsapp.net",
 			"body": "Pesan nasi goreng spesial",
 			"_data": {"notifyName": "Andi"}
 		}
@@ -241,12 +234,12 @@ func TestWebhookInboundMessageDeduplication(t *testing.T) {
 
 	body := `{
 		"event": "message",
-		"session": "default",
+		"device_id": "pesenhub-dev", "session_id": "default",
 		"payload": {
 			"id": "wamid_duplicate_test",
-			"timestamp": 1800000000,
-			"from": "628123456789@c.us",
-			"fromMe": false,
+			"timestamp": "2026-09-04T12:00:00Z",
+			"from": "628123456789@s.whatsapp.net",
+			"is_from_me": false,
 			"body": "Pesan pertama"
 		}
 	}`
@@ -261,7 +254,7 @@ func TestWebhookInboundMessageDeduplication(t *testing.T) {
 		t.Fatalf("expected processCount 1, got %d", processCount)
 	}
 
-	// Second delivery with different webhook request ID (simulating WAHA retry with new request ID)
+	// Second delivery with different webhook request ID (simulating GOWA retry with new request ID)
 	rr2 := httptest.NewRecorder()
 	h.ServeHTTP(rr2, signedWebhook(t, h, body, "req-second-retry", now.Add(time.Second)))
 	if rr2.Code != http.StatusNoContent {
@@ -294,12 +287,12 @@ func TestWebhookInboundMessageQuarantine(t *testing.T) {
 	// Group message
 	body := `{
 		"event": "message",
-		"session": "default",
+		"device_id": "pesenhub-dev", "session_id": "default",
 		"payload": {
 			"id": "wamid_group_msg",
-			"timestamp": 1800000000,
+			"timestamp": "2026-09-04T12:00:00Z",
 			"from": "120363025412345678@g.us",
-			"fromMe": false,
+			"is_from_me": false,
 			"body": "pesan grup"
 		}
 	}`
@@ -336,12 +329,12 @@ func TestWebhookInboundMessageInternalError(t *testing.T) {
 
 	body := `{
 		"event": "message",
-		"session": "default",
+		"device_id": "pesenhub-dev", "session_id": "default",
 		"payload": {
 			"id": "wamid_fail_test",
-			"timestamp": 1800000000,
-			"from": "628123456789@c.us",
-			"fromMe": false,
+			"timestamp": "2026-09-04T12:00:00Z",
+			"from": "628123456789@s.whatsapp.net",
+			"is_from_me": false,
 			"body": "test error"
 		}
 	}`
@@ -366,12 +359,12 @@ func TestWebhookInboundMessageFromMeIgnored(t *testing.T) {
 
 	body := `{
 		"event": "message",
-		"session": "default",
+		"device_id": "pesenhub-dev", "session_id": "default",
 		"payload": {
 			"id": "wamid_from_me",
-			"timestamp": 1800000000,
-			"from": "628999999999@c.us",
-			"fromMe": true,
+			"timestamp": "2026-09-04T12:00:00Z",
+			"from": "628999999999@s.whatsapp.net",
+			"is_from_me": true,
 			"body": "pesan dari bot"
 		}
 	}`

@@ -6,7 +6,7 @@ Dokumentasi arsitektur penyimpanan pesan outbound WhatsApp (*durable outbox patt
 
 ## 1. Latar Belakang & Prinsip Inti
 
-1. **Decoupled Transport Invariant**: Kegagalan pengiriman WhatsApp ke gateway eksternal (WAHA) tidak boleh membatalkan (*rollback*) atau menggagalkan transaksi order yang sudah di-*commit* di backend.
+1. **Decoupled Transport Invariant**: Kegagalan pengiriman WhatsApp ke gateway eksternal (GOWA) tidak boleh membatalkan (*rollback*) atau menggagalkan transaksi order yang sudah di-*commit* di backend.
 2. **At-Most-Once Idempotency**: Setiap event notifikasi memiliki kunci idempoten unik (`order:<order_id>:type:<type>:v:<version>`). Pengiriman ulang atau event duplikat tidak akan menduplikasi pesan WhatsApp ke pelanggan.
 3. **Zero AI Price Hallucination**: Konten notifikasi WhatsApp dihasilkan dari data snapshot transaksi yang sudah divalidasi backend, bukan teks bebas yang rawan halusinasi harga.
 4. **Privacy & Log Redaction**: Nomor telepon pelanggan selalu dimasking (`MaskPhone`, format `+6281****7890`), dan tidak ada secret, token, atau raw payload yang disimpan di kolom error atau log.
@@ -16,30 +16,23 @@ Dokumentasi arsitektur penyimpanan pesan outbound WhatsApp (*durable outbox patt
 
 ## 2. Model Data & Migrasi `000015`
 
-Migrasi `000015_create_waha_outbox_retry_logging.up.sql` memperluas tabel `order_notifications`:
+Migrasi historis `000015_create_waha_outbox_retry_logging.up.sql` memperluas tabel `order_notifications`. Migrasi `000017_migrate_waha_to_gowa.up.sql` kemudian mengganti kategori lama `SESSION_NOT_READY` menjadi `DEVICE_NOT_READY` tanpa kehilangan data:
 
 ```sql
-ALTER TABLE order_notifications
-    ADD COLUMN next_retry_at timestamptz,
-    ADD COLUMN max_attempts integer NOT NULL DEFAULT 5 CHECK (max_attempts > 0),
-    ADD COLUMN error_category text CHECK (error_category IS NULL OR error_category IN (
+ALTER TABLE order_notifications DROP CONSTRAINT order_notifications_error_category_check;
+UPDATE order_notifications SET error_category = 'DEVICE_NOT_READY'
+WHERE error_category = 'SESSION_NOT_READY';
+ALTER TABLE order_notifications ADD CONSTRAINT order_notifications_error_category_check
+    CHECK (error_category IS NULL OR error_category IN (
         'TRANSIENT_TIMEOUT',
         'TRANSIENT_NETWORK',
         'TRANSIENT_PROVIDER',
-        'SESSION_NOT_READY',
+        'DEVICE_NOT_READY',
         'PERMANENT_VALIDATION',
         'PERMANENT_AUTH',
         'MAX_ATTEMPTS_EXCEEDED',
         'UNKNOWN'
     ));
-
-ALTER TABLE order_notifications DROP CONSTRAINT IF EXISTS order_notifications_status_check;
-ALTER TABLE order_notifications ADD CONSTRAINT order_notifications_status_check
-    CHECK (status IN ('PENDING', 'PROCESSING', 'SENT', 'FAILED', 'SUPPRESSED', 'DEAD_LETTER'));
-
-CREATE INDEX idx_order_notifications_outbox
-    ON order_notifications (status, next_retry_at, created_at)
-    WHERE status IN ('PENDING', 'PROCESSING', 'FAILED');
 ```
 
 ---
@@ -73,9 +66,9 @@ CREATE INDEX idx_order_notifications_outbox
 | :--- | :--- | :--- |
 | `PENDING` | Pesan baru masuk antrean outbox. | Diproses langsung atau diklaim worker. |
 | `PROCESSING` | Sedang dikirim oleh worker. Dilindungi lock `SKIP LOCKED`. | Transisi ke `SENT`, `FAILED`, atau `DEAD_LETTER`. |
-| `SENT` | Pesan berhasil terkirim dan diakui gateway WAHA (`provider_message_id` tersimpan). | **Terminal**. Panggilan berikutnya dengan kunci idempoten sama menjadi no-op. |
+| `SENT` | Pesan berhasil terkirim dan diakui gateway GOWA (`provider_message_id` tersimpan). | **Terminal**. Panggilan berikutnya dengan kunci idempoten sama menjadi no-op. |
 | `FAILED` | Mengalami kegagalan sementara (*transient*). Dijadwalkan ulang dengan `next_retry_at`. | Diklaim kembali oleh worker saat `now() >= next_retry_at`. |
-| `SUPPRESSED` | Dibatalkan karena pelanggan opt-out (`STOP`) atau percakapan diambil alih staf (`HANDOFF` / `PAUSED`). | **Terminal**. Tidak dikirim ke WAHA. |
+| `SUPPRESSED` | Dibatalkan karena pelanggan opt-out (`STOP`) atau percakapan diambil alih staf (`HANDOFF` / `PAUSED`). | **Terminal**. Tidak dikirim ke GOWA. |
 | `DEAD_LETTER` | Kegagalan permanen (validasi 400, auth 401/403) atau batas `max_attempts` tercapai. | **Terminal**. Membutuhkan penanganan manual / alert. |
 
 ---
@@ -106,11 +99,11 @@ Fungsi `ClassifyError(err)` memetakan error eksternal secara deterministik:
 
 | Error Type | Category | Retryable? | Tindakan |
 | :--- | :--- | :---: | :--- |
-| `waha.ErrValidation` / 400 / 422 | `PERMANENT_VALIDATION` | Tidak | Langsung `DEAD_LETTER` |
-| `waha.ErrAuthentication` / 401 / 403 | `PERMANENT_AUTH` | Tidak | Langsung `DEAD_LETTER` |
-| `waha.ErrTimeout` / Deadline Exceeded | `TRANSIENT_TIMEOUT` | Ya | Jadwalkan ulang dengan backoff |
-| `waha.ErrSessionNotReady` / 404 Absent | `SESSION_NOT_READY` | Ya | Jadwalkan ulang dengan backoff |
-| `waha.ErrProvider` / 500 / 502 / 503 / 504 | `TRANSIENT_PROVIDER` | Ya | Jadwalkan ulang dengan backoff |
+| `gowa.ErrValidation` / 400 / 422 | `PERMANENT_VALIDATION` | Tidak | Langsung `DEAD_LETTER` |
+| `gowa.ErrAuthentication` / 401 / 403 | `PERMANENT_AUTH` | Tidak | Langsung `DEAD_LETTER` |
+| `gowa.ErrTimeout` / Deadline Exceeded | `TRANSIENT_TIMEOUT` | Ya | Jadwalkan ulang dengan backoff |
+| `gowa.ErrDeviceNotReady` / 404 Absent | `DEVICE_NOT_READY` | Ya | Jadwalkan ulang dengan backoff |
+| `gowa.ErrProvider` / 500 / 502 / 503 / 504 | `TRANSIENT_PROVIDER` | Ya | Jadwalkan ulang dengan backoff |
 | Connection Refused / Network Glitch | `TRANSIENT_NETWORK` | Ya | Jadwalkan ulang dengan backoff |
 | Other Unknown | `UNKNOWN` | Ya (hingga max attempt) | Jadwalkan ulang dengan backoff |
 
@@ -120,7 +113,7 @@ Fungsi `SanitizeError(err)` menghapus secret API key (`[REDACTED]`), memasking n
 
 ## 6. Crash Recovery & Concurrency Safety
 
-1. **Zero Row Lock Exhaustion**: Worker mengambil batch dengan kueri CTE pendek `FOR UPDATE SKIP LOCKED` dan segera mengubah status menjadi `PROCESSING`, melepaskan koneksi PostgreSQL sebelum melakukan panggilan HTTP ke WAHA.
+1. **Zero Row Lock Exhaustion**: Worker mengambil batch dengan kueri CTE pendek `FOR UPDATE SKIP LOCKED` dan segera mengubah status menjadi `PROCESSING`, melepaskan koneksi PostgreSQL sebelum melakukan panggilan HTTP ke GOWA.
 2. **Multi-Worker Safety**: `FOR UPDATE SKIP LOCKED` memastikan beberapa replika worker tidak akan pernah memproses baris yang sama secara bersamaan.
 3. **Startup Recovery**: Saat aplikasi dinyalakan ulang (*restart / crash*), `RecoverStaleProcessing(ctx, 0)` secara otomatis mereset seluruh baris berstatus `PROCESSING` kembali ke `FAILED` agar segera dijadwalkan ulang tanpa kehilangan job.
 4. **Periodic Stale Sweep**: Worker secara berkala membersihkan baris `PROCESSING` yang menggantung lebih dari `staleThreshold` (default 2 menit).

@@ -1,4 +1,4 @@
-package waha
+package gowa
 
 import (
 	"testing"
@@ -13,7 +13,7 @@ func TestNormalizeSenderPhone(t *testing.T) {
 		wantReason     string
 	}{
 		{
-			name:           "standard waha jid",
+			name:           "standard gowa jid",
 			raw:            "628123456789@c.us",
 			wantPhone:      "+628123456789",
 			wantQuarantine: false,

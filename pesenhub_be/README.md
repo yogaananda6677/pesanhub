@@ -3,7 +3,7 @@
 Kontrak HTTP lintas endpoint mengikuti [`docs/API_CONVENTIONS.md`](../docs/API_CONVENTIONS.md) dan schema OpenAPI [`docs/api/openapi.yaml`](../docs/api/openapi.yaml).
 Model data inti dan ERD tersedia di [`docs/CORE_DOMAIN_MODEL.md`](../docs/CORE_DOMAIN_MODEL.md). Jalankan integration test migration terisolasi dengan `./scripts/test-migrations.sh`.
 
-Fondasi REST API Phase 0. Cara utama menjalankan PesenHub adalah Docker Compose: API Golang, PostgreSQL, dan WAHA berada dalam satu network. Web Customer masih berupa placeholder dan tidak ada pairing atau pengiriman WhatsApp otomatis.
+Fondasi REST API Phase 0. Cara utama menjalankan PesenHub adalah Docker Compose: API Golang, PostgreSQL, dan GOWA berada dalam satu network. Web Customer masih berupa placeholder dan tidak ada pairing atau pengiriman WhatsApp otomatis.
 
 ## Quick start
 
@@ -17,9 +17,9 @@ cd pesenhub_be
 
 Panduan lengkap dan aturan operasional tersedia di [ATURAN.md](ATURAN.md).
 
-Readiness gagal dengan HTTP 503 bila PostgreSQL turun. WAHA yang belum memiliki session menghasilkan HTTP 200 berstatus `degraded`; field `waha_api`, `waha_session`, dan `waha_reason` membedakan API gagal, session tidak ada, session terputus, dan timeout tanpa melakukan pairing otomatis.
+Readiness gagal dengan HTTP 503 bila PostgreSQL turun. GOWA yang belum memiliki device terhubung menghasilkan HTTP 200 berstatus `degraded`; field `gowa_api`, `gowa_device`, dan `gowa_reason` membedakan API gagal, device tidak ada, device terputus, dan timeout tanpa melakukan pairing otomatis.
 
-Webhook WAHA diterima pada `POST /webhooks/waha` dan wajib memakai HMAC-SHA512 WAHA. Lihat [WAHA_HEALTH_WEBHOOK_SECURITY.md](../docs/WAHA_HEALTH_WEBHOOK_SECURITY.md) sebelum mengonfigurasi session development.
+Webhook GOWA diterima pada `POST /webhooks/gowa` dan wajib memakai header HMAC-SHA256 `X-Hub-Signature-256`. Lihat [GOWA_HEALTH_WEBHOOK_SECURITY.md](../docs/GOWA_HEALTH_WEBHOOK_SECURITY.md) sebelum memasangkan device development.
 
 ## Migration
 
@@ -38,7 +38,7 @@ Setelah stack menyala:
 ```bash
 ./run.sh logs api
 ./run.sh logs postgres
-./run.sh logs waha
+./run.sh logs gowa
 ./run.sh down
 ```
 
@@ -48,7 +48,7 @@ Jalankan `./run.sh help` untuk seluruh command. Target Makefile adalah wrapper t
 
 ## Menjalankan Go langsung
 
-Untuk development tanpa container API, PostgreSQL dan WAHA tetap dapat dijalankan melalui Compose. Ubah `.env` menjadi `DATABASE_HOST=localhost` dan `WAHA_BASE_URL=http://localhost:3000`, muat variabel ke shell, lalu jalankan:
+Untuk development tanpa container API, PostgreSQL dan GOWA tetap dapat dijalankan melalui Compose. Ubah `.env` menjadi `DATABASE_HOST=localhost` dan `GOWA_BASE_URL=http://localhost:3000`, muat variabel ke shell, lalu jalankan:
 
 ```bash
 set -a; . ./.env; set +a

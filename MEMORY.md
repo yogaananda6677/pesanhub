@@ -15,11 +15,11 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
 | Last updated   | 4 September 2026                                           |
-| Updated by     | Issue #44 Pencatatan pembayaran tunai                       |
+| Updated by     | Issue #118 Migrasi gateway WAHA ke GOWA                     |
 
 ## 2. Product Intent
 
-Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng. Aplikasi Flutter dipakai sebagai POS/KDS, backend Golang mengatur proses bisnis sekaligus menyajikan Web Customer sederhana, WAHA menghubungkan WhatsApp, Hermes membantu menerima dan mengklarifikasi order pelanggan, dan Midtrans menangani pembayaran digital. Pelanggan Web Customer dapat memesan tanpa akun dengan memasukkan nama dan nomor HP.
+Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng. Aplikasi Flutter dipakai sebagai POS/KDS, backend Golang mengatur proses bisnis sekaligus menyajikan Web Customer sederhana, GOWA menghubungkan WhatsApp, Hermes membantu menerima dan mengklarifikasi order pelanggan, dan Midtrans menangani pembayaran digital. Pelanggan Web Customer dapat memesan tanpa akun dengan memasukkan nama dan nomor HP.
 
 ## 3. Invariants — Jangan Dilanggar
 
@@ -41,7 +41,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | ------- | -------------------------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------- |
 | ADR-001 | Flutter untuk aplikasi POS/KDS                                                   | ACCEPTED          | Satu codebase mobile lintas platform                                                                |
 | ADR-002 | Golang sebagai backend dan system of record                                      | ACCEPTED          | Cocok untuk REST, WebSocket, dan concurrent event handling                                          |
-| ADR-003 | WAHA sebagai gateway development/pilot dengan exit trigger menuju platform resmi | ACCEPTED — PD-007 | PR #79 di-merge; tidak mengizinkan data production sebelum #58                                      |
+| ADR-003 | WAHA sebagai gateway development/pilot dengan exit trigger menuju platform resmi | SUPERSEDED — #118 | Digantikan ADR-013; batas pilot dan exit trigger tetap berlaku                                       |
 | ADR-004 | Hermes sebagai conversational order agent                                        | ACCEPTED          | Membantu ekstraksi dan klarifikasi order melalui tool terbatas                                      |
 | ADR-005 | Midtrans Snap/Core API untuk pembayaran digital                                  | ACCEPTED          | Mendukung QRIS, e-wallet, dan transfer bank untuk pasar Indonesia                                   |
 | ADR-006 | SQLite untuk local offline store; package divalidasi pada #32                    | ACCEPTED — PD-006 | PR #79 di-merge; model relational/transactional sesuai menu, order, queue snapshot, dan outbox      |
@@ -49,7 +49,8 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | ADR-008 | PostgreSQL 16 sebagai database backend                                           | ACCEPTED          | Diminta eksplisit untuk fondasi Backend Phase 0; memakai image Alpine dengan persistent volume      |
 | ADR-009 | Satu root `PRD.md` untuk Backend, Mobile, dan Web Customer                       | ACCEPTED          | Seluruh komponen memakai aturan bisnis dan roadmap yang sama                                        |
 | ADR-010 | Dua folder utama: `pesenhub_be/` dan `pesenhub_app/`                             | ACCEPTED          | Nama komponen konsisten; Web Customer sederhana ditempatkan di `pesenhub_be/web/`                   |
-| ADR-012 | Stack utama dijalankan dengan Docker Compose                                     | ACCEPTED          | API dibangun multi-stage, PostgreSQL 16 Alpine dan WAHA berjalan sebagai service dalam satu network |
+| ADR-012 | Stack utama dijalankan dengan Docker Compose                                     | ACCEPTED          | API dibangun multi-stage, PostgreSQL 16 Alpine dan GOWA berjalan sebagai service dalam satu network |
+| ADR-013 | GOWA v9 menggantikan WAHA sebagai gateway WhatsApp aktif                         | ACCEPTED — #118   | Kontrak lebih ringan berbasis Go; domain source `WHATSAPP` dan exit strategy resmi tetap dipertahankan |
 | ADR-011 | Web Customer tanpa akun menggunakan nama dan nomor HP                            | ACCEPTED          | Mengurangi hambatan pelanggan saat membuat order                                                    |
 
 ## 5. Phase Progress Summary
@@ -59,7 +60,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2)  | Project readiness           | DONE        | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md`       |
 | [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend                | DONE        | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
 | [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet     | DONE        | 2026-09-03 | 2026-09-04 | PR #95–#107 dan `docs/PHASE_1B_CLOSING_EVIDENCE.md`     |
-| [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | IN_PROGRESS | 2026-09-04 | —          | Issue #44 sedang diimplementasikan                      |
+| [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | IN_PROGRESS | 2026-09-04 | —          | Migrasi GOWA #118 sedang divalidasi                     |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release   | NOT_STARTED | —          | —          | Menunggu 1A–1C                                          |
 | [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7)  | Food Aggregator Integration | NOT_STARTED | —          | —          | Menunggu MVP stabil dan kontrak resmi                   |
 | [3 — #8](https://github.com/yogaananda6677/pesanhub/issues/8)  | Production Hardening        | NOT_STARTED | —          | —          | Menunggu hasil pilot dan target kapasitas               |
@@ -70,16 +71,16 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
 - Phase Issue: [#5 — Phase 1C WhatsApp, Agent & Payment](https://github.com/yogaananda6677/pesanhub/issues/5)
-- Child Issues: #36–#47
+- Child Issues: #36–#47, #118
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#44 — Implementasi pencatatan pembayaran tunai](https://github.com/yogaananda6677/pesanhub/issues/44)
-- Current Branch: `feature/44-cash-payment`
+- Current Issue: [#118 — Migrasi gateway WhatsApp dari WAHA ke GOWA](https://github.com/yogaananda6677/pesanhub/issues/118)
+- Current Branch: `feature/118-migrate-waha-to-gowa`
 - Pull Request: pending
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104), [#105](https://github.com/yogaananda6677/pesanhub/pull/105), [#106](https://github.com/yogaananda6677/pesanhub/pull/106), [#107](https://github.com/yogaananda6677/pesanhub/pull/107), [#108](https://github.com/yogaananda6677/pesanhub/pull/108), [#109](https://github.com/yogaananda6677/pesanhub/pull/109), [#110](https://github.com/yogaananda6677/pesanhub/pull/110), [#111](https://github.com/yogaananda6677/pesanhub/pull/111), [#112](https://github.com/yogaananda6677/pesanhub/pull/112), [#113](https://github.com/yogaananda6677/pesanhub/pull/113), [#114](https://github.com/yogaananda6677/pesanhub/pull/114), [#115](https://github.com/yogaananda6677/pesanhub/pull/115)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Pembayaran tunai exact-amount hanya dapat dicatat staf, terpisah dari status order, idempotent, serta menghasilkan audit dan event immutable secara atomik.
-- Validation: format, vet, full unit test, migration up/down/up, dan PostgreSQL cash-payment integration test PASS.
-- Next Issue: #45 setelah Issue #44 selesai dan PR di-merge.
+- Exit Criteria: Semua runtime/config/API aktif memakai GOWA v9, data inbound lama terjaga, dan domain `WHATSAPP` tidak berubah.
+- Validation: unit suite, migration up/down/up, PostgreSQL integration suites, Compose config, dan pinned-image verification PASS; CI menunggu PR.
+- Next Issue: lanjutkan #45 setelah migrasi #118 di-merge.
 
 ## 6. Current Phase Checklist
 

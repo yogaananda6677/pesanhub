@@ -8,9 +8,9 @@ Dokumen ini adalah panduan utama developer dan coding agent untuk setup, operasi
 | --- | --- | --- | --- |
 | API | Backend Golang | 8080 | `api:8080` |
 | PostgreSQL | Database | dari `.env`, saat ini 55432 | `postgres:5432` |
-| WAHA | WhatsApp gateway | 3000 | `waha:3000` |
+| GOWA | WhatsApp gateway | 3000 | `gowa:3000` |
 
-API di dalam Docker wajib menggunakan `postgres:5432` dan `http://waha:3000`. Host port PostgreSQL boleh diubah melalui `POSTGRES_HOST_PORT` jika 5432 sedang dipakai, tetapi host port tidak boleh digunakan untuk koneksi antar-container. Sebelum session WhatsApp dipasangkan, container WAHA dapat sehat sementara readiness API berstatus `degraded`; kondisi ini tidak fatal pada Phase 0.
+API di dalam Docker wajib menggunakan `postgres:5432` dan `http://gowa:3000`. Host port PostgreSQL boleh diubah melalui `POSTGRES_HOST_PORT` jika 5432 sedang dipakai, tetapi host port tidak boleh digunakan untuk koneksi antar-container. Sebelum device WhatsApp dipasangkan, container GOWA dapat sehat sementara readiness API berstatus `degraded`.
 
 ## Prasyarat
 
@@ -31,7 +31,7 @@ cd pesenhub_be
 ./run.sh health
 ```
 
-`setup` memeriksa Docker dan Compose, memastikan file konfigurasi tersedia, lalu membuat `.env` dari `.env.example` hanya jika `.env` belum ada. File yang sudah ada tidak pernah ditimpa. Setup memvalidasi `docker compose config`, tidak mengubah port pilihan pengguna, tidak menghapus database/volume, dan tidak membuat atau memasangkan session WAHA.
+`setup` memeriksa Docker dan Compose, memastikan file konfigurasi tersedia, lalu membuat `.env` dari `.env.example` hanya jika `.env` belum ada. File yang sudah ada tidak pernah ditimpa. Setup memvalidasi `docker compose config`, tidak mengubah port pilihan pengguna, tidak menghapus database/volume, dan tidak membuat atau memasangkan device GOWA.
 
 Setelah `.env` dibuat pertama kali, ganti nilai `change_me` dengan credential development yang layak sebelum penggunaan nyata.
 
@@ -47,10 +47,10 @@ Setelah `.env` dibuat pertama kali, ganti nilai `change_me` dengan credential de
 | `./run.sh rebuild` | Build bersih API tanpa cache; gunakan hanya saat diperlukan. |
 | `./run.sh stop` | Menghentikan container tanpa menghapus container, network, atau volume. |
 | `./run.sh down` | Menghapus container dan network tanpa menghapus volume. |
-| `./run.sh restart [service]` | Restart semua service atau hanya `api`, `postgres`, atau `waha`, lalu cek health. |
+| `./run.sh restart [service]` | Restart semua service atau hanya `api`, `postgres`, atau `gowa`, lalu cek health. |
 | `./run.sh status` | Menampilkan `docker compose ps` dan ringkasan health bila API aktif. |
 | `./run.sh logs [service]` | Follow log semua/service tertentu dengan 100 baris awal. Tekan Ctrl-C untuk keluar. |
-| `./run.sh health` | Menampilkan HTTP status, status API, database, dan WAHA. |
+| `./run.sh health` | Menampilkan HTTP status, status API, database, dan GOWA. |
 | `./run.sh test` | Menjalankan `go test ./...`. |
 | `./run.sh check` | Module verify, format check, vet, test, dan validasi Compose tanpa mengubah source. |
 | `./run.sh fmt` | Memperbaiki format source Go dengan `gofmt -w .`. |
@@ -59,11 +59,11 @@ Setelah `.env` dibuat pertama kali, ganti nilai `change_me` dengan credential de
 | `./run.sh migrate-status` | Membaca versi dan dirty state migration tanpa mutasi. |
 | `./run.sh version` | Menampilkan versi tool dan seluruh image tanpa menampilkan `.env`. |
 
-Contoh: `./run.sh logs api`, `./run.sh restart waha`, `./run.sh migrate-status`, atau `./run.sh migrate-down --yes`.
+Contoh: `./run.sh logs api`, `./run.sh restart gowa`, `./run.sh migrate-status`, atau `./run.sh migrate-down --yes`.
 
 ## Aturan Keamanan
 
-- Jangan commit `.env`, API key, session/QR WAHA, data pelanggan, log sensitif, atau secret apa pun.
+- Jangan commit `.env`, API key, session/QR GOWA, data pelanggan, log sensitif, atau secret apa pun.
 - Jangan mencetak password, connection string, API key, atau token ke log.
 - Jangan menjalankan `docker compose down -v`, `docker volume prune`, atau `docker system prune`.
 - Jangan menghapus volume PostgreSQL tanpa backup dan persetujuan eksplisit.
@@ -100,17 +100,17 @@ Jalankan `./run.sh status` dan `./run.sh logs postgres`. Periksa credential `.en
 
 Pastikan `DATABASE_HOST=postgres`, `DATABASE_PORT=5432`, kedua service berada di network Compose yang sama, dan PostgreSQL healthy. Host port 55432 tidak digunakan API container.
 
-### WAHA berstatus degraded
+### GOWA berstatus degraded
 
-Periksa `./run.sh logs waha` dan `./run.sh health`. Jika container WAHA healthy tetapi session belum ada, readiness `degraded` memang diharapkan pada Phase 0.
+Periksa `./run.sh logs gowa` dan `./run.sh health`. Jika container GOWA healthy tetapi session belum ada, readiness `degraded` memang diharapkan pada Phase 0.
 
-### WAHA session belum dibuat
+### GOWA device belum dipasangkan
 
-Script tidak membuat session atau pairing otomatis. Pairing hanya dilakukan sebagai pekerjaan terpisah memakai nomor development setelah persetujuan; jangan memakai nomor production.
+Script tidak membuat device atau pairing otomatis. Pairing hanya dilakukan sebagai pekerjaan terpisah memakai nomor development setelah persetujuan; jangan memakai nomor production.
 
-### Webhook WAHA ditolak
+### Webhook GOWA ditolak
 
-Pastikan URL menunjuk `POST /webhooks/waha`, raw body tidak diubah proxy, dan konfigurasi webhook WAHA memakai HMAC key yang sama dengan `WAHA_WEBHOOK_HMAC_KEY`. Jangan menampilkan key, signature, atau payload ketika memeriksa log. Timestamp di luar toleransi lima menit ditolak; sinkronkan waktu host bila perlu.
+Pastikan URL menunjuk `POST /webhooks/gowa`, raw body tidak diubah proxy, dan konfigurasi webhook GOWA memakai secret yang sama dengan `GOWA_WEBHOOK_SECRET`. Verifikasi memakai `X-Hub-Signature-256` HMAC-SHA256. Jangan menampilkan secret, signature, QR, JID penuh, atau payload ketika memeriksa log.
 
 ### Migration gagal
 

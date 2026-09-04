@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"pesenhub/backend/internal/waha"
+	"pesenhub/backend/internal/gowa"
 )
 
 func TestCalculateBackoff(t *testing.T) {
@@ -45,18 +45,18 @@ func TestClassifyError(t *testing.T) {
 		expectedCat ErrorCategory
 		expectedRtr bool
 	}{
-		{err: waha.ErrValidation, expectedCat: CategoryPermanentValidation, expectedRtr: false},
+		{err: gowa.ErrValidation, expectedCat: CategoryPermanentValidation, expectedRtr: false},
 		{err: ErrInvalidRecipient, expectedCat: CategoryPermanentValidation, expectedRtr: false},
 		{err: errors.New("validation failed for phone"), expectedCat: CategoryPermanentValidation, expectedRtr: false},
 		{err: errors.New("HTTP status 400 bad request"), expectedCat: CategoryPermanentValidation, expectedRtr: false},
-		{err: waha.ErrAuthentication, expectedCat: CategoryPermanentAuth, expectedRtr: false},
+		{err: gowa.ErrAuthentication, expectedCat: CategoryPermanentAuth, expectedRtr: false},
 		{err: errors.New("status 401 unauthorized"), expectedCat: CategoryPermanentAuth, expectedRtr: false},
-		{err: waha.ErrTimeout, expectedCat: CategoryTransientTimeout, expectedRtr: true},
+		{err: gowa.ErrTimeout, expectedCat: CategoryTransientTimeout, expectedRtr: true},
 		{err: context.DeadlineExceeded, expectedCat: CategoryTransientTimeout, expectedRtr: true},
 		{err: errors.New("gateway timeout"), expectedCat: CategoryTransientTimeout, expectedRtr: true},
-		{err: waha.ErrSessionNotReady, expectedCat: CategorySessionNotReady, expectedRtr: true},
-		{err: waha.ErrSessionAbsent, expectedCat: CategorySessionNotReady, expectedRtr: true},
-		{err: waha.ErrProvider, expectedCat: CategoryTransientProvider, expectedRtr: true},
+		{err: gowa.ErrDeviceNotReady, expectedCat: CategoryDeviceNotReady, expectedRtr: true},
+		{err: gowa.ErrDeviceAbsent, expectedCat: CategoryDeviceNotReady, expectedRtr: true},
+		{err: gowa.ErrProvider, expectedCat: CategoryTransientProvider, expectedRtr: true},
 		{err: errors.New("dial tcp: connection refused"), expectedCat: CategoryTransientNetwork, expectedRtr: true},
 		{err: errors.New("something totally unexpected"), expectedCat: CategoryUnknown, expectedRtr: true},
 	}
@@ -107,7 +107,7 @@ func TestWorker_TransientFailure_SchedulesRetry(t *testing.T) {
 	sender := &mockSender{
 		sendFunc: func(ctx context.Context, toPhone, text string) (string, error) {
 			atomic.AddInt64(&callCount, 1)
-			return "", waha.ErrTimeout
+			return "", gowa.ErrTimeout
 		},
 	}
 
@@ -234,7 +234,7 @@ func TestWorker_PermanentFailure_MovesToDeadLetter(t *testing.T) {
 	store := NewMemoryStore()
 	sender := &mockSender{
 		sendFunc: func(ctx context.Context, toPhone, text string) (string, error) {
-			return "", waha.ErrAuthentication
+			return "", gowa.ErrAuthentication
 		},
 	}
 
@@ -286,7 +286,7 @@ func TestWorker_MaxAttemptsExceeded_MovesToDeadLetter(t *testing.T) {
 	store := NewMemoryStore()
 	sender := &mockSender{
 		sendFunc: func(ctx context.Context, toPhone, text string) (string, error) {
-			return "", waha.ErrProvider
+			return "", gowa.ErrProvider
 		},
 	}
 

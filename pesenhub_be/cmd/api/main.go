@@ -14,13 +14,13 @@ import (
 	"pesenhub/backend/internal/config"
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/database"
+	"pesenhub/backend/internal/gowa"
 	"pesenhub/backend/internal/health"
 	"pesenhub/backend/internal/hermes"
 	"pesenhub/backend/internal/httpserver"
 	"pesenhub/backend/internal/notification"
 	orderapi "pesenhub/backend/internal/order"
 	"pesenhub/backend/internal/payment"
-	"pesenhub/backend/internal/waha"
 	"pesenhub/backend/internal/ws"
 )
 
@@ -39,9 +39,9 @@ func main() {
 		os.Exit(1)
 	}
 	defer pool.Close()
-	wc := waha.New(cfg.WAHA.BaseURL, cfg.WAHA.APIKey, cfg.WAHA.Session, cfg.WAHA.Timeout)
-	wahaStore := waha.NewStore(pool)
-	wahaWebhook := waha.NewWebhookHandler(cfg.WAHA.WebhookHMACKey, logger, waha.WithStore(wahaStore))
+	wc := gowa.New(cfg.GOWA.BaseURL, cfg.GOWA.Username, cfg.GOWA.Password, cfg.GOWA.DeviceID, cfg.GOWA.Timeout)
+	gowaStore := gowa.NewStore(pool)
+	gowaWebhook := gowa.NewWebhookHandler(cfg.GOWA.WebhookSecret, logger, gowa.WithStore(gowaStore))
 	h := health.New("pesenhub-api", pool, wc)
 	customers := customer.NewHandler(customer.NewService(customer.NewStore(pool), customer.NewID))
 	catalogService := catalog.NewService(catalog.NewStore(pool), customer.NewID)
@@ -85,7 +85,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", h.Live)
 	mux.HandleFunc("GET /health/ready", h.Ready)
-	mux.Handle("POST /webhooks/waha", wahaWebhook)
+	mux.Handle("POST /webhooks/gowa", gowaWebhook)
 	mux.HandleFunc("POST /api/v1/customers", customers.Create)
 	mux.HandleFunc("PATCH /api/v1/customers/{id}", customers.Update)
 	mux.HandleFunc("GET /api/v1/customers/{id}/orders", customers.History)

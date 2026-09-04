@@ -1,4 +1,4 @@
-package waha
+package gowa
 
 import (
 	"crypto/rand"

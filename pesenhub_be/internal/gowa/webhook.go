@@ -1,9 +1,9 @@
-package waha
+package gowa
 
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/sha512"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -91,7 +90,6 @@ type WebhookHandler struct {
 	secret    []byte
 	logger    *slog.Logger
 	now       func() time.Time
-	maxSkew   time.Duration
 	replays   *replayGuard
 	counters  webhookCounters
 	store     InboundStore
@@ -103,7 +101,6 @@ func NewWebhookHandler(secret string, logger *slog.Logger, opts ...WebhookOption
 		secret:  []byte(secret),
 		logger:  logger,
 		now:     time.Now,
-		maxSkew: 5 * time.Minute,
 		replays: newReplayGuard(10*time.Minute, 10_000),
 	}
 	for _, opt := range opts {
@@ -125,8 +122,12 @@ func (h *WebhookHandler) Metrics() WebhookMetrics {
 
 func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	started := h.now()
-	requestID := r.Header.Get("X-Webhook-Request-Id")
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxWebhookBody))
+	requestID := r.Header.Get("X-Request-ID")
+	if !validWebhookRequestID.MatchString(requestID) {
+		sum := sha256.Sum256(body)
+		requestID = "gowa-" + hex.EncodeToString(sum[:8])
+	}
 	if err != nil {
 		status := http.StatusBadRequest
 		var tooLarge *http.MaxBytesError
@@ -136,33 +137,17 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.rejectValidation(w, status, "invalid_body", requestID, started)
 		return
 	}
-	timestamp := r.Header.Get("X-Webhook-Timestamp")
-	algorithm := r.Header.Get("X-Webhook-Hmac-Algorithm")
-	signature := r.Header.Get("X-Webhook-Hmac")
-	if !validWebhookRequestID.MatchString(requestID) || timestamp == "" {
-		h.rejectValidation(w, http.StatusBadRequest, "invalid_headers", requestID, started)
-		return
-	}
-	if !strings.EqualFold(algorithm, "sha512") || !h.validSignature(body, signature) {
+	signature := r.Header.Get("X-Hub-Signature-256")
+	if !h.validSignature(body, signature) {
 		h.rejectAuthentication(w, "authentication_failed", requestID, started)
 		return
 	}
-	millis, err := strconv.ParseInt(timestamp, 10, 64)
-	if err != nil {
-		h.rejectValidation(w, http.StatusBadRequest, "invalid_timestamp", requestID, started)
-		return
-	}
 	now := h.now()
-	age := now.Sub(time.UnixMilli(millis))
-	if age < -h.maxSkew || age > h.maxSkew {
-		h.rejectAuthentication(w, "stale_timestamp", requestID, started)
-		return
-	}
 	var envelope struct {
-		Event   string `json:"event"`
-		Session string `json:"session"`
+		Event    string `json:"event"`
+		DeviceID string `json:"device_id"`
 	}
-	if err := json.Unmarshal(body, &envelope); err != nil || envelope.Event == "" || envelope.Session == "" {
+	if err := json.Unmarshal(body, &envelope); err != nil || envelope.Event == "" || envelope.DeviceID == "" {
 		h.rejectValidation(w, http.StatusBadRequest, "invalid_payload", requestID, started)
 		return
 	}
@@ -226,11 +211,15 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebhookHandler) validSignature(body []byte, value string) bool {
-	provided, err := hex.DecodeString(value)
-	if err != nil || len(provided) != sha512.Size {
+	value = strings.TrimSpace(value)
+	if !strings.HasPrefix(value, "sha256=") {
 		return false
 	}
-	mac := hmac.New(sha512.New, h.secret)
+	provided, err := hex.DecodeString(strings.TrimPrefix(value, "sha256="))
+	if err != nil || len(provided) != sha256.Size {
+		return false
+	}
+	mac := hmac.New(sha256.New, h.secret)
 	_, _ = mac.Write(body)
 	return hmac.Equal(mac.Sum(nil), provided)
 }
@@ -248,7 +237,7 @@ func (h *WebhookHandler) rejectAuthentication(w http.ResponseWriter, reason, req
 func (h *WebhookHandler) rejectInternal(w http.ResponseWriter, reason, requestID string, started time.Time, err error) {
 	h.observe(reason, requestID, started)
 	if h.logger != nil {
-		h.logger.Error("WAHA webhook internal error", "reason", reason, "request_id", requestID, "error", err)
+		h.logger.Error("GOWA webhook internal error", "reason", reason, "request_id", requestID, "error", err)
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusInternalServerError)
@@ -278,6 +267,6 @@ func (h *WebhookHandler) observe(outcome, requestID string, started time.Time) {
 		if validWebhookRequestID.MatchString(requestID) {
 			attributes = append(attributes, "webhook_request_id", requestID)
 		}
-		h.logger.Info("WAHA webhook processed", attributes...)
+		h.logger.Info("GOWA webhook processed", attributes...)
 	}
 }

@@ -14,7 +14,7 @@
 
 ## 1. Ringkasan Produk
 
-> **Phase 0 baseline:** keputusan outlet, perangkat, fulfillment, pembayaran, local database, WAHA, dan status canonical pada [`docs/PHASE_0_PRODUCT_DECISIONS.md`](docs/PHASE_0_PRODUCT_DECISIONS.md) berlaku setelah PR #79 di-merge. Roadmap eksekusi mengikuti Epic #1 dan Phase Issue #2–#8; perubahan requirement tetap memerlukan persetujuan Owner.
+> **Phase 0 baseline:** keputusan outlet, perangkat, fulfillment, pembayaran, local database, gateway WhatsApp, dan status canonical pada [`docs/PHASE_0_PRODUCT_DECISIONS.md`](docs/PHASE_0_PRODUCT_DECISIONS.md) berlaku setelah PR #79 di-merge. WAHA yang dipilih saat Phase 0 digantikan GOWA melalui Issue #118. Roadmap eksekusi mengikuti Epic #1 dan Phase Issue #2–#8; perubahan requirement tetap memerlukan persetujuan Owner.
 
 PesenHub adalah sistem pemesanan terpusat untuk menggantikan pencatatan manual berbasis buku pada outlet nasi goreng. Sistem menyatukan pesanan dari kasir, WhatsApp, dan Web Customer ke dalam satu antrean, membantu kasir yang juga menangani produksi, menerima pembayaran digital melalui Midtrans, dan memberi informasi otomatis kepada pelanggan ketika pesanan sudah selesai.
 
@@ -23,7 +23,7 @@ Komponen utama sistem:
 - Aplikasi mobile Flutter sebagai POS, antrean pesanan, dan Kitchen Display System (KDS).
 - Backend Golang sebagai sumber data utama dan pengendali seluruh proses bisnis.
 - Web Customer sederhana yang disajikan melalui backend agar pelanggan dapat membuat pesanan tanpa menginstal aplikasi.
-- WAHA sebagai gateway WhatsApp self-hosted.
+- GOWA sebagai gateway WhatsApp self-hosted.
 - Hermes sebagai AI agent untuk memahami chat, mengumpulkan detail pesanan, meminta klarifikasi, dan mengirim pembaruan kepada pelanggan.
 - Midtrans sebagai payment gateway untuk pembayaran digital.
 - SQLite atau Isar sebagai penyimpanan lokal dan antrean sinkronisasi saat perangkat offline.
@@ -95,7 +95,7 @@ Dalam dokumen ini, pengguna yang memesan disebut **pelanggan**.
 
 ```mermaid
 flowchart TD
-    C["Pelanggan WhatsApp"] <--> W["WAHA"]
+    C["Pelanggan WhatsApp"] <--> W["GOWA"]
     W <--> B["Backend Golang"]
     CW["Web Customer"] <--> B
     H["Hermes Agent"] <--> B
@@ -107,12 +107,12 @@ flowchart TD
 
 ### 5.1 Prinsip Arsitektur
 
-- Stack Backend utama dijalankan melalui Docker Compose: API Golang memakai multi-stage build dan runtime non-root, bersama PostgreSQL 16 Alpine dan WAHA dalam satu network. Mode `go run ./cmd/api` tetap tersedia untuk development lokal.
+- Stack Backend utama dijalankan melalui Docker Compose: API Golang memakai multi-stage build dan runtime non-root, bersama PostgreSQL 16 Alpine dan GOWA dalam satu network. Mode `go run ./cmd/api` tetap tersedia untuk development lokal.
 - Backend Golang menjadi **system of record** untuk order, pelanggan, menu, dan pembayaran.
 - Web Customer berada di dalam area backend untuk MVP dan menggunakan API domain yang sama. Jika kebutuhan UI berkembang besar, komponen ini dapat dipisahkan tanpa mengubah aturan bisnis.
 - Hermes hanya menggunakan tool/API yang disediakan backend. Agent tidak memperoleh akses langsung ke database maupun secret Midtrans.
-- WAHA mengirim event pesan masuk ke backend. Backend menyimpan event, melakukan deduplikasi, lalu meneruskan konteks yang diperlukan ke Hermes.
-- Backend mengirim pesan keluar melalui WAHA setelah memeriksa izin, status order, dan idempotency key.
+- GOWA mengirim event pesan masuk ke backend. Backend menyimpan event, melakukan deduplikasi, lalu meneruskan konteks yang diperlukan ke Hermes.
+- Backend mengirim pesan keluar melalui GOWA setelah memeriksa izin, status order, dan idempotency key.
 - Flutter memakai database lokal untuk cache dan outbox perubahan saat offline.
 - WebSocket dipakai untuk pembaruan antrean real-time; REST tetap tersedia untuk pemuatan ulang dan pemulihan koneksi.
 - Webhook Midtrans menjadi sumber kebenaran status pembayaran digital.
@@ -135,7 +135,7 @@ pesenhub/
     └── README.md
 ```
 
-- `pesenhub_be/` berisi API Golang, integrasi WAHA–Hermes–Midtrans, database migration, dan Web Customer sederhana.
+- `pesenhub_be/` berisi API Golang, integrasi GOWA–Hermes–Midtrans, database migration, dan Web Customer sederhana.
 - `pesenhub_app/` berisi aplikasi Flutter POS/KDS dan penyimpanan lokal.
 - `PRD.md` menjelaskan kebutuhan produk lintas komponen.
 - `README.md` di tiap folder menjelaskan setup, struktur teknis, environment, command, dan pengujian komponen tersebut.
@@ -153,12 +153,12 @@ pesenhub/
 6. Pelanggan mengonfirmasi pesanan dan memilih pembayaran tunai atau Midtrans sesuai kebijakan outlet.
 7. Backend membuat order dengan sumber `CUSTOMER_WEB` dan memasukkannya ke antrean yang sama.
 8. Pelanggan menerima nomor order dan halaman status melalui token publik yang sulit ditebak.
-9. Jika nomor tersebut terhubung ke WhatsApp, backend dapat mengirim konfirmasi dan informasi bahwa pesanan sudah siap melalui WAHA.
+9. Jika nomor tersebut terhubung ke WhatsApp, backend dapat mengirim konfirmasi dan informasi bahwa pesanan sudah siap melalui GOWA.
 
 ### 6.2 Pesanan WhatsApp
 
 1. Pelanggan mengirim chat ke nomor outlet.
-2. WAHA mengirim webhook ke backend.
+2. GOWA mengirim webhook ke backend.
 3. Backend menormalisasi nomor telepon, menyimpan pesan, dan mengabaikan event duplikat.
 4. Hermes membaca konteks pelanggan, menu aktif, serta percakapan yang diizinkan.
 5. Hermes mengumpulkan item, jumlah, level pedas, topping, catatan, pengambilan/pengantaran, dan pembayaran.
@@ -168,7 +168,7 @@ pesenhub/
 9. Backend membuat order `PENDING_CONFIRMATION` dan memberi notifikasi prioritas tinggi ke Flutter.
 10. Kasir menerima atau menolak order.
 11. Jika pembayaran Midtrans dipilih, backend membuat transaksi dan mengirim payment link/QR yang sesuai.
-12. Setelah order selesai, backend meminta WAHA mengirim pesan bahwa pesanan siap diambil atau telah selesai.
+12. Setelah order selesai, backend meminta GOWA mengirim pesan bahwa pesanan siap diambil atau telah selesai.
 
 ### 6.3 Pesanan Kasir
 
@@ -324,7 +324,7 @@ Status order dan pembayaran dipisahkan. Order tidak otomatis dianggap selesai ha
 | `order_status_history` | Riwayat transisi status |
 | `payments` | Transaksi pembayaran dan status terakhir |
 | `payment_events` | Event webhook Midtrans yang idempotent |
-| `whatsapp_messages` | Pesan masuk/keluar dan message ID WAHA |
+| `whatsapp_messages` | Pesan masuk/keluar dan message ID GOWA |
 | `agent_runs` | Audit proses Hermes dan tool call |
 | `outbox_events` | Sinkronisasi lokal dan event yang perlu dikirim |
 | `users` | Akun staf dan peran |
@@ -349,7 +349,7 @@ Status order dan pembayaran dipisahkan. Order tidak otomatis dianggap selesai ha
 - `POST /orders/{id}/status`
 - `POST /payments/midtrans`
 - `POST /webhooks/midtrans`
-- `POST /webhooks/waha`
+- `POST /webhooks/gowa`
 - `POST /agent/tools/order-draft`
 - `POST /agent/tools/send-message`
 - `GET /ws/orders`
@@ -363,7 +363,7 @@ Semua endpoint mutasi penting memakai autentikasi atau public-scope authorizatio
 - **Keandalan:** Retry dengan exponential backoff, dead-letter handling, health check, dan backup database.
 - **Kinerja:** P95 API baca di bawah 500 ms pada target beban MVP; event antrean muncul maksimal 5 detik dalam kondisi normal.
 - **Audit:** Semua perubahan status, pembayaran, pengiriman pesan otomatis, dan takeover agent memiliki actor serta timestamp.
-- **Observability:** Structured log, metrics, error tracking, dan correlation ID lintas WAHA–Hermes–backend–Midtrans.
+- **Observability:** Structured log, metrics, error tracking, dan correlation ID lintas GOWA–Hermes–backend–Midtrans.
 - **Waktu:** Simpan timestamp dalam UTC dan tampilkan sesuai zona outlet.
 
 ## 12. Roadmap Implementasi Berbasis Phase
@@ -374,7 +374,7 @@ GitHub Issue dan milestone adalah sumber kebenaran status eksekusi. Estimasi har
 | --- | --- | --- |
 | Phase 0 — Discovery dan Fondasi | [Phase 0 — Project Readiness (#2)](https://github.com/yogaananda6677/pesanhub/issues/2) | Keputusan bisnis, fondasi repository, environment, CI, contract/migration awal, dan readiness spike |
 | Phase 1 — Core Order, Web Customer & Flutter POS/KDS | [Phase 1A — Core Backend (#3)](https://github.com/yogaananda6677/pesanhub/issues/3) + [Phase 1B — Cashier Mobile & Tablet (#4)](https://github.com/yogaananda6677/pesanhub/issues/4) | Domain/API/web/real-time dipisahkan dari UI Flutter/offline sync |
-| Phase 2 — WhatsApp, WAHA, dan Hermes + Phase 3 — Midtrans dan Notifikasi | [Phase 1C — WhatsApp, Agent & Payment (#5)](https://github.com/yogaananda6677/pesanhub/issues/5) | WAHA, Hermes, cash, Midtrans QRIS, webhook, retry, dan notifikasi integrasi |
+| Phase 2 — WhatsApp, GOWA, dan Hermes + Phase 3 — Midtrans dan Notifikasi | [Phase 1C — WhatsApp, Agent & Payment (#5)](https://github.com/yogaananda6677/pesanhub/issues/5) | GOWA, Hermes, cash, Midtrans QRIS, webhook, retry, dan notifikasi integrasi |
 | Phase 4 — QA, Pilot, dan MVP Release | [Phase 1D — MVP Integration & Release (#6)](https://github.com/yogaananda6677/pesanhub/issues/6) | Contract/integration/E2E, security, observability, backup, UAT, dan pilot |
 | Phase 5 — Aggregator Integration | [Phase 2 — Food Aggregator Integration (#7)](https://github.com/yogaananda6677/pesanhub/issues/7) | Spike kontrak resmi, adapter, mapping, deduplikasi, dan rekonsiliasi |
 | Phase 6 — Hardening dan Production Scale | [Phase 3 — Production Hardening (#8)](https://github.com/yogaananda6677/pesanhub/issues/8) | Load/resilience/chaos, infrastructure, backup, monitoring, runbook, dan readiness |
@@ -392,7 +392,7 @@ GitHub Issue dan milestone adalah sumber kebenaran status eksekusi. Estimasi har
 - Roadmap GitHub Phase 0–3 beserta dependency dan ownership nyata.
 - Daftar menu, modifier, jam operasional, serta aturan pembayaran outlet diteruskan ke child issue implementasi terkait.
 
-**Exit criteria:** Seluruh child issue #9–#12, #75, dan #76 selesai; tiga required checks, CODEOWNERS, branch protection, serta environment development terverifikasi; keputusan dan closing evidence dicatat. Spike Flutter–Golang, WAHA, Hermes, dan Midtrans tetap wajib, tetapi dieksekusi melalui #48/#49, #36–#43/#51, #38–#41/#52, dan #45–#47/#53 sesuai roadmap baru.
+**Exit criteria:** Seluruh child issue #9–#12, #75, dan #76 selesai; tiga required checks, CODEOWNERS, branch protection, serta environment development terverifikasi; keputusan dan closing evidence dicatat. Spike Flutter–Golang, GOWA, Hermes, dan Midtrans tetap wajib, tetapi dieksekusi melalui #48/#49, #36–#43/#51, #38–#41/#52, dan #45–#47/#53 sesuai roadmap baru.
 
 ### Phase 1A — Core Backend ([#3](https://github.com/yogaananda6677/pesanhub/issues/3))
 
@@ -425,16 +425,16 @@ GitHub Issue dan milestone adalah sumber kebenaran status eksekusi. Estimasi har
 
 ### Phase 1C — WhatsApp, Agent & Payment ([#5](https://github.com/yogaananda6677/pesanhub/issues/5))
 
-**Tujuan:** Mengintegrasikan WAHA, Hermes, pembayaran tunai, dan Midtrans QRIS secara aman dan idempotent.
+**Tujuan:** Mengintegrasikan GOWA, Hermes, pembayaran tunai, dan Midtrans QRIS secara aman dan idempotent.
 
 **Deliverables:**
 
-- Health/session, webhook authentication, normalisasi, deduplikasi, outbox, retry, dan failure logging WAHA.
+- Health/device, webhook authentication, normalisasi, deduplikasi, outbox, retry, dan failure logging GOWA.
 - Hermes structured extraction, confidence policy, klarifikasi, konfirmasi, human handoff, dan pause automation.
 - Pembuatan satu order WhatsApp hanya setelah konfirmasi eksplisit.
 - Pencatatan tunai serta transaksi QRIS Midtrans sandbox.
 - Verifikasi/mapping webhook pembayaran, expiry, retry, dan rekonsiliasi.
-- Pesan konfirmasi dan completion notification melalui WAHA.
+- Pesan konfirmasi dan completion notification melalui GOWA.
 
 **Exit criteria:** Pesan duplikat tidak menggandakan order; ambiguity tidak menjadi order; webhook invalid ditolak dan event valid diproses sekali; kegagalan pengiriman dapat diretry aman.
 
@@ -446,7 +446,7 @@ GitHub Issue dan milestone adalah sumber kebenaran status eksekusi. Estimasi har
 
 - Integrasi Flutter REST/WebSocket dan contract test.
 - Integration/E2E test untuk kasir, Web Customer, WhatsApp, Midtrans, dan offline sync.
-- Uji kehilangan jaringan, duplicate webhook/event, restart WAHA, dan retry sinkronisasi.
+- Uji kehilangan jaringan, duplicate webhook/event, restart GOWA, dan retry sinkronisasi.
 - Security/privacy review, PII redaction, rate limiting, observability, serta abuse protection.
 - Backup/restore, UAT, release checklist, pelatihan kasir, dan pilot satu outlet.
 
@@ -474,7 +474,7 @@ GitHub Issue dan milestone adalah sumber kebenaran status eksekusi. Estimasi har
 | --- | --- |
 | Order | Buat, ubah status, tolak, batalkan, dan selesaikan |
 | Offline | Buat order tanpa jaringan, retry, konflik versi, dan reconnect |
-| WAHA | Event ganda, pesan keluar gagal, session disconnect, dan reconnect |
+| GOWA | Event ganda, pesan keluar gagal, device disconnect, dan reconnect |
 | Hermes | Menu ambigu, jumlah kosong, harga tidak valid, komplain, dan handoff |
 | Midtrans | Success, pending, expire, deny, webhook ganda, signature salah |
 | Notifikasi | App foreground, background, ditutup, izin ditolak, dan aksi cepat |
@@ -484,7 +484,7 @@ GitHub Issue dan milestone adalah sumber kebenaran status eksekusi. Estimasi har
 
 | Risiko | Dampak | Mitigasi |
 | --- | --- | --- |
-| WAHA memakai koneksi WhatsApp tidak resmi | Session putus atau nomor dibatasi | Nomor khusus bisnis, rate limit, monitoring session, template pesan wajar, dan rencana migrasi ke API resmi |
+| GOWA memakai koneksi WhatsApp tidak resmi | Session putus atau nomor dibatasi | Nomor khusus bisnis, rate limit, monitoring session, template pesan wajar, dan rencana migrasi ke API resmi |
 | Hermes salah memahami order | Pesanan salah | Structured tool schema, menu dari backend, konfirmasi eksplisit, confidence threshold, dan human handoff |
 | Webhook masuk berulang | Order/pembayaran ganda | Unique event ID dan idempotent consumer |
 | Internet outlet tidak stabil | Antrean terlambat | Local cache/outbox, indikator koneksi, retry, dan rekonsiliasi |

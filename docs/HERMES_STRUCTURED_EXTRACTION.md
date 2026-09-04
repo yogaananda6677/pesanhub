@@ -92,8 +92,8 @@ Setiap pemanggilan ekstraksi dicatat ke tabel PostgreSQL `agent_runs`:
 | Kolom | Tipe | Keterangan |
 | --- | --- | --- |
 | `id` | UUID | Primary key run |
-| `inbound_message_id` | UUID | Foreign key ke `waha_inbound_messages.id` (nullable) |
-| `session` | TEXT | Identifier sesi WAHA |
+| `inbound_message_id` | UUID | Foreign key ke `whatsapp_inbound_messages.id` (nullable) |
+| `session` | TEXT | Identifier sesi GOWA |
 | `customer_phone` | TEXT | Nomor WhatsApp pengirim |
 | `model` | TEXT | Model yang digunakan (misal `hermes-3-llama-3.1-8b`) |
 | `prompt_version` | TEXT | Versi prompt (misal `v1.0.0`) |
