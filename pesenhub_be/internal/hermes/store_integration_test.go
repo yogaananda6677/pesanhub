@@ -174,3 +174,105 @@ func TestConversationStoreIntegration(t *testing.T) {
 		t.Errorf("expected nil draft after reset, got %v", resetState.CurrentDraft)
 	}
 }
+
+func TestHandoffAndAuditIntegration(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL is not set; skipping PostgreSQL integration test")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	db, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	convStore := NewPGConversationStore(db)
+	session := "default"
+	phone := "+6281299990002"
+	corrID := "corr-handoff-" + newID()
+
+	// 1. Pause
+	paused, err := convStore.Pause(ctx, session, phone, "staff_admin", "ADMIN", "customer complaint escalation", corrID)
+	if err != nil {
+		t.Fatalf("Pause failed: %v", err)
+	}
+	if !paused.IsPaused {
+		t.Errorf("expected IsPaused=true")
+	}
+	if paused.Status != ConversationPaused {
+		t.Errorf("expected status PAUSED, got %s", paused.Status)
+	}
+	if paused.HandoffStatus != HandoffStatusPending {
+		t.Errorf("expected handoff status PENDING, got %s", paused.HandoffStatus)
+	}
+
+	// 2. Query Queue
+	items, total, err := convStore.ListHandoffQueue(ctx, HandoffQueueFilter{Status: "PENDING"})
+	if err != nil {
+		t.Fatalf("ListHandoffQueue failed: %v", err)
+	}
+	if total < 1 {
+		t.Fatalf("expected at least 1 item in handoff queue, got %d", total)
+	}
+
+	found := false
+	for _, it := range items {
+		if it.CustomerPhone == phone {
+			found = true
+			if !it.IsPaused {
+				t.Errorf("expected item IsPaused=true")
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected phone %s in handoff queue", phone)
+	}
+
+	// 3. Assign
+	assigned, err := convStore.Assign(ctx, session, phone, "staff_admin", "ADMIN", "staff_kasir_3", corrID)
+	if err != nil {
+		t.Fatalf("Assign failed: %v", err)
+	}
+	if assigned.HandoffStatus != HandoffStatusAssigned {
+		t.Errorf("expected handoff status ASSIGNED, got %s", assigned.HandoffStatus)
+	}
+	if assigned.AssignedTo == nil || *assigned.AssignedTo != "staff_kasir_3" {
+		t.Errorf("expected AssignedTo=staff_kasir_3, got %v", assigned.AssignedTo)
+	}
+
+	// 4. Resolve
+	resolved, err := convStore.Resolve(ctx, session, phone, "staff_kasir_3", "STAFF", "issue sorted out", true, corrID)
+	if err != nil {
+		t.Fatalf("Resolve failed: %v", err)
+	}
+	if resolved.HandoffStatus != HandoffStatusResolved {
+		t.Errorf("expected handoff status RESOLVED, got %s", resolved.HandoffStatus)
+	}
+	if resolved.IsPaused {
+		t.Errorf("expected IsPaused=false after resolve with resume")
+	}
+
+	// 5. Query Audit Events
+	audits, err := convStore.GetAuditEvents(ctx, paused.ID)
+	if err != nil {
+		t.Fatalf("GetAuditEvents failed: %v", err)
+	}
+	if len(audits) < 3 {
+		t.Fatalf("expected at least 3 audits, got %d", len(audits))
+	}
+
+	expectedActions := []string{HandoffActionPaused, HandoffActionAssigned, HandoffActionResolved}
+	for i, exp := range expectedActions {
+		if audits[i].Action != exp {
+			t.Errorf("audit[%d] expected action %q, got %q", i, exp, audits[i].Action)
+		}
+		if audits[i].CorrelationID != corrID {
+			t.Errorf("audit[%d] expected correlationID %s, got %s", i, corrID, audits[i].CorrelationID)
+		}
+	}
+}
