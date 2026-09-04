@@ -11,11 +11,11 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Field | Current value |
 | --- | --- |
 | Product | PesenHub |
-| Current phase | Phase 1A — Core Backend |
+| Current phase | Phase 1B — Cashier Mobile & Tablet |
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 4 September 2026 |
-| Updated by | Issue #30 adaptive KDS for tablet and mobile implementation and validation |
+| Updated by | Issue #31 menu availability management implementation and validation |
 
 ## 2. Product Intent
 
@@ -58,7 +58,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | --- | --- | --- | --- | --- | --- |
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2) | Project readiness | DONE | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md` |
 | [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend | DONE | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
-| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | IN_PROGRESS | 2026-09-03 | — | Issues #23, #24, #25, #26, #27 |
+| [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet | IN_PROGRESS | 2026-09-03 | — | Issues #23, #24, #25, #26, #27, #28, #29, #30 |
 | [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment | NOT_STARTED | — | — | Menunggu domain 1A |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release | NOT_STARTED | — | — | Menunggu 1A–1C |
 | [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7) | Food Aggregator Integration | NOT_STARTED | — | — | Menunggu MVP stabil dan kontrak resmi |
@@ -72,14 +72,14 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#4 — Phase 1B Cashier Mobile & Tablet](https://github.com/yogaananda6677/pesanhub/issues/4)
 - Child Issues: #23–#35
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#30 — Implementasi KDS adaptif untuk tablet dan mobile](https://github.com/yogaananda6677/pesanhub/issues/30)
-- Current Branch: `feature/30-adaptive-kds-tablet-mobile`
+- Current Issue: [#31 — Implementasi pengelolaan menu availability pada Flutter](https://github.com/yogaananda6677/pesanhub/issues/31)
+- Current Branch: `feature/31-menu-availability-management`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh acceptance criteria #30 terpenuhi (tablet multi-order tanpa horizontal overflow, mobile operasional, urutan prioritas overdue & FIFO konsisten, pemisahan visual barista & catatan bungkus & level pedas, 1-tap version contract & pencegahan double action, state loading/empty/error)
-- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (72/72 pass), backend check pass
-- Next Step: Review/merge Issue #30, lalu lanjut ke Issue #31 (Implementasi pengelolaan menu availability pada Flutter)
+- Exit Criteria: Seluruh acceptance criteria #31 terpenuhi (toggle sukses memperbarui seluruh view via event/version, rollback & pesan actionable pada failure, role guard non-staf, item unavailable tidak dapat dipesan di POS, tata letak responsif mobile & tablet)
+- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (78/78 pass), backend check pass
+- Next Step: Review/merge Issue #31, lalu lanjut ke Issue #32 (Pilih dan implementasikan local database serta cache Flutter)
 
 ## 6. Current Phase Checklist
 
@@ -127,8 +127,8 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [x] #27: Implementasi menu search, category filter, modifier, dan level kepedasan (PR #99)
 - [x] #28: Implementasi cart, catatan bungkus, order review, dan submit manual (PR #100)
 - [x] #29: Implementasi order detail, status timeline, dan contextual quick action (PR #101)
-- [x] #30: Implementasi KDS adaptif untuk tablet dan mobile (PR pending)
-- [ ] #31: Implementasi pengelolaan menu availability pada Flutter
+- [x] #30: Implementasi KDS adaptif untuk tablet dan mobile (PR #102)
+- [x] #31: Implementasi pengelolaan menu availability pada Flutter (PR pending)
 - [ ] #32: Pilih dan implementasikan local database serta cache Flutter
 - [ ] #33: Implementasi offline outbox dan background synchronization
 - [ ] #34: Implementasi conflict handling dan duplicate prevention Flutter
@@ -234,6 +234,29 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 4 September 2026 — Issue #31 Menu Availability Management
+
+**Goal**
+- Memungkinkan staf berwenang mengubah ketersediaan item menu secara cepat pada kasir mobile dan tablet PesenHub dengan umpan balik optimistik, proteksi role guard (staf aktif vs mode pantau), rollback otomatis ke state server bila terjadi kegagalan atau konflik versi (Invarian #8), sinkronisasi langsung ke katalog pemesanan POS agar item habis terkunci seketika, serta tata letak responsif pada mobile dan tablet.
+
+**Changed**
+- Mengimplementasikan `MenuAvailabilityController` di `pesenhub_app/lib/menu/controllers/menu_availability_controller.dart` dengan role guard (`STAFF`), status filtering (`ALL`, `AVAILABLE`, `UNAVAILABLE`), category filtering, search dengan debounce 250ms, in-flight action protection, optimistic toggle, version contract (`PATCH /api/v1/admin/menus/{id}/availability`), rollback otomatis saat failure, serta callback sinkronisasi POS `onAvailabilityChanged`.
+- Membangun komponen UI `MenuAvailabilityCard` di `pesenhub_app/lib/menu/widgets/menu_availability_card.dart` dengan visual nama/SKU/kategori, badge status `Tersedia` (hijau) vs `Habis` (merah), chip versi `v{version}`, in-flight loading spinner, switch toggle ergonomis (>= 48px), dan penonaktifan interaksi dengan catatan otorisasi jika role bukan `STAFF`.
+- Membangun antarmuka `MenuAvailabilityView` di `pesenhub_app/lib/menu/menu_availability_view.dart` dengan header role status, banner aksi/error, input pencarian, filter chip status dan kategori, grid responsif 2 kolom pada tablet (>= 600dp) serta kolom tunggal pada mobile (< 600dp), lengkap dengan loading, empty, dan error state.
+- Memperbarui `MenuDestinationView` di `pesenhub_app/lib/shell/destination_views.dart` untuk menampilkan `MenuAvailabilityView` dan menyinkronkan ketersediaan menu ke katalog kasir POS.
+- Memperbaiki penanganan list defensif pada `MenuController.setCatalog` di `pesenhub_app/lib/menu/controllers/menu_controller.dart`.
+- Menambahkan unit dan widget tests komprehensif di `pesenhub_app/test/menu_availability_test.dart` (6 test cases menguji Criteria #1–#5) dan memastikan seluruh 78 test cases Flutter lulus.
+- Menambahkan dokumentasi arsitektur di `docs/MENU_AVAILABILITY.md`.
+
+**Validation**
+- `dart format --output=none --set-exit-if-changed .`: PASS.
+- `flutter analyze`: PASS (0 issue found).
+- `flutter test`: PASS (78/78 tests passed).
+- `cd pesenhub_be && ./run.sh check`: PASS.
+
+**Next**
+- Review/merge Issue #31, lalu lanjut ke Issue #32 (Pilih dan implementasikan local database serta cache Flutter).
 
 ### 4 September 2026 — Issue #30 Adaptive Kitchen Display System (KDS) for Tablet and Mobile
 
