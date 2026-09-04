@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS                                                          |
 | MVP target     | 30 hari sejak kickoff                                                |
 | Last updated   | 4 September 2026                                                     |
-| Updated by     | Issue #37 WAHA inbound webhook, phone normalization, and persistent deduplication |
+| Updated by     | Issue #38 Hermes structured order extraction and confidence policy   |
 
 ## 2. Product Intent
 
@@ -138,7 +138,7 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 - [x] #36: Implementasi WAHA session health, readiness, dan webhook authentication (PR #109)
 - [x] #37: Implementasi webhook pesan masuk, normalisasi nomor, dan deduplikasi WAHA (PR #110)
-- [ ] #38: Implementasi Hermes structured order extraction dan confidence policy
+- [x] #38: Implementasi Hermes structured order extraction dan confidence policy (PR pending)
 - [ ] #39: Implementasi guided clarification untuk detail order ambigu
 - [ ] #40: Implementasi agent-to-human handoff dan pause automation
 - [ ] #41: Implementasi konfirmasi pelanggan dan pembuatan order WHATSAPP
@@ -255,6 +255,37 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 4 September 2026 — Issue #38 Hermes Structured Order Extraction & Confidence Policy
+
+**Goal**
+
+- Mengimplementasikan pipeline ekstraksi entitas pesanan WhatsApp terstruktur via AI Agent Hermes dengan zero AI price/menu hallucination, policy confidence & ambiguitas (threshold 0.75), required modifier enforcement, prompt injection defense, dan audit trail `agent_runs`.
+
+**Changed**
+
+- Menambahkan migrasi PostgreSQL `000010_create_agent_runs.up.sql` dan `down.sql` untuk mencatat riwayat run agent Hermes, status, confidence score, ambiguity reasons, draft JSON, tool calls audit, latency, dan correlation ID.
+- Mengimplementasikan domain models di `pesenhub_be/internal/hermes/models.go` (`ExtractionRequest`, `RawExtractedOrder`, `RawExtractedItem`, `ExtractedItem`, `DraftCandidate`, `ToolCallAudit`, `AgentRun`).
+- Mengimplementasikan UUID generator dan privacy phone masking di `pesenhub_be/internal/hermes/id.go`.
+- Mengimplementasikan prompt template v1.0.0, pembungkusan boundary `<untrusted_customer_message>`, dan pendeteksian prompt injection/jailbreak di `pesenhub_be/internal/hermes/prompt.go` dan `prompt_test.go`.
+- Mengimplementasikan resolusi katalog menu (`CatalogResolver`) di `pesenhub_be/internal/hermes/resolver.go` dan `resolver_test.go`: mencocokkan menu/SKU terhadap katalog aktif backend, menghitung harga resmi backend (zero AI hallucination), memeriksa modifier groups (`min_select`, `max_select`), dan menandai ambiguitas jika menu tidak ditemukan, habis, atau modifier wajib belum dipilih.
+- Mengimplementasikan evaluator confidence dan policy ambiguitas di `pesenhub_be/internal/hermes/confidence.go` dan `confidence_test.go` (threshold 0.75, deteksi kata ketidakpastian).
+- Mengimplementasikan adapter LLM (`LLMClient`, `MockLLMClient`, `HTTPLLMClient`) di `pesenhub_be/internal/hermes/client.go`.
+- Mengimplementasikan persistence audit trail PostgreSQL `Store` dan in-memory `MemoryStore` di `pesenhub_be/internal/hermes/store.go` serta integration test di `store_integration_test.go`.
+- Mengimplementasikan orkestrasi pipeline di `pesenhub_be/internal/hermes/service.go` dan `service_test.go`.
+- Memperbarui `pesenhub_be/scripts/test-migrations.sh` dan `test-orders.sh` untuk menguji migrasi 000010 up/down/up dan hermes integration test di PostgreSQL container.
+- Menambahkan dokumentasi di `docs/HERMES_STRUCTURED_EXTRACTION.md`.
+
+**Validation**
+
+- `go test -v -race ./internal/hermes/...`: PASS (seluruh unit test hermes lulus).
+- `cd pesenhub_be && ./run.sh check`: PASS (seluruh checks dan test suites lulus).
+- `cd pesenhub_be && ./scripts/test-migrations.sh`: PASS (migrasi 000010 up/down/up lulus dalam Docker PostgreSQL).
+- `cd pesenhub_be && ./scripts/test-orders.sh`: PASS (order, waha, dan hermes integration test lulus dalam Docker PostgreSQL).
+
+**Next**
+
+- Buka Pull Request untuk Issue #38, pantau CI, merge ke `main`, lalu lanjutkan ke Issue #39.
 
 ### 4 September 2026 — Issue #37 WAHA Inbound Message Ingestion & Deduplication
 
