@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import '../cart/controllers/cart_controller.dart';
 import '../kds/controllers/kds_controller.dart';
 import '../kds/kds_view.dart';
+import '../menu/controllers/menu_availability_controller.dart';
 import '../menu/controllers/menu_controller.dart' as mc;
-import '../menu/menu_catalog_view.dart';
+import '../menu/menu_availability_view.dart';
 import '../menu/models/sample_menu_data.dart';
 import '../pos/pos_view.dart';
 import '../queue/controllers/queue_controller.dart';
@@ -245,33 +246,44 @@ class _KdsDestinationViewState extends State<KdsDestinationView> {
   }
 }
 
-/// MenuDestinationView provides the menu catalog view.
+/// MenuDestinationView provides the menu availability management view for authorized staff.
 class MenuDestinationView extends StatefulWidget {
-  final mc.MenuController? controller;
+  final MenuAvailabilityController? availabilityController;
+  final mc.MenuController? menuController;
 
-  const MenuDestinationView({super.key, this.controller});
+  const MenuDestinationView({
+    super.key,
+    this.availabilityController,
+    this.menuController,
+  });
 
   @override
   State<MenuDestinationView> createState() => _MenuDestinationViewState();
 }
 
 class _MenuDestinationViewState extends State<MenuDestinationView> {
-  late final mc.MenuController _controller;
+  late final MenuAvailabilityController _availabilityController;
 
   @override
   void initState() {
     super.initState();
-    _controller =
-        widget.controller ??
-        mc.MenuController(
+    _availabilityController =
+        widget.availabilityController ??
+        MenuAvailabilityController(
           initialCategories: SampleMenuData.sampleCategories,
           initialMenus: SampleMenuData.sampleMenus,
+          onAvailabilityChanged: (item) {
+            widget.menuController?.updateAvailability(
+              item.id,
+              item.isAvailable,
+            );
+          },
         );
   }
 
   @override
   Widget build(BuildContext context) {
-    return MenuCatalogView(controller: _controller);
+    return MenuAvailabilityView(controller: _availabilityController);
   }
 }
 

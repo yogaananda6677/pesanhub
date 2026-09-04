@@ -52,8 +52,8 @@ class MenuController extends ChangeNotifier {
     List<MenuItem> menus, {
     bool isOffline = false,
   }) {
-    _categories = categories;
-    _menus = menus;
+    _categories = List.from(categories);
+    _menus = List.from(menus);
 
     if (_menus.isEmpty) {
       _state = MenuState.empty(isOffline: isOffline);
