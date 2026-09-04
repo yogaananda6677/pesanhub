@@ -37,6 +37,7 @@ func main() {
 	}
 	defer pool.Close()
 	wc := waha.New(cfg.WAHA.BaseURL, cfg.WAHA.APIKey, cfg.WAHA.Session, cfg.WAHA.Timeout)
+	wahaWebhook := waha.NewWebhookHandler(cfg.WAHA.WebhookHMACKey, logger)
 	h := health.New("pesenhub-api", pool, wc)
 	customers := customer.NewHandler(customer.NewService(customer.NewStore(pool), customer.NewID))
 	catalogHandler := catalog.NewHandler(catalog.NewService(catalog.NewStore(pool), customer.NewID))
@@ -52,6 +53,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", h.Live)
 	mux.HandleFunc("GET /health/ready", h.Ready)
+	mux.Handle("POST /webhooks/waha", wahaWebhook)
 	mux.HandleFunc("POST /api/v1/customers", customers.Create)
 	mux.HandleFunc("PATCH /api/v1/customers/{id}", customers.Update)
 	mux.HandleFunc("GET /api/v1/customers/{id}/orders", customers.History)

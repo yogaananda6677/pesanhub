@@ -108,6 +108,10 @@ Periksa `./run.sh logs waha` dan `./run.sh health`. Jika container WAHA healthy 
 
 Script tidak membuat session atau pairing otomatis. Pairing hanya dilakukan sebagai pekerjaan terpisah memakai nomor development setelah persetujuan; jangan memakai nomor production.
 
+### Webhook WAHA ditolak
+
+Pastikan URL menunjuk `POST /webhooks/waha`, raw body tidak diubah proxy, dan konfigurasi webhook WAHA memakai HMAC key yang sama dengan `WAHA_WEBHOOK_HMAC_KEY`. Jangan menampilkan key, signature, atau payload ketika memeriksa log. Timestamp di luar toleransi lima menit ditolak; sinkronkan waktu host bila perlu.
+
 ### Migration gagal
 
 Pastikan stack aktif, PostgreSQL healthy, image API terbaru, serta migration sebelumnya tidak dirty. Jalankan `./run.sh migrate-status` dan lihat log error tanpa menampilkan DSN. Jangan mengedit migration yang sudah diterapkan.

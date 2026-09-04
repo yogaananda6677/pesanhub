@@ -70,6 +70,7 @@ Semua nama berikut berasal dari `pesenhub_be/.env.example`, config Go, atau Dock
 | `WAHA_API_KEY` | Secret | API/WAHA | Generator + secret store | WhatsApp/DevOps Owner | Berkala dan setelah suspected exposure |
 | `WAHA_SESSION` | Sensitive identifier | API/WAHA | Session development yang disetujui | WhatsApp Owner | Saat session diganti/revoked |
 | `WAHA_REQUEST_TIMEOUT` | Public config | API | `.env.example` / deployment config | Backend Owner | Berdasarkan latency evidence |
+| `WAHA_WEBHOOK_HMAC_KEY` | Secret | API/WAHA webhook | Generator + secret store | WhatsApp/DevOps Owner | Berkala dan setelah suspected exposure |
 | `WAHA_DASHBOARD_USERNAME` | Secret-adjacent identity | WAHA dashboard | Secret store | WhatsApp/DevOps Owner | Bersama dashboard credential |
 | `WAHA_DASHBOARD_PASSWORD` | Secret | WAHA dashboard | Password generator + secret store | WhatsApp/DevOps Owner | Berkala dan setelah suspected exposure |
 

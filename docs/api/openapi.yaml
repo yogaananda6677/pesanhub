@@ -6,6 +6,26 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /webhooks/waha:
+    servers:
+      - url: /
+    post:
+      summary: Authenticate and acknowledge a WAHA webhook
+      operationId: acceptWAHAWebhook
+      security: [{wahaWebhookHMAC: []}]
+      parameters:
+        - {name: X-Webhook-Request-Id, in: header, required: true, schema: {type: string, maxLength: 128}}
+        - {name: X-Webhook-Timestamp, in: header, required: true, schema: {type: string}, description: Unix timestamp in milliseconds}
+        - {name: X-Webhook-Hmac-Algorithm, in: header, required: true, schema: {type: string, const: sha512}}
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {type: object, additionalProperties: true}}
+      responses:
+        '204': {description: Authenticated request accepted, or authenticated retry deduplicated}
+        '400': {description: Required metadata or body is invalid}
+        '401': {description: HMAC is invalid or timestamp is stale}
+        '413': {description: Body exceeds 1 MiB}
   /public/menu:
     get:
       summary: Read active and available public catalog
@@ -285,6 +305,11 @@ paths:
           $ref: '#/components/responses/InvalidQuery'
 components:
   securitySchemes:
+    wahaWebhookHMAC:
+      type: apiKey
+      in: header
+      name: X-Webhook-Hmac
+      description: Lowercase hex HMAC-SHA512 of the unmodified raw request body.
     bearerAuth:
       type: http
       scheme: bearer
@@ -714,5 +739,4 @@ components:
         data:
           type: array
           items: {$ref: '#/components/schemas/AuditLogEntry'}
-
 

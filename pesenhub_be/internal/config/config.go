@@ -19,15 +19,15 @@ type Config struct {
 type App struct{ Name, Env, Host, Port, Timezone string }
 type Database struct{ Host, Port, Name, User, Password, SSLMode string }
 type WAHA struct {
-	BaseURL, APIKey, Session string
-	Timeout                  time.Duration
+	BaseURL, APIKey, Session, WebhookHMACKey string
+	Timeout                                  time.Duration
 }
 
 func Load() (Config, error) {
 	c := Config{
 		App:      App{get("APP_NAME", "PesenHub"), get("APP_ENV", "development"), get("APP_HOST", "0.0.0.0"), get("APP_PORT", "8080"), get("APP_TIMEZONE", "Asia/Jakarta")},
 		Database: Database{os.Getenv("DATABASE_HOST"), get("DATABASE_PORT", "5432"), os.Getenv("DATABASE_NAME"), os.Getenv("DATABASE_USER"), os.Getenv("DATABASE_PASSWORD"), get("DATABASE_SSLMODE", "disable")},
-		WAHA:     WAHA{BaseURL: os.Getenv("WAHA_BASE_URL"), APIKey: os.Getenv("WAHA_API_KEY"), Session: get("WAHA_SESSION", "default")},
+		WAHA:     WAHA{BaseURL: os.Getenv("WAHA_BASE_URL"), APIKey: os.Getenv("WAHA_API_KEY"), Session: get("WAHA_SESSION", "default"), WebhookHMACKey: os.Getenv("WAHA_WEBHOOK_HMAC_KEY")},
 	}
 	var err error
 	c.WAHA.Timeout, err = time.ParseDuration(get("WAHA_REQUEST_TIMEOUT", "3s"))
@@ -35,13 +35,16 @@ func Load() (Config, error) {
 		return Config{}, errors.New("WAHA_REQUEST_TIMEOUT must be a positive duration")
 	}
 	missing := []string{}
-	for k, v := range map[string]string{"DATABASE_HOST": c.Database.Host, "DATABASE_NAME": c.Database.Name, "DATABASE_USER": c.Database.User, "DATABASE_PASSWORD": c.Database.Password, "WAHA_BASE_URL": c.WAHA.BaseURL, "WAHA_API_KEY": c.WAHA.APIKey} {
+	for k, v := range map[string]string{"DATABASE_HOST": c.Database.Host, "DATABASE_NAME": c.Database.Name, "DATABASE_USER": c.Database.User, "DATABASE_PASSWORD": c.Database.Password, "WAHA_BASE_URL": c.WAHA.BaseURL, "WAHA_API_KEY": c.WAHA.APIKey, "WAHA_WEBHOOK_HMAC_KEY": c.WAHA.WebhookHMACKey} {
 		if strings.TrimSpace(v) == "" {
 			missing = append(missing, k)
 		}
 	}
 	if len(missing) > 0 {
 		return Config{}, fmt.Errorf("missing required environment configuration: %s", strings.Join(missing, ", "))
+	}
+	if len(c.WAHA.WebhookHMACKey) < 32 {
+		return Config{}, errors.New("WAHA_WEBHOOK_HMAC_KEY must contain at least 32 characters")
 	}
 	if _, err := url.ParseRequestURI(c.WAHA.BaseURL); err != nil {
 		return Config{}, errors.New("WAHA_BASE_URL must be a valid URL")
