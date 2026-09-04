@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS |
 | MVP target | 30 hari sejak kickoff |
 | Last updated | 4 September 2026 |
-| Updated by | Issue #31 menu availability management implementation and validation |
+| Updated by | Issue #32 local database and cache implementation and validation |
 
 ## 2. Product Intent
 
@@ -51,6 +51,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | ADR-010 | Dua folder utama: `pesenhub_be/` dan `pesenhub_app/` | ACCEPTED | Nama komponen konsisten; Web Customer sederhana ditempatkan di `pesenhub_be/web/` |
 | ADR-012 | Stack utama dijalankan dengan Docker Compose | ACCEPTED | API dibangun multi-stage, PostgreSQL 16 Alpine dan WAHA berjalan sebagai service dalam satu network |
 | ADR-011 | Web Customer tanpa akun menggunakan nama dan nomor HP | ACCEPTED | Mengurangi hambatan pelanggan saat membuat order |
+| ADR-013 | SQLite (sqflite + sqflite_common_ffi) untuk local storage & cache Flutter | ACCEPTED | Relational model ACID, stability headless CI / test runner FFI tanpa flaky mocks, Dart SDK 3+ long-term support |
 
 ## 5. Phase Tracker
 
@@ -72,14 +73,14 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#4 — Phase 1B Cashier Mobile & Tablet](https://github.com/yogaananda6677/pesanhub/issues/4)
 - Child Issues: #23–#35
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#31 — Implementasi pengelolaan menu availability pada Flutter](https://github.com/yogaananda6677/pesanhub/issues/31)
-- Current Branch: `feature/31-menu-availability-management`
+- Current Issue: [#32 — Pilih dan implementasikan local database serta cache Flutter](https://github.com/yogaananda6677/pesanhub/issues/32)
+- Current Branch: `feature/32-local-database-cache`
 - Pull Request: pending
-- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102)
+- Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh acceptance criteria #31 terpenuhi (toggle sukses memperbarui seluruh view via event/version, rollback & pesan actionable pada failure, role guard non-staf, item unavailable tidak dapat dipesan di POS, tata letak responsif mobile & tablet)
-- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (78/78 pass), backend check pass
-- Next Step: Review/merge Issue #31, lalu lanjut ke Issue #32 (Pilih dan implementasikan local database serta cache Flutter)
+- Exit Criteria: Seluruh acceptance criteria #32 terpenuhi (ADR SQLite vs Isar di `docs/LOCAL_DATABASE_SELECTION.md`, cold start membaca cache terakhir dengan stale marker, migrasi lokal v1->v2 diuji tanpa kehilangan fixture record, proteksi PII customer phone & credential storage Invariant 11, responsive UI states lulus mobile & tablet)
+- Validation: `dart format`, `flutter analyze` (0 issue), `flutter test` (93/93 pass across 11 test suites), backend check pass
+- Next Step: Review/merge Issue #32, lalu lanjut ke Issue #33 (Implementasi offline outbox dan background synchronization)
 
 ## 6. Current Phase Checklist
 
@@ -128,8 +129,8 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [x] #28: Implementasi cart, catatan bungkus, order review, dan submit manual (PR #100)
 - [x] #29: Implementasi order detail, status timeline, dan contextual quick action (PR #101)
 - [x] #30: Implementasi KDS adaptif untuk tablet dan mobile (PR #102)
-- [x] #31: Implementasi pengelolaan menu availability pada Flutter (PR pending)
-- [ ] #32: Pilih dan implementasikan local database serta cache Flutter
+- [x] #31: Implementasi pengelolaan menu availability pada Flutter (PR #103)
+- [x] #32: Pilih dan implementasikan local database serta cache Flutter (PR pending)
 - [ ] #33: Implementasi offline outbox dan background synchronization
 - [ ] #34: Implementasi conflict handling dan duplicate prevention Flutter
 - [ ] #35: Implementasi network indicator, local notification, audio, dan heads-up alert
@@ -234,6 +235,32 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 4 September 2026 — Issue #32 Local Database and Cache Implementation
+
+**Goal**
+- Memilih dan mengimplementasikan database lokal terstandarisasi untuk aplikasi Flutter PesenHub (POS & KDS) guna mendukung offline-first cold start, retensi relasional menu-kategori-antrean secara ACID, migrasi skema lokal teruji versi demi versi (v1 -> v2) tanpa kehilangan data fixture, pemenuhan Invariant 11 (sanitasi PII: masking nomor HP pelanggan dan larangan penyimpanan token/kredensial), serta penyajian UI responsif dengan indikator stale cache pada mobile dan tablet.
+
+**Changed**
+- Mendokumentasikan Architecture Decision Record (ADR-013) di `docs/LOCAL_DATABASE_SELECTION.md` dengan analisis perbandingan komparatif mendalam SQLite (`sqflite` + `sqflite_common_ffi`) vs Isar, justifikasi model relasional, bukti stabilitas headless CI/CD, dan mitigasi fallback.
+- Menambahkan dependensi `sqflite: ^2.4.3`, `sqflite_common_ffi: ^2.4.2+1`, dan `path: ^1.9.1` pada `pesenhub_app/pubspec.yaml`.
+- Mengimplementasikan modul sanitasi PII `PiiSanitizer` di `pesenhub_app/lib/core/utils/pii_sanitizer.dart` untuk memastikan nomor HP pelanggan dimasking otomatis (`0812****7890`) dan kredensial/token ditolak keras dari penyimpanan persisten.
+- Mengimplementasikan `LocalDatabase` di `pesenhub_app/lib/data/local/local_database.dart` yang mengelola inisialisasi koneksi SQLite (mendukung default device storage dan `sqflite_common_ffi` headless in-memory), skema v1 (`categories`, `menus`, `queue_orders`, `queue_order_items`, `sync_metadata`), serta migrasi v2 (composite index `idx_menus_category_availability`, `idx_queue_orders_status_created`, dan tabel `recent_customers`).
+- Mengimplementasikan `CachedResult<T>` di `pesenhub_app/lib/data/local/models/cached_result.dart` untuk membawa data lokal bersama metadata timestamp dan penanda usang (*stale marker*).
+- Mengimplementasikan `MenuLocalRepository` di `pesenhub_app/lib/data/local/menu_local_repository.dart` dan `QueueLocalRepository` di `pesenhub_app/lib/data/local/queue_local_repository.dart` untuk penyimpanan transaksi atomik katalog dan antrean pesanan.
+- Mengimplementasikan `ColdStartCacheService` di `pesenhub_app/lib/data/local/cold_start_cache_service.dart` untuk hidrasi cepat startup kasir dan penyemaian data awal (*initial sample seeding*) saat database baru diinisialisasi.
+- Mengimplementasikan komponen UI responsif `CacheStatusView` di `pesenhub_app/lib/widgets/cache_status_view.dart` yang menangani 5 status visual (Loading, Success, Stale, Empty, Error) tanpa overflow pada mobile dan tablet.
+- Memperbarui data mock sample di `pesenhub_app/lib/shell/destination_views.dart` agar konsisten menerapkan masking nomor telepon pelanggan.
+- Menambahkan rangkaian pengujian komprehensif di `pesenhub_app/test/local_database_test.dart` (15 test cases yang menguji seluruh kriteria penerimaan #1–#5), sehingga total pengujian Flutter mencapai 93 tests.
+
+**Validation**
+- `dart format --output=none --set-exit-if-changed .`: PASS.
+- `flutter analyze`: PASS (0 issue found).
+- `flutter test`: PASS (93/93 tests passed across 11 test suites).
+- `cd pesenhub_be && ./run.sh check`: PASS.
+
+**Next**
+- Review/merge Issue #32, lalu lanjut ke Issue #33 (Implementasi offline outbox dan background synchronization).
 
 ### 4 September 2026 — Issue #31 Menu Availability Management
 
