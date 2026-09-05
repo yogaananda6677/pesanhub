@@ -75,6 +75,9 @@ class DashboardView extends StatelessWidget {
         final bool isTablet =
             constraints.maxWidth >= AppSpacing.tabletBreakpoint;
         final int crossAxisCount = isTablet ? 3 : 2;
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final metricExtent = (170 + ((textScale - 1).clamp(0, 1) * 110))
+            .toDouble();
 
         return SingleChildScrollView(
           key: const PageStorageKey('cashier_dashboard_scroll'),
@@ -91,14 +94,17 @@ class DashboardView extends StatelessWidget {
                 style: AppTypography.titleLarge,
               ),
               const SizedBox(height: AppSpacing.sm),
-              GridView.count(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: AppSpacing.md,
-                mainAxisSpacing: AppSpacing.md,
+              GridView.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: AppSpacing.md,
+                  mainAxisSpacing: AppSpacing.md,
+                  mainAxisExtent: metricExtent,
+                ),
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: isTablet ? 1.35 : 1.0,
-                children: [
+                itemCount: 6,
+                itemBuilder: (context, index) => [
                   MetricCard(
                     title: 'Menunggu Konfirmasi',
                     count: summary.pendingCount,
@@ -149,7 +155,7 @@ class DashboardView extends StatelessWidget {
                     isAlert: summary.pendingSyncCount > 0,
                     onTap: onRefresh,
                   ),
-                ],
+                ][index],
               ),
             ],
           ),

@@ -163,6 +163,110 @@ class AppErrorState extends StatelessWidget {
 
 enum AppBannerType { info, success, warning, error }
 
+/// Consistent transient feedback for create, update, payment, and status actions.
+/// Every variant combines icon, title, message, and semantic announcement so
+/// meaning never depends on color alone.
+abstract final class AppFeedback {
+  static void show(
+    BuildContext context, {
+    required String message,
+    AppBannerType type = AppBannerType.info,
+    Duration duration = const Duration(seconds: 3),
+  }) {
+    final messenger = ScaffoldMessenger.of(context);
+    final visual = _visualFor(type);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: Key('app-feedback-${type.name}'),
+          backgroundColor: visual.background,
+          duration: duration,
+          content: Semantics(
+            key: const Key('app-feedback-live-region'),
+            liveRegion: true,
+            excludeSemantics: true,
+            label: '${visual.title}. $message',
+            child: Row(
+              children: [
+                Icon(visual.icon, color: visual.foreground),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        visual.title,
+                        style: AppTypography.labelLarge.copyWith(
+                          color: visual.foreground,
+                        ),
+                      ),
+                      Text(
+                        message,
+                        style: AppTypography.bodySmall.copyWith(
+                          color: visual.foreground,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          action: SnackBarAction(
+            label: 'Tutup',
+            textColor: visual.foreground,
+            onPressed: messenger.hideCurrentSnackBar,
+          ),
+        ),
+      );
+  }
+
+  static _FeedbackVisual _visualFor(AppBannerType type) {
+    return switch (type) {
+      AppBannerType.success => const _FeedbackVisual(
+        title: 'Berhasil diperbarui',
+        icon: Icons.check_circle_outline_rounded,
+        foreground: AppColors.success,
+        background: AppColors.successBg,
+      ),
+      AppBannerType.info => const _FeedbackVisual(
+        title: 'Informasi',
+        icon: Icons.info_outline_rounded,
+        foreground: AppColors.info,
+        background: AppColors.infoBg,
+      ),
+      AppBannerType.warning => const _FeedbackVisual(
+        title: 'Perlu perhatian',
+        icon: Icons.warning_amber_rounded,
+        foreground: AppColors.warning,
+        background: AppColors.warningBg,
+      ),
+      AppBannerType.error => const _FeedbackVisual(
+        title: 'Pembaruan gagal',
+        icon: Icons.error_outline_rounded,
+        foreground: AppColors.error,
+        background: AppColors.errorBg,
+      ),
+    };
+  }
+}
+
+class _FeedbackVisual {
+  final String title;
+  final IconData icon;
+  final Color foreground;
+  final Color background;
+
+  const _FeedbackVisual({
+    required this.title,
+    required this.icon,
+    required this.foreground,
+    required this.background,
+  });
+}
+
 /// AppBanner displays contextual alert messages within views.
 class AppBanner extends StatelessWidget {
   final String message;

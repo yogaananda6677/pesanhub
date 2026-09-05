@@ -56,6 +56,23 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _toggleAvailability(
+    String menuId,
+    String menuName,
+    bool targetAvailable,
+  ) async {
+    final success = await widget.controller.toggleAvailability(menuId);
+    if (!mounted) return;
+    AppFeedback.show(
+      context,
+      message: success
+          ? '$menuName berhasil diperbarui menjadi ${targetAvailable ? "Tersedia" : "Habis"}.'
+          : widget.controller.bannerMessage ??
+                '$menuName gagal diperbarui. Coba lagi.',
+      type: success ? AppBannerType.success : AppBannerType.error,
+    );
+  }
+
   String _getCategoryName(String categoryId) {
     for (final cat in widget.controller.categories) {
       if (cat.id == categoryId) return cat.name;
@@ -94,6 +111,9 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isTablet = constraints.maxWidth >= 600;
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final cardExtent = (196 + ((textScale - 1).clamp(0, 1) * 104))
+            .toDouble();
 
         return SingleChildScrollView(
           padding: EdgeInsets.all(isTablet ? AppSpacing.xl : AppSpacing.md),
@@ -165,11 +185,11 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: AppSpacing.md,
                     mainAxisSpacing: AppSpacing.md,
-                    mainAxisExtent: 180,
+                    mainAxisExtent: cardExtent,
                   ),
                   itemCount: filteredItems.length,
                   itemBuilder: (context, index) {
@@ -180,7 +200,7 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                       isStaff: controller.isStaff,
                       isUpdating: controller.updatingMenuIds.contains(item.id),
                       onToggle: (newVal) =>
-                          controller.toggleAvailability(item.id),
+                          _toggleAvailability(item.id, item.name, newVal),
                     );
                   },
                 )
@@ -199,7 +219,7 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                       isStaff: controller.isStaff,
                       isUpdating: controller.updatingMenuIds.contains(item.id),
                       onToggle: (newVal) =>
-                          controller.toggleAvailability(item.id),
+                          _toggleAvailability(item.id, item.name, newVal),
                     );
                   },
                 ),
@@ -211,65 +231,77 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
   }
 
   Widget _buildRoleHeader(MenuAvailabilityController controller) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final role = Row(
       children: [
-        Expanded(
-          child: Row(
-            children: [
-              Icon(
-                controller.isStaff
-                    ? Icons.admin_panel_settings_rounded
-                    : Icons.visibility_rounded,
-                size: 20,
-                color: controller.isStaff
-                    ? AppColors.primary
-                    : AppColors.textMuted,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  controller.isStaff
-                      ? 'Pengelolaan Menu (Staf Aktif)'
-                      : 'Mode Pantau (${controller.role})',
-                  style: AppTypography.titleMedium.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: controller.isStaff
-                        ? AppColors.textPrimary
-                        : AppColors.textMuted,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
+        Icon(
+          controller.isStaff
+              ? Icons.admin_panel_settings_rounded
+              : Icons.visibility_rounded,
+          size: 20,
+          color: controller.isStaff ? AppColors.primary : AppColors.textMuted,
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: controller.isStaff
-                ? AppColors.primary.withValues(alpha: 0.1)
-                : AppColors.surfaceVariant,
-            borderRadius: AppSpacing.borderRadiusSm,
-            border: Border.all(
-              color: controller.isStaff
-                  ? AppColors.primary.withValues(alpha: 0.3)
-                  : AppColors.border,
-            ),
-          ),
+        const SizedBox(width: AppSpacing.xs),
+        Flexible(
           child: Text(
-            controller.isStaff ? 'Hak Ubah Aktif' : 'Hanya Baca',
-            style: TextStyle(
-              fontSize: 11,
+            controller.isStaff
+                ? 'Pengelolaan Menu (Staf Aktif)'
+                : 'Mode Pantau (${controller.role})',
+            style: AppTypography.titleMedium.copyWith(
               fontWeight: FontWeight.w700,
               color: controller.isStaff
-                  ? AppColors.primary
+                  ? AppColors.textPrimary
                   : AppColors.textMuted,
             ),
           ),
         ),
       ],
+    );
+    final access = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: controller.isStaff
+            ? AppColors.primary.withValues(alpha: 0.1)
+            : AppColors.surfaceVariant,
+        borderRadius: AppSpacing.borderRadiusSm,
+        border: Border.all(
+          color: controller.isStaff
+              ? AppColors.primary.withValues(alpha: 0.3)
+              : AppColors.border,
+        ),
+      ),
+      child: Text(
+        controller.isStaff ? 'Hak Ubah Aktif' : 'Hanya Baca',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: controller.isStaff ? AppColors.primary : AppColors.textMuted,
+        ),
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked =
+            constraints.maxWidth < 420 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3;
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              role,
+              const SizedBox(height: AppSpacing.sm),
+              access,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: role),
+            const SizedBox(width: AppSpacing.sm),
+            access,
+          ],
+        );
+      },
     );
   }
 

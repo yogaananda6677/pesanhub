@@ -80,34 +80,29 @@ class _PosViewState extends State<PosView> {
       modifierState.menuItem,
       modifierState,
     );
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${modifierState.menuItem.name} ditambahkan ke keranjang.',
-        ),
-        duration: const Duration(seconds: 1),
-      ),
+    AppFeedback.show(
+      context,
+      message: '${modifierState.menuItem.name} ditambahkan ke keranjang.',
+      type: AppBannerType.success,
+      duration: const Duration(seconds: 2),
     );
   }
 
   void _openReview() async {
     if (_cartController.customerName.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Silakan masukkan nama pelanggan terlebih dahulu.'),
-          backgroundColor: AppColors.error,
-        ),
+      AppFeedback.show(
+        context,
+        message: 'Masukkan nama pelanggan sebelum melanjutkan pembayaran.',
+        type: AppBannerType.warning,
       );
       return;
     }
 
     if (_cartController.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Keranjang masih kosong. Pilih menu terlebih dahulu.'),
-          backgroundColor: AppColors.error,
-        ),
+      AppFeedback.show(
+        context,
+        message: 'Keranjang masih kosong. Pilih menu terlebih dahulu.',
+        type: AppBannerType.warning,
       );
       return;
     }

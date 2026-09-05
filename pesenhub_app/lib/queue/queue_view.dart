@@ -55,12 +55,28 @@ class _QueueViewState extends State<QueueView> {
   }
 
   void _handleStatusChanged(QueueOrder order, String newStatus) {
+    var updated = true;
     if (widget.onStatusChanged != null) {
       widget.onStatusChanged!(order, newStatus);
     } else {
-      widget.controller.updateOrderStatus(order.id, newStatus);
+      updated = widget.controller.updateOrderStatus(order.id, newStatus);
     }
+    AppFeedback.show(
+      context,
+      message: updated
+          ? '${order.orderNumber} dipindahkan ke ${_statusLabel(newStatus)}.'
+          : '${order.orderNumber} tidak dapat diperbarui. Muat ulang lalu coba lagi.',
+      type: updated ? AppBannerType.success : AppBannerType.error,
+    );
   }
+
+  String _statusLabel(String status) => switch (status) {
+    'ACCEPTED' => 'Diterima',
+    'PREPARING' => 'Sedang Dimasak',
+    'READY_FOR_PICKUP' => 'Siap Diambil',
+    'COMPLETED' => 'Selesai',
+    _ => status,
+  };
 
   void _openOrderDetail(QueueOrder order) {
     OrderDetailView.show(

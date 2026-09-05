@@ -71,7 +71,7 @@ class MetricCard extends StatelessWidget {
               color: AppColors.textPrimary,
               fontSize: 14,
             ),
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           if (subtitle != null) ...[
@@ -82,7 +82,7 @@ class MetricCard extends StatelessWidget {
                 color: isAlert ? accentColor : AppColors.textSecondary,
                 fontSize: 11,
               ),
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ],

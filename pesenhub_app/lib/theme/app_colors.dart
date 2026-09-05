@@ -4,26 +4,26 @@ import 'package:flutter/material.dart';
 /// Built for high visual contrast and fast scanning in kitchen and cashier environments.
 abstract final class AppColors {
   // Brand Primary & Accent
-  static const Color primary = Color(0xFFC0392B);
-  static const Color primaryHover = Color(0xFFA93226);
-  static const Color primaryContainer = Color(0xFFFDEDEC);
+  static const Color primary = Color(0xFF176B4D);
+  static const Color primaryHover = Color(0xFF104C38);
+  static const Color primaryContainer = Color(0xFFEAF6F0);
   static const Color onPrimary = Color(0xFFFFFFFF);
 
-  static const Color secondary = Color(0xFFD97706);
-  static const Color secondaryContainer = Color(0xFFFEF3C7);
+  static const Color secondary = Color(0xFFE98A15);
+  static const Color secondaryContainer = Color(0xFFFFF5E7);
   static const Color onSecondary = Color(0xFFFFFFFF);
 
   // Surfaces & Backgrounds
-  static const Color background = Color(0xFFFDFBF7);
+  static const Color background = Color(0xFFF7F6F2);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFF8FAFC);
-  static const Color border = Color(0xFFE2E8F0);
-  static const Color borderFocus = Color(0xFFC0392B);
+  static const Color surfaceVariant = Color(0xFFFBFCFB);
+  static const Color border = Color(0xFFDCE4DF);
+  static const Color borderFocus = Color(0xFF176B4D);
 
   // Typography Colors
-  static const Color textPrimary = Color(0xFF1E293B);
-  static const Color textSecondary = Color(0xFF64748B);
-  static const Color textMuted = Color(0xFF94A3B8);
+  static const Color textPrimary = Color(0xFF18251F);
+  static const Color textSecondary = Color(0xFF6C7972);
+  static const Color textMuted = Color(0xFF8E9A93);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
 
   // Semantic Feedback Colors

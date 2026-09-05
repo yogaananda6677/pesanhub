@@ -63,10 +63,14 @@ class AppStatusBadge extends StatelessWidget {
         children: [
           Icon(semantics.icon, size: 14, color: semantics.foregroundColor),
           const SizedBox(width: AppSpacing.xs),
-          Text(
-            semantics.label,
-            style: AppTypography.labelSmall.copyWith(
-              color: semantics.foregroundColor,
+          Flexible(
+            child: Text(
+              semantics.label,
+              style: AppTypography.labelSmall.copyWith(
+                color: semantics.foregroundColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

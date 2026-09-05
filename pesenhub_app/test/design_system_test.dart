@@ -247,6 +247,48 @@ void main() {
   });
 
   group('Feedback States Tests', () {
+    testWidgets(
+      'global feedback exposes icon, title, message, and live region',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () => AppFeedback.show(
+                    context,
+                    message: 'Ketersediaan Nasi Goreng menjadi Habis.',
+                    type: AppBannerType.success,
+                  ),
+                  child: const Text('Ubah status'),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Ubah status'));
+        await tester.pump();
+
+        expect(find.byKey(const Key('app-feedback-success')), findsOneWidget);
+        expect(find.text('Berhasil diperbarui'), findsOneWidget);
+        expect(
+          find.text('Ketersediaan Nasi Goreng menjadi Habis.'),
+          findsOneWidget,
+        );
+        expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
+        final semantics = tester.widget<Semantics>(
+          find.byKey(const Key('app-feedback-live-region')),
+        );
+        expect(
+          semantics.properties.label,
+          contains('Ketersediaan Nasi Goreng menjadi Habis.'),
+        );
+        expect(semantics.properties.liveRegion, isTrue);
+      },
+    );
+
     testWidgets('AppLoadingState renders message and indicator', (
       tester,
     ) async {
