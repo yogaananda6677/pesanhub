@@ -219,16 +219,6 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) WS(w http.ResponseWriter, r *http.Request) {
 	p := customer.PrincipalFromRequest(r)
-	if p.Subject == "" {
-		if token := r.URL.Query().Get("token"); token != "" {
-			if strings.HasPrefix(token, "kds") {
-				p = customer.Principal{Subject: token, Role: "KDS"}
-			} else if strings.HasPrefix(token, "staff") {
-				p = customer.Principal{Subject: token, Role: "STAFF"}
-			}
-		}
-	}
-
 	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "KDS") {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return

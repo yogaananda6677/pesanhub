@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/ws"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -50,9 +51,12 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 	svc := NewService(store)
 	h := NewHandler(svc, hub)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const staffToken = "staff-websocket-test-token-at-least-32"
+	const kdsToken = "kds-websocket-test-token-at-least-32xx"
+	wsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.WS(w, r)
-	}))
+	})
+	server := httptest.NewServer(customer.Authenticate(staffToken, kdsToken, wsHandler))
 	defer server.Close()
 
 	// 1. Acceptance Criteria: Unauthorized connection ditolak (403)
@@ -65,7 +69,7 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 	}
 
 	// 2. Acceptance Criteria: Connect with STAFF and KDS roles
-	connectClient := func(role, token string) (*ws.Conn, error) {
+	connectClient := func(token string) (*ws.Conn, error) {
 		u, _ := url.Parse(server.URL)
 		tcpConn, err := net.Dial("tcp", u.Host)
 		if err != nil {
@@ -105,13 +109,13 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 		return clientConn, nil
 	}
 
-	staffConn, err := connectClient("STAFF", "staff-token-1")
+	staffConn, err := connectClient(staffToken)
 	if err != nil {
 		t.Fatalf("staff connect error: %v", err)
 	}
 	defer staffConn.Close()
 
-	kdsConn, err := connectClient("KDS", "kds-token-1")
+	kdsConn, err := connectClient(kdsToken)
 	if err != nil {
 		t.Fatalf("kds connect error: %v", err)
 	}

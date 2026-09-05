@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import '../alerts/order_alert_controller.dart';
+import '../cart/controllers/cart_controller.dart';
+import '../cart/models/cart_order_draft.dart';
 import '../connectivity/connectivity_controller.dart';
 import '../dashboard/dashboard_view.dart';
 import '../dashboard/models/dashboard_state.dart';
 import '../dashboard/models/operational_summary.dart';
 import '../navigation/app_destination.dart';
+import '../queue/controllers/queue_controller.dart';
+import '../queue/models/queue_order.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
@@ -20,6 +24,9 @@ class AppShell extends StatefulWidget {
   final VoidCallback? onRefreshDashboard;
   final ConnectivityController? connectivityController;
   final OrderAlertController? alertController;
+  final QueueController? queueController;
+  final CartController? cartController;
+  final Future<QueueOrder> Function(CartOrderDraft draft)? submitOrder;
 
   const AppShell({
     super.key,
@@ -28,6 +35,9 @@ class AppShell extends StatefulWidget {
     this.onRefreshDashboard,
     this.connectivityController,
     this.alertController,
+    this.queueController,
+    this.cartController,
+    this.submitOrder,
   });
 
   @override
@@ -189,8 +199,16 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             _onDestinationSelected(AppDestination.queue.index),
         onNavigateToKds: () => _onDestinationSelected(AppDestination.kds.index),
       ),
-      const PosDestinationView(),
-      QueueDestinationView(alertController: _alerts),
+      PosDestinationView(
+        cartController: widget.cartController,
+        submitOrder: widget.submitOrder,
+        onNavigateToQueue: () =>
+            _onDestinationSelected(AppDestination.queue.index),
+      ),
+      QueueDestinationView(
+        controller: widget.queueController,
+        alertController: _alerts,
+      ),
       const KdsDestinationView(),
       const MenuDestinationView(),
       const SettingsDestinationView(),

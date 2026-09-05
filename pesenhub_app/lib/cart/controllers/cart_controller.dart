@@ -264,52 +264,62 @@ class CartController extends ChangeNotifier {
     required QueueLocalRepository queueRepo,
   }) async {
     return submitOrder(
-      submitFn: (draft) async {
-        final orderNumber =
-            'ORD-${draft.idempotencyKey.substring(0, 8).toUpperCase()}';
-        final maskedPhone = PiiSanitizer.maskPhone(draft.customerPhone);
-        final localOrder = QueueOrder(
-          id: 'ord-${draft.clientOrderId}',
-          orderNumber: orderNumber,
-          customerName: draft.customerName,
-          customerPhone: maskedPhone,
-          source: 'CASHIER_MANUAL',
-          orderStatus: 'PENDING',
-          paymentStatus: 'UNPAID',
-          isTakeaway: draft.isTakeaway,
-          takeawayNotes: draft.takeawayNotes,
-          items: draft.items.map((i) {
-            return QueueOrderItem(
-              name: i.menuItem.name,
-              quantity: i.quantity,
-              unitPrice: i.unitPrice,
-              notes: i.modifierSummary,
-              isDrink: i.isDrink,
-            );
-          }).toList(),
-          createdAt: DateTime.now(),
-          version: 1,
-        );
-
-        // 1. Persist order locally with PENDING status (Criteria #1)
-        final existing = await queueRepo.getOrders();
-        await queueRepo.saveOrders(orders: [...existing, localOrder]);
-
-        // 2. Enqueue outbox mutation (Criteria #2)
-        final sanitizedDraft = draft.copyWith(customerPhone: maskedPhone);
-        final mutation = OutboxMutation(
-          id: 'mut-${draft.clientOrderId}',
-          idempotencyKey: draft.idempotencyKey,
-          clientOrderId: draft.clientOrderId,
-          mutationType: 'CREATE_ORDER',
-          payloadJson: jsonEncode(sanitizedDraft.toJson()),
-          syncStatus: OutboxSyncStatus.pending,
-          createdAt: DateTime.now(),
-        );
-        await outboxRepo.enqueueMutation(mutation);
-
-        return localOrder;
-      },
+      submitFn: (draft) => persistOfflineDraft(
+        draft: draft,
+        outboxRepo: outboxRepo,
+        queueRepo: queueRepo,
+      ),
     );
+  }
+
+  /// Persists an already-reviewed draft so the UI can use the same durable
+  /// path while a runtime sync service sends it to the backend.
+  Future<QueueOrder> persistOfflineDraft({
+    required CartOrderDraft draft,
+    required OutboxRepository outboxRepo,
+    required QueueLocalRepository queueRepo,
+  }) async {
+    final orderNumber =
+        'ORD-${draft.idempotencyKey.substring(0, 8).toUpperCase()}';
+    final maskedPhone = PiiSanitizer.maskPhone(draft.customerPhone);
+    final localOrder = QueueOrder(
+      id: 'ord-${draft.clientOrderId}',
+      orderNumber: orderNumber,
+      customerName: draft.customerName,
+      customerPhone: maskedPhone,
+      source: 'CASHIER_MANUAL',
+      orderStatus: 'PENDING',
+      paymentStatus: 'UNPAID',
+      isTakeaway: draft.isTakeaway,
+      takeawayNotes: draft.takeawayNotes,
+      items: draft.items.map((i) {
+        return QueueOrderItem(
+          name: i.menuItem.name,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          notes: i.modifierSummary,
+          isDrink: i.isDrink,
+        );
+      }).toList(),
+      createdAt: DateTime.now(),
+      version: 1,
+    );
+
+    final existing = await queueRepo.getOrders();
+    await queueRepo.saveOrders(orders: [...existing, localOrder]);
+
+    final sanitizedDraft = draft.copyWith(customerPhone: maskedPhone);
+    await outboxRepo.enqueueMutation(
+      OutboxMutation(
+        id: 'mut-${draft.clientOrderId}',
+        idempotencyKey: draft.idempotencyKey,
+        clientOrderId: draft.clientOrderId,
+        mutationType: 'CREATE_ORDER',
+        payloadJson: jsonEncode(sanitizedDraft.toJson()),
+        syncStatus: OutboxSyncStatus.pending,
+        createdAt: DateTime.now(),
+      ),
+    );
+    return localOrder;
   }
 }

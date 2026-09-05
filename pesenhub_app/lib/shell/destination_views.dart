@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../alerts/order_alert_controller.dart';
 import '../cart/controllers/cart_controller.dart';
+import '../cart/models/cart_order_draft.dart';
 import '../kds/controllers/kds_controller.dart';
 import '../kds/kds_view.dart';
 import '../menu/controllers/menu_availability_controller.dart';
@@ -23,12 +24,14 @@ class PosDestinationView extends StatelessWidget {
   final mc.MenuController? menuController;
   final CartController? cartController;
   final VoidCallback? onNavigateToQueue;
+  final Future<QueueOrder> Function(CartOrderDraft draft)? submitOrder;
 
   const PosDestinationView({
     super.key,
     this.menuController,
     this.cartController,
     this.onNavigateToQueue,
+    this.submitOrder,
   });
 
   @override
@@ -37,6 +40,7 @@ class PosDestinationView extends StatelessWidget {
       menuController: menuController,
       cartController: cartController,
       onNavigateToQueue: onNavigateToQueue,
+      submitOrder: submitOrder,
     );
   }
 }
