@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"pesenhub/backend/internal/customer"
@@ -54,6 +55,92 @@ func TestRecordCashIntegration(t *testing.T) {
 	}
 	if orderStatus != "PENDING" || payments != 1 || events != 1 || audits != 1 || outbox != 1 {
 		t.Fatalf("status=%s counts=%d/%d/%d/%d", orderStatus, payments, events, audits, outbox)
+	}
+}
+
+func TestMidtransReconciliationIntegrationExpiryAndBoundedAlert(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	insertPayment := func(label string, attempts int) (string, string, string) {
+		t.Helper()
+		orderID, paymentID := customer.NewID(), customer.NewID()
+		providerOrderID := "PH-" + paymentID
+		_, insertErr := db.Exec(ctx, `INSERT INTO orders (id,order_number,source,status,customer_name_snapshot,subtotal_amount,total_amount,idempotency_key)
+			VALUES ($1,$2,'CASHIER_MANUAL','PENDING','Reconciliation Test',27500,27500,$3)`, orderID, "ORD-RECON-"+paymentID[:8], "order-recon-"+paymentID)
+		if insertErr != nil {
+			t.Fatal(insertErr)
+		}
+		_, insertErr = db.Exec(ctx, `INSERT INTO payments (id,order_id,method,status,amount,idempotency_key,provider_order_id,provider_reference,provider_attempt_state,request_hash,actor_id,request_id,expires_at,reconciliation_state,reconciliation_next_at,reconciliation_attempt_count,reconciliation_failure_count)
+			VALUES ($1,$2,'MIDTRANS_QRIS','PENDING_PAYMENT',27500,$3,$4,$5,'SUCCEEDED','hash','staff-recon','req-create',$6,'DUE',$7,$8,$8)`, paymentID, orderID, "payment-recon-"+paymentID, providerOrderID, "tx-"+label, now.Add(-time.Minute), now.Add(-time.Second), attempts)
+		if insertErr != nil {
+			t.Fatal(insertErr)
+		}
+		return orderID, paymentID, providerOrderID
+	}
+
+	orderID, paymentID, providerOrderID := insertPayment("expiry", 0)
+	pending := MidtransNotification{OrderID: providerOrderID, TransactionID: "tx-expiry", TransactionStatus: "pending", StatusCode: "201", GrossAmount: "27500.00", PaymentType: "qris", Currency: "IDR"}
+	store := NewStore(db)
+	gateway := &reconciliationGatewayStub{notification: pending}
+	reconciler := NewReconciler(ReconcilerConfig{Store: store, Gateway: gateway, MaxAttempts: 3, BaseDelay: time.Second, Now: func() time.Time { return now }})
+	result, err := reconciler.ReconcilePayment(ctx, paymentID, "req-pending-expired")
+	if err != nil || result.Outcome != "retry" {
+		t.Fatalf("pending result=%+v err=%v", result, err)
+	}
+	_, err = db.Exec(ctx, `UPDATE payments SET reconciliation_next_at=$2 WHERE id=$1`, paymentID, now.Add(-time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gateway.notification.TransactionStatus, gateway.notification.StatusCode = "expire", "407"
+	result, err = reconciler.ReconcilePayment(ctx, paymentID, "req-provider-expire")
+	if err != nil || result.Outcome != "success" || !result.Applied || result.Payment.Status != "EXPIRED" {
+		t.Fatalf("expiry result=%+v err=%v", result, err)
+	}
+	if _, err = reconciler.ReconcilePayment(ctx, paymentID, "req-terminal"); !errors.Is(err, ErrPaymentNotReconcilable) {
+		t.Fatalf("expected terminal rejection, got %v", err)
+	}
+	var paymentStatus, reconciliationState, orderStatus string
+	var payments, failureEvents, statusEvents int
+	err = db.QueryRow(ctx, `SELECT p.status,p.reconciliation_state,o.status,
+		(SELECT count(*) FROM payments WHERE order_id=$2),
+		(SELECT count(*) FROM payment_events WHERE payment_id=$1 AND event_type='MIDTRANS_RECONCILIATION_FAILED'),
+		(SELECT count(*) FROM payment_events WHERE payment_id=$1 AND event_type='MIDTRANS_PAYMENT_STATUS_CHANGED')
+		FROM payments p JOIN orders o ON o.id=p.order_id WHERE p.id=$1`, paymentID, orderID).Scan(&paymentStatus, &reconciliationState, &orderStatus, &payments, &failureEvents, &statusEvents)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if paymentStatus != "EXPIRED" || reconciliationState != "RESOLVED" || orderStatus != "PENDING" || payments != 1 || failureEvents != 1 || statusEvents != 1 {
+		t.Fatalf("payment=%s reconciliation=%s order=%s counts=%d/%d/%d", paymentStatus, reconciliationState, orderStatus, payments, failureEvents, statusEvents)
+	}
+
+	_, alertPaymentID, _ := insertPayment("alert", 2)
+	alertGateway := &reconciliationGatewayStub{err: &ProviderError{Kind: "timeout"}}
+	alertReconciler := NewReconciler(ReconcilerConfig{Store: store, Gateway: alertGateway, MaxAttempts: 3, BaseDelay: time.Second, Now: func() time.Time { return now }})
+	alertResult, err := alertReconciler.ReconcilePayment(ctx, alertPaymentID, "req-alert")
+	if err != nil || alertResult.Outcome != "alert" {
+		t.Fatalf("alert result=%+v err=%v", alertResult, err)
+	}
+	var state, code string
+	var attempts, alerts, outbox int
+	err = db.QueryRow(ctx, `SELECT reconciliation_state,reconciliation_attempt_count,reconciliation_error_code,
+		(SELECT count(*) FROM audit_logs WHERE aggregate_id=$1 AND action='MIDTRANS_RECONCILIATION_ALERT'),
+		(SELECT count(*) FROM outbox_events WHERE aggregate_id=$1 AND event_type='PAYMENT_RECONCILIATION_ALERT')
+		FROM payments WHERE id=$1`, alertPaymentID).Scan(&state, &attempts, &code, &alerts, &outbox)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != "ALERT" || attempts != 3 || code != "timeout" || alerts != 1 || outbox != 1 {
+		t.Fatalf("state=%s attempts=%d code=%s alerts=%d outbox=%d", state, attempts, code, alerts, outbox)
 	}
 }
 

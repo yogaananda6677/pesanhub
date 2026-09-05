@@ -17,3 +17,4 @@ TEST_DATABASE_URL="postgres://pesenhub_test:${password}@127.0.0.1:${port}/pesenh
 TEST_DATABASE_URL="postgres://pesenhub_test:${password}@127.0.0.1:${port}/pesenhub_test?sslmode=disable" go test ./internal/gowa -run Integration -count=1
 TEST_DATABASE_URL="postgres://pesenhub_test:${password}@127.0.0.1:${port}/pesenhub_test?sslmode=disable" go test ./internal/hermes -run Integration -count=1
 TEST_DATABASE_URL="postgres://pesenhub_test:${password}@127.0.0.1:${port}/pesenhub_test?sslmode=disable" go test ./internal/notification -run Integration -count=1
+TEST_DATABASE_URL="postgres://pesenhub_test:${password}@127.0.0.1:${port}/pesenhub_test?sslmode=disable" go test ./internal/payment -run Integration -count=1

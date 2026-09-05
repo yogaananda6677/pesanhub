@@ -82,3 +82,49 @@ func TestMidtransClientTimeoutIsSanitized(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestMidtransClientGetsValidatedStatus(t *testing.T) {
+	const secret = "SB-Mid-server-status-secret"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, password, ok := r.BasicAuth()
+		if !ok || user != secret || password != "" || r.Method != http.MethodGet || r.URL.Path != "/v2/PH-payment-1/status" {
+			t.Fatalf("unexpected status request: %s %s auth=%v/%q/%q", r.Method, r.URL.Path, ok, user, password)
+		}
+		_, _ = w.Write([]byte(`{"status_code":"200","transaction_id":"tx-1","order_id":"PH-payment-1","payment_type":"qris","gross_amount":"27500.00","currency":"IDR","transaction_status":"settlement","fraud_status":"accept","settlement_time":"2026-09-05 17:00:00","signature_key":"not-persisted"}`))
+	}))
+	defer server.Close()
+
+	status, err := NewMidtransClient(server.URL, secret, time.Second).GetStatus(context.Background(), "PH-payment-1")
+	if err != nil || status.TransactionStatus != "settlement" || status.TransactionID != "tx-1" {
+		t.Fatalf("status=%#v err=%v", status, err)
+	}
+}
+
+func TestMidtransClientStatusErrorsAreSanitized(t *testing.T) {
+	tests := []struct {
+		name string
+		code int
+		body string
+		want string
+	}{
+		{"not found", 404, `{"status_message":"private detail"}`, "not_found"},
+		{"authentication", 401, `{}`, "authentication"},
+		{"rate limit", 429, `{}`, "rate_limited"},
+		{"timeout", 504, `{}`, "timeout"},
+		{"invalid success", 200, `{"transaction_id":"tx-only"}`, "invalid_response"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tt.code)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer server.Close()
+			_, err := NewMidtransClient(server.URL, "dummy-status-secret", time.Second).GetStatus(context.Background(), "PH-1")
+			providerErr, ok := err.(*ProviderError)
+			if !ok || providerErr.Kind != tt.want || strings.Contains(err.Error(), "private detail") || strings.Contains(err.Error(), "dummy-status-secret") {
+				t.Fatalf("unexpected safe error: %#v", err)
+			}
+		})
+	}
+}

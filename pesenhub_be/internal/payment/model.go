@@ -6,19 +6,20 @@ import (
 )
 
 var (
-	ErrInvalidInput        = errors.New("invalid payment input")
-	ErrMalformedInput      = errors.New("malformed payment request")
-	ErrOrderNotFound       = errors.New("order not found")
-	ErrAmountMismatch      = errors.New("payment amount does not match order total")
-	ErrOrderNotPayable     = errors.New("order cannot be paid")
-	ErrIdempotencyConflict = errors.New("idempotency key was already used with a different request")
-	ErrMidtransUnavailable = errors.New("midtrans is temporarily unavailable")
-	ErrMidtransRejected    = errors.New("midtrans rejected the transaction")
-	ErrMidtransNotReady    = errors.New("midtrans payment creation is not configured")
-	ErrWebhookInvalid      = errors.New("invalid midtrans webhook")
-	ErrPaymentNotFound     = errors.New("midtrans payment not found")
-	ErrWebhookAmount       = errors.New("midtrans webhook amount mismatch")
-	ErrWebhookReference    = errors.New("midtrans webhook transaction reference mismatch")
+	ErrInvalidInput           = errors.New("invalid payment input")
+	ErrMalformedInput         = errors.New("malformed payment request")
+	ErrOrderNotFound          = errors.New("order not found")
+	ErrAmountMismatch         = errors.New("payment amount does not match order total")
+	ErrOrderNotPayable        = errors.New("order cannot be paid")
+	ErrIdempotencyConflict    = errors.New("idempotency key was already used with a different request")
+	ErrMidtransUnavailable    = errors.New("midtrans is temporarily unavailable")
+	ErrMidtransRejected       = errors.New("midtrans rejected the transaction")
+	ErrMidtransNotReady       = errors.New("midtrans payment creation is not configured")
+	ErrWebhookInvalid         = errors.New("invalid midtrans webhook")
+	ErrPaymentNotFound        = errors.New("midtrans payment not found")
+	ErrWebhookAmount          = errors.New("midtrans webhook amount mismatch")
+	ErrWebhookReference       = errors.New("midtrans webhook transaction reference mismatch")
+	ErrPaymentNotReconcilable = errors.New("payment is not eligible for reconciliation")
 )
 
 type CashInput struct {
@@ -66,6 +67,25 @@ type MidtransNotification struct {
 	TransactionTime   string `json:"transaction_time"`
 	SettlementTime    string `json:"settlement_time"`
 	SignatureKey      string `json:"signature_key"`
+}
+
+type ReconciliationCandidate struct {
+	PaymentID         string
+	OrderID           string
+	ProviderOrderID   string
+	ProviderReference string
+	Amount            int64
+	Attempt           int
+	FailureCount      int
+	ExpiresAt         *time.Time
+}
+
+type ReconciliationResult struct {
+	Payment   *Payment `json:"payment,omitempty"`
+	Applied   bool     `json:"applied"`
+	Duplicate bool     `json:"duplicate"`
+	Outcome   string   `json:"outcome"`
+	Attempt   int      `json:"attempt"`
 }
 
 type WebhookResult struct {
