@@ -18,6 +18,10 @@ type MidtransGateway interface {
 	CreateQRIS(context.Context, string, int64) (QRISCharge, error)
 }
 
+type MidtransStatusGateway interface {
+	GetStatus(context.Context, string) (MidtransNotification, error)
+}
+
 type MidtransClient struct {
 	baseURL, serverKey string
 	httpClient         *http.Client
@@ -110,6 +114,57 @@ func (c *MidtransClient) CreateQRIS(ctx context.Context, orderID string, amount 
 		}
 	}
 	return charge, nil
+}
+
+func (c *MidtransClient) GetStatus(ctx context.Context, identifier string) (MidtransNotification, error) {
+	if strings.TrimSpace(identifier) == "" {
+		return MidtransNotification{}, &ProviderError{Kind: "configuration"}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/v2/"+url.PathEscape(identifier)+"/status", nil)
+	if err != nil {
+		return MidtransNotification{}, &ProviderError{Kind: "configuration"}
+	}
+	req.Header.Set("Accept", "application/json")
+	req.SetBasicAuth(c.serverKey, "")
+	res, err := c.httpClient.Do(req)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || isTimeout(err) {
+			return MidtransNotification{}, &ProviderError{Kind: "timeout"}
+		}
+		return MidtransNotification{}, &ProviderError{Kind: "network"}
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 1<<20))
+		kind := "server"
+		switch res.StatusCode {
+		case http.StatusNotFound:
+			kind = "not_found"
+		case http.StatusUnauthorized, http.StatusForbidden:
+			kind = "authentication"
+		case http.StatusRequestTimeout, http.StatusGatewayTimeout:
+			kind = "timeout"
+		case http.StatusTooManyRequests:
+			kind = "rate_limited"
+		default:
+			if res.StatusCode >= 400 && res.StatusCode < 500 {
+				kind = "rejected"
+			}
+		}
+		return MidtransNotification{}, &ProviderError{Kind: kind}
+	}
+	var out MidtransNotification
+	body, err := io.ReadAll(io.LimitReader(res.Body, (1<<20)+1))
+	if err != nil || len(body) > 1<<20 || json.Unmarshal(body, &out) != nil || out.OrderID == "" || out.TransactionID == "" || out.TransactionStatus == "" || out.StatusCode == "" || out.GrossAmount == "" || out.PaymentType == "" || out.Currency == "" {
+		return MidtransNotification{}, &ProviderError{Kind: "invalid_response"}
+	}
+	if out.PaymentType != "qris" || out.Currency != "IDR" {
+		return MidtransNotification{}, &ProviderError{Kind: "invalid_response"}
+	}
+	if _, err := mapMidtransStatus(out); err != nil {
+		return MidtransNotification{}, &ProviderError{Kind: "invalid_response"}
+	}
+	return out, nil
 }
 
 func parseIDRAmount(value string) (int64, error) {

@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
 | Last updated   | 5 September 2026                                           |
-| Updated by     | Issue #46 Midtrans webhook status                            |
+| Updated by     | Issue #47 Midtrans expiry and reconciliation                 |
 
 ## 2. Product Intent
 
@@ -60,7 +60,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2)  | Project readiness           | DONE        | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md`       |
 | [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend                | DONE        | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
 | [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet     | DONE        | 2026-09-03 | 2026-09-04 | PR #95–#107 dan `docs/PHASE_1B_CLOSING_EVIDENCE.md`     |
-| [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | IN_PROGRESS | 2026-09-04 | —          | Webhook status pembayaran Midtrans #46 sedang dikerjakan |
+| [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | IN_PROGRESS | 2026-09-04 | —          | Expiry/retry/rekonsiliasi Midtrans #47 siap direview      |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release   | IN_PROGRESS | 2026-09-05 | —          | Prototype HTML #120 dan redesign Flutter #121           |
 | [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7)  | Food Aggregator Integration | NOT_STARTED | —          | —          | Menunggu MVP stabil dan kontrak resmi                   |
 | [3 — #8](https://github.com/yogaananda6677/pesanhub/issues/8)  | Production Hardening        | NOT_STARTED | —          | —          | Menunggu hasil pilot dan target kapasitas               |
@@ -71,16 +71,16 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
 - Phase Issue: [#5 — Phase 1C WhatsApp, Agent & Payment](https://github.com/yogaananda6677/pesanhub/issues/5)
-- Child Issue: #46
+- Child Issue: #47
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#46 — verifikasi webhook dan mapping status Midtrans](https://github.com/yogaananda6677/pesanhub/issues/46)
-- Current Branch: `feature/46-midtrans-webhook-status`
-- Pull Request: [#125](https://github.com/yogaananda6677/pesanhub/pull/125)
-- Merged Pull Requests: #77–#115, [#116](https://github.com/yogaananda6677/pesanhub/pull/116), [#117](https://github.com/yogaananda6677/pesanhub/pull/117), [#119](https://github.com/yogaananda6677/pesanhub/pull/119), [#122](https://github.com/yogaananda6677/pesanhub/pull/122), [#123](https://github.com/yogaananda6677/pesanhub/pull/123), [#124](https://github.com/yogaananda6677/pesanhub/pull/124)
-- Status: `READY_TO_MERGE`
-- Exit Criteria: signature/merchant/order/amount tervalidasi, event idempotent, status monotonic, audit/outbox atomik, dan order tidak berubah.
-- Validation: unit/race test, PostgreSQL integration, migration up/down/up, Compose/build, OpenAPI parse, dan seluruh CI PR #125 PASS.
-- Next Issue: #47 expiry, retry, dan rekonsiliasi Midtrans setelah #46 di-merge.
+- Current Issue: [#47 — payment expiry, retry, dan rekonsiliasi Midtrans](https://github.com/yogaananda6677/pesanhub/issues/47)
+- Current Branch: `feature/47-midtrans-reconciliation`
+- Pull Request: pending
+- Merged Pull Requests: #77–#117, [#119](https://github.com/yogaananda6677/pesanhub/pull/119), [#122](https://github.com/yogaananda6677/pesanhub/pull/122), [#123](https://github.com/yogaananda6677/pesanhub/pull/123), [#124](https://github.com/yogaananda6677/pesanhub/pull/124), [#125](https://github.com/yogaananda6677/pesanhub/pull/125)
+- Status: `READY_FOR_REVIEW`
+- Exit Criteria: expiry hanya dengan evidence provider, unknown masuk rekonsiliasi, claim/event idempotent, retry berbatas menghasilkan alert, dan order tidak berubah.
+- Validation: unit/race test, PostgreSQL integration, migration up/down/up, Compose config/image build, OpenAPI parse, dan redaction scan PASS.
+- Next Issue: tentukan dari roadmap Phase 1D setelah #47 di-merge.
 
 ## 6. Current Phase Checklist
 
@@ -148,7 +148,7 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [x] #44: Implementasi pencatatan pembayaran tunai (PR #117)
 - [x] #45: Implementasi transaksi dan QRIS Midtrans sandbox (PR #124)
 - [x] #46: Implementasi verifikasi webhook dan mapping status pembayaran Midtrans (PR #125)
-- [ ] #47: Implementasi payment expiry, retry, dan rekonsiliasi Midtrans
+- [x] #47: Implementasi payment expiry, retry, dan rekonsiliasi Midtrans
 
 ## 7. Work Completed
 

@@ -320,6 +320,20 @@ paths:
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '503': {description: Safe retryable provider failure; retry with the same Idempotency-Key, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /payments/{id}/reconcile:
+    post:
+      summary: Manually reconcile one non-terminal Midtrans QRIS payment against provider status
+      operationId: reconcileMidtransPayment
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Provider status was validated and reconciliation completed, content: {application/json: {schema: {$ref: '#/components/schemas/ReconciliationResult'}}}}
+        '202': {description: Provider status remains unknown or discrepant; bounded retry or operator alert was recorded, content: {application/json: {schema: {$ref: '#/components/schemas/ReconciliationResult'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {description: Payment is terminal, unsupported, missing, or already being reconciled, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '503': {description: Reconciler is not configured or persistence failed, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
   /orders/{id}/audit-logs:
     get:
       summary: Query immutable audit logs for an order (staff only, self-audited)
@@ -542,6 +556,16 @@ components:
         expires_at: {type: string, format: date-time}
         created_at: {type: string, format: date-time}
         updated_at: {type: string, format: date-time}
+    ReconciliationResult:
+      type: object
+      additionalProperties: false
+      required: [outcome, attempt, applied, duplicate]
+      properties:
+        outcome: {type: string, enum: [success, retry, alert]}
+        attempt: {type: integer, minimum: 1}
+        applied: {type: boolean}
+        duplicate: {type: boolean}
+        payment: {$ref: '#/components/schemas/Payment'}
     ModifierSnapshot:
       type: object
       required: [id, name, price_delta_amount]

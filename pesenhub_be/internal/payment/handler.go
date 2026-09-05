@@ -6,14 +6,22 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/httpapi"
 	"pesenhub/backend/internal/httpserver"
 )
 
-type Handler struct{ service *Service }
+type Handler struct {
+	service    *Service
+	reconciler *Reconciler
+}
 
 func NewHandler(service *Service) *Handler { return &Handler{service: service} }
+
+func NewHandlerWithReconciler(service *Service, reconciler *Reconciler) *Handler {
+	return &Handler{service: service, reconciler: reconciler}
+}
 
 func (h *Handler) RecordCash(w http.ResponseWriter, r *http.Request) {
 	principal := customer.PrincipalFromRequest(r)
@@ -66,6 +74,34 @@ func (h *Handler) CreateQRIS(w http.ResponseWriter, r *http.Request) {
 	httpapi.WriteJSON(w, status, p)
 }
 
+func (h *Handler) Reconcile(w http.ResponseWriter, r *http.Request) {
+	principal := customer.PrincipalFromRequest(r)
+	if principal.Subject == "" || principal.Role != "STAFF" {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+	if h.reconciler == nil {
+		h.writeError(w, r, ErrMidtransNotReady)
+		return
+	}
+	paymentID := r.PathValue("id")
+	var id pgtype.UUID
+	if id.Scan(paymentID) != nil {
+		h.writeError(w, r, ErrPaymentNotReconcilable)
+		return
+	}
+	result, err := h.reconciler.ReconcilePayment(r.Context(), paymentID, httpserver.RequestID(r.Context()))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	status := http.StatusOK
+	if result.Outcome != "success" {
+		status = http.StatusAccepted
+	}
+	httpapi.WriteJSON(w, status, result)
+}
+
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
 	status, code, message := http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred."
 	var details []httpapi.FieldError
@@ -88,6 +124,8 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		status, code, message = 503, "PAYMENT_PROVIDER_UNAVAILABLE", "The payment provider is temporarily unavailable; retry with the same idempotency key."
 	case errors.Is(err, ErrMidtransNotReady):
 		status, code, message = 503, "PAYMENT_PROVIDER_NOT_CONFIGURED", "The payment provider is not configured."
+	case errors.Is(err, ErrPaymentNotReconcilable):
+		status, code, message = 409, "PAYMENT_NOT_RECONCILABLE", "Payment is not eligible for reconciliation or is already being reconciled."
 	case errors.Is(err, ErrInvalidInput):
 		status, code, message = 422, "VALIDATION_FAILED", "Payment validation failed."
 	}

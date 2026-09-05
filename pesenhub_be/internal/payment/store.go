@@ -88,6 +88,20 @@ func (s *Store) ApplyMidtransWebhook(ctx context.Context, notification MidtransN
 	if applied {
 		eventType = "MIDTRANS_PAYMENT_STATUS_CHANGED"
 	}
+	terminal := target != "PENDING_PAYMENT"
+	if terminal || paymentStatusRank(p.Status) >= paymentStatusRank("FAILED") {
+		if _, err = tx.Exec(ctx, `UPDATE payments SET reconciliation_state='RESOLVED',reconciliation_next_at=NULL,reconciliation_error_code=NULL,reconciliation_failure_count=0 WHERE id=$1`, p.ID); err != nil {
+			return WebhookResult{}, err
+		}
+	} else {
+		next := time.Now().UTC().Add(2 * time.Minute)
+		if p.ExpiresAt != nil && p.ExpiresAt.Before(next) {
+			next = *p.ExpiresAt
+		}
+		if _, err = tx.Exec(ctx, `UPDATE payments SET reconciliation_state='DUE',reconciliation_next_at=$2,reconciliation_error_code=NULL,reconciliation_failure_count=0 WHERE id=$1`, p.ID, next); err != nil {
+			return WebhookResult{}, err
+		}
+	}
 	if _, err = tx.Exec(ctx, `INSERT INTO payment_events (id,payment_id,provider,provider_event_id,event_type,payload_redacted,processed_at) VALUES ($1,$2,'MIDTRANS',$3,$4,$5,now())`, customer.NewID(), p.ID, eventID, eventType, redacted); err != nil {
 		return WebhookResult{}, err
 	}
@@ -213,7 +227,11 @@ func (s *Store) CompleteQRIS(ctx context.Context, original Payment, charge QRISC
 	defer tx.Rollback(ctx)
 	redacted, _ := json.Marshal(map[string]any{"transaction_id": charge.ProviderReference, "order_id": charge.ProviderOrderID, "transaction_status": charge.Status, "qr_code_url": charge.QRCodeURL})
 	var p Payment
-	err = scanPayment(tx.QueryRow(ctx, `UPDATE payments SET status='PENDING_PAYMENT',provider_reference=$2,qr_code_url=$3,expires_at=$4,provider_attempt_state='SUCCEEDED',provider_error_code=NULL,provider_response_redacted=$5,version=version+1,updated_at=now() WHERE id=$1 AND provider_attempt_state='IN_FLIGHT' RETURNING `+paymentColumns, original.ID, charge.ProviderReference, charge.QRCodeURL, charge.ExpiresAt, redacted), &p)
+	nextReconciliation := time.Now().UTC().Add(2 * time.Minute)
+	if charge.ExpiresAt != nil && charge.ExpiresAt.Before(nextReconciliation) {
+		nextReconciliation = *charge.ExpiresAt
+	}
+	err = scanPayment(tx.QueryRow(ctx, `UPDATE payments SET status='PENDING_PAYMENT',provider_reference=$2,qr_code_url=$3,expires_at=$4,provider_attempt_state='SUCCEEDED',provider_error_code=NULL,provider_response_redacted=$5,reconciliation_state='DUE',reconciliation_next_at=$6,version=version+1,updated_at=now() WHERE id=$1 AND provider_attempt_state='IN_FLIGHT' RETURNING `+paymentColumns, original.ID, charge.ProviderReference, charge.QRCodeURL, charge.ExpiresAt, redacted, nextReconciliation), &p)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Payment{}, ErrIdempotencyConflict
 	}
@@ -246,7 +264,12 @@ func (s *Store) FailQRIS(ctx context.Context, p Payment, code string, permanent 
 		return err
 	}
 	defer tx.Rollback(ctx)
-	if _, err = tx.Exec(ctx, `UPDATE payments SET status=$2,provider_attempt_state=$3,provider_error_code=$4,provider_response_redacted=$5,version=version+1,updated_at=now() WHERE id=$1 AND provider_attempt_state='IN_FLIGHT'`, p.ID, status, state, code, redacted); err != nil {
+	reconciliationState := "DUE"
+	var reconciliationNext any = time.Now().UTC()
+	if permanent {
+		reconciliationState, reconciliationNext = "RESOLVED", nil
+	}
+	if _, err = tx.Exec(ctx, `UPDATE payments SET status=$2,provider_attempt_state=$3,provider_error_code=$4,provider_response_redacted=$5,reconciliation_state=$6,reconciliation_next_at=$7,version=version+1,updated_at=now() WHERE id=$1 AND provider_attempt_state='IN_FLIGHT'`, p.ID, status, state, code, redacted, reconciliationState, reconciliationNext); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, `INSERT INTO payment_events (id,payment_id,provider,provider_event_id,event_type,payload_redacted,processed_at) VALUES ($1,$2,'MIDTRANS',$3,$4,$5,now()) ON CONFLICT (provider,provider_event_id) DO NOTHING`, customer.NewID(), p.ID, "charge-failure:"+p.ID+":"+code, "QRIS_CHARGE_"+state, redacted); err != nil {

@@ -29,6 +29,10 @@ Konfigurasi `MIDTRANS_BASE_URL` dibatasi ke `https://api.sandbox.midtrans.com` d
 
 Atur Payment Notification URL sandbox ke `POST /webhooks/midtrans`. Endpoint publik ini tidak memakai bearer token karena Midtrans tidak mendukung custom authorization header; setiap payload diverifikasi memakai signature SHA-512, merchant ID, channel QRIS, mata uang IDR, provider order ID, transaction ID, dan nominal backend. Duplicate direspons `200` dengan `X-PesenHub-Deduplicated: true`. Notifikasi terlambat tidak dapat menurunkan `PAID`/`REFUNDED`, dan perubahan payment tidak pernah otomatis menyelesaikan order.
 
+Rekonsiliasi status berjalan otomatis untuk charge dengan hasil tidak diketahui dan QRIS non-terminal yang sudah waktunya diperiksa. Worker memanggil Get Status API memakai provider order ID stabil, memvalidasi kembali identitas transaksi, nominal, channel, mata uang, dan status, lalu menerapkan state machine yang sama dengan webhook. Jam lokal atau `expires_at` saja tidak pernah menandai payment `EXPIRED`; bukti status `expire` dari Midtrans wajib ada. Kegagalan memakai backoff eksponensial, berhenti setelah lima percobaan, dan menghasilkan audit serta outbox alert tanpa raw response atau credential.
+
+Staf dapat memicu satu pemeriksaan melalui `POST /api/v1/payments/{id}/reconcile`. Respons `200` berarti status provider tervalidasi; `202` berarti retry/alert sudah dicatat. Webhook tetap source of truth utama dan rekonsiliasi hanya memperbaiki event yang hilang atau hasil request yang tidak diketahui. Detail state dan runbook ada di [MIDTRANS_RECONCILIATION.md](../docs/MIDTRANS_RECONCILIATION.md).
+
 ## Migration
 
 Setelah stack menyala:
