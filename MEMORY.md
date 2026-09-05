@@ -75,11 +75,11 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
 - Current Issue: [#46 — verifikasi webhook dan mapping status Midtrans](https://github.com/yogaananda6677/pesanhub/issues/46)
 - Current Branch: `feature/46-midtrans-webhook-status`
-- Pull Request: pending
+- Pull Request: [#125](https://github.com/yogaananda6677/pesanhub/pull/125)
 - Merged Pull Requests: #77–#115, [#116](https://github.com/yogaananda6677/pesanhub/pull/116), [#117](https://github.com/yogaananda6677/pesanhub/pull/117), [#119](https://github.com/yogaananda6677/pesanhub/pull/119), [#122](https://github.com/yogaananda6677/pesanhub/pull/122), [#123](https://github.com/yogaananda6677/pesanhub/pull/123), [#124](https://github.com/yogaananda6677/pesanhub/pull/124)
-- Status: `IN_PROGRESS`
+- Status: `READY_TO_MERGE`
 - Exit Criteria: signature/merchant/order/amount tervalidasi, event idempotent, status monotonic, audit/outbox atomik, dan order tidak berubah.
-- Validation: unit/race test, PostgreSQL integration, migration up/down/up, Compose/build, dan OpenAPI parse PASS; CI menunggu PR.
+- Validation: unit/race test, PostgreSQL integration, migration up/down/up, Compose/build, OpenAPI parse, dan seluruh CI PR #125 PASS.
 - Next Issue: #47 expiry, retry, dan rekonsiliasi Midtrans setelah #46 di-merge.
 
 ## 6. Current Phase Checklist
@@ -147,7 +147,7 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [x] #43: Implementasi WhatsApp outbox, retry, dan failure logging (PR #116)
 - [x] #44: Implementasi pencatatan pembayaran tunai (PR #117)
 - [x] #45: Implementasi transaksi dan QRIS Midtrans sandbox (PR #124)
-- [ ] #46: Implementasi verifikasi webhook dan mapping status pembayaran Midtrans
+- [x] #46: Implementasi verifikasi webhook dan mapping status pembayaran Midtrans (PR #125)
 - [ ] #47: Implementasi payment expiry, retry, dan rekonsiliasi Midtrans
 
 ## 7. Work Completed
