@@ -11,11 +11,11 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Field          | Current value                                              |
 | -------------- | ---------------------------------------------------------- |
 | Product        | PesenHub                                                   |
-| Current phase  | Phase 1C — WhatsApp, Agent & Payment                       |
+| Current phase  | Phase 1D — MVP Integration & Release                       |
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
 | Last updated   | 5 September 2026                                           |
-| Updated by     | Issue #47 Midtrans expiry and reconciliation                 |
+| Updated by     | Issue #48 Flutter REST/WebSocket integration                |
 
 ## 2. Product Intent
 
@@ -60,8 +60,8 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2)  | Project readiness           | DONE        | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md`       |
 | [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend                | DONE        | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
 | [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet     | DONE        | 2026-09-03 | 2026-09-04 | PR #95–#107 dan `docs/PHASE_1B_CLOSING_EVIDENCE.md`     |
-| [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | IN_PROGRESS | 2026-09-04 | —          | Expiry/retry/rekonsiliasi Midtrans #47 siap direview      |
-| [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release   | IN_PROGRESS | 2026-09-05 | —          | Prototype HTML #120 dan redesign Flutter #121           |
+| [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | IN_PROGRESS | 2026-09-04 | —          | Expiry/retry/rekonsiliasi Midtrans #47 di-merge lewat PR #126 |
+| [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release   | IN_PROGRESS | 2026-09-05 | —          | Prototype HTML #120, redesign #121, integrasi Flutter #48/PR #127 |
 | [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7)  | Food Aggregator Integration | NOT_STARTED | —          | —          | Menunggu MVP stabil dan kontrak resmi                   |
 | [3 — #8](https://github.com/yogaananda6677/pesanhub/issues/8)  | Production Hardening        | NOT_STARTED | —          | —          | Menunggu hasil pilot dan target kapasitas               |
 
@@ -71,16 +71,16 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
 - Phase Issue: [#5 — Phase 1C WhatsApp, Agent & Payment](https://github.com/yogaananda6677/pesanhub/issues/5)
-- Child Issue: #47
+- Child Issue: #48
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#47 — payment expiry, retry, dan rekonsiliasi Midtrans](https://github.com/yogaananda6677/pesanhub/issues/47)
-- Current Branch: `feature/47-midtrans-reconciliation`
-- Pull Request: [#126](https://github.com/yogaananda6677/pesanhub/pull/126)
-- Merged Pull Requests: #77–#117, [#119](https://github.com/yogaananda6677/pesanhub/pull/119), [#122](https://github.com/yogaananda6677/pesanhub/pull/122), [#123](https://github.com/yogaananda6677/pesanhub/pull/123), [#124](https://github.com/yogaananda6677/pesanhub/pull/124), [#125](https://github.com/yogaananda6677/pesanhub/pull/125)
+- Current Issue: [#48 — Flutter REST dan WebSocket Backend](https://github.com/yogaananda6677/pesanhub/issues/48)
+- Current Branch: `feature/48-flutter-rest-websocket`
+- Pull Request: [#127](https://github.com/yogaananda6677/pesanhub/pull/127)
+- Merged Pull Requests: #77–#117, [#119](https://github.com/yogaananda6677/pesanhub/pull/119), [#122](https://github.com/yogaananda6677/pesanhub/pull/122), [#123](https://github.com/yogaananda6677/pesanhub/pull/123), [#124](https://github.com/yogaananda6677/pesanhub/pull/124), [#125](https://github.com/yogaananda6677/pesanhub/pull/125), [#126](https://github.com/yogaananda6677/pesanhub/pull/126)
 - Status: `READY_FOR_REVIEW`
-- Exit Criteria: expiry hanya dengan evidence provider, unknown masuk rekonsiliasi, claim/event idempotent, retry berbatas menghasilkan alert, dan order tidak berubah.
-- Validation: unit/race test, PostgreSQL integration, migration up/down/up, Compose config/image build, OpenAPI parse, dan redaction scan PASS.
-- Next Issue: tentukan dari roadmap Phase 1D setelah #47 di-merge.
+- Exit Criteria: snapshot REST + event berurutan tanpa duplikasi, reconnect/gap recovery aman untuk outbox, typed failure, dan konfigurasi credential tanpa hard-code.
+- Validation: 180 Flutter tests, analyze, debug APK, Go unit/race/vet, PostgreSQL integration, migration up/down/up, Compose config/image build, dan redaction scan PASS lokal; CI PR #127 sedang berjalan.
+- Next Issue: lanjutkan roadmap Phase 1D setelah #48 di-merge.
 
 ## 6. Current Phase Checklist
 

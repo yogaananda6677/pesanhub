@@ -3,6 +3,16 @@ import 'package:flutter/foundation.dart';
 import '../local/outbox_repository.dart';
 import '../local/queue_local_repository.dart';
 
+enum SyncFailureKind {
+  unauthenticated,
+  forbidden,
+  validation,
+  conflict,
+  server,
+  network,
+  invalidResponse,
+}
+
 /// Response representation from backend order sync endpoint.
 class SyncGatewayResponse {
   final bool isSuccess;
@@ -10,25 +20,31 @@ class SyncGatewayResponse {
   final bool isDuplicate;
   final bool isPermanentError;
   final String? errorMessage;
+  final SyncFailureKind? failureKind;
 
   const SyncGatewayResponse.success({
     required this.serverOrderId,
     this.isDuplicate = false,
   }) : isSuccess = true,
        isPermanentError = false,
-       errorMessage = null;
+       errorMessage = null,
+       failureKind = null;
 
-  const SyncGatewayResponse.transientError({required this.errorMessage})
-    : isSuccess = false,
-      isPermanentError = false,
-      serverOrderId = null,
-      isDuplicate = false;
+  const SyncGatewayResponse.transientError({
+    required this.errorMessage,
+    this.failureKind,
+  }) : isSuccess = false,
+       isPermanentError = false,
+       serverOrderId = null,
+       isDuplicate = false;
 
-  const SyncGatewayResponse.permanentError({required this.errorMessage})
-    : isSuccess = false,
-      isPermanentError = true,
-      serverOrderId = null,
-      isDuplicate = false;
+  const SyncGatewayResponse.permanentError({
+    required this.errorMessage,
+    this.failureKind,
+  }) : isSuccess = false,
+       isPermanentError = true,
+       serverOrderId = null,
+       isDuplicate = false;
 }
 
 /// Abstract contract for sending order mutations to backend API.

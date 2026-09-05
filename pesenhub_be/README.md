@@ -17,6 +17,12 @@ cd pesenhub_be
 
 Panduan lengkap dan aturan operasional tersedia di [ATURAN.md](ATURAN.md).
 
+Endpoint operator REST dan WebSocket memakai token `APP_STAFF_TOKEN` atau
+`APP_KDS_TOKEN` dari environment dengan pencocokan exact; prefix token tidak
+diterima. Gunakan credential berbeda per role dan jangan mencatat URL handshake
+WebSocket yang memuat query token. Panduan client tersedia di
+[FLUTTER_BACKEND_INTEGRATION.md](../docs/FLUTTER_BACKEND_INTEGRATION.md).
+
 Readiness gagal dengan HTTP 503 bila PostgreSQL turun. GOWA yang belum memiliki device terhubung menghasilkan HTTP 200 berstatus `degraded`; field `gowa_api`, `gowa_device`, dan `gowa_reason` membedakan API gagal, device tidak ada, device terputus, dan timeout tanpa melakukan pairing otomatis.
 
 Webhook GOWA diterima pada `POST /webhooks/gowa` dan wajib memakai header HMAC-SHA256 `X-Hub-Signature-256`. Lihat [GOWA_HEALTH_WEBHOOK_SECURITY.md](../docs/GOWA_HEALTH_WEBHOOK_SECURITY.md) sebelum memasangkan device development.

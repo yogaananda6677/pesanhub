@@ -1,4 +1,5 @@
 pesenhub_be/.env
+pesenhub_app/config/*.local.json
 pesenhub_be/bin/
 pesenhub_be/coverage/
 pesenhub_be/tmp/

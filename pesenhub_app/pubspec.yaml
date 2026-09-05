@@ -39,6 +39,8 @@ dependencies:
   path: ^1.9.1
   connectivity_plus: ^7.3.1
   flutter_local_notifications: ^22.3.0
+  http: ^1.6.0
+  web_socket_channel: ^3.0.3
 
 dev_dependencies:
   flutter_test:

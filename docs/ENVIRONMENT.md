@@ -46,6 +46,12 @@ flutter test
 flutter build apk --debug
 ```
 
+Untuk koneksi backend, salin `pesenhub_app/config/runtime.example.json` menjadi
+`runtime.local.json`, isi endpoint/token development, lalu gunakan
+`flutter run --dart-define-from-file=config/runtime.local.json`. File lokal ini
+di-ignore. Detail keamanan dan recovery ada di
+[`FLUTTER_BACKEND_INTEGRATION.md`](FLUTTER_BACKEND_INTEGRATION.md).
+
 APK development tidak memerlukan production keystore. `android/local.properties`, `key.properties`, `*.jks`, dan `*.keystore` harus tetap di-ignore.
 
 ## Backend Environment Matrix
@@ -59,6 +65,8 @@ Semua nama berikut berasal dari `pesenhub_be/.env.example`, config Go, atau Dock
 | `APP_HOST` | Public config | API | Environment config | DevOps Owner | Sesuai topology |
 | `APP_PORT` | Public config | Host/API | Environment config | DevOps Owner | Saat port conflict/topology berubah |
 | `APP_TIMEZONE` | Public config | Domain display/schedule | Keputusan outlet | Product/Backend Owner | Saat timezone outlet berubah |
+| `APP_STAFF_TOKEN` | Secret | REST/WS operator | Generator + secret store | Backend/Outlet Owner | Berkala, setelah exposure, dan saat perangkat dicabut |
+| `APP_KDS_TOKEN` | Secret | REST/WS KDS | Generator + secret store | Backend/Outlet Owner | Berkala, setelah exposure, dan saat perangkat dicabut |
 | `DATABASE_HOST` | Sensitive config | API → PostgreSQL | Compose/service discovery atau secret platform | DevOps Owner | Saat endpoint berubah |
 | `DATABASE_PORT` | Sensitive config | API → PostgreSQL | Compose/service discovery | DevOps Owner | Saat endpoint berubah |
 | `POSTGRES_HOST_PORT` | Local config | Host → PostgreSQL | Developer `.env` | Developer | Saat port host conflict |

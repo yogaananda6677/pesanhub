@@ -121,7 +121,8 @@ func main() {
 	mux.HandleFunc("POST /api/v1/orders/{id}/payments/qris", payments.CreateQRIS)
 	mux.HandleFunc("POST /api/v1/payments/{id}/reconcile", payments.Reconcile)
 	mux.Handle("GET /", http.FileServer(http.Dir("web")))
-	server := &http.Server{Addr: cfg.Address(), Handler: httpserver.Middleware(logger, mux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
+	authenticatedMux := customer.Authenticate(cfg.Auth.StaffToken, cfg.Auth.KDSToken, mux)
+	server := &http.Server{Addr: cfg.Address(), Handler: httpserver.Middleware(logger, authenticatedMux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
 		logger.Info("API listening", "address", server.Addr, "environment", cfg.App.Env)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

@@ -7,8 +7,18 @@ import (
 
 func validEnv(t *testing.T) {
 	t.Helper()
-	for k, v := range map[string]string{"APP_ENV": "development", "DATABASE_HOST": "localhost", "DATABASE_NAME": "pesenhub", "DATABASE_USER": "user", "DATABASE_PASSWORD": "secret-value", "GOWA_BASE_URL": "http://localhost:3000", "GOWA_BASIC_AUTH_USERNAME": "pesenhub", "GOWA_BASIC_AUTH_PASSWORD": "api-secret", "GOWA_DEVICE_ID": "pesenhub-dev", "GOWA_WEBHOOK_SECRET": "webhook-secret-at-least-32-characters", "MIDTRANS_SERVER_KEY": "SB-Mid-server-dummy", "MIDTRANS_MERCHANT_ID": "G123456789", "MIDTRANS_BASE_URL": "https://api.sandbox.midtrans.com"} {
+	for k, v := range map[string]string{"APP_ENV": "development", "DATABASE_HOST": "localhost", "DATABASE_NAME": "pesenhub", "DATABASE_USER": "user", "DATABASE_PASSWORD": "secret-value", "GOWA_BASE_URL": "http://localhost:3000", "GOWA_BASIC_AUTH_USERNAME": "pesenhub", "GOWA_BASIC_AUTH_PASSWORD": "api-secret", "GOWA_DEVICE_ID": "pesenhub-dev", "GOWA_WEBHOOK_SECRET": "webhook-secret-at-least-32-characters", "MIDTRANS_SERVER_KEY": "SB-Mid-server-dummy", "MIDTRANS_MERCHANT_ID": "G123456789", "MIDTRANS_BASE_URL": "https://api.sandbox.midtrans.com", "APP_STAFF_TOKEN": "staff-test-token-at-least-32-characters", "APP_KDS_TOKEN": "kds-test-token-at-least-32-charactersxx"} {
 		t.Setenv(k, v)
+	}
+}
+
+func TestLoadRejectsWeakOrSharedAppTokensWithoutLeaking(t *testing.T) {
+	validEnv(t)
+	t.Setenv("APP_STAFF_TOKEN", "shared-sensitive-token-at-least-32-chars")
+	t.Setenv("APP_KDS_TOKEN", "shared-sensitive-token-at-least-32-chars")
+	_, err := Load()
+	if err == nil || !strings.Contains(err.Error(), "distinct") || strings.Contains(err.Error(), "shared-sensitive") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

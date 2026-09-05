@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../cart/controllers/cart_controller.dart';
+import '../cart/models/cart_order_draft.dart';
 import '../cart/widgets/cart_item_tile.dart';
 import '../cart/widgets/order_review_dialog.dart';
 import '../cart/widgets/order_success_dialog.dart';
@@ -23,12 +24,14 @@ class PosView extends StatefulWidget {
   final mc.MenuController? menuController;
   final CartController? cartController;
   final VoidCallback? onNavigateToQueue;
+  final Future<QueueOrder> Function(CartOrderDraft draft)? submitOrder;
 
   const PosView({
     super.key,
     this.menuController,
     this.cartController,
     this.onNavigateToQueue,
+    this.submitOrder,
   });
 
   @override
@@ -110,6 +113,7 @@ class _PosViewState extends State<PosView> {
     final createdOrder = await OrderReviewDialog.show(
       context: context,
       controller: _cartController,
+      submitFn: widget.submitOrder,
     );
 
     if (createdOrder != null && mounted) {

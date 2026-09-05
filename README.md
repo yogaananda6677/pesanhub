@@ -22,6 +22,7 @@ PesenHub adalah monorepo dengan satu histori Git dan dua komponen aplikasi:
 - [Phase 0 closing evidence](docs/PHASE_0_CLOSING_EVIDENCE.md)
 - [HTTP API conventions](docs/API_CONVENTIONS.md)
 - [OpenAPI contract](docs/api/openapi.yaml)
+- [Flutter REST/WebSocket integration](docs/FLUTTER_BACKEND_INTEGRATION.md)
 - [Core domain model dan ERD](docs/CORE_DOMAIN_MODEL.md)
 - [Customer identity dan privacy](docs/CUSTOMER_IDENTITY.md)
 - [Menu catalog contract](docs/MENU_CATALOG.md)

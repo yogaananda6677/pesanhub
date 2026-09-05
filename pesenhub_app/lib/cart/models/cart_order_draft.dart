@@ -64,6 +64,14 @@ class CartOrderDraft {
               'unit_price': i.unitPrice,
               'notes': i.modifierSummary,
               'is_drink': i.isDrink,
+              'modifier_groups': i.selectedOptionIds.entries
+                  .map(
+                    (entry) => {
+                      'group_id': entry.key,
+                      'option_ids': entry.value.toList(growable: false)..sort(),
+                    },
+                  )
+                  .toList(growable: false),
             },
           )
           .toList(),

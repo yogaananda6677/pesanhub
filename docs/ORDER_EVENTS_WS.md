@@ -11,6 +11,7 @@ PesenHub mendistribusikan pembaruan status order secara real-time ke aplikasi PO
 - **Autentikasi**:
   - Header: `Authorization: Bearer <token>`
   - Query Parameter: `?token=<token>` (didukung untuk lingkungan web di mana browser API tidak mengizinkan kustom header saat handshake HTTP awal).
+  - Token dicocokkan secara utuh terhadap `APP_STAFF_TOKEN` / `APP_KDS_TOKEN`; prefix atau nilai yang tidak dikenal ditolak. URL handshake yang memuat token tidak boleh dicatat.
 - **Otorisasi**:
   - Hanya role `STAFF` dan `KDS` yang diizinkan membuka koneksi.
   - Percobaan koneksi tanpa kredensial atau peran tidak terdaftar ditolak dengan `403 FORBIDDEN` / `401 UNAUTHENTICATED`.
