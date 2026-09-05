@@ -27,6 +27,7 @@ jobs:
           filters: |
             backend:
               - 'pesenhub_be/**'
+              - 'contracts/**'
               - '.github/workflows/backend-ci.yml'
       - name: No Backend changes
         if: steps.changes.outputs.backend != 'true'
@@ -47,6 +48,10 @@ jobs:
         if: steps.changes.outputs.backend == 'true'
         working-directory: pesenhub_be
         run: test -z "$(gofmt -l .)"
+      - name: Verify Backend-Flutter contract fixture
+        if: steps.changes.outputs.backend == 'true'
+        working-directory: pesenhub_be
+        run: go run ./cmd/contractfixture -check ../contracts/backend_flutter_v1.json
       - name: Vet and test
         if: steps.changes.outputs.backend == 'true'
         working-directory: pesenhub_be

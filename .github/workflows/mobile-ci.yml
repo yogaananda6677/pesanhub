@@ -27,6 +27,7 @@ jobs:
           filters: |
             mobile:
               - 'pesenhub_app/**'
+              - 'contracts/**'
               - '.github/workflows/mobile-ci.yml'
       - name: No Mobile changes
         if: steps.changes.outputs.mobile != 'true'
@@ -49,6 +50,7 @@ jobs:
         working-directory: pesenhub_app
         run: |
           flutter pub get
+          flutter test test/backend_contract_test.dart
           dart format --output=none --set-exit-if-changed .
           flutter analyze
           flutter test
