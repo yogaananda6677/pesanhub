@@ -21,6 +21,12 @@ Readiness gagal dengan HTTP 503 bila PostgreSQL turun. GOWA yang belum memiliki 
 
 Webhook GOWA diterima pada `POST /webhooks/gowa` dan wajib memakai header HMAC-SHA256 `X-Hub-Signature-256`. Lihat [GOWA_HEALTH_WEBHOOK_SECURITY.md](../docs/GOWA_HEALTH_WEBHOOK_SECURITY.md) sebelum memasangkan device development.
 
+## Midtrans sandbox QRIS
+
+Isi `MIDTRANS_SERVER_KEY` dengan server key **sandbox** lokal (jangan commit nilainya). Endpoint operator `POST /api/v1/orders/{id}/payments/qris` wajib memakai autentikasi staf dan `Idempotency-Key`; body tidak menerima nominal karena `gross_amount` selalu dibaca dari total order backend. Respons sukses berisi URL QR dan status `PENDING_PAYMENT`. Timeout/network/5xx menghasilkan `503 PAYMENT_PROVIDER_UNAVAILABLE` dan harus diulang dengan key yang sama; 4xx provider menghasilkan `422 PAYMENT_PROVIDER_REJECTED`. Status `PAID` tidak ditetapkan dari respons charge dan tetap menunggu webhook tervalidasi.
+
+Konfigurasi `MIDTRANS_BASE_URL` dibatasi ke `https://api.sandbox.midtrans.com` di luar test, dengan timeout melalui `MIDTRANS_REQUEST_TIMEOUT`. Server key tidak disimpan pada payment event, audit, outbox, database response allowlist, atau respons HTTP.
+
 ## Migration
 
 Setelah stack menyala:

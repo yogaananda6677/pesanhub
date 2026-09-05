@@ -276,10 +276,24 @@ paths:
         '404': {description: Order not found}
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
+  /orders/{id}/payments/qris:
+    post:
+      summary: Create or idempotently replay a Midtrans sandbox QRIS charge using the backend order total
+      operationId: createMidtransQRISPayment
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Identical completed idempotent replay, content: {application/json: {schema: {$ref: '#/components/schemas/Payment'}}}}
+        '201': {description: QRIS charge created in PENDING_PAYMENT, content: {application/json: {schema: {$ref: '#/components/schemas/Payment'}}}}
+        '202': {description: An identical request is already in flight; no second provider charge was sent, content: {application/json: {schema: {$ref: '#/components/schemas/Payment'}}}}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Order not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
+        '503': {description: Safe retryable provider failure; retry with the same Idempotency-Key, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
   /orders/{id}/audit-logs:
     get:
       summary: Query immutable audit logs for an order (staff only, self-audited)
@@ -471,15 +485,19 @@ components:
     Payment:
       type: object
       additionalProperties: false
-      required: [id, order_id, method, status, amount, version, paid_at, created_at, updated_at]
+      required: [id, order_id, method, status, amount, version, created_at, updated_at]
       properties:
         id: {type: string, format: uuid}
         order_id: {type: string, format: uuid}
-        method: {type: string, const: CASH}
-        status: {type: string, const: PAID}
+        method: {type: string, enum: [CASH, MIDTRANS_QRIS]}
+        status: {type: string, enum: [UNPAID, PENDING_PAYMENT, PAID, FAILED, EXPIRED, REFUNDED]}
         amount: {type: integer, format: int64, minimum: 1}
         version: {type: integer, minimum: 1}
         paid_at: {type: string, format: date-time}
+        provider_order_id: {type: string, description: Stable non-secret external ID used for Midtrans retries}
+        provider_reference: {type: string, description: Midtrans transaction ID}
+        qr_code_url: {type: string, format: uri}
+        expires_at: {type: string, format: date-time}
         created_at: {type: string, format: date-time}
         updated_at: {type: string, format: date-time}
     ModifierSnapshot:

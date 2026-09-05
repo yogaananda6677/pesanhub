@@ -70,7 +70,9 @@ func main() {
 	notifDispatcher := orderapi.NewNotificationDispatcher(orderStore, notifService, logger)
 	orderService.SetNotificationDispatcher(notifDispatcher)
 	orders := orderapi.NewHandler(orderService, orderHub)
-	payments := payment.NewHandler(payment.NewService(payment.NewStore(pool)))
+	paymentStore := payment.NewStore(pool)
+	midtransClient := payment.NewMidtransClient(cfg.Midtrans.BaseURL, cfg.Midtrans.ServerKey, cfg.Midtrans.Timeout)
+	payments := payment.NewHandler(payment.NewServiceWithMidtrans(paymentStore, midtransClient))
 
 	hermesStore := hermes.NewStore(pool)
 	hermesConvStore := hermes.NewPGConversationStore(pool)
@@ -111,6 +113,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/orders", orders.CreateManual)
 	mux.HandleFunc("POST /api/v1/orders/{id}/status-transitions", orders.TransitionStatus)
 	mux.HandleFunc("POST /api/v1/orders/{id}/payments/cash", payments.RecordCash)
+	mux.HandleFunc("POST /api/v1/orders/{id}/payments/qris", payments.CreateQRIS)
 	mux.Handle("GET /", http.FileServer(http.Dir("web")))
 	server := &http.Server{Addr: cfg.Address(), Handler: httpserver.Middleware(logger, mux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {

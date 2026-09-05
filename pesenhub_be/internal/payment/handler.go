@@ -45,6 +45,27 @@ func (h *Handler) RecordCash(w http.ResponseWriter, r *http.Request) {
 	httpapi.WriteJSON(w, status, p)
 }
 
+func (h *Handler) CreateQRIS(w http.ResponseWriter, r *http.Request) {
+	principal := customer.PrincipalFromRequest(r)
+	if principal.Subject == "" || principal.Role != "STAFF" {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+	p, created, err := h.service.CreateQRIS(r.Context(), principal, r.PathValue("id"), r.Header.Get("Idempotency-Key"), httpserver.RequestID(r.Context()))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+		w.Header().Set("Location", "/api/v1/payments/"+p.ID)
+	} else if p.Status == "UNPAID" && p.QRCodeURL == "" {
+		status = http.StatusAccepted
+	}
+	httpapi.WriteJSON(w, status, p)
+}
+
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
 	status, code, message := http.StatusInternalServerError, "INTERNAL_ERROR", "An unexpected error occurred."
 	var details []httpapi.FieldError
@@ -52,7 +73,7 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 	case errors.Is(err, ErrMalformedInput):
 		status, code, message = 400, "INVALID_REQUEST", "Request body is malformed or contains unknown fields."
 	case errors.Is(err, customer.ErrUnauthorized):
-		status, code, message = 403, "FORBIDDEN", "Cash payment recording requires staff authorization."
+		status, code, message = 403, "FORBIDDEN", "Payment operation requires staff authorization."
 	case errors.Is(err, ErrOrderNotFound):
 		status, code, message = 404, "ORDER_NOT_FOUND", "Order was not found."
 	case errors.Is(err, ErrAmountMismatch):
@@ -61,6 +82,12 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		status, code, message = 409, "ORDER_NOT_PAYABLE", "Rejected or cancelled orders cannot be paid."
 	case errors.Is(err, ErrIdempotencyConflict):
 		status, code, message = 409, "IDEMPOTENCY_CONFLICT", "Idempotency key conflicts with an existing payment."
+	case errors.Is(err, ErrMidtransRejected):
+		status, code, message = 422, "PAYMENT_PROVIDER_REJECTED", "The payment provider rejected this transaction."
+	case errors.Is(err, ErrMidtransUnavailable):
+		status, code, message = 503, "PAYMENT_PROVIDER_UNAVAILABLE", "The payment provider is temporarily unavailable; retry with the same idempotency key."
+	case errors.Is(err, ErrMidtransNotReady):
+		status, code, message = 503, "PAYMENT_PROVIDER_NOT_CONFIGURED", "The payment provider is not configured."
 	case errors.Is(err, ErrInvalidInput):
 		status, code, message = 422, "VALIDATION_FAILED", "Payment validation failed."
 	}

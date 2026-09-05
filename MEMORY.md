@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
 | Last updated   | 5 September 2026                                           |
-| Updated by     | Issue #121 Flutter UI/UX redesign                            |
+| Updated by     | Issue #45 Midtrans sandbox QRIS                              |
 
 ## 2. Product Intent
 
@@ -60,7 +60,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | [0 — #2](https://github.com/yogaananda6677/pesanhub/issues/2)  | Project readiness           | DONE        | 2026-09-01 | 2026-09-03 | PR #77–#80 dan `docs/PHASE_0_CLOSING_EVIDENCE.md`       |
 | [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend                | DONE        | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
 | [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet     | DONE        | 2026-09-03 | 2026-09-04 | PR #95–#107 dan `docs/PHASE_1B_CLOSING_EVIDENCE.md`     |
-| [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | IN_PROGRESS | 2026-09-04 | —          | Migrasi GOWA #118 sedang divalidasi                     |
+| [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | IN_PROGRESS | 2026-09-04 | —          | Midtrans sandbox QRIS #45 sedang diimplementasikan      |
 | [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release   | IN_PROGRESS | 2026-09-05 | —          | Prototype HTML #120 dan redesign Flutter #121           |
 | [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7)  | Food Aggregator Integration | NOT_STARTED | —          | —          | Menunggu MVP stabil dan kontrak resmi                   |
 | [3 — #8](https://github.com/yogaananda6677/pesanhub/issues/8)  | Production Hardening        | NOT_STARTED | —          | —          | Menunggu hasil pilot dan target kapasitas               |
@@ -70,17 +70,17 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 ## Current GitHub Work
 
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
-- Phase Issue: [#6 — Phase 1D MVP Integration & Release](https://github.com/yogaananda6677/pesanhub/issues/6)
-- Child Issues: #120, #121
+- Phase Issue: [#5 — Phase 1C WhatsApp, Agent & Payment](https://github.com/yogaananda6677/pesanhub/issues/5)
+- Child Issue: #45
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#121 — Flutter UI/UX redesign](https://github.com/yogaananda6677/pesanhub/issues/121)
-- Current Branch: `feature/121-redesign-flutter-ui`
-- Pull Request: pending
+- Current Issue: [#45 — transaksi dan QRIS Midtrans sandbox](https://github.com/yogaananda6677/pesanhub/issues/45)
+- Current Branch: `feature/45-midtrans-sandbox-transaction`
+- Pull Request: [#124](https://github.com/yogaananda6677/pesanhub/pull/124)
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104), [#105](https://github.com/yogaananda6677/pesanhub/pull/105), [#106](https://github.com/yogaananda6677/pesanhub/pull/106), [#107](https://github.com/yogaananda6677/pesanhub/pull/107), [#108](https://github.com/yogaananda6677/pesanhub/pull/108), [#109](https://github.com/yogaananda6677/pesanhub/pull/109), [#110](https://github.com/yogaananda6677/pesanhub/pull/110), [#111](https://github.com/yogaananda6677/pesanhub/pull/111), [#112](https://github.com/yogaananda6677/pesanhub/pull/112), [#113](https://github.com/yogaananda6677/pesanhub/pull/113), [#114](https://github.com/yogaananda6677/pesanhub/pull/114), [#115](https://github.com/yogaananda6677/pesanhub/pull/115), [#122](https://github.com/yogaananda6677/pesanhub/pull/122)
-- Status: `IN_PROGRESS`
-- Exit Criteria: Flutter konsisten dengan visual contract HTML, mobile navigation fokus pada empat fitur inti + Lainnya, feedback mutasi aksesibel, dan seluruh viewport bebas overflow.
-- Validation: analyze, 174 widget tests, matrix 6 screen × 4 viewport × text scale 1×/2×, serta build web debug/release PASS; CI menunggu PR.
-- Next Issue: lanjutkan integrasi/release Phase 1D setelah #121 di-merge.
+- Status: `READY_TO_MERGE`
+- Exit Criteria: satu transaksi sandbox per payment, nominal backend, error aman, retry stabil, dan tanpa kebocoran server key.
+- Validation: gofmt, vet, race/unit test, PostgreSQL 16 migration up/down/up, payment integration, Compose/build, OpenAPI parse, dan seluruh CI PR #124 PASS.
+- Next Issue: #46 verifikasi webhook dan mapping status Midtrans setelah #45 di-merge.
 
 ## 6. Current Phase Checklist
 
@@ -144,9 +144,9 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - [x] #40: Implementasi agent-to-human handoff dan pause automation (PR #113)
 - [x] #41: Implementasi konfirmasi pelanggan dan pembuatan order WHATSAPP (PR #114)
 - [x] #42: Implementasi pesan konfirmasi dan completion notification melalui WAHA (PR #115)
-- [x] #43: Implementasi WhatsApp outbox, retry, dan failure logging (PR pending)
-- [ ] #44: Implementasi pencatatan pembayaran tunai
-- [ ] #45: Implementasi transaksi dan QRIS Midtrans sandbox
+- [x] #43: Implementasi WhatsApp outbox, retry, dan failure logging (PR #116)
+- [x] #44: Implementasi pencatatan pembayaran tunai (PR #117)
+- [x] #45: Implementasi transaksi dan QRIS Midtrans sandbox (PR #124)
 - [ ] #46: Implementasi verifikasi webhook dan mapping status pembayaran Midtrans
 - [ ] #47: Implementasi payment expiry, retry, dan rekonsiliasi Midtrans
 
