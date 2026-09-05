@@ -14,8 +14,8 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current phase  | Phase 1C — WhatsApp, Agent & Payment                       |
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
-| Last updated   | 4 September 2026                                           |
-| Updated by     | Issue #118 Migrasi gateway WAHA ke GOWA                     |
+| Last updated   | 5 September 2026                                           |
+| Updated by     | Issue #120 Standalone HTML design prototype                 |
 
 ## 2. Product Intent
 
@@ -61,7 +61,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | [1A — #3](https://github.com/yogaananda6677/pesanhub/issues/3) | Core Backend                | DONE        | 2026-09-03 | 2026-09-03 | PR #81–#93, #94 dan `docs/PHASE_1A_CLOSING_EVIDENCE.md` |
 | [1B — #4](https://github.com/yogaananda6677/pesanhub/issues/4) | Cashier Mobile & Tablet     | DONE        | 2026-09-03 | 2026-09-04 | PR #95–#107 dan `docs/PHASE_1B_CLOSING_EVIDENCE.md`     |
 | [1C — #5](https://github.com/yogaananda6677/pesanhub/issues/5) | WhatsApp, Agent & Payment   | IN_PROGRESS | 2026-09-04 | —          | Migrasi GOWA #118 sedang divalidasi                     |
-| [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release   | NOT_STARTED | —          | —          | Menunggu 1A–1C                                          |
+| [1D — #6](https://github.com/yogaananda6677/pesanhub/issues/6) | MVP Integration & Release   | IN_PROGRESS | 2026-09-05 | —          | Prototype HTML #120 dan redesign Flutter #121           |
 | [2 — #7](https://github.com/yogaananda6677/pesanhub/issues/7)  | Food Aggregator Integration | NOT_STARTED | —          | —          | Menunggu MVP stabil dan kontrak resmi                   |
 | [3 — #8](https://github.com/yogaananda6677/pesanhub/issues/8)  | Production Hardening        | NOT_STARTED | —          | —          | Menunggu hasil pilot dan target kapasitas               |
 
@@ -70,17 +70,17 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 ## Current GitHub Work
 
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
-- Phase Issue: [#5 — Phase 1C WhatsApp, Agent & Payment](https://github.com/yogaananda6677/pesanhub/issues/5)
-- Child Issues: #36–#47, #118
+- Phase Issue: [#6 — Phase 1D MVP Integration & Release](https://github.com/yogaananda6677/pesanhub/issues/6)
+- Child Issues: #120, #121
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#118 — Migrasi gateway WhatsApp dari WAHA ke GOWA](https://github.com/yogaananda6677/pesanhub/issues/118)
-- Current Branch: `feature/118-migrate-waha-to-gowa`
+- Current Issue: [#120 — Standalone HTML design prototype](https://github.com/yogaananda6677/pesanhub/issues/120)
+- Current Branch: `feature/120-standalone-html-design`
 - Pull Request: pending
 - Merged Pull Requests: [#77](https://github.com/yogaananda6677/pesanhub/pull/77), [#78](https://github.com/yogaananda6677/pesanhub/pull/78), [#79](https://github.com/yogaananda6677/pesanhub/pull/79), [#80](https://github.com/yogaananda6677/pesanhub/pull/80), [#81](https://github.com/yogaananda6677/pesanhub/pull/81), [#83](https://github.com/yogaananda6677/pesanhub/pull/83), [#84](https://github.com/yogaananda6677/pesanhub/pull/84), [#85](https://github.com/yogaananda6677/pesanhub/pull/85), [#86](https://github.com/yogaananda6677/pesanhub/pull/86), [#87](https://github.com/yogaananda6677/pesanhub/pull/87), [#88](https://github.com/yogaananda6677/pesanhub/pull/88), [#90](https://github.com/yogaananda6677/pesanhub/pull/90), [#91](https://github.com/yogaananda6677/pesanhub/pull/91), [#92](https://github.com/yogaananda6677/pesanhub/pull/92), [#93](https://github.com/yogaananda6677/pesanhub/pull/93), [#94](https://github.com/yogaananda6677/pesanhub/pull/94), [#95](https://github.com/yogaananda6677/pesanhub/pull/95), [#96](https://github.com/yogaananda6677/pesanhub/pull/96), [#97](https://github.com/yogaananda6677/pesanhub/pull/97), [#98](https://github.com/yogaananda6677/pesanhub/pull/98), [#99](https://github.com/yogaananda6677/pesanhub/pull/99), [#100](https://github.com/yogaananda6677/pesanhub/pull/100), [#101](https://github.com/yogaananda6677/pesanhub/pull/101), [#102](https://github.com/yogaananda6677/pesanhub/pull/102), [#103](https://github.com/yogaananda6677/pesanhub/pull/103), [#104](https://github.com/yogaananda6677/pesanhub/pull/104), [#105](https://github.com/yogaananda6677/pesanhub/pull/105), [#106](https://github.com/yogaananda6677/pesanhub/pull/106), [#107](https://github.com/yogaananda6677/pesanhub/pull/107), [#108](https://github.com/yogaananda6677/pesanhub/pull/108), [#109](https://github.com/yogaananda6677/pesanhub/pull/109), [#110](https://github.com/yogaananda6677/pesanhub/pull/110), [#111](https://github.com/yogaananda6677/pesanhub/pull/111), [#112](https://github.com/yogaananda6677/pesanhub/pull/112), [#113](https://github.com/yogaananda6677/pesanhub/pull/113), [#114](https://github.com/yogaananda6677/pesanhub/pull/114), [#115](https://github.com/yogaananda6677/pesanhub/pull/115)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Semua runtime/config/API aktif memakai GOWA v9, data inbound lama terjaga, dan domain `WHATSAPP` tidak berubah.
-- Validation: unit suite, migration up/down/up, PostgreSQL integration suites, Compose config, dan pinned-image verification PASS; CI menunggu PR.
-- Next Issue: lanjutkan #45 setelah migrasi #118 di-merge.
+- Exit Criteria: Prototype dapat dibuka langsung tanpa build atau koneksi internet, navigasi bawah fokus pada fitur inti, dan feedback aksi dapat dibedakan secara aksesibel.
+- Validation: syntax JavaScript, smoke test Chromium mobile, tiga viewport, alur menu/kasir, target sentuh 48 px, serta zero external request PASS.
+- Next Issue: [#121 — redesign total aplikasi Flutter](https://github.com/yogaananda6677/pesanhub/issues/121).
 
 ## 6. Current Phase Checklist
 
