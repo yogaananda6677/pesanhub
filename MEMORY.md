@@ -75,7 +75,7 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
 - Current Issue: [#47 — payment expiry, retry, dan rekonsiliasi Midtrans](https://github.com/yogaananda6677/pesanhub/issues/47)
 - Current Branch: `feature/47-midtrans-reconciliation`
-- Pull Request: pending
+- Pull Request: [#126](https://github.com/yogaananda6677/pesanhub/pull/126)
 - Merged Pull Requests: #77–#117, [#119](https://github.com/yogaananda6677/pesanhub/pull/119), [#122](https://github.com/yogaananda6677/pesanhub/pull/122), [#123](https://github.com/yogaananda6677/pesanhub/pull/123), [#124](https://github.com/yogaananda6677/pesanhub/pull/124), [#125](https://github.com/yogaananda6677/pesanhub/pull/125)
 - Status: `READY_FOR_REVIEW`
 - Exit Criteria: expiry hanya dengan evidence provider, unknown masuk rekonsiliasi, claim/event idempotent, retry berbatas menghasilkan alert, dan order tidak berubah.
