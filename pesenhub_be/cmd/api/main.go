@@ -73,6 +73,7 @@ func main() {
 	paymentStore := payment.NewStore(pool)
 	midtransClient := payment.NewMidtransClient(cfg.Midtrans.BaseURL, cfg.Midtrans.ServerKey, cfg.Midtrans.Timeout)
 	payments := payment.NewHandler(payment.NewServiceWithMidtrans(paymentStore, midtransClient))
+	midtransWebhook := payment.NewMidtransWebhookHandler(cfg.Midtrans.ServerKey, cfg.Midtrans.MerchantID, paymentStore, logger)
 
 	hermesStore := hermes.NewStore(pool)
 	hermesConvStore := hermes.NewPGConversationStore(pool)
@@ -88,6 +89,7 @@ func main() {
 	mux.HandleFunc("GET /health/live", h.Live)
 	mux.HandleFunc("GET /health/ready", h.Ready)
 	mux.Handle("POST /webhooks/gowa", gowaWebhook)
+	mux.Handle("POST /webhooks/midtrans", midtransWebhook)
 	mux.HandleFunc("POST /api/v1/customers", customers.Create)
 	mux.HandleFunc("PATCH /api/v1/customers/{id}", customers.Update)
 	mux.HandleFunc("GET /api/v1/customers/{id}/orders", customers.History)

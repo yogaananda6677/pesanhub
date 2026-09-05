@@ -6,6 +6,32 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /webhooks/midtrans:
+    servers:
+      - url: /
+    post:
+      summary: Verify and idempotently apply a Midtrans Core API payment notification
+      operationId: acceptMidtransPaymentNotification
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/MidtransNotification'}}
+      responses:
+        '200':
+          description: Authenticated notification accepted, ignored as an illegal downgrade, or deduplicated
+          headers:
+            X-PesenHub-Deduplicated:
+              schema: {type: string, const: 'true'}
+              description: Present when the same provider event was already processed
+        '400': {description: Malformed or unsupported notification}
+        '401': {description: SHA-512 signature is invalid}
+        '404': {description: Referenced payment was not found}
+        '413': {description: Body exceeds 1 MiB}
+        '422': {description: Amount or transaction reference does not match the backend payment}
+        '503': {description: Temporary persistence failure; Midtrans should retry}
   /webhooks/gowa:
     servers:
       - url: /
@@ -409,6 +435,22 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
   schemas:
+    MidtransNotification:
+      type: object
+      required: [order_id, transaction_id, transaction_status, status_code, gross_amount, payment_type, merchant_id, currency, signature_key]
+      properties:
+        order_id: {type: string}
+        transaction_id: {type: string}
+        transaction_status: {type: string, enum: [authorize, capture, settlement, pending, deny, cancel, expire, failure, refund, partial_refund]}
+        status_code: {type: string}
+        gross_amount: {type: string, pattern: '^[0-9]+(?:\.0+)?$'}
+        payment_type: {type: string, const: qris}
+        merchant_id: {type: string}
+        fraud_status: {type: string, enum: [accept, challenge, deny]}
+        currency: {type: string, const: IDR}
+        transaction_time: {type: string}
+        settlement_time: {type: string}
+        signature_key: {type: string, pattern: '^[a-fA-F0-9]{128}$'}
     ModifierSelection:
       type: object
       additionalProperties: false

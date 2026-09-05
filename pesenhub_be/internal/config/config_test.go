@@ -7,7 +7,7 @@ import (
 
 func validEnv(t *testing.T) {
 	t.Helper()
-	for k, v := range map[string]string{"APP_ENV": "development", "DATABASE_HOST": "localhost", "DATABASE_NAME": "pesenhub", "DATABASE_USER": "user", "DATABASE_PASSWORD": "secret-value", "GOWA_BASE_URL": "http://localhost:3000", "GOWA_BASIC_AUTH_USERNAME": "pesenhub", "GOWA_BASIC_AUTH_PASSWORD": "api-secret", "GOWA_DEVICE_ID": "pesenhub-dev", "GOWA_WEBHOOK_SECRET": "webhook-secret-at-least-32-characters", "MIDTRANS_SERVER_KEY": "SB-Mid-server-dummy", "MIDTRANS_BASE_URL": "https://api.sandbox.midtrans.com"} {
+	for k, v := range map[string]string{"APP_ENV": "development", "DATABASE_HOST": "localhost", "DATABASE_NAME": "pesenhub", "DATABASE_USER": "user", "DATABASE_PASSWORD": "secret-value", "GOWA_BASE_URL": "http://localhost:3000", "GOWA_BASIC_AUTH_USERNAME": "pesenhub", "GOWA_BASIC_AUTH_PASSWORD": "api-secret", "GOWA_DEVICE_ID": "pesenhub-dev", "GOWA_WEBHOOK_SECRET": "webhook-secret-at-least-32-characters", "MIDTRANS_SERVER_KEY": "SB-Mid-server-dummy", "MIDTRANS_MERCHANT_ID": "G123456789", "MIDTRANS_BASE_URL": "https://api.sandbox.midtrans.com"} {
 		t.Setenv(k, v)
 	}
 }
@@ -62,5 +62,14 @@ func TestLoadDoesNotLeakMidtransServerKey(t *testing.T) {
 	_, err := Load()
 	if err == nil || strings.Contains(err.Error(), "sensitive-midtrans-key") {
 		t.Fatalf("unsafe error: %v", err)
+	}
+}
+
+func TestLoadRequiresMidtransMerchantID(t *testing.T) {
+	validEnv(t)
+	t.Setenv("MIDTRANS_MERCHANT_ID", "")
+	_, err := Load()
+	if err == nil || !strings.Contains(err.Error(), "MIDTRANS_MERCHANT_ID") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

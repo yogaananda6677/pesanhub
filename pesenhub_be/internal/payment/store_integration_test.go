@@ -114,3 +114,84 @@ func TestCreateQRISIntegrationRetryUsesOnePaymentAndStableProviderOrderID(t *tes
 		t.Fatalf("payments=%d attempts=%d response=%s", payments, attempts, responseText)
 	}
 }
+
+func TestApplyMidtransWebhookIntegrationIsIdempotentAndMonotonic(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	orderID, paymentID := customer.NewID(), customer.NewID()
+	providerOrderID, transactionID := "PH-"+paymentID, "tx-webhook-"+paymentID
+	_, err = db.Exec(ctx, `INSERT INTO orders (id,order_number,source,status,customer_name_snapshot,subtotal_amount,total_amount,idempotency_key) VALUES ($1,$2,'CASHIER_MANUAL','PENDING','Webhook Test',27500,27500,$3)`, orderID, "ORD-WEBHOOK-"+orderID[:8], "order-webhook-"+orderID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(ctx, `INSERT INTO payments (id,order_id,method,status,amount,idempotency_key,provider_order_id,provider_attempt_state,request_hash,actor_id,request_id) VALUES ($1,$2,'MIDTRANS_QRIS','UNPAID',27500,$3,$4,'SUCCEEDED','hash','staff-webhook','req-create')`, paymentID, orderID, "payment-webhook-"+paymentID, providerOrderID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := NewStore(db)
+	base := MidtransNotification{OrderID: providerOrderID, TransactionID: transactionID, GrossAmount: "27500.00", PaymentType: "qris", Currency: "IDR"}
+
+	apply := func(status, statusCode, fraud, requestID string) WebhookResult {
+		t.Helper()
+		n := base
+		n.TransactionStatus, n.StatusCode, n.FraudStatus = status, statusCode, fraud
+		result, applyErr := store.ApplyMidtransWebhook(ctx, n, midtransEventID(n), requestID, nil)
+		if applyErr != nil {
+			t.Fatalf("apply %s: %v", status, applyErr)
+		}
+		return result
+	}
+	if result := apply("pending", "201", "", "req-pending"); !result.Applied || result.Payment.Status != "PENDING_PAYMENT" {
+		t.Fatalf("pending=%+v", result)
+	}
+	paid := apply("settlement", "200", "accept", "req-paid")
+	if !paid.Applied || paid.Payment.Status != "PAID" || paid.Payment.PaidAt == nil {
+		t.Fatalf("paid=%+v", paid)
+	}
+	late := apply("pending", "201", "accept", "req-late")
+	if late.Applied || late.Payment.Status != "PAID" {
+		t.Fatalf("late=%+v", late)
+	}
+	refunded := apply("refund", "200", "accept", "req-refund")
+	if !refunded.Applied || refunded.Payment.Status != "REFUNDED" {
+		t.Fatalf("refunded=%+v", refunded)
+	}
+	duplicate := apply("settlement", "200", "accept", "req-duplicate")
+	if !duplicate.Duplicate || duplicate.Applied || duplicate.Payment.Status != "REFUNDED" {
+		t.Fatalf("duplicate=%+v", duplicate)
+	}
+
+	badAmount := base
+	badAmount.TransactionStatus, badAmount.StatusCode, badAmount.GrossAmount = "settlement", "200", "1.00"
+	if _, err = store.ApplyMidtransWebhook(ctx, badAmount, midtransEventID(badAmount), "req-bad-amount", nil); !errors.Is(err, ErrWebhookAmount) {
+		t.Fatalf("amount error=%v", err)
+	}
+	badReference := base
+	badReference.TransactionID, badReference.TransactionStatus, badReference.StatusCode = "tx-other", "settlement", "200"
+	if _, err = store.ApplyMidtransWebhook(ctx, badReference, midtransEventID(badReference), "req-bad-reference", nil); !errors.Is(err, ErrWebhookReference) {
+		t.Fatalf("reference error=%v", err)
+	}
+
+	var paymentStatus, orderStatus string
+	var version, events, audits, outbox int
+	var eventPayloads string
+	err = db.QueryRow(ctx, `SELECT p.status,p.version,o.status,(SELECT count(*) FROM payment_events WHERE payment_id=p.id AND event_type LIKE 'MIDTRANS_PAYMENT_STATUS_%'),(SELECT count(*) FROM audit_logs WHERE aggregate_id=p.id AND action='MIDTRANS_PAYMENT_STATUS_CHANGED'),(SELECT count(*) FROM outbox_events WHERE aggregate_id=p.id AND event_type='PAYMENT_STATUS_CHANGED'),(SELECT string_agg(payload_redacted::text,'') FROM payment_events WHERE payment_id=p.id) FROM payments p JOIN orders o ON o.id=p.order_id WHERE p.id=$1`, paymentID).Scan(&paymentStatus, &version, &orderStatus, &events, &audits, &outbox, &eventPayloads)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if paymentStatus != "REFUNDED" || version != 4 || orderStatus != "PENDING" || events != 4 || audits != 3 || outbox != 3 {
+		t.Fatalf("payment=%s v%d order=%s counts=%d/%d/%d", paymentStatus, version, orderStatus, events, audits, outbox)
+	}
+	if strings.Contains(eventPayloads, "signature_key") || strings.Contains(eventPayloads, webhookTestKey) {
+		t.Fatalf("sensitive event payload: %s", eventPayloads)
+	}
+}

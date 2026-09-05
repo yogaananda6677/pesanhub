@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,6 +20,107 @@ const paymentColumns = `id::text,order_id::text,method,status,amount,version,pai
 
 func scanPayment(row pgx.Row, p *Payment) error {
 	return row.Scan(&p.ID, &p.OrderID, &p.Method, &p.Status, &p.Amount, &p.Version, &p.PaidAt, &p.CreatedAt, &p.UpdatedAt, &p.ProviderOrderID, &p.ProviderReference, &p.QRCodeURL, &p.ExpiresAt)
+}
+
+func (s *Store) ApplyMidtransWebhook(ctx context.Context, notification MidtransNotification, eventID, requestID string, occurredAt *time.Time) (WebhookResult, error) {
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return WebhookResult{}, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "MIDTRANS_WEBHOOK:"+notification.OrderID); err != nil {
+		return WebhookResult{}, err
+	}
+	var p Payment
+	if err = scanPayment(tx.QueryRow(ctx, `SELECT `+paymentColumns+` FROM payments WHERE provider_order_id=$1 AND method='MIDTRANS_QRIS' FOR UPDATE`, notification.OrderID), &p); errors.Is(err, pgx.ErrNoRows) {
+		return WebhookResult{}, ErrPaymentNotFound
+	} else if err != nil {
+		return WebhookResult{}, err
+	}
+	amount, err := parseIDRAmount(notification.GrossAmount)
+	if err != nil || amount != p.Amount {
+		return WebhookResult{}, ErrWebhookAmount
+	}
+	if p.ProviderReference != "" && p.ProviderReference != notification.TransactionID {
+		return WebhookResult{}, ErrWebhookReference
+	}
+	var duplicate bool
+	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM payment_events WHERE provider='MIDTRANS' AND provider_event_id=$1)`, eventID).Scan(&duplicate)
+	if err != nil {
+		return WebhookResult{}, err
+	}
+	if duplicate {
+		if err = tx.Commit(ctx); err != nil {
+			return WebhookResult{}, err
+		}
+		return WebhookResult{Payment: p, Duplicate: true}, nil
+	}
+	target, err := mapMidtransStatus(notification)
+	if err != nil {
+		return WebhookResult{}, err
+	}
+	applied := paymentStatusRank(target) > paymentStatusRank(p.Status)
+	fromStatus := p.Status
+	redacted, _ := json.Marshal(map[string]any{
+		"transaction_id": notification.TransactionID, "order_id": notification.OrderID, "gross_amount": notification.GrossAmount,
+		"provider_status": notification.TransactionStatus, "fraud_status": notification.FraudStatus, "from_status": fromStatus, "target_status": target, "applied": applied,
+	})
+	if applied {
+		paidAt := p.PaidAt
+		if target == "PAID" {
+			paidAt = occurredAt
+			if paidAt == nil {
+				now := time.Now().UTC()
+				paidAt = &now
+			}
+		}
+		err = scanPayment(tx.QueryRow(ctx, `UPDATE payments SET status=$2,provider_reference=COALESCE(NULLIF(provider_reference,''),$3),provider_attempt_state='SUCCEEDED',provider_error_code=NULL,provider_response_redacted=$4,paid_at=CASE WHEN $2='PAID' THEN $5 ELSE paid_at END,version=version+1,updated_at=now() WHERE id=$1 RETURNING `+paymentColumns, p.ID, target, notification.TransactionID, redacted, paidAt), &p)
+		if err != nil {
+			return WebhookResult{}, err
+		}
+	} else if p.ProviderReference == "" {
+		if _, err = tx.Exec(ctx, `UPDATE payments SET provider_reference=$2,provider_attempt_state='SUCCEEDED',provider_error_code=NULL,provider_response_redacted=$3,updated_at=now() WHERE id=$1`, p.ID, notification.TransactionID, redacted); err != nil {
+			return WebhookResult{}, err
+		}
+		p.ProviderReference = notification.TransactionID
+	}
+	eventType := "MIDTRANS_PAYMENT_STATUS_IGNORED"
+	if applied {
+		eventType = "MIDTRANS_PAYMENT_STATUS_CHANGED"
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO payment_events (id,payment_id,provider,provider_event_id,event_type,payload_redacted,processed_at) VALUES ($1,$2,'MIDTRANS',$3,$4,$5,now())`, customer.NewID(), p.ID, eventID, eventType, redacted); err != nil {
+		return WebhookResult{}, err
+	}
+	if applied {
+		if _, err = tx.Exec(ctx, `INSERT INTO audit_logs (id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES ($1,'PAYMENT',$2,'MIDTRANS_PAYMENT_STATUS_CHANGED','SYSTEM','MIDTRANS',$3,$4)`, customer.NewID(), p.ID, requestID, redacted); err != nil {
+			return WebhookResult{}, err
+		}
+		outbox, _ := json.Marshal(map[string]any{"payment_id": p.ID, "order_id": p.OrderID, "status": p.Status, "version": p.Version})
+		if _, err = tx.Exec(ctx, `INSERT INTO outbox_events (id,aggregate_type,aggregate_id,event_type,payload,deduplication_key) VALUES ($1,'PAYMENT',$2,'PAYMENT_STATUS_CHANGED',$3,$4)`, customer.NewID(), p.ID, outbox, fmt.Sprintf("payment-status:%s:%d", p.ID, p.Version)); err != nil {
+			return WebhookResult{}, err
+		}
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return WebhookResult{}, err
+	}
+	return WebhookResult{Payment: p, Applied: applied}, nil
+}
+
+func paymentStatusRank(status string) int {
+	switch status {
+	case "UNPAID":
+		return 0
+	case "PENDING_PAYMENT":
+		return 1
+	case "FAILED", "EXPIRED":
+		return 2
+	case "PAID":
+		return 3
+	case "REFUNDED":
+		return 4
+	default:
+		return -1
+	}
 }
 
 func (s *Store) PrepareQRIS(ctx context.Context, orderID, key, hash, actorID, requestID string) (Payment, bool, bool, error) {
