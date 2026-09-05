@@ -16,7 +16,7 @@ sleep 1
 port="$(docker port "$container" 5432/tcp | sed 's/.*://')"
 
 run_migration() {
-  DATABASE_HOST=127.0.0.1 DATABASE_PORT="$port" DATABASE_NAME=pesenhub_test DATABASE_USER=pesenhub_test DATABASE_PASSWORD="$password" DATABASE_SSLMODE=disable GOWA_BASE_URL=http://127.0.0.1:3000 GOWA_BASIC_AUTH_USERNAME=test GOWA_BASIC_AUTH_PASSWORD=test-only GOWA_DEVICE_ID=pesenhub-dev GOWA_WEBHOOK_SECRET=test-hmac-key-at-least-32-chars-long MIDTRANS_SERVER_KEY=SB-Mid-server-test MIDTRANS_BASE_URL=https://api.sandbox.midtrans.com GOCACHE=/tmp/pesenhub-migration-test-cache go run ./cmd/migrate "$1"
+  DATABASE_HOST=127.0.0.1 DATABASE_PORT="$port" DATABASE_NAME=pesenhub_test DATABASE_USER=pesenhub_test DATABASE_PASSWORD="$password" DATABASE_SSLMODE=disable GOWA_BASE_URL=http://127.0.0.1:3000 GOWA_BASIC_AUTH_USERNAME=test GOWA_BASIC_AUTH_PASSWORD=test-only GOWA_DEVICE_ID=pesenhub-dev GOWA_WEBHOOK_SECRET=test-hmac-key-at-least-32-chars-long MIDTRANS_SERVER_KEY=SB-Mid-server-test MIDTRANS_MERCHANT_ID=G123456789 MIDTRANS_BASE_URL=https://api.sandbox.midtrans.com GOCACHE=/tmp/pesenhub-migration-test-cache go run ./cmd/migrate "$1"
 }
 
 run_migration up

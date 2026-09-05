@@ -15,6 +15,10 @@ var (
 	ErrMidtransUnavailable = errors.New("midtrans is temporarily unavailable")
 	ErrMidtransRejected    = errors.New("midtrans rejected the transaction")
 	ErrMidtransNotReady    = errors.New("midtrans payment creation is not configured")
+	ErrWebhookInvalid      = errors.New("invalid midtrans webhook")
+	ErrPaymentNotFound     = errors.New("midtrans payment not found")
+	ErrWebhookAmount       = errors.New("midtrans webhook amount mismatch")
+	ErrWebhookReference    = errors.New("midtrans webhook transaction reference mismatch")
 )
 
 type CashInput struct {
@@ -47,6 +51,27 @@ type QRISCharge struct {
 
 type ProviderError struct {
 	Kind string
+}
+
+type MidtransNotification struct {
+	OrderID           string `json:"order_id"`
+	TransactionID     string `json:"transaction_id"`
+	TransactionStatus string `json:"transaction_status"`
+	StatusCode        string `json:"status_code"`
+	GrossAmount       string `json:"gross_amount"`
+	PaymentType       string `json:"payment_type"`
+	MerchantID        string `json:"merchant_id"`
+	FraudStatus       string `json:"fraud_status"`
+	Currency          string `json:"currency"`
+	TransactionTime   string `json:"transaction_time"`
+	SettlementTime    string `json:"settlement_time"`
+	SignatureKey      string `json:"signature_key"`
+}
+
+type WebhookResult struct {
+	Payment   Payment `json:"payment"`
+	Applied   bool    `json:"applied"`
+	Duplicate bool    `json:"duplicate"`
 }
 
 func (e *ProviderError) Error() string { return "midtrans request failed: " + e.Kind }

@@ -23,9 +23,11 @@ Webhook GOWA diterima pada `POST /webhooks/gowa` dan wajib memakai header HMAC-S
 
 ## Midtrans sandbox QRIS
 
-Isi `MIDTRANS_SERVER_KEY` dengan server key **sandbox** lokal (jangan commit nilainya). Endpoint operator `POST /api/v1/orders/{id}/payments/qris` wajib memakai autentikasi staf dan `Idempotency-Key`; body tidak menerima nominal karena `gross_amount` selalu dibaca dari total order backend. Respons sukses berisi URL QR dan status `PENDING_PAYMENT`. Timeout/network/5xx menghasilkan `503 PAYMENT_PROVIDER_UNAVAILABLE` dan harus diulang dengan key yang sama; 4xx provider menghasilkan `422 PAYMENT_PROVIDER_REJECTED`. Status `PAID` tidak ditetapkan dari respons charge dan tetap menunggu webhook tervalidasi.
+Isi `MIDTRANS_SERVER_KEY` dan `MIDTRANS_MERCHANT_ID` dengan credential **sandbox** lokal (jangan commit nilainya). Endpoint operator `POST /api/v1/orders/{id}/payments/qris` wajib memakai autentikasi staf dan `Idempotency-Key`; body tidak menerima nominal karena `gross_amount` selalu dibaca dari total order backend. Respons sukses berisi URL QR dan status `PENDING_PAYMENT`. Timeout/network/5xx menghasilkan `503 PAYMENT_PROVIDER_UNAVAILABLE` dan harus diulang dengan key yang sama; 4xx provider menghasilkan `422 PAYMENT_PROVIDER_REJECTED`.
 
 Konfigurasi `MIDTRANS_BASE_URL` dibatasi ke `https://api.sandbox.midtrans.com` di luar test, dengan timeout melalui `MIDTRANS_REQUEST_TIMEOUT`. Server key tidak disimpan pada payment event, audit, outbox, database response allowlist, atau respons HTTP.
+
+Atur Payment Notification URL sandbox ke `POST /webhooks/midtrans`. Endpoint publik ini tidak memakai bearer token karena Midtrans tidak mendukung custom authorization header; setiap payload diverifikasi memakai signature SHA-512, merchant ID, channel QRIS, mata uang IDR, provider order ID, transaction ID, dan nominal backend. Duplicate direspons `200` dengan `X-PesenHub-Deduplicated: true`. Notifikasi terlambat tidak dapat menurunkan `PAID`/`REFUNDED`, dan perubahan payment tidak pernah otomatis menyelesaikan order.
 
 ## Migration
 
