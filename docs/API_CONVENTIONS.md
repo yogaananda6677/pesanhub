@@ -2,6 +2,10 @@
 
 Status: accepted for Phase 1A through Issue #13. The machine-readable contract is [`openapi.yaml`](api/openapi.yaml).
 
+Compatibility REST/WebSocket dengan Flutter dijaga oleh fixture canonical dan
+gate CI yang dijelaskan di
+[`BACKEND_FLUTTER_CONTRACT_TESTS.md`](BACKEND_FLUTTER_CONTRACT_TESTS.md).
+
 ## Versioning and Compatibility
 
 - Business endpoints use `/api/v1`; operational `/health/*` endpoints remain unversioned.

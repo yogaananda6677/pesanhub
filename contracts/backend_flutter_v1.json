@@ -1,0 +1,259 @@
+{
+  "contract_version": 1,
+  "enums": {
+    "order_sources": [
+      "CASHIER_MANUAL",
+      "CUSTOMER_WEB",
+      "WHATSAPP"
+    ],
+    "order_statuses": [
+      "PENDING",
+      "ACCEPTED",
+      "PREPARING",
+      "READY_FOR_PICKUP",
+      "COMPLETED",
+      "REJECTED",
+      "CANCELLED"
+    ],
+    "payment_methods": [
+      "CASH",
+      "MIDTRANS_QRIS"
+    ],
+    "payment_statuses": [
+      "UNPAID",
+      "PENDING_PAYMENT",
+      "PAID",
+      "FAILED",
+      "EXPIRED",
+      "REFUNDED"
+    ],
+    "event_types": [
+      "ORDER_CREATED",
+      "ORDER_STATUS_CHANGED"
+    ]
+  },
+  "queue_response": {
+    "data": [
+      {
+        "id": "b1000000-0000-4000-8000-000000000001",
+        "order_number": "ORD-CONTRACT-001",
+        "client_order_id": "c1000000-0000-4000-8000-000000000001",
+        "source": "CASHIER_MANUAL",
+        "status": "PREPARING",
+        "customer_name": "Pelanggan Kontrak",
+        "customer_phone": "0812****7890",
+        "notes": "Fixture sintetis",
+        "total_amount": 25000,
+        "version": 3,
+        "created_at": "2026-09-05T08:00:00Z",
+        "updated_at": "2026-09-05T08:04:00Z",
+        "items": [
+          {
+            "id": "d1000000-0000-4000-8000-000000000001",
+            "menu_id": "e1000000-0000-4000-8000-000000000001",
+            "name": "Nasi Goreng Kontrak",
+            "sku": "CONTRACT-001",
+            "category_name": "Makanan",
+            "quantity": 1,
+            "unit_price_amount": 25000,
+            "line_total_amount": 25000,
+            "notes": "Pedas sedang",
+            "modifiers": [
+              {
+                "id": "f1000000-0000-4000-8000-000000000001",
+                "name": "Pedas sedang",
+                "price_delta_amount": 0
+              }
+            ]
+          }
+        ],
+        "history": [
+          {
+            "from_status": "ACCEPTED",
+            "to_status": "PREPARING",
+            "order_version": 3,
+            "actor_type": "STAFF",
+            "actor_id": "staff-contract",
+            "created_at": "2026-09-05T08:04:00Z"
+          }
+        ]
+      }
+    ]
+  },
+  "order_collection": {
+    "data": [
+      {
+        "id": "b1000000-0000-4000-8000-000000000001",
+        "order_number": "ORD-CONTRACT-001",
+        "client_order_id": "c1000000-0000-4000-8000-000000000001",
+        "source": "CASHIER_MANUAL",
+        "status": "PREPARING",
+        "customer_name": "Pelanggan Kontrak",
+        "customer_phone": "0812****7890",
+        "notes": "Fixture sintetis",
+        "total_amount": 25000,
+        "version": 3,
+        "created_at": "2026-09-05T08:00:00Z",
+        "updated_at": "2026-09-05T08:04:00Z",
+        "items": [
+          {
+            "id": "d1000000-0000-4000-8000-000000000001",
+            "menu_id": "e1000000-0000-4000-8000-000000000001",
+            "name": "Nasi Goreng Kontrak",
+            "sku": "CONTRACT-001",
+            "category_name": "Makanan",
+            "quantity": 1,
+            "unit_price_amount": 25000,
+            "line_total_amount": 25000,
+            "notes": "Pedas sedang",
+            "modifiers": [
+              {
+                "id": "f1000000-0000-4000-8000-000000000001",
+                "name": "Pedas sedang",
+                "price_delta_amount": 0
+              }
+            ]
+          }
+        ],
+        "history": [
+          {
+            "from_status": "ACCEPTED",
+            "to_status": "PREPARING",
+            "order_version": 3,
+            "actor_type": "STAFF",
+            "actor_id": "staff-contract",
+            "created_at": "2026-09-05T08:04:00Z"
+          }
+        ]
+      }
+    ],
+    "page": {
+      "size": 20,
+      "next_cursor": "MjAyNi0wOS0wNVQwODowMDowMFosYjEwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAx"
+    }
+  },
+  "payment": {
+    "id": "a1000000-0000-4000-8000-000000000001",
+    "order_id": "b1000000-0000-4000-8000-000000000001",
+    "method": "MIDTRANS_QRIS",
+    "status": "PAID",
+    "amount": 25000,
+    "version": 2,
+    "paid_at": "2026-09-05T08:02:00Z",
+    "created_at": "2026-09-05T08:00:00Z",
+    "updated_at": "2026-09-05T08:04:00Z",
+    "provider_order_id": "PH-CONTRACT-001",
+    "provider_reference": "provider-contract-001",
+    "qr_code_url": "https://example.test/qr/contract",
+    "expires_at": "2026-09-05T08:15:00Z"
+  },
+  "error_cases": [
+    {
+      "http_status": 401,
+      "headers": {
+        "x-request-id": "req-contract-401"
+      },
+      "body": {
+        "error": {
+          "code": "UNAUTHENTICATED",
+          "message": "Authentication is required.",
+          "request_id": "req-contract-401"
+        }
+      }
+    },
+    {
+      "http_status": 403,
+      "headers": {
+        "x-request-id": "req-contract-403"
+      },
+      "body": {
+        "error": {
+          "code": "FORBIDDEN",
+          "message": "Access is not allowed.",
+          "request_id": "req-contract-403"
+        }
+      }
+    },
+    {
+      "http_status": 422,
+      "headers": {
+        "x-request-id": "req-contract-422"
+      },
+      "body": {
+        "error": {
+          "code": "VALIDATION_FAILED",
+          "message": "Order validation failed.",
+          "details": [
+            {
+              "field": "items",
+              "reason": "required"
+            }
+          ],
+          "request_id": "req-contract-422"
+        }
+      }
+    },
+    {
+      "http_status": 409,
+      "headers": {
+        "x-request-id": "req-contract-409"
+      },
+      "body": {
+        "error": {
+          "code": "VERSION_CONFLICT",
+          "message": "Order was modified.",
+          "request_id": "req-contract-409"
+        }
+      }
+    },
+    {
+      "http_status": 500,
+      "headers": {
+        "x-request-id": "req-contract-500"
+      },
+      "body": {
+        "error": {
+          "code": "INTERNAL_ERROR",
+          "message": "An unexpected error occurred.",
+          "request_id": "req-contract-500"
+        }
+      }
+    }
+  ],
+  "events": [
+    {
+      "event_id": "81000000-0000-4000-8000-000000000001",
+      "event_type": "ORDER_CREATED",
+      "order_id": "b1000000-0000-4000-8000-000000000001",
+      "version": 1,
+      "source": "CASHIER_MANUAL",
+      "status": "PENDING",
+      "timestamp": "2026-09-05T08:00:00Z",
+      "payload": {
+        "order_id": "b1000000-0000-4000-8000-000000000001",
+        "order_number": "ORD-CONTRACT-001",
+        "source": "CASHIER_MANUAL",
+        "status": "PENDING",
+        "total_amount": 25000,
+        "version": 1
+      }
+    },
+    {
+      "event_id": "81000000-0000-4000-8000-000000000002",
+      "event_type": "ORDER_STATUS_CHANGED",
+      "order_id": "b1000000-0000-4000-8000-000000000001",
+      "version": 3,
+      "source": "CASHIER_MANUAL",
+      "status": "PREPARING",
+      "timestamp": "2026-09-05T08:04:00Z",
+      "payload": {
+        "order_id": "b1000000-0000-4000-8000-000000000001",
+        "order_number": "ORD-CONTRACT-001",
+        "source": "CASHIER_MANUAL",
+        "status": "PREPARING",
+        "total_amount": 25000,
+        "version": 3
+      }
+    }
+  ]
+}

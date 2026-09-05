@@ -2,8 +2,8 @@ import '../../queue/models/queue_order.dart';
 import '../../queue/models/queue_order_item.dart';
 
 class QueueOrderDto {
-  static const _sources = {'CASHIER_MANUAL', 'CUSTOMER_WEB', 'WHATSAPP'};
-  static const _statuses = {
+  static const validSources = {'CASHIER_MANUAL', 'CUSTOMER_WEB', 'WHATSAPP'};
+  static const validStatuses = {
     'PENDING',
     'ACCEPTED',
     'PREPARING',
@@ -26,11 +26,11 @@ class QueueOrderDto {
     final createdAt = DateTime.tryParse(_requiredString(json, 'created_at'));
     final version = json['version'];
     final rawItems = json['items'];
-    if (!_sources.contains(source) ||
-        !_statuses.contains(status) ||
+    if (!validSources.contains(source) ||
+        !validStatuses.contains(status) ||
         createdAt == null ||
-        version is! num ||
-        version.toInt() < 1 ||
+        version is! int ||
+        version < 1 ||
         rawItems is! List) {
       throw const FormatException('invalid order contract');
     }
@@ -41,13 +41,13 @@ class QueueOrderDto {
           final item = Map<String, dynamic>.from(raw);
           final quantity = item['quantity'];
           final unitPrice = item['unit_price_amount'];
-          if (quantity is! num || unitPrice is! num || quantity.toInt() < 1) {
+          if (quantity is! int || unitPrice is! int || quantity < 1) {
             throw const FormatException('invalid order item values');
           }
           return QueueOrderItem(
             name: _requiredString(item, 'name'),
-            quantity: quantity.toInt(),
-            unitPrice: unitPrice.toInt(),
+            quantity: quantity,
+            unitPrice: unitPrice,
             notes:
                 item['notes'] is String && (item['notes'] as String).isNotEmpty
                 ? item['notes'] as String
@@ -80,7 +80,7 @@ class QueueOrderDto {
             : null,
         items: items,
         createdAt: createdAt.toUtc(),
-        version: version.toInt(),
+        version: version,
       ),
     );
   }
@@ -95,7 +95,7 @@ class QueueOrderDto {
 }
 
 class OrderEventDto {
-  static const _types = {'ORDER_CREATED', 'ORDER_STATUS_CHANGED'};
+  static const validTypes = {'ORDER_CREATED', 'ORDER_STATUS_CHANGED'};
 
   final String eventId;
   final String eventType;
@@ -117,17 +117,17 @@ class OrderEventDto {
     final orderId = QueueOrderDto._requiredString(json, 'order_id');
     final status = QueueOrderDto._requiredString(json, 'status');
     final version = json['version'];
-    if (!_types.contains(eventType) ||
-        !QueueOrderDto._statuses.contains(status) ||
-        version is! num ||
-        version.toInt() < 1) {
+    if (!validTypes.contains(eventType) ||
+        !QueueOrderDto.validStatuses.contains(status) ||
+        version is! int ||
+        version < 1) {
       throw const FormatException('invalid event contract');
     }
     return OrderEventDto(
       eventId: eventId,
       eventType: eventType,
       orderId: orderId,
-      version: version.toInt(),
+      version: version,
       status: status,
     );
   }
