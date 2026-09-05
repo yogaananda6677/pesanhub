@@ -90,21 +90,23 @@ class KdsTicketCard extends StatelessWidget {
           ],
 
           // 2. Ticket Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
             children: [
-              Flexible(
-                child: Text(
-                  order.orderNumber,
-                  style: AppTypography.titleLarge.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+              Text(
+                order.orderNumber,
+                style: AppTypography.titleLarge.copyWith(
+                  fontWeight: FontWeight.w800,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(width: AppSpacing.xs),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   if (!isOverdue) ...[
                     Container(
@@ -135,7 +137,6 @@ class KdsTicketCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.xs),
                   ],
                   AppStatusBadge.order(order.orderStatus),
                 ],

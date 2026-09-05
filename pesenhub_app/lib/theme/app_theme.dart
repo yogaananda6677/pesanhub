@@ -44,6 +44,38 @@ abstract final class AppTheme {
         centerTitle: false,
         titleTextStyle: AppTypography.titleLarge,
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: 72,
+        backgroundColor: AppColors.surface,
+        indicatorColor: AppColors.primaryContainer,
+        elevation: 3,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          return AppTypography.labelSmall.copyWith(
+            color: states.contains(WidgetState.selected)
+                ? AppColors.primary
+                : AppColors.textSecondary,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w800
+                : FontWeight.w600,
+          );
+        }),
+      ),
+      navigationRailTheme: const NavigationRailThemeData(
+        backgroundColor: AppColors.primaryHover,
+        indicatorColor: AppColors.surface,
+        selectedIconTheme: IconThemeData(color: AppColors.primaryHover),
+        unselectedIconTheme: IconThemeData(color: Color(0xFFBDD6CA)),
+        selectedLabelTextStyle: TextStyle(
+          color: AppColors.surface,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+        unselectedLabelTextStyle: TextStyle(
+          color: Color(0xFFBDD6CA),
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       cardTheme: CardThemeData(
         color: AppColors.surface,
         elevation: 0,
@@ -131,6 +163,37 @@ abstract final class AppTheme {
         color: AppColors.border,
         thickness: 1,
         space: 1,
+      ),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: AppSpacing.borderRadiusMd),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? AppColors.surface
+              : AppColors.textMuted,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.border,
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.surface,
+        selectedColor: AppColors.primaryContainer,
+        side: const BorderSide(color: AppColors.border),
+        shape: const RoundedRectangleBorder(
+          borderRadius: AppSpacing.borderRadiusSm,
+        ),
+        labelStyle: AppTypography.labelMedium,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: AppSpacing.borderRadiusLg),
       ),
     );
   }

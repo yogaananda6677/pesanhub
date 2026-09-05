@@ -32,14 +32,11 @@ class FreshnessIndicator extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.xs,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final textScale = MediaQuery.textScalerOf(context).scale(1);
+            final shouldStack = constraints.maxWidth < 520 || textScale > 1.3;
+            final freshness = Row(
               children: [
                 Icon(
                   summary.isOffline
@@ -55,22 +52,25 @@ class FreshnessIndicator extends StatelessWidget {
                             : AppColors.textSecondary),
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                Text(
-                  summary.isOffline
-                      ? 'Offline • Terakhir: ${summary.formattedTime}'
-                      : 'Terakhir diperbarui: ${summary.formattedTime}',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: summary.isOffline || summary.isStale
-                        ? AppColors.warning
-                        : AppColors.textSecondary,
+                Flexible(
+                  child: Text(
+                    summary.isOffline
+                        ? 'Offline • Terakhir: ${summary.formattedTime}'
+                        : 'Terakhir diperbarui: ${summary.formattedTime}',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: summary.isOffline || summary.isStale
+                          ? AppColors.warning
+                          : AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ],
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            );
+            final actions = Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: AppSpacing.xs,
               children: [
-                if (summary.pendingSyncCount > 0) ...[
+                if (summary.pendingSyncCount > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.sm,
@@ -92,8 +92,6 @@ class FreshnessIndicator extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.xs),
-                ],
                 if (onRefresh != null)
                   IconButton(
                     tooltip: 'Segarkan data operasional',
@@ -105,8 +103,22 @@ class FreshnessIndicator extends StatelessWidget {
                     onPressed: onRefresh,
                   ),
               ],
-            ),
-          ],
+            );
+
+            if (shouldStack) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [freshness, const SizedBox(height: 2), actions],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: freshness),
+                const SizedBox(width: AppSpacing.sm),
+                actions,
+              ],
+            );
+          },
         ),
       ],
     );

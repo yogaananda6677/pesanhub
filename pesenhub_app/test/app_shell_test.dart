@@ -7,7 +7,7 @@ import 'package:pesenhub_app/showcase/design_system_showcase.dart';
 import 'package:pesenhub_app/theme/app_theme.dart';
 
 void main() {
-  group('Issue #24: Responsive App Shell Tests', () {
+  group('Issue #24 and #121: Responsive App Shell Tests', () {
     testWidgets(
       'Criteria #1: Mobile viewport (< 600dp) renders NavigationBar without overflow',
       (tester) async {
@@ -24,10 +24,29 @@ void main() {
         expect(find.byType(NavigationBar), findsOneWidget);
         expect(find.byType(NavigationRail), findsNothing);
 
-        // Verify all destination labels are present
-        for (final destination in AppDestination.values) {
+        // Mobile keeps only the four operational destinations plus Lainnya.
+        for (final destination in AppDestination.values.take(4)) {
           expect(find.text(destination.label), findsOneWidget);
         }
+        expect(find.text('Lainnya'), findsOneWidget);
+        final navigationBar = tester.widget<NavigationBar>(
+          find.byKey(const Key('primary-bottom-navigation')),
+        );
+        expect(navigationBar.destinations, hasLength(5));
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('primary-bottom-navigation')),
+            matching: find.text('Menu'),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('primary-bottom-navigation')),
+            matching: find.text('Pengaturan'),
+          ),
+          findsNothing,
+        );
 
         // Verify no exceptions or overflows
         expect(tester.takeException(), isNull);
@@ -189,13 +208,21 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Antrean Pesanan'), findsOneWidget);
 
-        // 4. Switch to Menu
-        await tester.tap(find.text('Menu'));
+        // 4. Open secondary destinations, then switch to Menu.
+        await tester.tap(find.text('Lainnya'));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('more-destinations-sheet')),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const Key('more-menu')));
         await tester.pumpAndSettle();
         expect(find.text('Kelola Ketersediaan Menu'), findsOneWidget);
 
-        // 5. Switch to Pengaturan
-        await tester.tap(find.text('Pengaturan'));
+        // 5. Open Lainnya again, then switch to Pengaturan.
+        await tester.tap(find.text('Lainnya'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('more-settings')));
         await tester.pumpAndSettle();
         expect(find.text('Pengaturan Outlet'), findsOneWidget);
 

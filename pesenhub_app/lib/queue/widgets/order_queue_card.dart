@@ -75,40 +75,38 @@ class OrderQueueCard extends StatelessWidget {
           ],
 
           // 2. Card Header: Order Number, Time, and Badges (Criteria #1)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.start,
+            alignment: WrapAlignment.spaceBetween,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      order.orderNumber,
-                      style: AppTypography.titleLarge.copyWith(
-                        fontWeight: FontWeight.w800,
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    order.orderNumber,
+                    style: AppTypography.titleLarge.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.access_time_rounded,
+                        size: 14,
+                        color: AppColors.textSecondary,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.access_time_rounded,
-                          size: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          order.formattedTime,
-                          style: AppTypography.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(order.formattedTime, style: AppTypography.bodySmall),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.sm),
               // Source badge: CASHIER_MANUAL, CUSTOMER_WEB, WHATSAPP (Criteria #1)
               AppStatusBadge.source(order.source),
             ],
@@ -216,12 +214,14 @@ class OrderQueueCard extends StatelessWidget {
                         color: AppColors.info,
                       ),
                       SizedBox(width: AppSpacing.xs),
-                      Text(
-                        'Minuman / Barista',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.info,
+                      Expanded(
+                        child: Text(
+                          'Minuman / Barista',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.info,
+                          ),
                         ),
                       ),
                     ],

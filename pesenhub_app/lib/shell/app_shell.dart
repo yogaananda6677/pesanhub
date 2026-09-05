@@ -35,6 +35,13 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
+  static const _primaryDestinations = [
+    AppDestination.dashboard,
+    AppDestination.pos,
+    AppDestination.queue,
+    AppDestination.kds,
+  ];
+
   late int _selectedIndex;
   final GlobalKey _contentStackKey = GlobalKey();
   late DashboardState _dashboardState;
@@ -85,6 +92,70 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       setState(() {
         _selectedIndex = index;
       });
+    }
+  }
+
+  int get _mobileSelectedIndex {
+    final destination = AppDestination.fromIndex(_selectedIndex);
+    final primaryIndex = _primaryDestinations.indexOf(destination);
+    return primaryIndex == -1 ? _primaryDestinations.length : primaryIndex;
+  }
+
+  void _onMobileDestinationSelected(int index) {
+    if (index == _primaryDestinations.length) {
+      _showMoreDestinations();
+      return;
+    }
+    _onDestinationSelected(_primaryDestinations[index].index);
+  }
+
+  Future<void> _showMoreDestinations() async {
+    final selected = await showModalBottomSheet<AppDestination>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.lg,
+          ),
+          child: Column(
+            key: const Key('more-destinations-sheet'),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Lainnya', style: AppTypography.titleLarge),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Fitur sekunder outlet tetap tersedia tanpa memenuhi navigasi utama.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _MoreDestinationTile(
+                destination: AppDestination.menu,
+                selected: _selectedIndex == AppDestination.menu.index,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _MoreDestinationTile(
+                destination: AppDestination.settings,
+                selected: _selectedIndex == AppDestination.settings.index,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (selected != null && mounted) {
+      _onDestinationSelected(selected.index);
     }
   }
 
@@ -193,21 +264,32 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           bottomNavigationBar: isTablet
               ? null
               : NavigationBar(
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: _onDestinationSelected,
-                  backgroundColor: AppColors.surface,
-                  indicatorColor: AppColors.primaryContainer,
-                  elevation: 2,
-                  destinations: AppDestination.values.map((d) {
-                    return NavigationDestination(
-                      icon: Icon(d.icon, color: AppColors.textSecondary),
+                  key: const Key('primary-bottom-navigation'),
+                  selectedIndex: _mobileSelectedIndex,
+                  onDestinationSelected: _onMobileDestinationSelected,
+                  destinations: [
+                    ..._primaryDestinations.map((d) {
+                      return NavigationDestination(
+                        icon: Icon(d.icon, color: AppColors.textSecondary),
+                        selectedIcon: Icon(
+                          d.selectedIcon,
+                          color: AppColors.primary,
+                        ),
+                        label: d.label,
+                      );
+                    }),
+                    const NavigationDestination(
+                      icon: Icon(
+                        Icons.more_horiz_rounded,
+                        color: AppColors.textSecondary,
+                      ),
                       selectedIcon: Icon(
-                        d.selectedIcon,
+                        Icons.more_horiz_rounded,
                         color: AppColors.primary,
                       ),
-                      label: d.label,
-                    );
-                  }).toList(),
+                      label: 'Lainnya',
+                    ),
+                  ],
                 ),
         );
       },
@@ -224,22 +306,20 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               child: NavigationRail(
                 selectedIndex: _selectedIndex,
                 onDestinationSelected: _onDestinationSelected,
-                backgroundColor: AppColors.surface,
-                indicatorColor: AppColors.primaryContainer,
                 extended: false,
-                minWidth: 80,
+                minWidth: 88,
                 labelType: NavigationRailLabelType.all,
                 leading: Padding(
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                   child: Container(
                     padding: const EdgeInsets.all(AppSpacing.xs),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryContainer,
+                      color: AppColors.primary,
                       borderRadius: AppSpacing.borderRadiusSm,
                     ),
                     child: const Icon(
                       Icons.rice_bowl_rounded,
-                      color: AppColors.primary,
+                      color: AppColors.surface,
                       size: 24,
                     ),
                   ),
@@ -269,12 +349,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                 ),
                 destinations: AppDestination.values.map((d) {
                   return NavigationRailDestination(
-                    icon: Icon(d.icon, color: AppColors.textSecondary),
-                    selectedIcon: Icon(
-                      d.selectedIcon,
-                      color: AppColors.primary,
-                    ),
-                    label: Text(d.label, style: AppTypography.labelSmall),
+                    icon: Icon(d.icon),
+                    selectedIcon: Icon(d.selectedIcon),
+                    label: Text(d.label),
                   );
                 }).toList(),
               ),
@@ -354,6 +431,76 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreDestinationTile extends StatelessWidget {
+  final AppDestination destination;
+  final bool selected;
+
+  const _MoreDestinationTile({
+    required this.destination,
+    required this.selected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Material(
+        color: selected ? AppColors.primaryContainer : AppColors.surfaceVariant,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppSpacing.borderRadiusMd,
+          side: BorderSide(
+            color: selected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: InkWell(
+          key: Key('more-${destination.name}'),
+          borderRadius: AppSpacing.borderRadiusMd,
+          onTap: () => Navigator.of(context).pop(destination),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
+              children: [
+                Container(
+                  width: AppSpacing.minTouchTarget,
+                  height: AppSpacing.minTouchTarget,
+                  decoration: BoxDecoration(
+                    color: selected ? AppColors.primary : AppColors.surface,
+                    borderRadius: AppSpacing.borderRadiusSm,
+                  ),
+                  child: Icon(
+                    destination.selectedIcon,
+                    color: selected ? AppColors.onPrimary : AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(destination.label, style: AppTypography.titleMedium),
+                      Text(
+                        destination == AppDestination.menu
+                            ? 'Atur menu tersedia atau habis'
+                            : 'Profil, perangkat, dan preferensi outlet',
+                        style: AppTypography.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  selected ? Icons.check_circle_rounded : Icons.chevron_right,
+                  color: selected ? AppColors.primary : AppColors.textMuted,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

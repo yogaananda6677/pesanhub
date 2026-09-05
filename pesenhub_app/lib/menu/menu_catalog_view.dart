@@ -101,8 +101,12 @@ class _MenuCatalogViewState extends State<MenuCatalogView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isWide = constraints.maxWidth >= 720;
-        final int crossAxisCount = isWide ? 3 : 2;
-        final double childAspectRatio = isWide ? 1.05 : 0.85;
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final highTextScale = textScale > 1.3;
+        final int crossAxisCount = highTextScale
+            ? (isWide ? 2 : 1)
+            : (isWide ? 3 : 2);
+        final double cardExtent = highTextScale ? 286 : (isWide ? 220 : 190);
 
         return SingleChildScrollView(
           key: const PageStorageKey('menu_catalog_scroll'),
@@ -147,7 +151,7 @@ class _MenuCatalogViewState extends State<MenuCatalogView> {
                     crossAxisCount: crossAxisCount,
                     crossAxisSpacing: AppSpacing.md,
                     mainAxisSpacing: AppSpacing.md,
-                    childAspectRatio: childAspectRatio,
+                    mainAxisExtent: cardExtent,
                   ),
                   itemCount: filteredItems.length,
                   itemBuilder: (context, index) {

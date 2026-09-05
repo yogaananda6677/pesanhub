@@ -42,6 +42,24 @@ class _KdsViewState extends State<KdsView> {
     }
   }
 
+  Future<void> _executeQuickAction(QueueOrder order) async {
+    final targetLabel = order.orderStatus == 'ACCEPTED'
+        ? 'Sedang Dimasak'
+        : 'Siap Diambil';
+    final success = await widget.controller.executeQuickAction(
+      order,
+      transitionFn: widget.transitionFn,
+    );
+    if (!mounted) return;
+    AppFeedback.show(
+      context,
+      message: success
+          ? '${order.orderNumber} dipindahkan ke $targetLabel.'
+          : '${order.orderNumber} gagal diperbarui. Periksa koneksi lalu coba lagi.',
+      type: success ? AppBannerType.success : AppBannerType.error,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
@@ -168,10 +186,7 @@ class _KdsViewState extends State<KdsView> {
           order: order,
           now: now,
           isProcessing: widget.controller.isOrderProcessing(order.id),
-          onQuickAction: () => widget.controller.executeQuickAction(
-            order,
-            transitionFn: widget.transitionFn,
-          ),
+          onQuickAction: () => _executeQuickAction(order),
         );
       },
     );
@@ -215,11 +230,7 @@ class _KdsViewState extends State<KdsView> {
                         isProcessing: widget.controller.isOrderProcessing(
                           order.id,
                         ),
-                        onQuickAction: () =>
-                            widget.controller.executeQuickAction(
-                              order,
-                              transitionFn: widget.transitionFn,
-                            ),
+                        onQuickAction: () => _executeQuickAction(order),
                       ),
                     ),
                   )
