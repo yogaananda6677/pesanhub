@@ -24,7 +24,7 @@ Di network Docker, API selalu menggunakan `DATABASE_HOST=postgres`, `DATABASE_PO
 
 ## Environment
 
-Salin `.env.example` menjadi `.env`. Aplikasi menggunakan `APP_NAME`, `APP_ENV`, `APP_HOST`, `APP_PORT`, `APP_TIMEZONE`, konfigurasi PostgreSQL, `GOWA_BASE_URL`, `GOWA_BASIC_AUTH_USERNAME`, `GOWA_BASIC_AUTH_PASSWORD`, `GOWA_DEVICE_ID`, `GOWA_REQUEST_TIMEOUT`, dan `GOWA_WEBHOOK_SECRET`.
+Salin `.env.example` menjadi `.env`. Aplikasi menggunakan `APP_NAME`, `APP_ENV`, `APP_HOST`, `APP_PORT`, `APP_TIMEZONE`, konfigurasi PostgreSQL, `GOWA_BASE_URL`, `GOWA_BASIC_AUTH_USERNAME`, `GOWA_BASIC_AUTH_PASSWORD`, `GOWA_DEVICE_ID`, `GOWA_REQUEST_TIMEOUT`, `GOWA_WEBHOOK_SECRET`, serta konfigurasi sandbox `MIDTRANS_BASE_URL`, `MIDTRANS_SERVER_KEY`, dan `MIDTRANS_REQUEST_TIMEOUT`.
 
 Compose juga menggunakan `POSTGRES_HOST_PORT`; autentikasi API dan UI GOWA memakai pasangan Basic Auth yang sama. `.env` diabaikan dan tidak dimasukkan ke build context. Jangan menyimpan credential asli di repository.
 

@@ -14,6 +14,147 @@ type Store struct{ db *pgxpool.Pool }
 
 func NewStore(db *pgxpool.Pool) *Store { return &Store{db: db} }
 
+const paymentColumns = `id::text,order_id::text,method,status,amount,version,paid_at,created_at,updated_at,COALESCE(provider_order_id,''),COALESCE(provider_reference,''),COALESCE(qr_code_url,''),expires_at`
+
+func scanPayment(row pgx.Row, p *Payment) error {
+	return row.Scan(&p.ID, &p.OrderID, &p.Method, &p.Status, &p.Amount, &p.Version, &p.PaidAt, &p.CreatedAt, &p.UpdatedAt, &p.ProviderOrderID, &p.ProviderReference, &p.QRCodeURL, &p.ExpiresAt)
+}
+
+func (s *Store) PrepareQRIS(ctx context.Context, orderID, key, hash, actorID, requestID string) (Payment, bool, bool, error) {
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return Payment{}, false, false, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "MIDTRANS_QRIS:"+orderID); err != nil {
+		return Payment{}, false, false, err
+	}
+
+	var p Payment
+	var storedHash, storedActor, attemptState string
+	err = tx.QueryRow(ctx, `SELECT `+paymentColumns+`,COALESCE(request_hash,''),COALESCE(actor_id,''),COALESCE(provider_attempt_state,'') FROM payments WHERE idempotency_key=$1`, key).Scan(
+		&p.ID, &p.OrderID, &p.Method, &p.Status, &p.Amount, &p.Version, &p.PaidAt, &p.CreatedAt, &p.UpdatedAt, &p.ProviderOrderID, &p.ProviderReference, &p.QRCodeURL, &p.ExpiresAt, &storedHash, &storedActor, &attemptState,
+	)
+	if err == nil {
+		if storedHash != hash || storedActor != actorID || p.Method != "MIDTRANS_QRIS" {
+			return Payment{}, false, false, ErrIdempotencyConflict
+		}
+		if attemptState == "PERMANENT_FAILURE" {
+			return Payment{}, false, false, ErrMidtransRejected
+		}
+		if attemptState == "SUCCEEDED" || attemptState == "IN_FLIGHT" {
+			return p, false, false, tx.Commit(ctx)
+		}
+		_, err = tx.Exec(ctx, `UPDATE payments SET provider_attempt_state='IN_FLIGHT',provider_attempt_count=provider_attempt_count+1,provider_last_attempt_at=now(),provider_error_code=NULL,updated_at=now() WHERE id=$1`, p.ID)
+		if err != nil {
+			return Payment{}, false, false, err
+		}
+		if err = tx.Commit(ctx); err != nil {
+			return Payment{}, false, false, err
+		}
+		return p, true, false, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return Payment{}, false, false, err
+	}
+
+	var total int64
+	var orderStatus string
+	err = tx.QueryRow(ctx, `SELECT total_amount,status FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&total, &orderStatus)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Payment{}, false, false, ErrOrderNotFound
+	}
+	if err != nil {
+		return Payment{}, false, false, err
+	}
+	if orderStatus == "REJECTED" || orderStatus == "CANCELLED" {
+		return Payment{}, false, false, ErrOrderNotPayable
+	}
+	if total <= 0 {
+		return Payment{}, false, false, &ValidationError{Field: "order.total_amount", Reason: "must_be_positive"}
+	}
+	if err = scanPayment(tx.QueryRow(ctx, `SELECT `+paymentColumns+` FROM payments WHERE order_id=$1 AND method='MIDTRANS_QRIS'`, orderID), &p); err == nil {
+		return Payment{}, false, false, ErrIdempotencyConflict
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return Payment{}, false, false, err
+	}
+
+	p = Payment{ID: customer.NewID(), OrderID: orderID, Method: "MIDTRANS_QRIS", Status: "UNPAID", Amount: total, Version: 1}
+	p.ProviderOrderID = "PH-" + p.ID
+	err = tx.QueryRow(ctx, `INSERT INTO payments (id,order_id,method,status,amount,idempotency_key,version,request_hash,actor_id,request_id,provider_order_id,provider_attempt_state,provider_attempt_count,provider_last_attempt_at) VALUES ($1,$2,'MIDTRANS_QRIS','UNPAID',$3,$4,1,$5,$6,$7,$8,'IN_FLIGHT',1,now()) RETURNING created_at,updated_at`, p.ID, orderID, total, key, hash, actorID, requestID, p.ProviderOrderID).Scan(&p.CreatedAt, &p.UpdatedAt)
+	if err != nil {
+		return Payment{}, false, false, err
+	}
+	redacted, _ := json.Marshal(map[string]any{"payment_id": p.ID, "order_id": orderID, "provider_order_id": p.ProviderOrderID, "method": "MIDTRANS_QRIS", "status": "UNPAID", "amount": total})
+	if _, err = tx.Exec(ctx, `INSERT INTO payment_events (id,payment_id,provider,provider_event_id,event_type,payload_redacted,processed_at) VALUES ($1,$2,'MIDTRANS',$3,'QRIS_CHARGE_REQUESTED',$4,now())`, customer.NewID(), p.ID, "charge-request:"+p.ID, redacted); err != nil {
+		return Payment{}, false, false, err
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs (id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES ($1,'PAYMENT',$2,'QRIS_CHARGE_REQUESTED','STAFF',$3,$4,$5)`, customer.NewID(), p.ID, actorID, requestID, redacted); err != nil {
+		return Payment{}, false, false, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return Payment{}, false, false, err
+	}
+	return p, true, true, nil
+}
+
+func (s *Store) CompleteQRIS(ctx context.Context, original Payment, charge QRISCharge, actorID, requestID string) (Payment, error) {
+	if charge.ProviderOrderID != original.ProviderOrderID {
+		return Payment{}, ErrMidtransUnavailable
+	}
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return Payment{}, err
+	}
+	defer tx.Rollback(ctx)
+	redacted, _ := json.Marshal(map[string]any{"transaction_id": charge.ProviderReference, "order_id": charge.ProviderOrderID, "transaction_status": charge.Status, "qr_code_url": charge.QRCodeURL})
+	var p Payment
+	err = scanPayment(tx.QueryRow(ctx, `UPDATE payments SET status='PENDING_PAYMENT',provider_reference=$2,qr_code_url=$3,expires_at=$4,provider_attempt_state='SUCCEEDED',provider_error_code=NULL,provider_response_redacted=$5,version=version+1,updated_at=now() WHERE id=$1 AND provider_attempt_state='IN_FLIGHT' RETURNING `+paymentColumns, original.ID, charge.ProviderReference, charge.QRCodeURL, charge.ExpiresAt, redacted), &p)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Payment{}, ErrIdempotencyConflict
+	}
+	if err != nil {
+		return Payment{}, err
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO payment_events (id,payment_id,provider,provider_event_id,event_type,payload_redacted,processed_at) VALUES ($1,$2,'MIDTRANS',$3,'QRIS_CHARGE_CREATED',$4,now()) ON CONFLICT (provider,provider_event_id) DO NOTHING`, customer.NewID(), p.ID, "charge:"+charge.ProviderReference, redacted); err != nil {
+		return Payment{}, err
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs (id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES ($1,'PAYMENT',$2,'QRIS_CHARGE_CREATED','STAFF',$3,$4,$5)`, customer.NewID(), p.ID, actorID, requestID, redacted); err != nil {
+		return Payment{}, err
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO outbox_events (id,aggregate_type,aggregate_id,event_type,payload,deduplication_key) VALUES ($1,'PAYMENT',$2,'QRIS_CHARGE_CREATED',$3,$4) ON CONFLICT (deduplication_key) DO NOTHING`, customer.NewID(), p.ID, redacted, "qris-charge:"+p.ID); err != nil {
+		return Payment{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return Payment{}, err
+	}
+	return p, nil
+}
+
+func (s *Store) FailQRIS(ctx context.Context, p Payment, code string, permanent bool, actorID, requestID string) error {
+	state, status := "UNKNOWN", "UNPAID"
+	if permanent {
+		state, status = "PERMANENT_FAILURE", "FAILED"
+	}
+	redacted, _ := json.Marshal(map[string]any{"payment_id": p.ID, "provider_order_id": p.ProviderOrderID, "status": status, "error_code": code})
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `UPDATE payments SET status=$2,provider_attempt_state=$3,provider_error_code=$4,provider_response_redacted=$5,version=version+1,updated_at=now() WHERE id=$1 AND provider_attempt_state='IN_FLIGHT'`, p.ID, status, state, code, redacted); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO payment_events (id,payment_id,provider,provider_event_id,event_type,payload_redacted,processed_at) VALUES ($1,$2,'MIDTRANS',$3,$4,$5,now()) ON CONFLICT (provider,provider_event_id) DO NOTHING`, customer.NewID(), p.ID, "charge-failure:"+p.ID+":"+code, "QRIS_CHARGE_"+state, redacted); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO audit_logs (id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES ($1,'PAYMENT',$2,$3,'STAFF',$4,$5,$6)`, customer.NewID(), p.ID, "QRIS_CHARGE_"+state, actorID, requestID, redacted); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 func (s *Store) RecordCash(ctx context.Context, orderID string, in CashInput, key, hash, actorID, requestID string) (Payment, bool, error) {
 	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
