@@ -57,7 +57,23 @@ need_docker() {
   need_command docker
   docker compose version >/dev/null 2>&1 || die "Docker Compose plugin tidak tersedia."
 }
-need_env() { [[ -f .env ]] || die ".env belum tersedia. Jalankan './run.sh setup'."; }
+need_env() {
+  [[ -f .env ]] || die ".env belum tersedia. Jalankan './run.sh setup'."
+  if [[ -f .env.example ]]; then
+    local missing_keys=()
+    while IFS= read -r line; do
+      [[ "$line" =~ ^([A-Z0-9_]+)= ]] || continue
+      local key="${BASH_REMATCH[1]}"
+      if ! grep -q -E "^${key}=" .env; then
+        missing_keys+=("$key")
+      fi
+    done < .env.example
+    if [[ ${#missing_keys[@]} -gt 0 ]]; then
+      warn "Variabel baru di .env.example belum ada di .env: ${missing_keys[*]}"
+      warn "Jalankan './run.sh setup' untuk menambahkan variabel baru ke .env."
+    fi
+  fi
+}
 compose() { docker compose "$@"; }
 
 validate_service() {
@@ -94,6 +110,10 @@ wait_ready() {
     sleep 1
   done
   compose ps
+  if [[ "$api_state" != "healthy" ]]; then
+    warn "Log terakhir dari service API:"
+    compose logs --tail=15 api 2>/dev/null || true
+  fi
   die "Timeout menunggu service: postgres=$postgres_state api=$api_state"
 }
 
@@ -157,7 +177,24 @@ setup() {
   [[ -f docker-compose.yml ]] || die "docker-compose.yml tidak ditemukan di $SCRIPT_DIR."
   [[ -f .env.example ]] || die ".env.example tidak ditemukan."
   if [[ -f .env ]]; then
-    ok ".env sudah tersedia; file tidak ditimpa."
+    ok ".env sudah tersedia."
+    local missing_count=0
+    while IFS= read -r line; do
+      [[ "$line" =~ ^([A-Z0-9_]+)= ]] || continue
+      local key="${BASH_REMATCH[1]}"
+      if ! grep -q -E "^${key}=" .env; then
+        if (( missing_count == 0 )); then
+          printf '\n# Ditambahkan otomatis dari .env.example\n' >> .env
+        fi
+        printf '%s\n' "$line" >> .env
+        missing_count=$((missing_count + 1))
+      fi
+    done < .env.example
+    if (( missing_count > 0 )); then
+      ok "$missing_count variabel baru dari .env.example disinkronkan ke .env."
+    else
+      ok ".env sudah lengkap sesuai .env.example."
+    fi
   else
     cp .env.example .env
     ok ".env dibuat dari .env.example. Tinjau seluruh nilai change_me sebelum penggunaan nyata."

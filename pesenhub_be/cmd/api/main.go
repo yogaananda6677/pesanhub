@@ -29,24 +29,24 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Error("configuration loading failed", "error", "invalid configuration")
+		logger.Error("configuration loading failed", "error", err.Error())
 		os.Exit(1)
 	}
 	sessions, err := appauth.NewSessionManager(cfg.Auth.SessionSecret, cfg.Auth.SessionTTL)
 	if err != nil {
-		logger.Error("session configuration failed", "error", "invalid configuration")
+		logger.Error("session configuration failed", "error", err.Error())
 		os.Exit(1)
 	}
 	login, err := appauth.NewHandler(cfg.Auth.LoginUsername, cfg.Auth.LoginPasswordHash, sessions)
 	if err != nil {
-		logger.Error("login configuration failed", "error", "invalid configuration")
+		logger.Error("login configuration failed", "error", err.Error())
 		os.Exit(1)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	pool, err := database.Open(ctx, cfg.Database.DSN())
 	if err != nil {
-		logger.Error("database connection failed", "error", "database unavailable")
+		logger.Error("database connection failed", "error", err.Error())
 		os.Exit(1)
 	}
 	defer pool.Close()
