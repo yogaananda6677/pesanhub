@@ -58,7 +58,14 @@ type Category struct {
 	Name      string `json:"name"`
 	SortOrder int    `json:"sort_order"`
 	Active    bool   `json:"is_active"`
+	Version   int64  `json:"version"`
 	Menus     []Menu `json:"menus"`
+}
+
+type MutationMeta struct {
+	ActorID   string
+	RequestID string
+	AuditID   string
 }
 
 type Selection struct {

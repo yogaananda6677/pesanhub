@@ -6,6 +6,8 @@ import '../connectivity/connectivity_controller.dart';
 import '../dashboard/dashboard_view.dart';
 import '../dashboard/models/dashboard_state.dart';
 import '../dashboard/models/operational_summary.dart';
+import '../menu/controllers/menu_availability_controller.dart';
+import '../menu/controllers/menu_controller.dart' as mc;
 import '../navigation/app_destination.dart';
 import '../queue/controllers/queue_controller.dart';
 import '../queue/models/queue_order.dart';
@@ -28,6 +30,8 @@ class AppShell extends StatefulWidget {
   final CartController? cartController;
   final Future<QueueOrder> Function(CartOrderDraft draft)? submitOrder;
   final Future<void> Function()? onSignOut;
+  final mc.MenuController? menuController;
+  final MenuAvailabilityController? menuManagementController;
 
   const AppShell({
     super.key,
@@ -40,6 +44,8 @@ class AppShell extends StatefulWidget {
     this.cartController,
     this.submitOrder,
     this.onSignOut,
+    this.menuController,
+    this.menuManagementController,
   });
 
   @override
@@ -202,6 +208,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         onNavigateToKds: () => _onDestinationSelected(AppDestination.kds.index),
       ),
       PosDestinationView(
+        menuController: widget.menuController,
         cartController: widget.cartController,
         submitOrder: widget.submitOrder,
         onNavigateToQueue: () =>
@@ -212,7 +219,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         alertController: _alerts,
       ),
       const KdsDestinationView(),
-      const MenuDestinationView(),
+      MenuDestinationView(
+        menuController: widget.menuController,
+        availabilityController: widget.menuManagementController,
+      ),
       SettingsDestinationView(onSignOut: widget.onSignOut),
     ];
   }

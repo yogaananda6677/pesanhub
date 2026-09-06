@@ -14,6 +14,8 @@ class MenuController extends ChangeNotifier {
   String _selectedCategoryId = 'ALL';
   String _searchQuery = '';
   Timer? _debounceTimer;
+  DateTime? _lastUpdatedAt;
+  bool _isRefreshing = false;
 
   MenuController({
     List<MenuCategory>? initialCategories,
@@ -36,6 +38,8 @@ class MenuController extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   List<MenuCategory> get categories => List.unmodifiable(_categories);
   List<MenuItem> get allMenus => List.unmodifiable(_menus);
+  DateTime? get lastUpdatedAt => _lastUpdatedAt;
+  bool get isRefreshing => _isRefreshing;
 
   /// Total count of menu items in catalog.
   int get totalCount => _menus.length;
@@ -51,9 +55,12 @@ class MenuController extends ChangeNotifier {
     List<MenuCategory> categories,
     List<MenuItem> menus, {
     bool isOffline = false,
+    DateTime? updatedAt,
   }) {
     _categories = List.from(categories);
     _menus = List.from(menus);
+    _lastUpdatedAt = updatedAt ?? _lastUpdatedAt;
+    _isRefreshing = false;
 
     if (_menus.isEmpty) {
       _state = MenuState.empty(isOffline: isOffline);
@@ -72,6 +79,11 @@ class MenuController extends ChangeNotifier {
   /// Updates presentation loading state.
   void setLoading() {
     _state = const MenuState.loading();
+    notifyListeners();
+  }
+
+  void setRefreshing(bool value) {
+    _isRefreshing = value;
     notifyListeners();
   }
 
@@ -105,6 +117,30 @@ class MenuController extends ChangeNotifier {
       _menus[index] = _menus[index].copyWith(isAvailable: isAvailable);
       notifyListeners();
     }
+  }
+
+  void upsertMenu(MenuItem menu) {
+    final index = _menus.indexWhere((item) => item.id == menu.id);
+    if (index == -1) {
+      _menus.add(menu);
+    } else {
+      _menus[index] = menu;
+    }
+    _menus.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    _state = MenuState.success(isOffline: _state.isOffline);
+    _lastUpdatedAt = DateTime.now();
+    notifyListeners();
+  }
+
+  void upsertCategory(MenuCategory category) {
+    final index = _categories.indexWhere((item) => item.id == category.id);
+    if (index == -1) {
+      _categories.add(category);
+    } else {
+      _categories[index] = category;
+    }
+    _categories.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    notifyListeners();
   }
 
   /// Returns filtered and searched items matching criteria.

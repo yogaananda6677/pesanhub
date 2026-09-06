@@ -46,6 +46,7 @@ class MenuLocalRepository {
           'name': cat.name,
           'sort_order': cat.sortOrder,
           'is_active': cat.isActive ? 1 : 0,
+          'version': cat.version,
         }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
 
@@ -115,6 +116,7 @@ class MenuLocalRepository {
             name: row['name'] as String,
             sortOrder: row['sort_order'] as int? ?? 0,
             isActive: (row['is_active'] as int? ?? 1) == 1,
+            version: row['version'] as int? ?? 1,
           ),
         )
         .toList();

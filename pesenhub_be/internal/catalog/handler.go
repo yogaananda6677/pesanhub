@@ -22,6 +22,18 @@ func (h *Handler) Public(w http.ResponseWriter, r *http.Request) {
 	}
 	httpapi.WriteJSON(w, http.StatusOK, map[string]any{"data": items})
 }
+func (h *Handler) Admin(w http.ResponseWriter, r *http.Request) {
+	if !staff(r) {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+	items, err := h.service.ListAdmin(r.Context())
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, map[string]any{"data": items})
+}
 func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	if !staff(r) {
 		h.writeError(w, r, customer.ErrUnauthorized)
@@ -32,13 +44,30 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, ErrInvalidCatalog)
 		return
 	}
-	result, err := h.service.CreateCategory(r.Context(), body)
+	result, err := h.service.CreateCategory(r.Context(), body, actorID(r), httpserver.RequestID(r.Context()))
 	if err != nil {
 		h.writeError(w, r, err)
 		return
 	}
 	w.Header().Set("Location", "/api/v1/admin/categories/"+result.ID)
 	httpapi.WriteJSON(w, http.StatusCreated, result)
+}
+func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
+	if !staff(r) {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+	var body Category
+	if decode(r, &body) != nil {
+		h.writeError(w, r, ErrInvalidCatalog)
+		return
+	}
+	result, err := h.service.UpdateCategory(r.Context(), r.PathValue("id"), body, body.Version, actorID(r), httpserver.RequestID(r.Context()))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, result)
 }
 func (h *Handler) CreateMenu(w http.ResponseWriter, r *http.Request) {
 	if !staff(r) {
@@ -50,13 +79,30 @@ func (h *Handler) CreateMenu(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, ErrInvalidCatalog)
 		return
 	}
-	result, err := h.service.CreateMenu(r.Context(), body)
+	result, err := h.service.CreateMenu(r.Context(), body, actorID(r), httpserver.RequestID(r.Context()))
 	if err != nil {
 		h.writeError(w, r, err)
 		return
 	}
 	w.Header().Set("Location", "/api/v1/admin/menus/"+result.ID)
 	httpapi.WriteJSON(w, http.StatusCreated, result)
+}
+func (h *Handler) UpdateMenu(w http.ResponseWriter, r *http.Request) {
+	if !staff(r) {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+	var body Menu
+	if decode(r, &body) != nil {
+		h.writeError(w, r, ErrInvalidCatalog)
+		return
+	}
+	result, err := h.service.UpdateMenu(r.Context(), r.PathValue("id"), body, body.Version, actorID(r), httpserver.RequestID(r.Context()))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, result)
 }
 func (h *Handler) Availability(w http.ResponseWriter, r *http.Request) {
 	if !staff(r) {
@@ -71,13 +117,14 @@ func (h *Handler) Availability(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, ErrInvalidCatalog)
 		return
 	}
-	result, err := h.service.SetMenuAvailability(r.Context(), r.PathValue("id"), body.Available, body.Version)
+	result, err := h.service.SetMenuAvailability(r.Context(), r.PathValue("id"), body.Available, body.Version, actorID(r), httpserver.RequestID(r.Context()))
 	if err != nil {
 		h.writeError(w, r, err)
 		return
 	}
 	httpapi.WriteJSON(w, http.StatusOK, result)
 }
+func actorID(r *http.Request) string { return customer.PrincipalFromRequest(r).Subject }
 func staff(r *http.Request) bool {
 	p := customer.PrincipalFromRequest(r)
 	return p.Subject != "" && p.Role == "STAFF"

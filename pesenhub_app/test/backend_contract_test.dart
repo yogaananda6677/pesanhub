@@ -8,6 +8,7 @@ import 'package:pesenhub_app/auth/session.dart';
 import 'package:pesenhub_app/data/remote/api_config.dart';
 import 'package:pesenhub_app/data/remote/api_failure.dart';
 import 'package:pesenhub_app/data/remote/contract_dto.dart';
+import 'package:pesenhub_app/data/remote/catalog_dto.dart';
 import 'package:pesenhub_app/data/remote/order_dto.dart';
 import 'package:pesenhub_app/data/remote/pesenhub_api_client.dart';
 
@@ -35,12 +36,21 @@ void main() {
     Set<String> values(String key) =>
         (enums[key] as List).cast<String>().toSet();
 
-    expect(fixture['contract_version'], 2);
+    expect(fixture['contract_version'], 3);
     expect(values('order_sources'), QueueOrderDto.validSources);
     expect(values('order_statuses'), QueueOrderDto.validStatuses);
     expect(values('payment_methods'), PaymentDto.validMethods);
     expect(values('payment_statuses'), PaymentDto.validStatuses);
     expect(values('event_types'), OrderEventDto.validTypes);
+  });
+
+  test('admin catalog provider payload maps categories and modifiers', () {
+    final catalog = decodeCatalog(
+      Map<String, dynamic>.from(fixture['catalog_response'] as Map),
+    );
+    expect(catalog.categories.single.version, 2);
+    expect(catalog.menus.single.priceAmount, 25000);
+    expect(catalog.menus.single.modifierGroups.single.options, hasLength(1));
   });
 
   test('login response matches the mobile session contract', () {

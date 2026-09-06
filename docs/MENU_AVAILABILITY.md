@@ -1,4 +1,4 @@
-# Pengelolaan Menu Availability pada Flutter (#31)
+# Pengelolaan Menu Availability pada Flutter (#31, diperluas #132)
 
 Dokumentasi arsitektur, kontrol otorisasi (*role guard*), alur pembaruan optimistik dengan rollback otomatis, serta sinkronisasi ketersediaan item menu pada aplikasi kasir POS dan KDS PesenHub.
 
@@ -36,7 +36,7 @@ pesenhub_app/lib/menu/
 
 ## 3. Role Guard (Otorisasi Staf)
 
-Fitur mutasi ketersediaan menu diproteksi oleh *Role Guard* di tingkat aplikasi (selaras dengan proteksi backend pada `PATCH /api/v1/admin/menus/{id}/availability`):
+Pada deployment satu outlet tidak ada pemilih owner/operator. Sesi login menghasilkan principal internal `STAFF`; fitur mutasi diproteksi di tingkat aplikasi dan backend pada `PATCH /api/v1/admin/menus/{id}/availability`:
 - **Role `STAFF`**: Diberikan hak akses penuh (*write access*). Switch interaktif aktif dengan target sentuh minimal 48px.
 - **Role Non-`STAFF` (`KDS`, `CUSTOMER`, `VIEWER`)**:
   - Tampilan beralih ke *Mode Pantau* (*read-only*).
@@ -122,7 +122,5 @@ Pengujian dilakukan melalui unit test, widget test, dan static analysis:
   - `Criteria #3 UI`: MenuAvailabilityCard disables toggle switch when not staff (PASS).
   - `Criteria #4`: Setting item unavailable immediately prevents it from being ordered in POS (PASS).
   - `Criteria #5`: Responsive layout on mobile and tablet with loading, empty, error, and filter states (PASS).
-- Full Flutter test suite: **78/78 tests passed** (100%).
-- `flutter analyze`: **No issues found** (0 warnings, 0 errors).
-- `dart format`: **0 changes needed** (100% compliant).
-- Backend suite: `cd pesenhub_be && ./run.sh check` (**PASS**).
+- Test end-to-end katalog tambahan berada di `test/catalog_runtime_test.dart` dan mencakup mode offline read-only, reconnect, contract auth/version, CRUD, serta viewport mobile.
+- Hasil suite penuh terbaru dicatat pada PR Issue #132 agar angka pengujian tidak menjadi dokumentasi basi.

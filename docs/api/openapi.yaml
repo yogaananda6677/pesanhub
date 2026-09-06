@@ -134,18 +134,62 @@ paths:
       summary: Create a category
       operationId: createCategory
       security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CategoryMutation'}}}
       responses:
-        '201': {description: Category created}
+        '201': {description: Category created, content: {application/json: {schema: {$ref: '#/components/schemas/CatalogCategory'}}}}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /admin/catalog:
+    get:
+      summary: Read the complete catalog including inactive and unavailable entries
+      operationId: getAdminCatalog
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Complete management catalog, content: {application/json: {schema: {$ref: '#/components/schemas/CatalogResponse'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /admin/categories/{id}:
+    patch:
+      summary: Update category fields with optimistic version
+      operationId: updateCategory
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CategoryMutation'}}}
+      responses:
+        '200': {description: Category updated, content: {application/json: {schema: {$ref: '#/components/schemas/CatalogCategory'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
   /admin/menus:
     post:
       summary: Create a menu with modifier groups and options atomically
       operationId: createMenu
       security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/MenuMutation'}}}
       responses:
-        '201': {description: Menu created}
+        '201': {description: Menu created, content: {application/json: {schema: {$ref: '#/components/schemas/CatalogMenu'}}}}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /admin/menus/{id}:
+    patch:
+      summary: Update menu, price, ordering, and modifier tree with optimistic version
+      operationId: updateMenu
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/MenuMutation'}}}
+      responses:
+        '200': {description: Menu updated, content: {application/json: {schema: {$ref: '#/components/schemas/CatalogMenu'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
   /admin/menus/{id}/availability:
     patch:
@@ -154,6 +198,17 @@ paths:
       security: [{bearerAuth: []}]
       parameters:
         - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [is_available, version]
+              properties:
+                is_available: {type: boolean}
+                version: {type: integer, minimum: 1}
       responses:
         '200': {description: Availability updated}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -714,13 +769,56 @@ components:
         modifier_groups: {type: array, items: {$ref: '#/components/schemas/ModifierGroup'}}
     CatalogCategory:
       type: object
-      required: [id, name, sort_order, is_active, menus]
+      required: [id, name, sort_order, is_active, version, menus]
       properties:
         id: {type: string, format: uuid}
         name: {type: string}
         sort_order: {type: integer, minimum: 0}
         is_active: {type: boolean}
+        version: {type: integer, minimum: 1}
         menus: {type: array, items: {$ref: '#/components/schemas/CatalogMenu'}}
+    CategoryMutation:
+      type: object
+      additionalProperties: false
+      required: [name, sort_order, is_active, version]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        sort_order: {type: integer, minimum: 0}
+        is_active: {type: boolean}
+        version: {type: integer, minimum: 1}
+    ModifierOptionMutation:
+      type: object
+      additionalProperties: false
+      required: [code, name, price_delta_amount, sort_order]
+      properties:
+        code: {type: string, minLength: 1, maxLength: 64}
+        name: {type: string, minLength: 1, maxLength: 120}
+        price_delta_amount: {type: integer, format: int64}
+        sort_order: {type: integer, minimum: 0}
+    ModifierGroupMutation:
+      type: object
+      additionalProperties: false
+      required: [code, name, min_select, max_select, sort_order, options]
+      properties:
+        code: {type: string, minLength: 1, maxLength: 64}
+        name: {type: string, minLength: 1, maxLength: 120}
+        min_select: {type: integer, minimum: 0}
+        max_select: {type: integer, minimum: 1}
+        sort_order: {type: integer, minimum: 0}
+        options: {type: array, items: {$ref: '#/components/schemas/ModifierOptionMutation'}}
+    MenuMutation:
+      type: object
+      additionalProperties: false
+      required: [category_id, sku, name, price_amount, sort_order, version, modifier_groups]
+      properties:
+        category_id: {type: string, format: uuid}
+        sku: {type: string, minLength: 1, maxLength: 64}
+        name: {type: string, minLength: 1, maxLength: 160}
+        description: {type: string}
+        price_amount: {type: integer, format: int64, minimum: 0}
+        sort_order: {type: integer, minimum: 0}
+        version: {type: integer, minimum: 1}
+        modifier_groups: {type: array, items: {$ref: '#/components/schemas/ModifierGroupMutation'}}
     CatalogResponse:
       type: object
       required: [data]

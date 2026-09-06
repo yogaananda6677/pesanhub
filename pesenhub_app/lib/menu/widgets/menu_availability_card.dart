@@ -12,16 +12,20 @@ class MenuAvailabilityCard extends StatelessWidget {
   final MenuItem item;
   final String categoryName;
   final bool isStaff;
+  final bool isMutationEnabled;
   final bool isUpdating;
   final ValueChanged<bool>? onToggle;
+  final VoidCallback? onEdit;
 
   const MenuAvailabilityCard({
     super.key,
     required this.item,
     required this.categoryName,
     this.isStaff = true,
+    this.isMutationEnabled = true,
     this.isUpdating = false,
     this.onToggle,
+    this.onEdit,
   });
 
   @override
@@ -61,11 +65,15 @@ class MenuAvailabilityCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Text(
-                          categoryName,
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
+                        Flexible(
+                          child: Text(
+                            categoryName,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: AppSpacing.xs),
@@ -106,6 +114,13 @@ class MenuAvailabilityCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (onEdit != null)
+                IconButton(
+                  key: Key('edit-menu-${item.id}'),
+                  tooltip: 'Edit ${item.name}',
+                  onPressed: isStaff ? onEdit : null,
+                  icon: const Icon(Icons.edit_outlined),
+                ),
             ],
           ),
 
@@ -226,7 +241,8 @@ class MenuAvailabilityCard extends StatelessWidget {
                           inactiveThumbColor: AppColors.error,
                           inactiveTrackColor: AppColors.errorBg,
                           // Criteria #3: Disabled if not staff
-                          onChanged: isStaff && onToggle != null
+                          onChanged:
+                              isStaff && isMutationEnabled && onToggle != null
                               ? (val) => onToggle!(val)
                               : null,
                         ),
@@ -238,7 +254,7 @@ class MenuAvailabilityCard extends StatelessWidget {
           ),
 
           // Role guard hint if not staff
-          if (!isStaff) ...[
+          if (!isStaff || !isMutationEnabled) ...[
             const SizedBox(height: AppSpacing.xs),
             Row(
               children: [
@@ -248,11 +264,15 @@ class MenuAvailabilityCard extends StatelessWidget {
                   color: AppColors.textMuted,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  'Hanya staf kasir yang dapat mengubah ketersediaan',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
+                Expanded(
+                  child: Text(
+                    isStaff
+                        ? 'Hubungkan backend untuk mengubah ketersediaan'
+                        : 'Hanya staf kasir yang dapat mengubah ketersediaan',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textMuted,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
               ],

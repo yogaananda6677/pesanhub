@@ -283,7 +283,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.byType(MenuAvailabilityCard), findsNWidgets(3));
-        expect(find.text('Pengelolaan Menu (Staf Aktif)'), findsOneWidget);
+        expect(find.text('Pengelolaan Menu'), findsOneWidget);
 
         // 2. Tablet Viewport (>= 600dp)
         tester.view.physicalSize = const Size(900, 1200);

@@ -9,12 +9,18 @@ import '../cart/controllers/cart_controller.dart';
 import '../cart/models/cart_order_draft.dart';
 import '../connectivity/connectivity_controller.dart';
 import '../data/local/local_database.dart';
+import '../data/local/menu_local_repository.dart';
 import '../data/local/outbox_repository.dart';
 import '../data/local/queue_local_repository.dart';
 import '../data/remote/api_config.dart';
+import '../data/remote/catalog_runtime_coordinator.dart';
 import '../data/remote/pesenhub_api_client.dart';
 import '../data/remote/queue_realtime_coordinator.dart';
 import '../data/sync/sync_service.dart';
+import '../menu/controllers/menu_availability_controller.dart';
+import '../menu/controllers/menu_controller.dart' as mc;
+import '../menu/models/menu_category.dart';
+import '../menu/models/menu_item.dart';
 import '../queue/controllers/queue_controller.dart';
 import '../queue/models/queue_order.dart';
 import '../shell/app_shell.dart';
@@ -42,6 +48,10 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
   SessionController? _session;
   ConnectivityController? _connectivity;
   VoidCallback? _syncListener;
+  mc.MenuController? _menuController;
+  MenuAvailabilityController? _menuManagementController;
+  CatalogRuntimeCoordinator? _catalogCoordinator;
+  VoidCallback? _catalogConnectivityListener;
 
   @override
   void initState() {
@@ -82,11 +92,13 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
 
     final database = LocalDatabase();
     final queueRepository = QueueLocalRepository(database);
+    final menuRepository = MenuLocalRepository(database);
     final outboxRepository = OutboxRepository(database);
     final alerts = OrderAlertController();
     final queueController = QueueController(alertController: alerts);
     final cartController = CartController();
     late final QueueRealtimeCoordinator coordinator;
+    late final CatalogRuntimeCoordinator catalogCoordinator;
     final sync = SyncService(
       outboxRepo: outboxRepository,
       queueRepo: queueRepository,
@@ -99,9 +111,56 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
       onNetworkChanged: (available) =>
           coordinator.setNetworkAvailable(available),
       onRetryRequested: () => coordinator.retryNow(),
-      onTransition: (from, to) =>
-          debugPrint('PesenHub connectivity ${from.name} -> ${to.name}'),
+      onTransition: (from, to) {
+        debugPrint('PesenHub connectivity ${from.name} -> ${to.name}');
+        if (to == OperationalConnectionState.online) {
+          unawaited(catalogCoordinator.refresh());
+        }
+      },
     );
+    final menuController = mc.MenuController();
+    late final MenuAvailabilityController menuManagementController;
+    Future<void> persistCatalog(
+      List<MenuCategory> categories,
+      List<MenuItem> menus,
+    ) async {
+      try {
+        await menuRepository.saveCatalog(categories: categories, items: menus);
+      } catch (_) {
+        if (_menuManagementController == menuManagementController) {
+          menuManagementController.setBanner(
+            'Perubahan tersimpan di Backend, tetapi cache offline belum dapat diperbarui.',
+            isError: true,
+          );
+        }
+      }
+    }
+
+    void publishCatalog(List<MenuCategory> categories, List<MenuItem> menus) {
+      menuController.setCatalog(categories, menus);
+      unawaited(persistCatalog(categories, menus));
+    }
+
+    menuManagementController = MenuAvailabilityController(
+      availabilityUpdateFn: api.updateMenuAvailability,
+      createCategoryFn: api.createCategory,
+      updateCategoryFn: api.updateCategory,
+      createMenuFn: api.createMenu,
+      updateMenuFn: api.updateMenu,
+      canMutate: () => connectivity.backendReachable,
+      onRefresh: () => catalogCoordinator.refresh(),
+      onAvailabilityChanged: menuController.upsertMenu,
+      onCatalogChanged: publishCatalog,
+    );
+    catalogCoordinator = CatalogRuntimeCoordinator(
+      gateway: api,
+      localRepository: menuRepository,
+      menuController: menuController,
+      managementController: menuManagementController,
+    );
+    void catalogConnectivityListener() =>
+        menuManagementController.connectivityChanged();
+    connectivity.addListener(catalogConnectivityListener);
     coordinator = QueueRealtimeCoordinator(
       config: config,
       accessToken: session.accessToken,
@@ -140,7 +199,12 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
     _alerts = alerts;
     _connectivity = connectivity;
     _syncListener = syncListener;
+    _menuController = menuController;
+    _menuManagementController = menuManagementController;
+    _catalogCoordinator = catalogCoordinator;
+    _catalogConnectivityListener = catalogConnectivityListener;
     unawaited(coordinator.start());
+    unawaited(catalogCoordinator.start());
   }
 
   void _stopServices() {
@@ -149,12 +213,20 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
     if (sync != null && syncListener != null) {
       sync.removeListener(syncListener);
     }
+    final connectivity = _connectivity;
+    final catalogConnectivityListener = _catalogConnectivityListener;
+    if (connectivity != null && catalogConnectivityListener != null) {
+      connectivity.removeListener(catalogConnectivityListener);
+    }
     _coordinator?.dispose();
     _sync?.dispose();
     _queueController?.dispose();
     _cartController?.dispose();
     _alerts?.dispose();
     _connectivity?.dispose();
+    _catalogCoordinator?.dispose();
+    _menuManagementController?.dispose();
+    _menuController?.dispose();
     unawaited(_database?.close());
     _database = null;
     _sync = null;
@@ -166,6 +238,10 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
     _alerts = null;
     _connectivity = null;
     _syncListener = null;
+    _menuController = null;
+    _menuManagementController = null;
+    _catalogCoordinator = null;
+    _catalogConnectivityListener = null;
   }
 
   @override
@@ -208,6 +284,8 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
       alertController: _alerts,
       connectivityController: _connectivity,
       onSignOut: session?.signOut,
+      menuController: _menuController,
+      menuManagementController: _menuManagementController,
     );
   }
 

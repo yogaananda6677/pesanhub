@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"pesenhub/backend/internal/appauth"
+	"pesenhub/backend/internal/catalog"
 	"pesenhub/backend/internal/domain"
 	"pesenhub/backend/internal/httpapi"
 	"pesenhub/backend/internal/order"
@@ -41,6 +42,11 @@ type Fixture struct {
 	Payment         payment.Payment            `json:"payment"`
 	ErrorCases      []ErrorCase                `json:"error_cases"`
 	Events          []order.OrderEventEnvelope `json:"events"`
+	CatalogResponse QueueCatalog               `json:"catalog_response"`
+}
+
+type QueueCatalog struct {
+	Data []catalog.Category `json:"data"`
 }
 
 func Canonical() Fixture {
@@ -93,7 +99,7 @@ func Canonical() Fixture {
 	}
 
 	return Fixture{
-		ContractVersion: 2,
+		ContractVersion: 3,
 		LoginResponse: appauth.LoginResponse{
 			AccessToken: "synthetic.signed-session-token",
 			TokenType:   "Bearer",
@@ -134,6 +140,17 @@ func Canonical() Fixture {
 			{EventID: "81000000-0000-4000-8000-000000000001", EventType: "ORDER_CREATED", OrderID: detail.ID, Version: 1, Source: detail.Source, Status: string(domain.OrderStatusPending), Timestamp: createdAt, Payload: eventPayload(string(domain.OrderStatusPending), 1)},
 			{EventID: "81000000-0000-4000-8000-000000000002", EventType: "ORDER_STATUS_CHANGED", OrderID: detail.ID, Version: 3, Source: detail.Source, Status: detail.Status, Timestamp: updatedAt, Payload: eventPayload(detail.Status, detail.Version)},
 		},
+		CatalogResponse: QueueCatalog{Data: []catalog.Category{{
+			ID: "91000000-0000-4000-8000-000000000001", Name: "Makanan", SortOrder: 0, Active: true, Version: 2,
+			Menus: []catalog.Menu{{
+				ID: "92000000-0000-4000-8000-000000000001", CategoryID: "91000000-0000-4000-8000-000000000001",
+				SKU: "CONTRACT-MENU", Name: "Menu Kontrak", PriceAmount: 25000, Available: true, Version: 3, SortOrder: 0,
+				Groups: []catalog.Group{{
+					ID: "93000000-0000-4000-8000-000000000001", Code: "size", Name: "Ukuran", MinSelect: 1, MaxSelect: 1, Active: true,
+					Options: []catalog.Option{{ID: "94000000-0000-4000-8000-000000000001", Code: "regular", Name: "Reguler", Available: true}},
+				}},
+			}},
+		}}},
 	}
 }
 
