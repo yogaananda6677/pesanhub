@@ -300,7 +300,8 @@ class _MenuDestinationViewState extends State<MenuDestinationView> {
 
 /// SettingsDestinationView provides outlet settings and access to the Design System Catalog.
 class SettingsDestinationView extends StatelessWidget {
-  const SettingsDestinationView({super.key});
+  final Future<void> Function()? onSignOut;
+  const SettingsDestinationView({super.key, this.onSignOut});
 
   @override
   Widget build(BuildContext context) {
@@ -341,6 +342,15 @@ class SettingsDestinationView extends StatelessWidget {
                     );
                   },
                 ),
+                if (onSignOut != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  AppButton.outlined(
+                    label: 'Keluar dari Aplikasi',
+                    icon: Icons.logout_rounded,
+                    isFullWidth: true,
+                    onPressed: () async => onSignOut?.call(),
+                  ),
+                ],
               ],
             ),
           ),

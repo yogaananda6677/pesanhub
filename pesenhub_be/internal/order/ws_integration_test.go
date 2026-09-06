@@ -56,7 +56,7 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 	wsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.WS(w, r)
 	})
-	server := httptest.NewServer(customer.Authenticate(staffToken, kdsToken, wsHandler))
+	server := httptest.NewServer(customer.Authenticate(staffToken, kdsToken, nil, wsHandler))
 	defer server.Close()
 
 	// 1. Acceptance Criteria: Unauthorized connection ditolak (403)

@@ -27,6 +27,7 @@ class AppShell extends StatefulWidget {
   final QueueController? queueController;
   final CartController? cartController;
   final Future<QueueOrder> Function(CartOrderDraft draft)? submitOrder;
+  final Future<void> Function()? onSignOut;
 
   const AppShell({
     super.key,
@@ -38,6 +39,7 @@ class AppShell extends StatefulWidget {
     this.queueController,
     this.cartController,
     this.submitOrder,
+    this.onSignOut,
   });
 
   @override
@@ -211,7 +213,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       ),
       const KdsDestinationView(),
       const MenuDestinationView(),
-      const SettingsDestinationView(),
+      SettingsDestinationView(onSignOut: widget.onSignOut),
     ];
   }
 

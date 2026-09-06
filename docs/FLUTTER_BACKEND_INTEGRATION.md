@@ -4,22 +4,22 @@ Issue #48 menghubungkan antrean Flutter ke backend PesenHub tanpa mengubah atura
 
 ## Konfigurasi lokal
 
-Jangan menulis token pada source, command history, Issue, PR, atau log. Buat file lokal yang sudah di-ignore:
+Jangan menulis token atau password pada source, command history, Issue, PR, atau log. Buat file lokal yang sudah di-ignore:
 
 ```bash
 cd pesenhub_app
 cp config/runtime.example.json config/runtime.local.json
 ```
 
-Isi `PESENHUB_API_BASE_URL` dan `PESENHUB_API_TOKEN` dengan endpoint serta token `APP_STAFF_TOKEN` development, lalu jalankan:
+Isi hanya `PESENHUB_API_BASE_URL` dengan endpoint backend, lalu jalankan:
 
 ```bash
 flutter run --dart-define-from-file=config/runtime.local.json
 ```
 
-Kedua nilai wajib tersedia bersama. HTTP hanya diizinkan untuk `localhost`, `127.0.0.1`, dan alamat emulator Android `10.0.2.2`; host lain wajib HTTPS. Build tanpa keduanya tetap membuka showcase data sintetis. Token dari `dart-define` tertanam dalam artifact, sehingga artifact development diperlakukan sebagai secret-adjacent, tidak dibagikan publik, dan token wajib dirotasi. Login/runtime credential store production berada di luar scope pilot ini.
+HTTP hanya diizinkan untuk `localhost`, `127.0.0.1`, dan alamat emulator Android `10.0.2.2`; host lain wajib HTTPS. Build tanpa base URL berhenti pada layar konfigurasi dan tidak dapat melewati login. Aplikasi meminta username dan password akun outlet tunggal melalui `POST /api/v1/auth/login`, lalu menyimpan sesi kedaluwarsa di secure storage platform. Tidak ada pemilih role Owner/Operator/Kasir; capability `STAFF` hanya detail internal backend.
 
-Backend memakai `APP_STAFF_TOKEN` dan `APP_KDS_TOKEN` yang berbeda dengan minimum 32 karakter. REST mengirim `Authorization: Bearer ...`; handshake WebSocket browser memakai query `token` karena WebSocket API browser tidak mendukung custom header. URL handshake tidak boleh dicatat atau dimasukkan ke evidence.
+Backend memakai `APP_LOGIN_USERNAME`, hash bcrypt `APP_LOGIN_PASSWORD_HASH`, secret penandatangan `APP_SESSION_SECRET`, dan TTL maksimum 24 jam melalui `APP_SESSION_TTL`. Password plaintext tidak disimpan. Sesi yang sama dipakai sebagai bearer REST dan query handshake WebSocket; URL handshake tidak boleh dicatat. `APP_STAFF_TOKEN`/`APP_KDS_TOKEN` tetap diterima sementara untuk service compatibility, bukan ditanam ke build mobile.
 
 ## Alur recovery
 
@@ -41,4 +41,4 @@ flutter analyze
 flutter test
 ```
 
-Test membuktikan mapping DTO/header/correlation ID, allowlist mutation, kebijakan retry, snapshot + event berurutan tanpa duplikasi, gap recovery, reconnect, serta outbox tetap tersimpan. Fixture seluruhnya sintetis.
+Test membuktikan login tanpa authorization header, penyimpanan/restorasi/penghapusan sesi, mapping DTO/header/correlation ID, allowlist mutation, kebijakan retry, snapshot + event berurutan tanpa duplikasi, gap recovery, reconnect, serta outbox tetap tersimpan. Fixture seluruhnya sintetis.

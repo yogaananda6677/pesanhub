@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:pesenhub_app/auth/session.dart';
 import 'package:pesenhub_app/data/remote/api_config.dart';
 import 'package:pesenhub_app/data/remote/api_failure.dart';
 import 'package:pesenhub_app/data/remote/contract_dto.dart';
@@ -34,12 +35,22 @@ void main() {
     Set<String> values(String key) =>
         (enums[key] as List).cast<String>().toSet();
 
-    expect(fixture['contract_version'], 1);
+    expect(fixture['contract_version'], 2);
     expect(values('order_sources'), QueueOrderDto.validSources);
     expect(values('order_statuses'), QueueOrderDto.validStatuses);
     expect(values('payment_methods'), PaymentDto.validMethods);
     expect(values('payment_statuses'), PaymentDto.validStatuses);
     expect(values('event_types'), OrderEventDto.validTypes);
+  });
+
+  test('login response matches the mobile session contract', () {
+    final response = Map<String, dynamic>.from(
+      fixture['login_response'] as Map,
+    );
+    final session = SessionCredential.fromJson(response);
+    expect(session.accessToken, isNotEmpty);
+    expect(response['token_type'], 'Bearer');
+    expect(session.expiresAt.isUtc, isTrue);
   });
 
   test(
@@ -51,8 +62,8 @@ void main() {
       final client = PesenHubApiClient(
         config: ApiConfig(
           baseUri: Uri.parse('https://api.example.test/api/v1/'),
-          token: _token,
         ),
+        accessToken: () async => _token,
         client: MockClient(
           (_) async => http.Response(jsonEncode(queueResponse), 200),
         ),
@@ -107,8 +118,8 @@ void main() {
       final client = PesenHubApiClient(
         config: ApiConfig(
           baseUri: Uri.parse('https://api.example.test/api/v1/'),
-          token: _token,
         ),
+        accessToken: () async => _token,
         client: MockClient(
           (_) async =>
               http.Response(jsonEncode(body), status, headers: headers),

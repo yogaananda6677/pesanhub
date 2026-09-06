@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"pesenhub/backend/internal/appauth"
 	"pesenhub/backend/internal/domain"
 	"pesenhub/backend/internal/httpapi"
 	"pesenhub/backend/internal/order"
@@ -34,6 +35,7 @@ type ErrorCase struct {
 type Fixture struct {
 	ContractVersion int                        `json:"contract_version"`
 	Enums           Enums                      `json:"enums"`
+	LoginResponse   appauth.LoginResponse      `json:"login_response"`
 	QueueResponse   QueueResponse              `json:"queue_response"`
 	OrderCollection order.OrderCollection      `json:"order_collection"`
 	Payment         payment.Payment            `json:"payment"`
@@ -91,7 +93,12 @@ func Canonical() Fixture {
 	}
 
 	return Fixture{
-		ContractVersion: 1,
+		ContractVersion: 2,
+		LoginResponse: appauth.LoginResponse{
+			AccessToken: "synthetic.signed-session-token",
+			TokenType:   "Bearer",
+			ExpiresAt:   createdAt.Add(8 * time.Hour),
+		},
 		Enums: Enums{
 			OrderSources: []domain.OrderSource{
 				domain.OrderSourceCashierManual, domain.OrderSourceCustomerWeb, domain.OrderSourceWhatsApp,

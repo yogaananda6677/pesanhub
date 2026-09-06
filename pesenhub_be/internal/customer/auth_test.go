@@ -9,7 +9,7 @@ import (
 func TestAuthenticateMapsExactBearerAndWebSocketQueryTokens(t *testing.T) {
 	const staff = "staff-test-token-at-least-32-characters"
 	const kds = "kds-test-token-at-least-32-charactersxx"
-	handler := Authenticate(staff, kds, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := Authenticate(staff, kds, nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		principal := PrincipalFromRequest(r)
 		w.Header().Set("X-Test-Role", principal.Role)
 		w.WriteHeader(http.StatusNoContent)

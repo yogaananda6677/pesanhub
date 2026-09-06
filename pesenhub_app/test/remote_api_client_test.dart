@@ -31,10 +31,10 @@ Map<String, dynamic> _orderJson({int version = 1}) => {
 };
 
 void main() {
-  ApiConfig config() => ApiConfig(
-    baseUri: Uri.parse('https://api.example.test/api/v1'),
-    token: _token,
-  );
+  ApiConfig config() =>
+      ApiConfig(baseUri: Uri.parse('https://api.example.test/api/v1'));
+
+  Future<String?> accessToken() async => _token;
 
   test(
     'config normalizes REST URL and derives authenticated WebSocket URL',
@@ -45,13 +45,10 @@ void main() {
         value.resolve('orders/queue').toString(),
         'https://api.example.test/api/v1/orders/queue',
       );
-      expect(value.websocketUri().scheme, 'wss');
-      expect(value.websocketUri().queryParameters['token'], _token);
+      expect(value.websocketUri(_token).scheme, 'wss');
+      expect(value.websocketUri(_token).queryParameters['token'], _token);
       expect(
-        () => ApiConfig(
-          baseUri: Uri.parse('http://api.example.test/api/v1'),
-          token: _token,
-        ),
+        () => ApiConfig(baseUri: Uri.parse('http://api.example.test/api/v1')),
         throwsFormatException,
       );
     },
@@ -61,6 +58,7 @@ void main() {
     late http.Request captured;
     final client = PesenHubApiClient(
       config: config(),
+      accessToken: accessToken,
       client: MockClient((request) async {
         captured = request;
         return http.Response(
@@ -94,6 +92,7 @@ void main() {
     for (final entry in cases.entries) {
       final client = PesenHubApiClient(
         config: config(),
+        accessToken: accessToken,
         client: MockClient(
           (_) async => http.Response(
             'sensitive-provider-body',
@@ -124,6 +123,7 @@ void main() {
       late http.Request captured;
       final client = PesenHubApiClient(
         config: config(),
+        accessToken: accessToken,
         client: MockClient((request) async {
           captured = request;
           return http.Response(jsonEncode({'id': 'server-order-1'}), 201);
@@ -166,6 +166,7 @@ void main() {
     Future<SyncGatewayResponse> submit(int status) {
       final client = PesenHubApiClient(
         config: config(),
+        accessToken: accessToken,
         client: MockClient((_) async => http.Response('{}', status)),
       );
       return client.submitOrderMutation(

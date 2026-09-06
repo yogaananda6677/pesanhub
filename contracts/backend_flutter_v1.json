@@ -1,5 +1,5 @@
 {
-  "contract_version": 1,
+  "contract_version": 2,
   "enums": {
     "order_sources": [
       "CASHIER_MANUAL",
@@ -31,6 +31,11 @@
       "ORDER_CREATED",
       "ORDER_STATUS_CHANGED"
     ]
+  },
+  "login_response": {
+    "access_token": "synthetic.signed-session-token",
+    "token_type": "Bearer",
+    "expires_at": "2026-09-05T16:00:00Z"
   },
   "queue_response": {
     "data": [

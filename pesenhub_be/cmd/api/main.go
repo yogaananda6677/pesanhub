@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"pesenhub/backend/internal/appauth"
 	"pesenhub/backend/internal/catalog"
 	"pesenhub/backend/internal/config"
 	"pesenhub/backend/internal/customer"
@@ -29,6 +30,16 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		logger.Error("configuration loading failed", "error", "invalid configuration")
+		os.Exit(1)
+	}
+	sessions, err := appauth.NewSessionManager(cfg.Auth.SessionSecret, cfg.Auth.SessionTTL)
+	if err != nil {
+		logger.Error("session configuration failed", "error", "invalid configuration")
+		os.Exit(1)
+	}
+	login, err := appauth.NewHandler(cfg.Auth.LoginUsername, cfg.Auth.LoginPasswordHash, sessions)
+	if err != nil {
+		logger.Error("login configuration failed", "error", "invalid configuration")
 		os.Exit(1)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -91,6 +102,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", h.Live)
 	mux.HandleFunc("GET /health/ready", h.Ready)
+	mux.HandleFunc("POST /api/v1/auth/login", login.Login)
 	mux.Handle("POST /webhooks/gowa", gowaWebhook)
 	mux.Handle("POST /webhooks/midtrans", midtransWebhook)
 	mux.HandleFunc("POST /api/v1/customers", customers.Create)
@@ -121,7 +133,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/orders/{id}/payments/qris", payments.CreateQRIS)
 	mux.HandleFunc("POST /api/v1/payments/{id}/reconcile", payments.Reconcile)
 	mux.Handle("GET /", http.FileServer(http.Dir("web")))
-	authenticatedMux := customer.Authenticate(cfg.Auth.StaffToken, cfg.Auth.KDSToken, mux)
+	authenticatedMux := customer.Authenticate(cfg.Auth.StaffToken, cfg.Auth.KDSToken, sessions, mux)
 	server := &http.Server{Addr: cfg.Address(), Handler: httpserver.Middleware(logger, authenticatedMux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
 		logger.Info("API listening", "address", server.Addr, "environment", cfg.App.Env)

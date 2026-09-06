@@ -6,7 +6,11 @@ import (
 	"strings"
 )
 
-func Authenticate(staffToken, kdsToken string, next http.Handler) http.Handler {
+type TokenVerifier interface {
+	Verify(token string) (Principal, bool)
+}
+
+func Authenticate(staffToken, kdsToken string, sessions TokenVerifier, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := bearerToken(r.Header.Get("Authorization"))
 		if token == "" && r.URL.Path == "/api/v1/ws/orders" && r.URL.Query().Has("token") {
@@ -18,6 +22,8 @@ func Authenticate(staffToken, kdsToken string, next http.Handler) http.Handler {
 			principal = Principal{Subject: "staff-api", Role: "STAFF"}
 		case constantTimeTokenEqual(token, kdsToken):
 			principal = Principal{Subject: "kds-api", Role: "KDS"}
+		case sessions != nil:
+			principal, _ = sessions.Verify(token)
 		}
 		if principal.Subject != "" {
 			r = r.WithContext(WithPrincipal(r.Context(), principal))

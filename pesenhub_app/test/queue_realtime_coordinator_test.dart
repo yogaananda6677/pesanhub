@@ -111,8 +111,8 @@ void main() {
       final coordinator = QueueRealtimeCoordinator(
         config: ApiConfig(
           baseUri: Uri.parse('https://api.example.test/api/v1/'),
-          token: 'mobile-test-token-at-least-32-characters',
         ),
+        accessToken: () async => 'mobile-test-token-at-least-32-characters',
         gateway: gateway,
         localQueue: localQueue,
         queueController: queue,
