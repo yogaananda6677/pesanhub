@@ -169,6 +169,14 @@ class OrderReviewDialog extends StatelessWidget {
                                 draft.customerName,
                                 style: AppTypography.titleMedium.copyWith(
                                   fontWeight: FontWeight.w700,
+                              const SizedBox(width: AppSpacing.sm),
+                              Flexible(
+                                child: Text(
+                                  draft.customerName,
+                                  style: AppTypography.titleMedium.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -186,6 +194,13 @@ class OrderReviewDialog extends StatelessWidget {
                                 Text(
                                   draft.customerPhone!,
                                   style: AppTypography.bodyMedium,
+                                const SizedBox(width: AppSpacing.sm),
+                                Flexible(
+                                  child: Text(
+                                    draft.customerPhone!,
+                                    style: AppTypography.bodyMedium,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
@@ -214,6 +229,12 @@ class OrderReviewDialog extends StatelessWidget {
                                     color: draft.isTakeaway
                                         ? AppColors.warning
                                         : AppColors.border,
+                              const SizedBox(width: AppSpacing.sm),
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.sm,
+                                    vertical: 2,
                                   ),
                                 ),
                                 child: Text(
@@ -223,9 +244,31 @@ class OrderReviewDialog extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
+                                  decoration: BoxDecoration(
                                     color: draft.isTakeaway
                                         ? AppColors.warning
                                         : AppColors.textPrimary,
+                                        ? AppColors.warningBg
+                                        : AppColors.surfaceVariant,
+                                    borderRadius: AppSpacing.borderRadiusSm,
+                                    border: Border.all(
+                                      color: draft.isTakeaway
+                                          ? AppColors.warning
+                                          : AppColors.border,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    draft.isTakeaway
+                                        ? 'Bungkus / Takeaway'
+                                        : 'Makan di Tempat (Dine-in)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: draft.isTakeaway
+                                          ? AppColors.warning
+                                          : AppColors.textPrimary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ),

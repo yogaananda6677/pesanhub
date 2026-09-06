@@ -211,6 +211,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         menuController: widget.menuController,
         cartController: widget.cartController,
         submitOrder: widget.submitOrder,
+        connectivityController: _connectivity,
         onNavigateToQueue: () =>
             _onDestinationSelected(AppDestination.queue.index),
       ),
