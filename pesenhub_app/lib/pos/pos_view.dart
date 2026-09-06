@@ -21,7 +21,7 @@ import '../widgets/app_text_field.dart';
 /// PosView integrates menu catalog, cart management, takeaway preferences,
 /// and order submission adaptively across mobile and tablet viewports.
 /// Fulfills Issue #28 Criteria #1, #4, and #5.
-/// Fulfills Issue #28 and Issue #133 Criteria.
+/// Fulfills Issue #133 Criteria.
 class PosView extends StatefulWidget {
   final mc.MenuController? menuController;
   final CartController? cartController;
@@ -96,7 +96,6 @@ class _PosViewState extends State<PosView> {
     );
   }
 
-  void _openReview() async {
   void _openReview({BuildContext? sheetContext}) async {
     if (_cartController.customerName.trim().isEmpty) {
       AppFeedback.show(
@@ -198,9 +197,6 @@ class _PosViewState extends State<PosView> {
     return Stack(
       children: [
         Positioned.fill(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              bottom: itemCount > 0 ? 90.0 : AppSpacing.md,
           child: MenuCatalogView(
             key: _catalogKey,
             controller: _menuController,
@@ -211,52 +207,6 @@ class _PosViewState extends State<PosView> {
               AppSpacing.lg,
               AppSpacing.lg,
               itemCount > 0 ? 96.0 : AppSpacing.lg,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Collapsible Customer Details Card
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.lg,
-                    AppSpacing.lg,
-                    0,
-                  ),
-                  child: AppCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Identitas Pelanggan',
-                          style: AppTypography.titleMedium,
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        AppTextField(
-                          label: 'Nama Pelanggan *',
-                          hintText: 'Contoh: Budi Santoso',
-                          controller: _nameController,
-                          onChanged: _cartController.setCustomerName,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        AppTextField(
-                          label: 'Nomor WhatsApp (Opsional)',
-                          hintText: '081234567890',
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          onChanged: _cartController.setCustomerPhone,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Menu Catalog View
-                MenuCatalogView(
-                  controller: _menuController,
-                  onItemConfigured: _handleItemConfigured,
-                ),
-              ],
             ),
           ),
         ),
@@ -288,14 +238,6 @@ class _PosViewState extends State<PosView> {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: _showMobileCartSheet,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final textScale = MediaQuery.textScalerOf(context).scale(1);
@@ -313,13 +255,6 @@ class _PosViewState extends State<PosView> {
                 ),
                 child: Row(
                   children: [
-                    Text(
-                      '$itemCount Item di Keranjang',
-                      style: AppTypography.bodySmall,
-                    ),
-                    Text(
-                      'Rp $total',
-                      style: AppTypography.titleLarge.copyWith(
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.xs),
                       decoration: BoxDecoration(
@@ -329,7 +264,6 @@ class _PosViewState extends State<PosView> {
                       child: const Icon(
                         Icons.shopping_bag_outlined,
                         color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
                         size: 22,
                       ),
                     ),
@@ -363,18 +297,12 @@ class _PosViewState extends State<PosView> {
                   ],
                 ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            AppButton(
             );
 
             final actionButton = AppButton(
               key: const Key('sticky-cart-review-button'),
               label: 'Review Pesanan',
               icon: Icons.receipt_long_rounded,
-              onPressed: _openReview,
-            ),
-          ],
               isFullWidth: isNarrowStacked,
               onPressed: _showMobileCartSheet,
             );
@@ -411,17 +339,14 @@ class _PosViewState extends State<PosView> {
       useSafeArea: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(ctx).height * 0.85,
             maxHeight: MediaQuery.sizeOf(ctx).height * 0.88,
           ),
-          child: _buildCartPanel(isTablet: false),
           child: ListenableBuilder(
             listenable: _cartController,
             builder: (context, _) =>
@@ -432,7 +357,6 @@ class _PosViewState extends State<PosView> {
     );
   }
 
-  Widget _buildCartPanel({required bool isTablet}) {
   Widget _buildCartPanel({required bool isTablet, BuildContext? sheetContext}) {
     final items = _cartController.items;
     final bool isTakeaway = _cartController.isTakeaway;
@@ -443,7 +367,6 @@ class _PosViewState extends State<PosView> {
       children: [
         // Panel Header
         Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
@@ -464,7 +387,6 @@ class _PosViewState extends State<PosView> {
                   icon: const Icon(Icons.delete_sweep_rounded),
                   color: AppColors.error,
                   tooltip: 'Kosongkan Keranjang',
-                  onPressed: _cartController.clearCart,
                   onPressed: _handleClearCart,
                 ),
               if (!isTablet && sheetContext != null)
@@ -477,9 +399,6 @@ class _PosViewState extends State<PosView> {
             ],
           ),
         ),
-        // Customer Form for Tablet
-        if (isTablet) ...[
-          Padding(
         const Divider(height: 1),
 
         // Scrollable Content
@@ -489,11 +408,6 @@ class _PosViewState extends State<PosView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                AppTextField(
-                  label: 'Nama Pelanggan *',
-                  hintText: 'Contoh: Budi Santoso',
-                  controller: _nameController,
-                  onChanged: _cartController.setCustomerName,
                 // Customer Identity Form
                 AppCard(
                   padding: const EdgeInsets.all(AppSpacing.md),
@@ -522,13 +436,6 @@ class _PosViewState extends State<PosView> {
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                AppTextField(
-                  label: 'Nomor WhatsApp (Opsional)',
-                  hintText: '081234567890',
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  onChanged: _cartController.setCustomerPhone,
                 const SizedBox(height: AppSpacing.md),
 
                 // Takeaway Switch & Notes
@@ -563,19 +470,8 @@ class _PosViewState extends State<PosView> {
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-        ],
                 const SizedBox(height: AppSpacing.md),
 
-        // Scrollable Content
-        Expanded(
-          child: items.isEmpty
-              ? const Center(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.all(AppSpacing.md),
                 // Cart Items List or Empty State
                 const Text(
                   'Daftar Menu Pesanan',
@@ -591,48 +487,6 @@ class _PosViewState extends State<PosView> {
                       description:
                           'Pilih menu di katalog untuk menambahkan pesanan kasir.',
                     ),
-                  ),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Takeaway Switch & Notes
-                      AppCard(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.sm,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text(
-                                'Bungkus / Takeaway',
-                                style: AppTypography.titleMedium,
-                              ),
-                              subtitle: const Text(
-                                'Pesanan dibawa pulang',
-                                style: AppTypography.bodySmall,
-                              ),
-                              value: isTakeaway,
-                              activeTrackColor: AppColors.warning,
-                              onChanged: _cartController.setTakeaway,
-                            ),
-                            if (isTakeaway) ...[
-                              const SizedBox(height: AppSpacing.xs),
-                              AppTextField(
-                                label: 'Catatan Kemasan Bungkus',
-                                hintText:
-                                    'Misal: Pisah kuah, sambal dipisah...',
-                                controller: _takeawayNotesController,
-                                onChanged: _cartController.setTakeawayNotes,
-                              ),
-                            ],
-                          ],
-                        ),
                   )
                 else
                   ...items.map((item) {
@@ -644,23 +498,6 @@ class _PosViewState extends State<PosView> {
                             _cartController.updateQuantity(item.id, newQty),
                         onRemove: () => _cartController.removeItem(item.id),
                       ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      // List of Cart Items
-                      ...items.map((item) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                          child: CartItemTile(
-                            item: item,
-                            onUpdateQuantity: (newQty) =>
-                                _cartController.updateQuantity(item.id, newQty),
-                            onRemove: () => _cartController.removeItem(item.id),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
                     );
                   }),
               ],
@@ -675,19 +512,11 @@ class _PosViewState extends State<PosView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
               Wrap(
                 alignment: WrapAlignment.spaceBetween,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 runSpacing: AppSpacing.xs,
                 children: [
-                  const Expanded(
-                    child: Text(
-                      'Total Pembayaran',
-                      style: AppTypography.titleMedium,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                   const Text(
                     'Total Pembayaran',
                     style: AppTypography.titleMedium,
@@ -707,7 +536,6 @@ class _PosViewState extends State<PosView> {
                 label: 'Review & Proses Pesanan',
                 icon: Icons.check_circle_outline_rounded,
                 isFullWidth: true,
-                onPressed: items.isNotEmpty ? _openReview : null,
                 onPressed: items.isNotEmpty
                     ? () => _openReview(sheetContext: sheetContext)
                     : null,

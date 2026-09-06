@@ -23,9 +23,9 @@ void main() {
     return MaterialApp(
       theme: AppTheme.lightTheme,
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          textScaler: TextScaler.linear(textScale),
-        ),
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
         child: child!,
       ),
       home: Scaffold(
@@ -64,7 +64,10 @@ void main() {
 
         // Search bar is displayed in compact header
         expect(
-          find.widgetWithText(TextField, 'Cari menu (Nasi Goreng, Es Teh, SKU)...'),
+          find.widgetWithText(
+            TextField,
+            'Cari menu (Nasi Goreng, Es Teh, SKU)...',
+          ),
           findsOneWidget,
         );
 
@@ -77,7 +80,9 @@ void main() {
         expect(find.text('Minuman (2)'), findsOneWidget);
 
         // Minimum 48dp touch target on category tab
-        final tabSize = tester.getSize(find.byKey(const ValueKey('category_tab_ALL')));
+        final tabSize = tester.getSize(
+          find.byKey(const ValueKey('category_tab_ALL')),
+        );
         expect(tabSize.height, greaterThanOrEqualTo(48.0));
       },
     );
@@ -116,7 +121,10 @@ void main() {
 
         // Search for item
         await tester.enterText(
-          find.widgetWithText(TextField, 'Cari menu (Nasi Goreng, Es Teh, SKU)...'),
+          find.widgetWithText(
+            TextField,
+            'Cari menu (Nasi Goreng, Es Teh, SKU)...',
+          ),
           'Teh',
         );
         await tester.pumpAndSettle();
@@ -138,7 +146,10 @@ void main() {
         // Cart items and customer name are fully preserved!
         expect(cartController.totalItemCount, equals(1));
         expect(cartController.customerName, equals('Budi Test'));
-        expect(cartController.items.first.menuItem.name, equals('Nasi Goreng Spesial'));
+        expect(
+          cartController.items.first.menuItem.name,
+          equals('Nasi Goreng Spesial'),
+        );
 
         // Search query is preserved
         expect(menuController.searchQuery, equals('Teh'));
@@ -173,9 +184,7 @@ void main() {
           initialMenus: SampleMenuData.sampleMenus,
         );
 
-        await tester.pumpWidget(
-          buildPosApp(menuController: menuController),
-        );
+        await tester.pumpWidget(buildPosApp(menuController: menuController));
         await tester.pumpAndSettle();
 
         // Menu cards are visible at the top without scrolling past customer card
@@ -209,9 +218,7 @@ void main() {
 
         final cartController = CartController();
 
-        await tester.pumpWidget(
-          buildPosApp(cartController: cartController),
-        );
+        await tester.pumpWidget(buildPosApp(cartController: cartController));
         await tester.pumpAndSettle();
 
         // Cart is empty initially -> sticky bar is hidden
@@ -237,7 +244,9 @@ void main() {
         expect(find.text('Review Pesanan'), findsOneWidget);
 
         // Minimum 48dp touch target
-        final reviewButtonSize = tester.getSize(find.byKey(const Key('sticky-cart-review-button')));
+        final reviewButtonSize = tester.getSize(
+          find.byKey(const Key('sticky-cart-review-button')),
+        );
         expect(reviewButtonSize.height, greaterThanOrEqualTo(48.0));
 
         // Tap sticky bar opens mobile cart sheet
@@ -285,10 +294,7 @@ void main() {
         }
 
         await tester.pumpWidget(
-          buildPosApp(
-            cartController: cartController,
-            submitOrder: dummySubmit,
-          ),
+          buildPosApp(cartController: cartController, submitOrder: dummySubmit),
         );
         await tester.pumpAndSettle();
 
@@ -319,7 +325,10 @@ void main() {
 
         expect(find.text('Catatan Kemasan Bungkus'), findsOneWidget);
         await tester.enterText(
-          find.widgetWithText(TextField, 'Misal: Pisah kuah, sambal dipisah...'),
+          find.widgetWithText(
+            TextField,
+            'Misal: Pisah kuah, sambal dipisah...',
+          ),
           'Pisah sambal',
         );
         await tester.pumpAndSettle();
@@ -391,8 +400,8 @@ void main() {
       '7. Responsive & Accessibility: Zero RenderFlex overflow on 360x800, 390x844, 768x1024, 1280x800 with TextScale 1.0 & 2.0',
       (tester) async {
         final viewports = [
-          const Size(360, 800),  // Small mobile
-          const Size(390, 844),  // Standard mobile
+          const Size(360, 800), // Small mobile
+          const Size(390, 844), // Standard mobile
           const Size(768, 1024), // Portrait tablet
           const Size(1280, 800), // Landscape tablet
         ];
@@ -413,10 +422,7 @@ void main() {
             cartController.setCustomerName('Uji Responsif');
 
             await tester.pumpWidget(
-              buildPosApp(
-                cartController: cartController,
-                textScale: scale,
-              ),
+              buildPosApp(cartController: cartController, textScale: scale),
             );
             await tester.pumpAndSettle();
 
