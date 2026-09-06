@@ -3,6 +3,7 @@ package order
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -67,6 +68,7 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403 for unauthenticated, got %d", resp.StatusCode)
 	}
+	_ = resp.Body.Close()
 
 	// 2. Acceptance Criteria: Connect with STAFF and KDS roles
 	connectClient := func(token string) (*ws.Conn, error) {
@@ -76,7 +78,7 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 			return nil, err
 		}
 
-		req := "GET /?token=" + token + " HTTP/1.1\r\n" +
+		req := "GET /api/v1/ws/orders?token=" + token + " HTTP/1.1\r\n" +
 			"Host: " + u.Host + "\r\n" +
 			"Upgrade: websocket\r\n" +
 			"Connection: Upgrade\r\n" +
@@ -104,7 +106,7 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 		}
 		if !strings.Contains(line, "101 Switching Protocols") {
 			tcpConn.Close()
-			return nil, err
+			return nil, fmt.Errorf("websocket upgrade rejected: %s", strings.TrimSpace(line))
 		}
 		return clientConn, nil
 	}
@@ -121,8 +123,11 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 	}
 	defer kdsConn.Close()
 
-	// Give hub a moment to register clients
-	time.Sleep(50 * time.Millisecond)
+	// Registration happens in the server goroutines after the HTTP upgrade.
+	deadline := time.Now().Add(2 * time.Second)
+	for hub.ClientCount() < 2 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
 	if hub.ClientCount() < 2 {
 		t.Fatalf("expected at least 2 connected clients, got %d", hub.ClientCount())
 	}

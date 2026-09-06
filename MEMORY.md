@@ -15,7 +15,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
 | Last updated   | 6 September 2026                                           |
-| Updated by     | Issue #130 Single-outlet login and session                  |
+| Updated by     | Issue #132 Menu catalog management end-to-end               |
 
 ## 2. Product Intent
 
@@ -71,16 +71,16 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
 - Phase Issue: [#5 — Phase 1C WhatsApp, Agent & Payment](https://github.com/yogaananda6677/pesanhub/issues/5)
-- Child Issue: #49
+- Child Issue: #132
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#49 — Backend–Flutter contract test](https://github.com/yogaananda6677/pesanhub/issues/49)
-- Current Branch: `feature/49-backend-flutter-contract`
-- Pull Request: [#128](https://github.com/yogaananda6677/pesanhub/pull/128)
-- Merged Pull Requests: #77–#117, [#119](https://github.com/yogaananda6677/pesanhub/pull/119), [#122](https://github.com/yogaananda6677/pesanhub/pull/122), [#123](https://github.com/yogaananda6677/pesanhub/pull/123), [#124](https://github.com/yogaananda6677/pesanhub/pull/124), [#125](https://github.com/yogaananda6677/pesanhub/pull/125), [#126](https://github.com/yogaananda6677/pesanhub/pull/126), [#127](https://github.com/yogaananda6677/pesanhub/pull/127)
+- Current Issue: [#132 — Hubungkan pengelolaan katalog dan menu end-to-end](https://github.com/yogaananda6677/pesanhub/issues/132)
+- Current Branch: `feature/132-menu-catalog-e2e`
+- Pull Request: [#136](https://github.com/yogaananda6677/pesanhub/pull/136)
+- Merged Pull Requests: sampai [#135](https://github.com/yogaananda6677/pesanhub/pull/135)
 - Status: `READY_FOR_REVIEW`
-- Exit Criteria: provider fixture tunggal deterministik, consumer semantic assertion, breaking rename/type failure, dan contract gate eksplisit di Backend/Mobile CI.
-- Validation: fixture stale/negative tests, 185 Flutter tests, analyze, debug APK, Go unit/race/vet, Compose config/image build, dan redaction scan PASS lokal; CI PR #128 sedang berjalan.
-- Next Issue: [#50 — PostgreSQL integration test kritis](https://github.com/yogaananda6677/pesanhub/issues/50) setelah #49 di-merge.
+- Exit Criteria: runtime terkonfigurasi memakai katalog backend tunggal; CRUD category/menu/modifier/availability terautentikasi dan berversi; cache offline read-only dan reconnect aman; audit atomik; contract, responsive tests, CI/CD hijau.
+- Validation: 207 Flutter tests, analyze, debug APK, Go test/vet/check, contract fixture, migration up/down/up, integration PostgreSQL, Compose config, dan API image build PASS lokal; CI PR menunggu.
+- Next Issue: lanjut urutan child issue #129 setelah #132 di-merge.
 
 ## 6. Current Phase Checklist
 
@@ -256,6 +256,31 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 6 September 2026 — Menu Catalog Management End-to-End (Issue #132)
+
+**Goal**
+
+- Menghubungkan layar POS dan pengelolaan menu ke satu katalog backend untuk aplikasi satu outlet, menyediakan CRUD category/menu/modifier/availability, menjaga harga final di backend, serta menyediakan cache offline read-only dan reconnect otomatis.
+
+**Changed**
+
+- Menambah admin catalog read serta category/menu update pada backend, optimistic version untuk category, transaksi audit katalog, migration `000020`, OpenAPI, dan contract fixture versi 3.
+- Menghubungkan bearer-authenticated catalog gateway ke runtime Flutter, SQLite schema v5, coordinator cache/refresh/reconnect, serta state bersama antara POS dan layar Menu. Runtime terkonfigurasi tidak memakai `SampleMenuData`.
+- Memperluas layar Menu dengan editor category, menu, harga, urutan, modifier group/option, refresh/freshness, banner hasil, dan mode offline read-only responsif.
+- Menambah unit/widget/contract/database tests serta integration test PostgreSQL untuk CRUD, modifier, version conflict, dan audit atomik.
+- Mendokumentasikan kontrak, runbook, migration, offline behavior, dan keputusan tanpa pemilih owner/operator pada `docs/MENU_MANAGEMENT_E2E.md`.
+
+**Validation**
+
+- `go test ./...`, `./run.sh check`, contract fixture, dan API image build: PASS.
+- `./scripts/test-migrations.sh` serta `./scripts/test-orders.sh` termasuk integration katalog PostgreSQL: PASS.
+- `flutter analyze`, 207 Flutter tests, responsive matrix hingga font 200%, dan debug APK: PASS.
+- Remote CI/CD harus hijau sebelum merge.
+
+**Next**
+
+- Jalankan validation matrix penuh, buka PR yang menutup #132, merge hanya setelah required checks hijau, lalu pantau post-merge CI/CD.
 
 ### 4 September 2026 — Issue #43 WhatsApp Outbox, Retry, dan Failure Logging
 

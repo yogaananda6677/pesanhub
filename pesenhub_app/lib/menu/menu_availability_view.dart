@@ -8,6 +8,8 @@ import 'controllers/menu_availability_controller.dart';
 import 'models/menu_state.dart';
 import 'widgets/menu_availability_card.dart';
 import 'widgets/menu_category_filter.dart';
+import 'widgets/catalog_editor_dialog.dart';
+import '../widgets/app_button.dart';
 
 /// MenuAvailabilityView provides an operational screen for managing menu availability
 /// with role guards, optimistic toggles, rollback feedback, and responsive layout.
@@ -94,7 +96,7 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
         return Center(
           child: AppErrorState(
             message: state.errorMessage ?? 'Gagal memuat ketersediaan menu.',
-            onRetry: widget.onRefresh,
+            onRetry: widget.onRefresh ?? widget.controller.onRefresh,
           ),
         );
 
@@ -124,6 +126,15 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
               _buildRoleHeader(controller),
               const SizedBox(height: AppSpacing.md),
 
+              if (controller.isOffline) ...[
+                AppBanner(
+                  message:
+                      'Mode offline — katalog cache tetap tersedia, perubahan ditahan sampai backend terhubung.',
+                  type: AppBannerType.warning,
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+
               // 2. Action / Error Feedback Banner
               if (controller.bannerMessage != null) ...[
                 AppBanner(
@@ -135,6 +146,35 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                 ),
                 const SizedBox(height: AppSpacing.md),
               ],
+
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  AppButton(
+                    label: 'Tambah menu',
+                    icon: Icons.add_rounded,
+                    onPressed:
+                        controller.mutationEnabled &&
+                            controller.categories.any((item) => item.isActive)
+                        ? () => showMenuEditor(context, controller: controller)
+                        : null,
+                  ),
+                  AppButton.outlined(
+                    label: 'Kelola kategori',
+                    icon: Icons.category_outlined,
+                    onPressed: controller.mutationEnabled
+                        ? () => _showCategoryManager(context, controller)
+                        : null,
+                  ),
+                  AppButton.outlined(
+                    label: 'Muat ulang',
+                    icon: Icons.refresh_rounded,
+                    onPressed: widget.onRefresh ?? controller.onRefresh,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
 
               // 3. Search Bar
               AppTextField(
@@ -198,9 +238,15 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                       item: item,
                       categoryName: _getCategoryName(item.categoryId),
                       isStaff: controller.isStaff,
+                      isMutationEnabled: controller.mutationEnabled,
                       isUpdating: controller.updatingMenuIds.contains(item.id),
                       onToggle: (newVal) =>
                           _toggleAvailability(item.id, item.name, newVal),
+                      onEdit: () => showMenuEditor(
+                        context,
+                        controller: controller,
+                        menu: item,
+                      ),
                     );
                   },
                 )
@@ -217,9 +263,15 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                       item: item,
                       categoryName: _getCategoryName(item.categoryId),
                       isStaff: controller.isStaff,
+                      isMutationEnabled: controller.mutationEnabled,
                       isUpdating: controller.updatingMenuIds.contains(item.id),
                       onToggle: (newVal) =>
                           _toggleAvailability(item.id, item.name, newVal),
+                      onEdit: () => showMenuEditor(
+                        context,
+                        controller: controller,
+                        menu: item,
+                      ),
                     );
                   },
                 ),
@@ -230,7 +282,79 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
     );
   }
 
+  Future<void> _showCategoryManager(
+    BuildContext context,
+    MenuAvailabilityController controller,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Kategori menu',
+                      style: AppTypography.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    key: const Key('add-category'),
+                    tooltip: 'Tambah kategori',
+                    onPressed: () async {
+                      Navigator.pop(sheetContext);
+                      await showCategoryEditor(context, controller: controller);
+                    },
+                    icon: const Icon(Icons.add_rounded),
+                  ),
+                ],
+              ),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: controller.categories
+                      .map(
+                        (category) => ListTile(
+                          title: Text(category.name),
+                          subtitle: Text(
+                            'Urutan ${category.sortOrder} • v${category.version} • ${category.isActive ? "Aktif" : "Nonaktif"}',
+                          ),
+                          trailing: IconButton(
+                            key: Key('edit-category-${category.id}'),
+                            tooltip: 'Edit kategori',
+                            onPressed: () async {
+                              Navigator.pop(sheetContext);
+                              await showCategoryEditor(
+                                context,
+                                controller: controller,
+                                category: category,
+                              );
+                            },
+                            icon: const Icon(Icons.edit_outlined),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildRoleHeader(MenuAvailabilityController controller) {
+    final cachedAt = controller.cachedAt?.toLocal();
+    final freshness = cachedAt == null
+        ? 'Belum pernah tersinkron'
+        : 'Diperbarui ${cachedAt.hour.toString().padLeft(2, "0")}:${cachedAt.minute.toString().padLeft(2, "0")}';
     final role = Row(
       children: [
         Icon(
@@ -241,17 +365,23 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
           color: controller.isStaff ? AppColors.primary : AppColors.textMuted,
         ),
         const SizedBox(width: AppSpacing.xs),
-        Flexible(
-          child: Text(
-            controller.isStaff
-                ? 'Pengelolaan Menu (Staf Aktif)'
-                : 'Mode Pantau (${controller.role})',
-            style: AppTypography.titleMedium.copyWith(
-              fontWeight: FontWeight.w700,
-              color: controller.isStaff
-                  ? AppColors.textPrimary
-                  : AppColors.textMuted,
-            ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                controller.isStaff
+                    ? 'Pengelolaan Menu'
+                    : 'Mode Pantau (${controller.role})',
+                style: AppTypography.titleMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: controller.isStaff
+                      ? AppColors.textPrimary
+                      : AppColors.textMuted,
+                ),
+              ),
+              Text(freshness, style: AppTypography.bodySmall),
+            ],
           ),
         ),
       ],
@@ -270,7 +400,11 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
         ),
       ),
       child: Text(
-        controller.isStaff ? 'Hak Ubah Aktif' : 'Hanya Baca',
+        controller.mutationEnabled
+            ? 'Siap diubah'
+            : controller.isOffline
+            ? 'Offline • Hanya Baca'
+            : 'Hanya Baca',
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,

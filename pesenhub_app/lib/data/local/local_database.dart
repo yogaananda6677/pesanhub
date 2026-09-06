@@ -6,7 +6,7 @@ import '../../core/utils/pii_sanitizer.dart';
 /// and relational storage for PesenHub POS and KDS.
 /// Fulfills Issue #32 Acceptance Criteria #1, #3, and #4.
 class LocalDatabase {
-  static const int currentVersion = 4;
+  static const int currentVersion = 5;
   static const String defaultDbName = 'pesenhub.db';
 
   final String? customPath;
@@ -55,6 +55,9 @@ class LocalDatabase {
           if (version >= 4) {
             await _migrateToV4(db);
           }
+          if (version >= 5) {
+            await _migrateToV5(db);
+          }
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2 && newVersion >= 2) {
@@ -65,6 +68,9 @@ class LocalDatabase {
           }
           if (oldVersion < 4 && newVersion >= 4) {
             await _migrateToV4(db);
+          }
+          if (oldVersion < 5 && newVersion >= 5) {
+            await _migrateToV5(db);
           }
         },
       ),
@@ -209,6 +215,15 @@ class LocalDatabase {
       CREATE INDEX IF NOT EXISTS idx_conflict_logs_order 
       ON conflict_logs (order_id);
     ''');
+  }
+
+  static Future<void> _migrateToV5(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(categories)');
+    if (!columns.any((row) => row['name'] == 'version')) {
+      await db.execute(
+        'ALTER TABLE categories ADD COLUMN version INTEGER NOT NULL DEFAULT 1',
+      );
+    }
   }
 
   /// Sets metadata entry with validation against sensitive tokens/secrets.

@@ -344,6 +344,41 @@ void main() {
     });
   });
 
+  test('Migrates category versions from v4 to v5 without data loss', () async {
+    final dbFolder = await databaseFactoryFfi.getDatabasesPath();
+    final migrationDbPath = p.join(dbFolder, 'test_catalog_v5_migration.db');
+    await databaseFactoryFfi.deleteDatabase(migrationDbPath);
+
+    final oldDatabase = LocalDatabase(
+      customPath: migrationDbPath,
+      customFactory: databaseFactoryFfi,
+    );
+    final dbV4 = await oldDatabase.initDatabase(targetVersion: 4);
+    await dbV4.insert('categories', {
+      'id': 'category-before-v5',
+      'name': 'Menu Lama',
+      'sort_order': 1,
+      'is_active': 1,
+    });
+    await dbV4.close();
+
+    final upgradedDatabase = LocalDatabase(
+      customPath: migrationDbPath,
+      customFactory: databaseFactoryFfi,
+    );
+    final dbV5 = await upgradedDatabase.initDatabase(targetVersion: 5);
+    final row = (await dbV5.query(
+      'categories',
+      where: 'id = ?',
+      whereArgs: ['category-before-v5'],
+    )).single;
+    expect(row['name'], 'Menu Lama');
+    expect(row['version'], 1);
+
+    await dbV5.close();
+    await databaseFactoryFfi.deleteDatabase(migrationDbPath);
+  });
+
   group(
     'Acceptance Criteria #4: PII Redaction & Storage Security (Invariant 11)',
     () {

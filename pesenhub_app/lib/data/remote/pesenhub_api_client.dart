@@ -8,7 +8,11 @@ import '../sync/sync_service.dart';
 import '../../queue/models/queue_order.dart';
 import 'api_config.dart';
 import 'api_failure.dart';
+import 'catalog_dto.dart';
+import 'catalog_gateway.dart';
 import 'order_dto.dart';
+import '../../menu/models/menu_category.dart';
+import '../../menu/models/menu_item.dart';
 
 abstract class QueueRemoteGateway {
   Future<List<QueueOrder>> fetchQueue();
@@ -16,7 +20,11 @@ abstract class QueueRemoteGateway {
 }
 
 class PesenHubApiClient
-    implements QueueRemoteGateway, OrderSyncGateway, AuthGateway {
+    implements
+        QueueRemoteGateway,
+        OrderSyncGateway,
+        AuthGateway,
+        CatalogRemoteGateway {
   final ApiConfig config;
   final Future<String?> Function() accessToken;
   final http.Client _client;
@@ -71,6 +79,95 @@ class PesenHubApiClient
     final response = await _send('GET', config.resolve('orders/$safeId'));
     try {
       return QueueOrderDto.fromJson(_decodeObject(response)).order;
+    } on ApiFailure {
+      rethrow;
+    } catch (_) {
+      throw _invalidResponse(response);
+    }
+  }
+
+  @override
+  Future<RemoteCatalog> fetchAdminCatalog() async {
+    final response = await _send('GET', config.resolve('admin/catalog'));
+    try {
+      return decodeCatalog(_decodeObject(response));
+    } on ApiFailure {
+      rethrow;
+    } catch (_) {
+      throw _invalidResponse(response);
+    }
+  }
+
+  @override
+  Future<MenuCategory> createCategory(MenuCategory category) async {
+    final response = await _send(
+      'POST',
+      config.resolve('admin/categories'),
+      body: jsonEncode(encodeCategory(category)),
+    );
+    return _decodeCategoryResponse(response);
+  }
+
+  @override
+  Future<MenuCategory> updateCategory(MenuCategory category) async {
+    final id = Uri.encodeComponent(category.id);
+    final response = await _send(
+      'PATCH',
+      config.resolve('admin/categories/$id'),
+      body: jsonEncode(encodeCategory(category)),
+    );
+    return _decodeCategoryResponse(response);
+  }
+
+  @override
+  Future<MenuItem> createMenu(MenuItem menu) async {
+    final response = await _send(
+      'POST',
+      config.resolve('admin/menus'),
+      body: jsonEncode(encodeMenu(menu)),
+    );
+    return _decodeMenuResponse(response);
+  }
+
+  @override
+  Future<MenuItem> updateMenu(MenuItem menu) async {
+    final id = Uri.encodeComponent(menu.id);
+    final response = await _send(
+      'PATCH',
+      config.resolve('admin/menus/$id'),
+      body: jsonEncode(encodeMenu(menu)),
+    );
+    return _decodeMenuResponse(response);
+  }
+
+  @override
+  Future<MenuItem> updateMenuAvailability(
+    String id,
+    bool available,
+    int expectedVersion,
+  ) async {
+    final safeId = Uri.encodeComponent(id);
+    final response = await _send(
+      'PATCH',
+      config.resolve('admin/menus/$safeId/availability'),
+      body: jsonEncode({'is_available': available, 'version': expectedVersion}),
+    );
+    return _decodeMenuResponse(response);
+  }
+
+  MenuCategory _decodeCategoryResponse(http.Response response) {
+    try {
+      return decodeCategory(_decodeObject(response));
+    } on ApiFailure {
+      rethrow;
+    } catch (_) {
+      throw _invalidResponse(response);
+    }
+  }
+
+  MenuItem _decodeMenuResponse(http.Response response) {
+    try {
+      return decodeMenu(_decodeObject(response));
     } on ApiFailure {
       rethrow;
     } catch (_) {

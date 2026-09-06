@@ -1,5 +1,5 @@
 {
-  "contract_version": 2,
+  "contract_version": 3,
   "enums": {
     "order_sources": [
       "CASHIER_MANUAL",
@@ -260,5 +260,49 @@
         "version": 3
       }
     }
-  ]
+  ],
+  "catalog_response": {
+    "data": [
+      {
+        "id": "91000000-0000-4000-8000-000000000001",
+        "name": "Makanan",
+        "sort_order": 0,
+        "is_active": true,
+        "version": 2,
+        "menus": [
+          {
+            "id": "92000000-0000-4000-8000-000000000001",
+            "category_id": "91000000-0000-4000-8000-000000000001",
+            "sku": "CONTRACT-MENU",
+            "name": "Menu Kontrak",
+            "price_amount": 25000,
+            "is_available": true,
+            "version": 3,
+            "sort_order": 0,
+            "modifier_groups": [
+              {
+                "id": "93000000-0000-4000-8000-000000000001",
+                "code": "size",
+                "name": "Ukuran",
+                "min_select": 1,
+                "max_select": 1,
+                "sort_order": 0,
+                "is_active": true,
+                "options": [
+                  {
+                    "id": "94000000-0000-4000-8000-000000000001",
+                    "code": "regular",
+                    "name": "Reguler",
+                    "price_delta_amount": 0,
+                    "is_available": true,
+                    "sort_order": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
 }
