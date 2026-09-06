@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../../connectivity/connectivity_controller.dart';
 import '../../queue/controllers/queue_controller.dart';
 import '../../queue/models/queue_order.dart';
 import '../local/queue_local_repository.dart';
@@ -69,6 +70,9 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
   final Future<bool> Function()? flushOutbox;
   final Duration baseReconnectDelay;
   final Duration maxReconnectDelay;
+  final ConnectivityController? connectivity;
+  final Future<void> Function()? onSessionExpired;
+  final double Function() randomDouble;
 
   QueueRealtimeState _state = const QueueRealtimeState();
   QueueRealtimeState get state => _state;
@@ -79,6 +83,8 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
   bool _started = false;
   bool _recovering = false;
   bool _closingConnection = false;
+  bool _networkAvailable = true;
+  bool _disposed = false;
 
   QueueRealtimeCoordinator({
     required this.config,
@@ -90,7 +96,10 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
     this.flushOutbox,
     this.baseReconnectDelay = const Duration(seconds: 1),
     this.maxReconnectDelay = const Duration(seconds: 30),
-  });
+    this.connectivity,
+    this.onSessionExpired,
+    double Function()? randomDouble,
+  }) : randomDouble = randomDouble ?? Random().nextDouble;
 
   Future<void> start() async {
     if (_started) return;
@@ -107,16 +116,20 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
   }
 
   Future<void> _recoverAndConnect() async {
-    if (!_started || _recovering) return;
+    if (!_canRecover || _recovering) return;
+    var expireSession = false;
     _recovering = true;
+    connectivity?.setSyncing(true);
     _setState(_state.copyWith(connection: RealtimeConnectionState.recovering));
     try {
+      await flushOutbox?.call();
+      if (!_canRecover) return;
       await _recoverSnapshot();
-      final changed = await flushOutbox?.call() ?? false;
-      if (changed) await _recoverSnapshot();
+      if (!_canRecover) return;
       await _connect();
+      if (_canRecover) connectivity?.reportBackendReachable();
     } on ApiFailure catch (failure) {
-      queueController.setError(failure.presentationMessage);
+      _reportFailure(failure);
       _setState(
         _state.copyWith(
           failureKind: failure.kind,
@@ -126,22 +139,37 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
       if (failure.isTransient) {
         _scheduleReconnect();
       } else {
+        _started = false;
+        _reconnectTimer?.cancel();
+        _reconnectTimer = null;
+        if (failure.kind == ApiFailureKind.unauthenticated) {
+          expireSession = true;
+        }
         _setState(_state.copyWith(connection: RealtimeConnectionState.stopped));
+        await _closeConnection();
       }
     } catch (_) {
       const failure = ApiFailure(ApiFailureKind.network);
-      queueController.setError(failure.presentationMessage);
+      _reportFailure(failure);
       _setState(_state.copyWith(failureKind: failure.kind));
       _scheduleReconnect();
     } finally {
       _recovering = false;
+      if (!_disposed) connectivity?.setSyncing(false);
     }
+    if (expireSession) await onSessionExpired?.call();
   }
+
+  bool get _canRecover => _started && !_disposed && _networkAvailable;
 
   Future<void> _recoverSnapshot() async {
     final orders = await gateway.fetchQueue();
-    queueController.setSnapshot(orders);
-    await localQueue.saveOrders(orders: orders);
+    if (!_canRecover) return;
+    await localQueue.saveOrders(orders: orders, preserveUnsyncedLocal: true);
+    if (!_canRecover) return;
+    final mergedOrders = await localQueue.getOrders();
+    if (!_canRecover) return;
+    queueController.setSnapshot(mergedOrders);
     _setState(
       _state.copyWith(
         clearFailure: true,
@@ -151,7 +179,9 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
   }
 
   Future<void> _connect() async {
+    if (!_canRecover) return;
     await _closeConnection();
+    if (!_canRecover) return;
     _setState(_state.copyWith(connection: RealtimeConnectionState.connecting));
     final token = await accessToken();
     if (token == null || token.isEmpty) {
@@ -160,7 +190,7 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
     final connection = connectionFactory.connect(config.websocketUri(token));
     _connection = connection;
     await connection.ready.timeout(config.requestTimeout);
-    if (!_started || !identical(connection, _connection)) {
+    if (!_canRecover || !identical(connection, _connection)) {
       await connection.close();
       return;
     }
@@ -207,8 +237,9 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
           clearFailure: true,
         ),
       );
+      connectivity?.reportBackendReachable();
     } on ApiFailure catch (failure) {
-      queueController.setError(failure.presentationMessage);
+      _reportFailure(failure);
       _setState(
         _state.copyWith(
           failureKind: failure.kind,
@@ -222,13 +253,17 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
         _reconnectTimer?.cancel();
         _setState(_state.copyWith(connection: RealtimeConnectionState.stopped));
         await _closeConnection();
+        if (failure.kind == ApiFailureKind.unauthenticated) {
+          await onSessionExpired?.call();
+        }
       }
     } catch (_) {
-      queueController.setError(
-        const ApiFailure(ApiFailureKind.invalidResponse).presentationMessage,
-      );
+      const failure = ApiFailure(ApiFailureKind.invalidResponse);
+      _reportFailure(failure);
+      _started = false;
       _setState(_state.copyWith(failureKind: ApiFailureKind.invalidResponse));
-      _scheduleReconnect();
+      _setState(_state.copyWith(connection: RealtimeConnectionState.stopped));
+      await _closeConnection();
     }
   }
 
@@ -241,16 +276,31 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
 
   void _handleDisconnect() {
     if (!_started || _closingConnection) return;
+    _reportFailure(const ApiFailure(ApiFailureKind.network));
     _scheduleReconnect();
   }
 
   void _scheduleReconnect() {
-    if (!_started || _reconnectTimer?.isActive == true) return;
+    if (!_started || !_networkAvailable || _reconnectTimer?.isActive == true) {
+      return;
+    }
     final attempt = _state.reconnectAttempt + 1;
     final multiplier = pow(2, min(attempt - 1, 6)).toInt();
-    final delayMs = min(
+    final baseDelayMs = min(
       baseReconnectDelay.inMilliseconds * multiplier,
       maxReconnectDelay.inMilliseconds,
+    );
+    final jitter = 0.8 + (randomDouble().clamp(0.0, 1.0) * 0.4);
+    final delayMs = min(
+      (baseDelayMs * jitter).round(),
+      maxReconnectDelay.inMilliseconds,
+    );
+    final retryAt = DateTime.now().toUtc().add(Duration(milliseconds: delayMs));
+    connectivity?.reportBackendFailure(
+      BackendFailureKind.unreachable,
+      requestId: _state.requestId,
+      attempt: attempt,
+      retryAt: retryAt,
     );
     _setState(
       _state.copyWith(
@@ -263,7 +313,47 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
     });
   }
 
+  void _reportFailure(ApiFailure failure) {
+    if (_disposed) return;
+    if (failure.isTransient) {
+      queueController.markOffline();
+      connectivity?.reportBackendFailure(
+        BackendFailureKind.unreachable,
+        requestId: failure.requestId,
+      );
+      return;
+    }
+    queueController.setError(failure.presentationMessage);
+    connectivity?.reportBackendFailure(
+      failure.kind == ApiFailureKind.unauthenticated
+          ? BackendFailureKind.sessionExpired
+          : BackendFailureKind.degraded,
+      requestId: failure.requestId,
+    );
+  }
+
+  void setNetworkAvailable(bool available) {
+    if (_disposed) return;
+    _networkAvailable = available;
+    if (!available) {
+      _reconnectTimer?.cancel();
+      _reconnectTimer = null;
+      _reportFailure(const ApiFailure(ApiFailureKind.network));
+      unawaited(_closeConnection());
+      return;
+    }
+    retryNow();
+  }
+
+  void retryNow() {
+    if (!_canRecover) return;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    unawaited(_recoverAndConnect());
+  }
+
   void _setState(QueueRealtimeState value) {
+    if (_disposed) return;
     _state = value;
     notifyListeners();
   }
@@ -282,7 +372,7 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
   }
 
   Future<void> stop() async {
-    if (!_started) return;
+    if (_disposed) return;
     _started = false;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
@@ -292,6 +382,8 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     _started = false;
     _reconnectTimer?.cancel();
     unawaited(_closeConnection());

@@ -4,6 +4,8 @@ import '../../queue/models/queue_order.dart';
 import '../../queue/models/queue_order_item.dart';
 import 'local_database.dart';
 import 'models/cached_result.dart';
+import 'models/outbox_mutation.dart';
+import 'outbox_repository.dart';
 
 /// QueueLocalRepository manages persistent SQLite storage and caching
 /// for the unified order queue and KDS orders, strictly enforcing
@@ -16,62 +18,58 @@ class QueueLocalRepository {
 
   QueueLocalRepository(this._localDb);
 
+  /// Appends the cashier order and its outbox mutation in one SQLite
+  /// transaction. A crash can therefore never persist only one side.
+  Future<void> persistOrderWithMutation({
+    required QueueOrder order,
+    required OutboxMutation mutation,
+    required OutboxRepository outboxRepository,
+  }) async {
+    if (!outboxRepository.usesDatabase(_localDb)) {
+      throw StateError('Queue and outbox must use the same local database');
+    }
+    final db = await _localDb.database;
+    await db.transaction((txn) async {
+      await _insertOrder(txn, order);
+      await txn.insert('outbox_mutations', mutation.toMap());
+      final now = DateTime.now().toIso8601String();
+      await txn.insert('sync_metadata', {
+        'key': metadataKeyLastCached,
+        'value': now,
+        'updated_at': now,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    });
+  }
+
   /// Saves orders and line items into SQLite within an atomic transaction.
   /// Automatically masks raw customer phone numbers before persistence.
   Future<void> saveOrders({
     required List<QueueOrder> orders,
     DateTime? cachedAt,
+    bool preserveUnsyncedLocal = false,
   }) async {
     final db = await _localDb.database;
     final timestamp = (cachedAt ?? DateTime.now()).toIso8601String();
 
     await db.transaction((txn) async {
-      // Clear existing queue snapshot
-      await txn.delete('queue_order_items');
-      await txn.delete('queue_orders');
+      if (preserveUnsyncedLocal) {
+        // Keep cashier-created rows until the matching durable mutation has
+        // received its server ACK. Foreign-key cascade removes other items.
+        await txn.rawDelete('''
+          DELETE FROM queue_orders
+          WHERE id NOT IN (
+            SELECT 'ord-' || client_order_id
+            FROM outbox_mutations
+            WHERE sync_status != 'SYNCED'
+          )
+        ''');
+      } else {
+        await txn.delete('queue_order_items');
+        await txn.delete('queue_orders');
+      }
 
       for (final order in orders) {
-        // Enforce PII Sanitization (Invariant 11)
-        final maskedPhone = PiiSanitizer.maskPhone(order.customerPhone);
-
-        await txn.insert('queue_orders', {
-          'id': order.id,
-          'order_number': order.orderNumber,
-          'customer_name': order.customerName,
-          'customer_phone_masked': maskedPhone,
-          'source': order.source,
-          'order_status': order.orderStatus,
-          'payment_status': order.paymentStatus,
-          'is_takeaway': order.isTakeaway ? 1 : 0,
-          'takeaway_notes': order.takeawayNotes,
-          'created_at': order.createdAt.toIso8601String(),
-          'version': order.version,
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
-
-        // Insert items for this order
-        for (final item in order.items) {
-          await txn.insert('queue_order_items', {
-            'order_id': order.id,
-            'name': item.name,
-            'quantity': item.quantity,
-            'unit_price': item.unitPrice,
-            'notes': item.notes,
-            'is_drink': item.isDrink ? 1 : 0,
-          }, conflictAlgorithm: ConflictAlgorithm.replace);
-        }
-
-        // Maintain recent_customers if table exists (v2 schema feature)
-        try {
-          await txn.insert('recent_customers', {
-            'id':
-                'cust-${order.customerName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')}',
-            'name': order.customerName,
-            'masked_phone': maskedPhone,
-            'last_order_at': order.createdAt.toIso8601String(),
-          }, conflictAlgorithm: ConflictAlgorithm.replace);
-        } catch (_) {
-          // Ignore if running on v1 schema before migration
-        }
+        await _insertOrder(txn, order);
       }
 
       // Record queue cache timestamp
@@ -81,6 +79,51 @@ class QueueLocalRepository {
         'updated_at': DateTime.now().toIso8601String(),
       }, conflictAlgorithm: ConflictAlgorithm.replace);
     });
+  }
+
+  Future<void> _insertOrder(DatabaseExecutor txn, QueueOrder order) async {
+    final maskedPhone = PiiSanitizer.maskPhone(order.customerPhone);
+    await txn.insert('queue_orders', {
+      'id': order.id,
+      'order_number': order.orderNumber,
+      'customer_name': order.customerName,
+      'customer_phone_masked': maskedPhone,
+      'source': order.source,
+      'order_status': order.orderStatus,
+      'payment_status': order.paymentStatus,
+      'is_takeaway': order.isTakeaway ? 1 : 0,
+      'takeaway_notes': order.takeawayNotes,
+      'created_at': order.createdAt.toIso8601String(),
+      'version': order.version,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    await txn.delete(
+      'queue_order_items',
+      where: 'order_id = ?',
+      whereArgs: [order.id],
+    );
+    for (final item in order.items) {
+      await txn.insert('queue_order_items', {
+        'order_id': order.id,
+        'name': item.name,
+        'quantity': item.quantity,
+        'unit_price': item.unitPrice,
+        'notes': item.notes,
+        'is_drink': item.isDrink ? 1 : 0,
+      });
+    }
+
+    try {
+      await txn.insert('recent_customers', {
+        'id':
+            'cust-${order.customerName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')}',
+        'name': order.customerName,
+        'masked_phone': maskedPhone,
+        'last_order_at': order.createdAt.toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    } catch (_) {
+      // v1 databases used by migration tests do not have this table yet.
+    }
   }
 
   /// Retrieves all cached orders along with their nested line items.

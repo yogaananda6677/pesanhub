@@ -24,12 +24,19 @@ Backend memakai `APP_LOGIN_USERNAME`, hash bcrypt `APP_LOGIN_PASSWORD_HASH`, sec
 ## Alur recovery
 
 1. Cache SQLite yang sudah dimasking ditampilkan sebagai offline/stale sementara.
-2. Client mengambil `GET /api/v1/orders/queue`, menyimpan snapshot secara atomik, lalu mencoba flush outbox FIFO dengan idempotency key.
-3. Bila outbox berubah di server, snapshot diambil ulang sebelum WebSocket terhubung.
+2. Client memulihkan write `SYNCING` yang terputus dan flush outbox FIFO dengan idempotency key.
+3. Client mengambil `GET /api/v1/orders/queue`, menyimpan snapshot secara atomik, lalu membuka WebSocket.
 4. Event dengan versi lama/sama diabaikan. Versi berikutnya diterapkan sekali. Versi yang meloncat memicu snapshot ulang.
 5. Disconnect memakai exponential backoff dan selalu mengambil snapshot sebelum reconnect. Penyimpanan snapshot hanya mengganti tabel queue; tabel `outbox_mutations` tidak dihapus.
 
-Package WebSocket menangani control-frame ping/pong dari server. Kegagalan REST dipetakan menjadi state berbeda: unauthenticated, forbidden, validation, conflict, server, network, atau invalid contract. Pesan UI dan diagnostic state hanya menyimpan jenis kegagalan serta `X-Request-ID`, tidak menyimpan body provider atau credential.
+Package WebSocket menangani control-frame ping/pong dari server. Status perangkat
+online tidak dianggap sebagai status backend online: REST response yang berhasil
+menjadi probe operasional. Gangguan memakai satu recovery worker dengan backoff
+berjitter; `next_retry_at` membangunkan worker kembali walau WebSocket tetap
+sehat. Kegagalan REST dipetakan menjadi state berbeda: unauthenticated,
+forbidden, validation, conflict, server, network, atau invalid contract. Pesan UI
+dan diagnostic state hanya menyimpan jenis kegagalan, timestamp, retry attempt,
+serta `X-Request-ID`, tidak menyimpan body provider atau credential.
 
 ## Evidence deterministic
 

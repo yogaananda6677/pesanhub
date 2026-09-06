@@ -305,20 +305,20 @@ class CartController extends ChangeNotifier {
       version: 1,
     );
 
-    final existing = await queueRepo.getOrders();
-    await queueRepo.saveOrders(orders: [...existing, localOrder]);
-
     final sanitizedDraft = draft.copyWith(customerPhone: maskedPhone);
-    await outboxRepo.enqueueMutation(
-      OutboxMutation(
-        id: 'mut-${draft.clientOrderId}',
-        idempotencyKey: draft.idempotencyKey,
-        clientOrderId: draft.clientOrderId,
-        mutationType: 'CREATE_ORDER',
-        payloadJson: jsonEncode(sanitizedDraft.toJson()),
-        syncStatus: OutboxSyncStatus.pending,
-        createdAt: DateTime.now(),
-      ),
+    final mutation = OutboxMutation(
+      id: 'mut-${draft.clientOrderId}',
+      idempotencyKey: draft.idempotencyKey,
+      clientOrderId: draft.clientOrderId,
+      mutationType: 'CREATE_ORDER',
+      payloadJson: jsonEncode(sanitizedDraft.toJson()),
+      syncStatus: OutboxSyncStatus.pending,
+      createdAt: DateTime.now(),
+    );
+    await queueRepo.persistOrderWithMutation(
+      order: localOrder,
+      mutation: mutation,
+      outboxRepository: outboxRepo,
     );
     return localOrder;
   }

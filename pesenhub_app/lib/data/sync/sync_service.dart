@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/foundation.dart';
+
 import '../local/outbox_repository.dart';
 import '../local/queue_local_repository.dart';
 
@@ -79,6 +82,7 @@ class SyncServiceState {
   final int permanentFailureCount;
   final String? lastError;
   final DateTime? lastSyncedAt;
+  final DateTime? nextRetryAt;
 
   const SyncServiceState({
     this.isSyncing = false,
@@ -86,6 +90,7 @@ class SyncServiceState {
     this.permanentFailureCount = 0,
     this.lastError,
     this.lastSyncedAt,
+    this.nextRetryAt,
   });
 
   SyncServiceState copyWith({
@@ -93,15 +98,19 @@ class SyncServiceState {
     int? pendingCount,
     int? permanentFailureCount,
     String? lastError,
+    bool clearLastError = false,
     DateTime? lastSyncedAt,
+    DateTime? nextRetryAt,
+    bool clearNextRetryAt = false,
   }) {
     return SyncServiceState(
       isSyncing: isSyncing ?? this.isSyncing,
       pendingCount: pendingCount ?? this.pendingCount,
       permanentFailureCount:
           permanentFailureCount ?? this.permanentFailureCount,
-      lastError: lastError ?? this.lastError,
+      lastError: clearLastError ? null : lastError ?? this.lastError,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      nextRetryAt: clearNextRetryAt ? null : nextRetryAt ?? this.nextRetryAt,
     );
   }
 }
@@ -116,6 +125,10 @@ class SyncService extends ChangeNotifier {
 
   final Duration baseDelay;
   final Duration maxDelay;
+  final double Function() randomDouble;
+  final VoidCallback? onRetryDue;
+  bool _recoveredInterrupted = false;
+  Timer? _retryTimer;
 
   SyncServiceState _state = const SyncServiceState();
   SyncServiceState get state => _state;
@@ -126,7 +139,9 @@ class SyncService extends ChangeNotifier {
     required this.gateway,
     this.baseDelay = const Duration(seconds: 1),
     this.maxDelay = const Duration(seconds: 60),
-  });
+    this.onRetryDue,
+    double Function()? randomDouble,
+  }) : randomDouble = randomDouble ?? Random().nextDouble;
 
   /// Computes exponential backoff delay based on retry attempt: baseDelay * 2^retry.
   Duration calculateBackoff(int retryCount) {
@@ -137,15 +152,32 @@ class SyncService extends ChangeNotifier {
     return Duration(milliseconds: cappedMs);
   }
 
+  /// Applies bounded ±20% jitter so reconnecting devices do not retry in lockstep.
+  Duration calculateRetryDelay(int retryCount) {
+    final base = calculateBackoff(retryCount).inMilliseconds;
+    final factor = 0.8 + (randomDouble().clamp(0.0, 1.0) * 0.4);
+    return Duration(
+      milliseconds: min((base * factor).round(), maxDelay.inMilliseconds),
+    );
+  }
+
   /// Refreshes pending count and current status from SQLite.
   Future<void> refreshState() async {
+    if (!_recoveredInterrupted && !_state.isSyncing) {
+      await outboxRepo.recoverInterruptedMutations();
+      _recoveredInterrupted = true;
+    }
     final pending = await outboxRepo.getPendingCount();
     final failedPermanent = await outboxRepo.getPermanentFailureCount();
+    final nextRetryAt = await outboxRepo.getNextRetryAt();
     _state = _state.copyWith(
       pendingCount: pending,
       permanentFailureCount: failedPermanent,
+      nextRetryAt: nextRetryAt,
+      clearNextRetryAt: nextRetryAt == null,
     );
     notifyListeners();
+    _scheduleRetry(nextRetryAt);
   }
 
   /// Processes all pending outbox mutations in FIFO order.
@@ -159,7 +191,7 @@ class SyncService extends ChangeNotifier {
       );
     }
 
-    _state = _state.copyWith(isSyncing: true, lastError: null);
+    _state = _state.copyWith(isSyncing: true, clearLastError: true);
     notifyListeners();
 
     int totalProcessed = 0;
@@ -196,7 +228,7 @@ class SyncService extends ChangeNotifier {
           } else {
             // Transient error
             latestError = response.errorMessage;
-            final backoff = calculateBackoff(mutation.retryCount);
+            final backoff = calculateRetryDelay(mutation.retryCount);
             await outboxRepo.markTransientFailure(
               mutation.id,
               error: response.errorMessage ?? 'Transient Network Failure',
@@ -204,13 +236,13 @@ class SyncService extends ChangeNotifier {
             );
             transientErrorCount++;
           }
-        } catch (err) {
+        } catch (_) {
           // Uncaught network error treated as transient failure
-          latestError = err.toString();
-          final backoff = calculateBackoff(mutation.retryCount);
+          latestError = 'Koneksi backend terputus.';
+          final backoff = calculateRetryDelay(mutation.retryCount);
           await outboxRepo.markTransientFailure(
             mutation.id,
-            error: err.toString(),
+            error: latestError,
             backoff: backoff,
           );
           transientErrorCount++;
@@ -219,6 +251,7 @@ class SyncService extends ChangeNotifier {
     } finally {
       final remainingPending = await outboxRepo.getPendingCount();
       final failedPermanent = await outboxRepo.getPermanentFailureCount();
+      final nextRetryAt = await outboxRepo.getNextRetryAt();
 
       _state = _state.copyWith(
         isSyncing: false,
@@ -226,8 +259,11 @@ class SyncService extends ChangeNotifier {
         permanentFailureCount: failedPermanent,
         lastError: latestError,
         lastSyncedAt: syncedCount > 0 ? DateTime.now() : _state.lastSyncedAt,
+        nextRetryAt: nextRetryAt,
+        clearNextRetryAt: nextRetryAt == null,
       );
       notifyListeners();
+      _scheduleRetry(nextRetryAt);
     }
 
     return SyncBatchResult(
@@ -236,5 +272,22 @@ class SyncService extends ChangeNotifier {
       transientErrorCount: transientErrorCount,
       permanentErrorCount: permanentErrorCount,
     );
+  }
+
+  void _scheduleRetry(DateTime? retryAt) {
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    if (retryAt == null || onRetryDue == null) return;
+    final delay = retryAt.difference(DateTime.now());
+    _retryTimer = Timer(delay.isNegative ? Duration.zero : delay, () {
+      _retryTimer = null;
+      onRetryDue?.call();
+    });
+  }
+
+  @override
+  void dispose() {
+    _retryTimer?.cancel();
+    super.dispose();
   }
 }

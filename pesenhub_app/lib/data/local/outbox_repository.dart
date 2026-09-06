@@ -9,6 +9,8 @@ class OutboxRepository {
 
   OutboxRepository(this._localDb);
 
+  bool usesDatabase(LocalDatabase database) => identical(_localDb, database);
+
   /// Enqueues a new offline mutation to the durable SQLite store.
   Future<void> enqueueMutation(OutboxMutation mutation) async {
     final db = await _localDb.database;
@@ -41,6 +43,17 @@ class OutboxRepository {
     final db = await _localDb.database;
     final rows = await db.query('outbox_mutations', orderBy: 'created_at ASC');
     return rows.map((r) => OutboxMutation.fromMap(r)).toList();
+  }
+
+  /// Returns interrupted writes to a retryable state after process death.
+  /// The idempotency key is retained, so replay cannot create a duplicate.
+  Future<int> recoverInterruptedMutations() async {
+    final db = await _localDb.database;
+    return db.update('outbox_mutations', {
+      'sync_status': OutboxSyncStatus.failedTransient.toDbString(),
+      'next_retry_at': null,
+      'error_message': 'Sinkronisasi terputus dan akan dicoba kembali.',
+    }, where: "sync_status = 'SYNCING'");
   }
 
   /// Finds a mutation by local client order ID.
@@ -156,6 +169,18 @@ class OutboxRepository {
       ),
     );
     return result ?? 0;
+  }
+
+  /// Earliest deferred transient retry, used to wake the sync worker even when
+  /// the realtime connection itself remains healthy.
+  Future<DateTime?> getNextRetryAt() async {
+    final db = await _localDb.database;
+    final rows = await db.rawQuery(
+      "SELECT MIN(next_retry_at) AS next_retry_at FROM outbox_mutations "
+      "WHERE sync_status = 'FAILED_TRANSIENT' AND next_retry_at IS NOT NULL",
+    );
+    final value = rows.isEmpty ? null : rows.first['next_retry_at'] as String?;
+    return value == null ? null : DateTime.tryParse(value);
   }
 
   /// Deletes a specific mutation by ID.

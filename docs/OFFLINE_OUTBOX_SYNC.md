@@ -1,4 +1,4 @@
-# Arsitektur Offline Outbox dan Background Synchronization (#33)
+# Runtime Offline-First dan Background Synchronization (#33, #131)
 
 Dokumentasi arsitektur penyimpanan mutasi lokal (*durable outbox pattern*), siklus hidup sinkronisasi latar belakang (*background synchronization*), strategi *exponential backoff*, serta pencegahan duplikasi (*idempotency & local-to-server ID mapping*) pada aplikasi kasir POS dan KDS Flutter PesenHub.
 
@@ -28,6 +28,7 @@ stateDiagram-v2
     SYNCING --> SYNCED: Server mengembalikan 201 Created / 200 OK
     SYNCING --> SYNCED: Server mengembalikan 409 Conflict (Idempotent replay)
     SYNCING --> FAILED_TRANSIENT: Network Timeout / HTTP 5xx
+    SYNCING --> FAILED_TRANSIENT: App berhenti saat proses kirim
     FAILED_TRANSIENT --> SYNCING: Backoff interval tercapai & koneksi aktif
     SYNCING --> FAILED_PERMANENT: HTTP 400 / 422 (Validation Error)
     FAILED_PERMANENT --> [*]: Intervensi manual kasir / ditolak
@@ -72,10 +73,20 @@ ON outbox_mutations (client_order_id);
 
 ---
 
+Saat startup, semua baris yang tertinggal pada `SYNCING` dikembalikan ke
+`FAILED_TRANSIENT` tanpa mengganti `idempotency_key`. Order lokal dan mutasi
+`PENDING` dibuat dalam satu transaksi SQLite; kegagalan salah satu insert akan
+me-*rollback* keduanya.
+
 ## 4. Siklus Exponential Backoff
 
 Untuk mencegah *thundering herd* dan *retry storm* saat backend pulih:
-$$\text{Delay} = \min(\text{baseDelay} \times 2^{\text{retryCount}}, \text{maxDelay})$$
+$$\text{Delay} = \min(\text{baseDelay} \times 2^{\text{retryCount}} \times \text{jitter}, \text{maxDelay})$$
+
+`jitter` dibatasi pada 0,8–1,2 agar banyak perangkat tidak mencoba ulang pada
+waktu yang sama. Timer durable dibangun kembali dari `next_retry_at`; jadi
+mutasi tetap dicoba otomatis walau WebSocket sedang sehat dan tidak mengalami
+disconnect baru.
 
 - $\text{baseDelay} = 1\text{ detik}$
 - $\text{maxDelay} = 60\text{ detik}$
@@ -103,9 +114,31 @@ Sesuai **Invariant #8**:
 
 ## 6. Umpan Balik Antarmuka Pengguna (UI Feedback)
 
-Widget `SyncStatusBadge` disematkan pada header/toolbar POS dan KDS:
+`ConnectivityBadge` disematkan pada shell operasional mobile dan tablet:
 - **Idle / Terhubung & Sinkron**: Badge ikon awan hijau atau tersembunyi saat antrean bersih.
 - **Sedang Sinkronisasi**: Spinner berputar dengan teks *"Menyinkronkan N pesanan..."*.
 - **Offline / Menunggu Jaringan**: Badge peringatan amber mencolok *"N pesanan offline antre"*.
 - **Permanent Error**: Badge peringatan merah dengan dialog rincian kesalahan agar kasir dapat memeriksa order yang tertolak.
 - **Responsif**: Bekerja mulus pada layout mobile (< 600dp) dan tablet (>= 600dp) tanpa *RenderFlex overflow*.
+
+Status `Online` hanya diberikan setelah REST snapshot/backend benar-benar
+merespons. Wi-Fi aktif bukan bukti backend tersedia. Saat timeout, HTTP 5xx,
+atau WebSocket putus, cache antrean tetap terlihat dengan status offline/stale.
+Panel detail menampilkan jumlah pending, waktu sinkron terakhir, jadwal dan
+nomor percobaan retry, tombol retry manual, serta pintasan koreksi untuk error
+permanen. `401` mengakhiri sesi dan kembali ke login tanpa retry tanpa batas.
+
+## 7. Urutan Runtime
+
+1. Setelah login, tampilkan snapshot SQLite sebagai cache offline/stale.
+2. Pulihkan mutasi `SYNCING` yang terputus, lalu flush outbox FIFO secara
+   idempotent.
+3. Ambil snapshot REST terbaru, simpan lokal, lalu buka WebSocket.
+4. Jika jaringan/backend hilang, hentikan koneksi dan jadwalkan satu recovery
+   worker dengan exponential backoff + jitter.
+5. Ketika kasir menekan kirim, transaksi lokal selesai dan UI langsung kembali;
+   pengiriman jaringan berjalan di background.
+
+Diagnostic hanya mencatat transisi state, jenis kegagalan, retry attempt,
+timestamp, dan request ID yang aman. Credential, URL handshake bertoken, body
+provider, dan PII tidak ditulis ke log.
