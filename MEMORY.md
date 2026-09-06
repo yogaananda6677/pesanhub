@@ -16,6 +16,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | MVP target     | 30 hari sejak kickoff                                      |
 | Last updated   | 6 September 2026                                           |
 | Updated by     | Issue #132 Menu catalog management end-to-end               |
+| Updated by     | Issue #133 POS redesign dengan tab kategori & sticky cart   |
 
 ## 2. Product Intent
 
@@ -72,15 +73,25 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
 - Phase Issue: [#5 — Phase 1C WhatsApp, Agent & Payment](https://github.com/yogaananda6677/pesanhub/issues/5)
 - Child Issue: #132
+- Epic Issue: [#129](https://github.com/yogaananda6677/pesanhub/issues/129)
+- Phase Issue: [#6 — Phase 1D MVP Integration & Release](https://github.com/yogaananda6677/pesanhub/issues/6)
+- Child Issue: #133
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
 - Current Issue: [#132 — Hubungkan pengelolaan katalog dan menu end-to-end](https://github.com/yogaananda6677/pesanhub/issues/132)
 - Current Branch: `feature/132-menu-catalog-e2e`
 - Pull Request: [#136](https://github.com/yogaananda6677/pesanhub/pull/136)
 - Merged Pull Requests: sampai [#135](https://github.com/yogaananda6677/pesanhub/pull/135)
+- Current Issue: [#133 — Redesign POS dengan tab kategori dan sticky bottom cart](https://github.com/yogaananda6677/pesanhub/issues/133)
+- Current Branch: `feature/133-redesign-pos-tab-sticky-cart`
+- Pull Request: [#137](https://github.com/yogaananda6677/pesanhub/pull/137)
+- Merged Pull Requests: sampai [#136](https://github.com/yogaananda6677/pesanhub/pull/136)
 - Status: `READY_FOR_REVIEW`
 - Exit Criteria: runtime terkonfigurasi memakai katalog backend tunggal; CRUD category/menu/modifier/availability terautentikasi dan berversi; cache offline read-only dan reconnect aman; audit atomik; contract, responsive tests, CI/CD hijau.
 - Validation: 207 Flutter tests, analyze, debug APK, Go test/vet/check, contract fixture, migration up/down/up, integration PostgreSQL, Compose config, dan API image build PASS lokal; CI PR menunggu.
 - Next Issue: lanjut urutan child issue #129 setelah #132 di-merge.
+- Exit Criteria: compact header dengan search bar dan clear button serta connectivity badge; tab kategori horizontal "Semua" + kategori backend dengan min touch target 48dp, indikator aktif/inaktif, dan isolasi state cart/search; fokus katalog mobile dengan kartu menu di baris pertama dan status habis disabled; sticky bottom cart bar mobile (count + total price) membuka checkout sheet; formulir pelanggan dan bungkus dipindahkan ke checkout sheet mobile; tablet split screen (60:40) dengan live cart; bebas RenderFlex overflow di seluruh matrix responsif dan text scale 1.0–2.0.
+- Validation: 214 Flutter tests lulus, `flutter analyze` bersih, `dart format` bersih, `pesenhub_be/run.sh check` lulus.
+- Next Issue: lanjut urutan child issue #129 setelah #133 di-merge.
 
 ## 6. Current Phase Checklist
 
@@ -1577,3 +1588,37 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 **Validation**
 
 - Targeted Flutter analyze/tests: PASS. Full suite, APK build, and CI recorded in the Issue #131 PR handoff.
+
+### 6 September 2026 — POS Redesign with Category Tabs & Sticky Bottom Cart (Issue #133)
+
+**Goal**
+
+- Redesign POS cashier interface with compact header, modern horizontal category tabs matching `design/index.html`, catalog-first mobile focus, sticky bottom cart summary bar, checkout bottom sheet, tablet 60:40 split screen, and zero RenderFlex overflows across 360x800 to 1280x800 and text scale 1.0–2.0.
+
+**Changed**
+
+- `MenuCategoryFilter`: Refactored to horizontal scrollable tab row with active/inactive states (`AppColors.primary`), minimum 48dp touch targets, item count badges (`Semua (6)`), and state preservation.
+- `MenuCatalogView`: Added clear button to search bar, integrated `ConnectivityBadge`, and added bottom padding when sticky bar is active.
+- `PosView`:
+  - Removed top customer card on mobile to bring menu catalog directly to top.
+  - Implemented responsive floating sticky cart bar showing item count, total price, and "Review Pesanan" button (minimum 48dp touch target).
+  - Implemented responsive checkout bottom sheet with customer name, WhatsApp, takeaway switch, packaging notes, items stepper list, and submission.
+  - Retained tablet 60:40 side-by-side split screen with persistent cart panel.
+  - Preserved `MenuCatalogView` state across responsive transitions via `GlobalKey`.
+- `OrderReviewDialog` & `OrderSuccessDialog`: Wrapped customer details, WhatsApp, service type, and source badges in `Flexible(TextOverflow.ellipsis)` to prevent overflow on narrow screens.
+- `docs/POS_REDESIGN_STICKY_CART.md`: Created comprehensive architectural and UI documentation.
+- `test/pos_redesign_test.dart`: Added 7-scenario comprehensive test suite.
+- `test/app_shell_test.dart`: Updated responsive breakpoint input preservation tests for search input and split-view cart form.
+
+**Validation**
+
+- `flutter test test/pos_redesign_test.dart`: All 7 tests PASS.
+- Full test suite `flutter test`: All 214 tests PASS.
+- `flutter analyze`: No issues found.
+- `dart format --output=none --set-exit-if-changed .`: Formatted and clean.
+- Backend `pesenhub_be/run.sh check`: All modules verified, [OK].
+
+**Next**
+
+- Push branch `feature/133-redesign-pos-tab-sticky-cart` and open PR for Issue #133.
+

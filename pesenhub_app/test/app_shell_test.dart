@@ -126,6 +126,26 @@ void main() {
         );
 
         // Enter customer name in POS view
+        // Enter search text in POS mobile view
+        final searchField = find.widgetWithText(
+          TextField,
+          'Cari menu (Nasi Goreng, Es Teh, SKU)...',
+        );
+        expect(searchField, findsOneWidget);
+        await tester.enterText(searchField, 'Nasi Goreng');
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Nasi Goreng'), findsOneWidget);
+
+        // Expand to tablet size (900 x 700)
+        tester.view.physicalSize = const Size(900, 700);
+        await tester.pumpAndSettle();
+
+        // Verify entered search query is retained
+        expect(find.text('Nasi Goreng'), findsOneWidget);
+
+        // Enter customer name in tablet split view
         final nameField = find.widgetWithText(
           TextField,
           'Contoh: Budi Santoso',
@@ -133,10 +153,18 @@ void main() {
         expect(nameField, findsOneWidget);
         await tester.enterText(nameField, 'Pak Bambang Sukses');
         await tester.pump();
+        await tester.pumpAndSettle();
 
         expect(find.text('Pak Bambang Sukses'), findsOneWidget);
+        // Switch back to mobile size (400 x 700)
+        tester.view.physicalSize = const Size(400, 700);
+        await tester.pumpAndSettle();
 
         // Expand to tablet size (900 x 700)
+        // Verify search query is still retained
+        expect(find.text('Nasi Goreng'), findsOneWidget);
+
+        // Switch back to tablet size (900 x 700) and verify customer name retained
         tester.view.physicalSize = const Size(900, 700);
         await tester.pumpAndSettle();
 

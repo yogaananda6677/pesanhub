@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../connectivity/connectivity_controller.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/app_feedback.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/connectivity_badge.dart';
 import 'controllers/menu_controller.dart' as mc;
 import 'controllers/modifier_selection_state.dart';
 import 'models/menu_item.dart';
@@ -11,17 +13,21 @@ import 'widgets/menu_item_card.dart';
 import 'widgets/modifier_config_dialog.dart';
 
 /// MenuCatalogView renders the full responsive catalog with search, category filtering, and modifier dialog.
-/// Fulfills Issue #27 Acceptance Criteria #1, #2, #4, and #5.
+/// Fulfills Issue #27 and Issue #133 Acceptance Criteria.
 class MenuCatalogView extends StatefulWidget {
   final mc.MenuController controller;
   final VoidCallback? onRefresh;
   final ValueChanged<ModifierSelectionState>? onItemConfigured;
+  final ConnectivityController? connectivityController;
+  final EdgeInsets? contentPadding;
 
   const MenuCatalogView({
     super.key,
     required this.controller,
     this.onRefresh,
     this.onItemConfigured,
+    this.connectivityController,
+    this.contentPadding,
   });
 
   @override
@@ -110,20 +116,46 @@ class _MenuCatalogViewState extends State<MenuCatalogView> {
 
         return SingleChildScrollView(
           key: const PageStorageKey('menu_catalog_scroll'),
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: widget.contentPadding ?? const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Search Bar with Debounce
-              AppTextField(
-                controller: _searchController,
-                hintText: 'Cari menu (Nasi Goreng, Es Teh, SKU)...',
-                prefixIcon: const Icon(Icons.search_rounded),
-                onChanged: (val) => widget.controller.onSearchChanged(val),
+              // 1. Compact Header: Search Bar with Debounce & Connectivity Status
+              Row(
+                children: [
+                  Expanded(
+                    child: AppTextField(
+                      controller: _searchController,
+                      hintText: 'Cari menu (Nasi Goreng, Es Teh, SKU)...',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded),
+                              tooltip: 'Hapus pencarian',
+                              onPressed: () {
+                                _searchController.clear();
+                                widget.controller.onSearchChanged('');
+                                setState(() {});
+                              },
+                            )
+                          : null,
+                      onChanged: (val) {
+                        widget.controller.onSearchChanged(val);
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  if (widget.connectivityController != null) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    ConnectivityBadge(
+                      controller: widget.connectivityController!,
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: AppSpacing.sm),
 
-              // 2. Category Filter Chips
+              // 2. Horizontal Category Tabs
               MenuCategoryFilter(
                 categories: widget.controller.categories,
                 selectedCategoryId: widget.controller.selectedCategoryId,
