@@ -17,10 +17,13 @@ cd pesenhub_be
 
 Panduan lengkap dan aturan operasional tersedia di [ATURAN.md](ATURAN.md).
 
-Endpoint operator REST dan WebSocket memakai token `APP_STAFF_TOKEN` atau
-`APP_KDS_TOKEN` dari environment dengan pencocokan exact; prefix token tidak
-diterima. Gunakan credential berbeda per role dan jangan mencatat URL handshake
-WebSocket yang memuat query token. Panduan client tersedia di
+Mobile masuk melalui `POST /api/v1/auth/login` memakai satu akun outlet; aplikasi
+tidak menampilkan pilihan Owner/Operator. Password backend hanya berupa hash
+bcrypt dan sesi bertanda tangan kedaluwarsa dipakai untuk REST serta WebSocket.
+Token `APP_STAFF_TOKEN`/`APP_KDS_TOKEN` masih diterima untuk integrasi layanan
+lama, tidak ditanam pada artifact mobile. Jangan mencatat URL handshake WebSocket
+yang memuat query token. Detail keamanan ada di
+[SINGLE_OUTLET_LOGIN.md](../docs/SINGLE_OUTLET_LOGIN.md), dan panduan client di
 [FLUTTER_BACKEND_INTEGRATION.md](../docs/FLUTTER_BACKEND_INTEGRATION.md).
 
 Readiness gagal dengan HTTP 503 bila PostgreSQL turun. GOWA yang belum memiliki device terhubung menghasilkan HTTP 200 berstatus `degraded`; field `gowa_api`, `gowa_device`, dan `gowa_reason` membedakan API gagal, device tidak ada, device terputus, dan timeout tanpa melakukan pairing otomatis.

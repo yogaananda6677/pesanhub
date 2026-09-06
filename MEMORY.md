@@ -14,8 +14,8 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current phase  | Phase 1D — MVP Integration & Release                       |
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
-| Last updated   | 5 September 2026                                           |
-| Updated by     | Issue #49 Backend–Flutter contract gate                     |
+| Last updated   | 6 September 2026                                           |
+| Updated by     | Issue #130 Single-outlet login and session                  |
 
 ## 2. Product Intent
 
@@ -1512,3 +1512,25 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 **Validation**
 
 - Payment unit tests pass. Full backend and PostgreSQL integration validation is recorded in the issue/PR handoff.
+
+### 6 September 2026 — Single-outlet Login and Session (Issue #130)
+
+**Goal**
+
+- Replace the Flutter build-time API token with a real single-outlet login, expiring session, secure mobile storage, and one session shared by REST/WebSocket without exposing Owner/Operator personas.
+
+**Changed**
+
+- Added `POST /api/v1/auth/login` with strict 4 KiB JSON input, bcrypt verification, generic failures, five-attempt rate limiting, request IDs, and HMAC-SHA256 sessions with an 8-hour default/24-hour maximum TTL.
+- Extended authentication middleware to accept signed app sessions while preserving exact static service-token compatibility for existing integrations.
+- Added Flutter login/session state, platform secure storage, startup restore, expiry handling, logout cleanup, and runtime REST/WebSocket token providers. `PESENHUB_API_TOKEN` was removed from Flutter configuration and missing backend configuration no longer opens the operational shell.
+- Updated OpenAPI, canonical contract fixture v2, environment/setup docs, and `docs/SINGLE_OUTLET_LOGIN.md`.
+
+**Validation**
+
+- Backend `go test ./...`, `go vet ./...`, Compose validation, and Docker image build: PASS.
+- Flutter formatting, analyze, all 190 tests, login/contract tests, and configured debug APK build: PASS.
+
+**Next**
+
+- Merge Issue #130 after remote CI is green, then implement Issue #131 backend-aware offline-first connectivity and automatic synchronization.

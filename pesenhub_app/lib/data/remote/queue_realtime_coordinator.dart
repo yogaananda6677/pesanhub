@@ -61,6 +61,7 @@ class QueueRealtimeState {
 
 class QueueRealtimeCoordinator extends ChangeNotifier {
   final ApiConfig config;
+  final Future<String?> Function() accessToken;
   final QueueRemoteGateway gateway;
   final QueueLocalRepository localQueue;
   final QueueController queueController;
@@ -81,6 +82,7 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
 
   QueueRealtimeCoordinator({
     required this.config,
+    required this.accessToken,
     required this.gateway,
     required this.localQueue,
     required this.queueController,
@@ -151,7 +153,11 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
   Future<void> _connect() async {
     await _closeConnection();
     _setState(_state.copyWith(connection: RealtimeConnectionState.connecting));
-    final connection = connectionFactory.connect(config.websocketUri());
+    final token = await accessToken();
+    if (token == null || token.isEmpty) {
+      throw const ApiFailure(ApiFailureKind.unauthenticated);
+    }
+    final connection = connectionFactory.connect(config.websocketUri(token));
     _connection = connection;
     await connection.ready.timeout(config.requestTimeout);
     if (!_started || !identical(connection, _connection)) {

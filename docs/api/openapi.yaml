@@ -6,6 +6,23 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /auth/login:
+    post:
+      summary: Sign in the single-outlet app and issue an expiring session
+      operationId: loginOutletApp
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LoginRequest'}
+      responses:
+        '200': {description: Session issued, content: {application/json: {schema: {$ref: '#/components/schemas/LoginResponse'}}}}
+        '400': {description: Malformed, unknown, or oversized request}
+        '401': {description: Generic invalid credentials response, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '429': {description: Too many attempts; Retry-After is returned, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
   /webhooks/midtrans:
     servers:
       - url: /
@@ -449,6 +466,21 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
   schemas:
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username: {type: string, minLength: 1, maxLength: 128}
+        password: {type: string, minLength: 1, maxLength: 1024, format: password}
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required: [access_token, token_type, expires_at]
+      properties:
+        access_token: {type: string, description: Opaque HMAC-signed session credential}
+        token_type: {type: string, const: Bearer}
+        expires_at: {type: string, format: date-time}
     MidtransNotification:
       type: object
       required: [order_id, transaction_id, transaction_status, status_code, gross_amount, payment_type, merchant_id, currency, signature_key]

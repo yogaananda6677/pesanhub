@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../auth/session.dart';
 import '../sync/sync_service.dart';
 import '../../queue/models/queue_order.dart';
 import 'api_config.dart';
@@ -14,13 +15,36 @@ abstract class QueueRemoteGateway {
   Future<QueueOrder> fetchOrder(String id);
 }
 
-class PesenHubApiClient implements QueueRemoteGateway, OrderSyncGateway {
+class PesenHubApiClient
+    implements QueueRemoteGateway, OrderSyncGateway, AuthGateway {
   final ApiConfig config;
+  final Future<String?> Function() accessToken;
   final http.Client _client;
   int _requestSequence = 0;
 
-  PesenHubApiClient({required this.config, http.Client? client})
-    : _client = client ?? http.Client();
+  PesenHubApiClient({
+    required this.config,
+    required this.accessToken,
+    http.Client? client,
+  }) : _client = client ?? http.Client();
+
+  @override
+  Future<SessionCredential> login(String username, String password) async {
+    final response = await _send(
+      'POST',
+      config.resolve('auth/login'),
+      body: jsonEncode({'username': username, 'password': password}),
+      authenticated: false,
+    );
+    try {
+      final json = _decodeObject(response);
+      return SessionCredential.fromJson(json);
+    } on ApiFailure {
+      rethrow;
+    } catch (_) {
+      throw _invalidResponse(response);
+    }
+  }
 
   @override
   Future<List<QueueOrder>> fetchQueue() async {
@@ -98,13 +122,18 @@ class PesenHubApiClient implements QueueRemoteGateway, OrderSyncGateway {
     Uri uri, {
     String? body,
     Map<String, String> extraHeaders = const {},
+    bool authenticated = true,
   }) async {
     final requestId = _nextRequestId();
     try {
+      final token = authenticated ? await accessToken() : null;
+      if (authenticated && (token == null || token.isEmpty)) {
+        throw ApiFailure(ApiFailureKind.unauthenticated, requestId: requestId);
+      }
       final request = http.Request(method, uri)
         ..headers.addAll({
           'Accept': 'application/json',
-          'Authorization': 'Bearer ${config.token}',
+          if (token != null) 'Authorization': 'Bearer $token',
           'X-Request-ID': requestId,
           if (body != null) 'Content-Type': 'application/json',
           ...extraHeaders,

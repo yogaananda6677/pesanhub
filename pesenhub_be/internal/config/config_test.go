@@ -7,7 +7,7 @@ import (
 
 func validEnv(t *testing.T) {
 	t.Helper()
-	for k, v := range map[string]string{"APP_ENV": "development", "DATABASE_HOST": "localhost", "DATABASE_NAME": "pesenhub", "DATABASE_USER": "user", "DATABASE_PASSWORD": "secret-value", "GOWA_BASE_URL": "http://localhost:3000", "GOWA_BASIC_AUTH_USERNAME": "pesenhub", "GOWA_BASIC_AUTH_PASSWORD": "api-secret", "GOWA_DEVICE_ID": "pesenhub-dev", "GOWA_WEBHOOK_SECRET": "webhook-secret-at-least-32-characters", "MIDTRANS_SERVER_KEY": "SB-Mid-server-dummy", "MIDTRANS_MERCHANT_ID": "G123456789", "MIDTRANS_BASE_URL": "https://api.sandbox.midtrans.com", "APP_STAFF_TOKEN": "staff-test-token-at-least-32-characters", "APP_KDS_TOKEN": "kds-test-token-at-least-32-charactersxx"} {
+	for k, v := range map[string]string{"APP_ENV": "development", "DATABASE_HOST": "localhost", "DATABASE_NAME": "pesenhub", "DATABASE_USER": "user", "DATABASE_PASSWORD": "secret-value", "GOWA_BASE_URL": "http://localhost:3000", "GOWA_BASIC_AUTH_USERNAME": "pesenhub", "GOWA_BASIC_AUTH_PASSWORD": "api-secret", "GOWA_DEVICE_ID": "pesenhub-dev", "GOWA_WEBHOOK_SECRET": "webhook-secret-at-least-32-characters", "MIDTRANS_SERVER_KEY": "SB-Mid-server-dummy", "MIDTRANS_MERCHANT_ID": "G123456789", "MIDTRANS_BASE_URL": "https://api.sandbox.midtrans.com", "APP_STAFF_TOKEN": "staff-test-token-at-least-32-characters", "APP_KDS_TOKEN": "kds-test-token-at-least-32-charactersxx", "APP_LOGIN_USERNAME": "outlet", "APP_LOGIN_PASSWORD_HASH": "$2b$12$Hh3DcQ1Vtgt8PCVFA2oG3uLZ5nhlXvGDk90Rq.8hLr.4poYps/5tK", "APP_SESSION_SECRET": "session-test-secret-at-least-32-characters", "APP_SESSION_TTL": "8h"} {
 		t.Setenv(k, v)
 	}
 }
@@ -42,6 +42,18 @@ func TestLoadValid(t *testing.T) {
 	}
 	if c.App.Port != "8080" {
 		t.Fatalf("port = %q", c.App.Port)
+	}
+}
+
+func TestLoadDecodesPortableBase64BcryptHash(t *testing.T) {
+	validEnv(t)
+	t.Setenv("APP_LOGIN_PASSWORD_HASH", "base64:JDJiJDEyJEhoM0RjUTFWdGd0OFBDVkZBMm9HM3VMWjVuaGxYdkdEazkwUnEuOGhMci40cG9ZcHMvNXRL")
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(c.Auth.LoginPasswordHash, "$2b$12$") {
+		t.Fatal("bcrypt hash was not decoded")
 	}
 }
 func TestLoadReportsMissingWithoutValues(t *testing.T) {
@@ -81,5 +93,23 @@ func TestLoadRequiresMidtransMerchantID(t *testing.T) {
 	_, err := Load()
 	if err == nil || !strings.Contains(err.Error(), "MIDTRANS_MERCHANT_ID") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLoadRejectsUnsafeLoginSessionConfiguration(t *testing.T) {
+	tests := []struct{ key, value, message string }{
+		{"APP_LOGIN_PASSWORD_HASH", "plaintext-password", "bcrypt"},
+		{"APP_SESSION_SECRET", "too-short", "32 characters"},
+		{"APP_SESSION_TTL", "25h", "24h"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			validEnv(t)
+			t.Setenv(tt.key, tt.value)
+			_, err := Load()
+			if err == nil || !strings.Contains(err.Error(), tt.message) || strings.Contains(err.Error(), tt.value) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	}
 }
