@@ -165,10 +165,6 @@ class OrderReviewDialog extends StatelessWidget {
                                 'Pelanggan:',
                                 style: AppTypography.labelSmall,
                               ),
-                              Text(
-                                draft.customerName,
-                                style: AppTypography.titleMedium.copyWith(
-                                  fontWeight: FontWeight.w700,
                               const SizedBox(width: AppSpacing.sm),
                               Flexible(
                                 child: Text(
@@ -191,9 +187,6 @@ class OrderReviewDialog extends StatelessWidget {
                                   'WhatsApp:',
                                   style: AppTypography.labelSmall,
                                 ),
-                                Text(
-                                  draft.customerPhone!,
-                                  style: AppTypography.bodyMedium,
                                 const SizedBox(width: AppSpacing.sm),
                                 Flexible(
                                   child: Text(
@@ -215,20 +208,6 @@ class OrderReviewDialog extends StatelessWidget {
                                 'Jenis Layanan:',
                                 style: AppTypography.labelSmall,
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.sm,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: draft.isTakeaway
-                                      ? AppColors.warningBg
-                                      : AppColors.surfaceVariant,
-                                  borderRadius: AppSpacing.borderRadiusSm,
-                                  border: Border.all(
-                                    color: draft.isTakeaway
-                                        ? AppColors.warning
-                                        : AppColors.border,
                               const SizedBox(width: AppSpacing.sm),
                               Flexible(
                                 child: Container(
@@ -236,18 +215,8 @@ class OrderReviewDialog extends StatelessWidget {
                                     horizontal: AppSpacing.sm,
                                     vertical: 2,
                                   ),
-                                ),
-                                child: Text(
-                                  draft.isTakeaway
-                                      ? 'Bungkus / Takeaway'
-                                      : 'Makan di Tempat (Dine-in)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
                                   decoration: BoxDecoration(
                                     color: draft.isTakeaway
-                                        ? AppColors.warning
-                                        : AppColors.textPrimary,
                                         ? AppColors.warningBg
                                         : AppColors.surfaceVariant,
                                     borderRadius: AppSpacing.borderRadiusSm,

@@ -13,7 +13,6 @@ import 'widgets/menu_item_card.dart';
 import 'widgets/modifier_config_dialog.dart';
 
 /// MenuCatalogView renders the full responsive catalog with search, category filtering, and modifier dialog.
-/// Fulfills Issue #27 Acceptance Criteria #1, #2, #4, and #5.
 /// Fulfills Issue #27 and Issue #133 Acceptance Criteria.
 class MenuCatalogView extends StatefulWidget {
   final mc.MenuController controller;
@@ -117,17 +116,10 @@ class _MenuCatalogViewState extends State<MenuCatalogView> {
 
         return SingleChildScrollView(
           key: const PageStorageKey('menu_catalog_scroll'),
-          padding: const EdgeInsets.all(AppSpacing.lg),
           padding: widget.contentPadding ?? const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Search Bar with Debounce
-              AppTextField(
-                controller: _searchController,
-                hintText: 'Cari menu (Nasi Goreng, Es Teh, SKU)...',
-                prefixIcon: const Icon(Icons.search_rounded),
-                onChanged: (val) => widget.controller.onSearchChanged(val),
               // 1. Compact Header: Search Bar with Debounce & Connectivity Status
               Row(
                 children: [
@@ -163,7 +155,6 @@ class _MenuCatalogViewState extends State<MenuCatalogView> {
               ),
               const SizedBox(height: AppSpacing.sm),
 
-              // 2. Category Filter Chips
               // 2. Horizontal Category Tabs
               MenuCategoryFilter(
                 categories: widget.controller.categories,

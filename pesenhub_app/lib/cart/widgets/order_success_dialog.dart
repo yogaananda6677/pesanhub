@@ -107,7 +107,6 @@ class OrderSuccessDialog extends StatelessWidget {
                       'Kanal Sumber:',
                       style: AppTypography.labelSmall,
                     ),
-                    AppStatusBadge.source(order.source),
                     const SizedBox(width: AppSpacing.sm),
                     Flexible(child: AppStatusBadge.source(order.source)),
                   ],
@@ -117,10 +116,6 @@ class OrderSuccessDialog extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Pelanggan:', style: AppTypography.labelSmall),
-                    Text(
-                      order.customerName,
-                      style: AppTypography.titleMedium.copyWith(
-                        fontWeight: FontWeight.w700,
                     const SizedBox(width: AppSpacing.sm),
                     Flexible(
                       child: Text(
@@ -138,15 +133,6 @@ class OrderSuccessDialog extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Layanan:', style: AppTypography.labelSmall),
-                    Text(
-                      order.isTakeaway
-                          ? 'Bungkus / Takeaway'
-                          : 'Makan di Tempat',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: order.isTakeaway
-                            ? AppColors.warning
-                            : AppColors.textPrimary,
                     const SizedBox(width: AppSpacing.sm),
                     Flexible(
                       child: Text(
@@ -171,11 +157,6 @@ class OrderSuccessDialog extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Total:', style: AppTypography.titleMedium),
-                    Text(
-                      'Rp ${order.totalAmount}',
-                      style: AppTypography.titleLarge.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
                     const SizedBox(width: AppSpacing.sm),
                     Flexible(
                       child: Text(

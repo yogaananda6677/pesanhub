@@ -3,7 +3,6 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../models/menu_category.dart';
 
-/// MenuCategoryFilter provides horizontal category filter chips for fast scanning.
 /// MenuCategoryFilter provides horizontal category tabs for fast scanning.
 /// Styled according to POS design reference with minimum 48dp touch targets.
 class MenuCategoryFilter extends StatelessWidget {
@@ -27,12 +26,10 @@ class MenuCategoryFilter extends StatelessWidget {
       physics: const BouncingScrollPhysics(),
       child: Row(
         children: [
-          _buildChip('ALL', 'Semua'),
           _buildTab('ALL', 'Semua'),
           ...categories.where((c) => c.isActive).map((cat) {
             return Padding(
               padding: const EdgeInsets.only(left: AppSpacing.sm),
-              child: _buildChip(cat.id, cat.name),
               child: _buildTab(cat.id, cat.name),
             );
           }),
@@ -41,26 +38,10 @@ class MenuCategoryFilter extends StatelessWidget {
     );
   }
 
-  Widget _buildChip(String id, String label) {
   Widget _buildTab(String id, String label) {
     final isSelected = selectedCategoryId == id;
     final count = countForCategory(id);
 
-    return FilterChip(
-      selected: isSelected,
-      label: Text('$label ($count)'),
-      selectedColor: AppColors.primaryContainer,
-      checkmarkColor: AppColors.primary,
-      backgroundColor: AppColors.surface,
-      labelStyle: TextStyle(
-        fontSize: 13,
-        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-        color: isSelected ? AppColors.primary : AppColors.textPrimary,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: AppSpacing.borderRadiusFull,
-        side: BorderSide(
-          color: isSelected ? AppColors.primary : AppColors.border,
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -97,7 +78,6 @@ class MenuCategoryFilter extends StatelessWidget {
           ),
         ),
       ),
-      onSelected: (_) => onSelectCategory(id),
     );
   }
 }
