@@ -75,7 +75,7 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
 - Current Issue: [#132 — Hubungkan pengelolaan katalog dan menu end-to-end](https://github.com/yogaananda6677/pesanhub/issues/132)
 - Current Branch: `feature/132-menu-catalog-e2e`
-- Pull Request: belum dibuat
+- Pull Request: [#136](https://github.com/yogaananda6677/pesanhub/pull/136)
 - Merged Pull Requests: sampai [#135](https://github.com/yogaananda6677/pesanhub/pull/135)
 - Status: `READY_FOR_REVIEW`
 - Exit Criteria: runtime terkonfigurasi memakai katalog backend tunggal; CRUD category/menu/modifier/availability terautentikasi dan berversi; cache offline read-only dan reconnect aman; audit atomik; contract, responsive tests, CI/CD hijau.
