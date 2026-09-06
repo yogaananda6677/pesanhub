@@ -1534,3 +1534,21 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 **Next**
 
 - Merge Issue #130 after remote CI is green, then implement Issue #131 backend-aware offline-first connectivity and automatic synchronization.
+
+### 6 September 2026 — Backend-aware Offline Runtime (Issue #131)
+
+**Goal**
+
+- Keep cashier order entry usable through backend loss and make durable outbox recovery automatic, observable, and duplicate-safe.
+
+**Changed**
+
+- Added composite device/backend connectivity states, cached offline queue preservation, sync freshness/pending/retry details, manual retry, and session-expired handling.
+- Made local order + outbox creation one SQLite transaction and changed cashier submit to return after durable local persistence while network sync continues in background.
+- Recovered interrupted `SYNCING` rows, added bounded retry jitter and a `next_retry_at` wake-up timer, and enforced a single guarded REST/WebSocket recovery worker.
+- Added deterministic tests for active Wi-Fi/backend outage, concurrent retry deduplication, recovery, session expiry, atomic rollback, interrupted process recovery, automatic deferred retry, and responsive status UI.
+- Updated `docs/OFFLINE_OUTBOX_SYNC.md` and `docs/FLUTTER_BACKEND_INTEGRATION.md`.
+
+**Validation**
+
+- Targeted Flutter analyze/tests: PASS. Full suite, APK build, and CI recorded in the Issue #131 PR handoff.

@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pesenhub_app/connectivity/connectivity_controller.dart';
 import 'package:pesenhub_app/data/local/local_database.dart';
 import 'package:pesenhub_app/data/local/models/outbox_mutation.dart';
 import 'package:pesenhub_app/data/local/outbox_repository.dart';
 import 'package:pesenhub_app/data/local/queue_local_repository.dart';
 import 'package:pesenhub_app/data/remote/api_config.dart';
+import 'package:pesenhub_app/data/remote/api_failure.dart';
 import 'package:pesenhub_app/data/remote/pesenhub_api_client.dart';
 import 'package:pesenhub_app/data/remote/queue_realtime_coordinator.dart';
 import 'package:pesenhub_app/data/remote/realtime_connection.dart';
@@ -45,6 +47,36 @@ class _Gateway implements QueueRemoteGateway {
 
   @override
   Future<QueueOrder> fetchOrder(String id) async => snapshots.last.single;
+}
+
+class _FlappingGateway implements QueueRemoteGateway {
+  final List<Object> outcomes;
+  int snapshotCalls = 0;
+  int activeCalls = 0;
+  int maxActiveCalls = 0;
+
+  _FlappingGateway(this.outcomes);
+
+  @override
+  Future<List<QueueOrder>> fetchQueue() async {
+    activeCalls++;
+    maxActiveCalls = activeCalls > maxActiveCalls
+        ? activeCalls
+        : maxActiveCalls;
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 2));
+      final index = snapshotCalls.clamp(0, outcomes.length - 1);
+      snapshotCalls++;
+      final outcome = outcomes[index];
+      if (outcome is Exception) throw outcome;
+      return outcome as List<QueueOrder>;
+    } finally {
+      activeCalls--;
+    }
+  }
+
+  @override
+  Future<QueueOrder> fetchOrder(String id) async => _order(1, 'PENDING');
 }
 
 class _Connection implements RealtimeConnection {
@@ -169,6 +201,99 @@ void main() {
       expect(connections.connections.length, greaterThanOrEqualTo(2));
       expect(queue.allOrders.single.version, 5);
       expect(await outbox.getAllMutations(), hasLength(1));
+    },
+  );
+
+  test(
+    'active Wi-Fi with backend loss keeps cache offline then recovers once',
+    () async {
+      final database = LocalDatabase(
+        customPath: inMemoryDatabasePath,
+        customFactory: databaseFactoryFfi,
+      );
+      addTearDown(database.close);
+      final localQueue = QueueLocalRepository(database);
+      await localQueue.saveOrders(orders: [_order(1, 'PENDING')]);
+      final gateway = _FlappingGateway([
+        const ApiFailure(ApiFailureKind.network, requestId: 'req-offline'),
+        [_order(2, 'PREPARING')],
+      ]);
+      final queue = QueueController();
+      final connectivity = ConnectivityController(
+        backendAware: true,
+        initiallyOnline: true,
+      );
+      addTearDown(connectivity.dispose);
+      final coordinator = QueueRealtimeCoordinator(
+        config: ApiConfig(
+          baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        ),
+        accessToken: () async => 'mobile-test-token-at-least-32-characters',
+        gateway: gateway,
+        localQueue: localQueue,
+        queueController: queue,
+        connectivity: connectivity,
+        connectionFactory: _ConnectionFactory(),
+        baseReconnectDelay: const Duration(hours: 1),
+        maxReconnectDelay: const Duration(hours: 1),
+        randomDouble: () => .5,
+      );
+      addTearDown(coordinator.stop);
+
+      await coordinator.start();
+      expect(connectivity.networkOnline, isTrue);
+      expect(connectivity.state, OperationalConnectionState.offline);
+      expect(connectivity.lastRequestId, 'req-offline');
+      expect(queue.state.isOffline, isTrue);
+      expect(queue.totalCount, 1);
+
+      coordinator.retryNow();
+      coordinator.retryNow();
+      coordinator.retryNow();
+      await _settle();
+      expect(gateway.maxActiveCalls, 1);
+      expect(gateway.snapshotCalls, 2);
+      expect(connectivity.state, OperationalConnectionState.online);
+      expect(queue.allOrders.single.version, 2);
+    },
+  );
+
+  test(
+    'unauthenticated recovery expires the app session without retry loop',
+    () async {
+      final database = LocalDatabase(
+        customPath: inMemoryDatabasePath,
+        customFactory: databaseFactoryFfi,
+      );
+      addTearDown(database.close);
+      final connectivity = ConnectivityController(
+        backendAware: true,
+        initiallyOnline: true,
+      );
+      addTearDown(connectivity.dispose);
+      var expired = 0;
+      late final QueueRealtimeCoordinator coordinator;
+      coordinator = QueueRealtimeCoordinator(
+        config: ApiConfig(
+          baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        ),
+        accessToken: () async => 'expired-session',
+        gateway: _FlappingGateway([
+          const ApiFailure(ApiFailureKind.unauthenticated),
+        ]),
+        localQueue: QueueLocalRepository(database),
+        queueController: QueueController(),
+        connectivity: connectivity,
+        onSessionExpired: () async {
+          expired++;
+          coordinator.dispose();
+        },
+      );
+
+      await coordinator.start();
+      expect(expired, 1);
+      expect(connectivity.state, OperationalConnectionState.sessionExpired);
+      expect(coordinator.state.connection, RealtimeConnectionState.stopped);
     },
   );
 }

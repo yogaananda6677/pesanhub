@@ -206,6 +206,14 @@ class QueueController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Keeps the last known queue visible when the backend cannot be reached.
+  void markOffline() {
+    _state = _ordersMap.isEmpty
+        ? const QueueState.empty(isStale: true, isOffline: true)
+        : const QueueState.success(isStale: true, isOffline: true);
+    notifyListeners();
+  }
+
   /// Sets presentation loading state.
   void setLoading() {
     _state = const QueueState.loading();

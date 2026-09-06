@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -10,6 +12,7 @@ import 'package:pesenhub_app/data/local/outbox_repository.dart';
 import 'package:pesenhub_app/data/local/queue_local_repository.dart';
 import 'package:pesenhub_app/data/sync/sync_service.dart';
 import 'package:pesenhub_app/menu/models/menu_item.dart';
+import 'package:pesenhub_app/queue/models/queue_order.dart';
 import 'package:pesenhub_app/widgets/sync_status_badge.dart';
 
 /// Fake test gateway for controllable sync responses.
@@ -109,6 +112,87 @@ void main() {
           expect(mutations.first.payloadJson, contains('Pak Bambang'));
         },
       );
+
+      test(
+        'order and outbox rollback together when either insert fails',
+        () async {
+          const duplicateKey = 'duplicate-idempotency-key';
+          await outboxRepo.enqueueMutation(
+            OutboxMutation(
+              id: 'existing-mutation',
+              idempotencyKey: duplicateKey,
+              clientOrderId: 'existing-client-order',
+              payloadJson: '{}',
+              createdAt: DateTime.utc(2026, 9, 6),
+            ),
+          );
+
+          final write = queueRepo.persistOrderWithMutation(
+            order: QueueOrder(
+              id: 'order-that-must-roll-back',
+              orderNumber: 'ORD-ROLLBACK',
+              customerName: 'Uji Atomic',
+              customerPhone: '',
+              source: 'CASHIER_MANUAL',
+              orderStatus: 'PENDING',
+              paymentStatus: 'UNPAID',
+              createdAt: DateTime.utc(2026, 9, 6),
+            ),
+            mutation: OutboxMutation(
+              id: 'new-mutation',
+              idempotencyKey: duplicateKey,
+              clientOrderId: 'new-client-order',
+              payloadJson: '{}',
+              createdAt: DateTime.utc(2026, 9, 6),
+            ),
+            outboxRepository: outboxRepo,
+          );
+
+          await expectLater(write, throwsA(isA<DatabaseException>()));
+          expect(await queueRepo.getOrders(), isEmpty);
+          expect(await outboxRepo.getAllMutations(), hasLength(1));
+        },
+      );
+
+      test('remote snapshot preserves a local order until its ACK', () async {
+        final localOrder = QueueOrder(
+          id: 'ord-local-client',
+          orderNumber: 'ORD-LOCAL',
+          customerName: 'Order Lokal',
+          customerPhone: '',
+          source: 'CASHIER_MANUAL',
+          orderStatus: 'PENDING',
+          paymentStatus: 'UNPAID',
+          createdAt: DateTime.utc(2026, 9, 6),
+        );
+        await queueRepo.persistOrderWithMutation(
+          order: localOrder,
+          mutation: OutboxMutation(
+            id: 'mutation-local',
+            idempotencyKey: 'idempotency-local',
+            clientOrderId: 'local-client',
+            payloadJson: '{}',
+            createdAt: DateTime.utc(2026, 9, 6),
+          ),
+          outboxRepository: outboxRepo,
+        );
+
+        await queueRepo.saveOrders(
+          orders: const [],
+          preserveUnsyncedLocal: true,
+        );
+        expect((await queueRepo.getOrders()).single.id, localOrder.id);
+
+        await outboxRepo.markSynced(
+          'mutation-local',
+          serverOrderId: 'server-order',
+        );
+        await queueRepo.saveOrders(
+          orders: const [],
+          preserveUnsyncedLocal: true,
+        );
+        expect(await queueRepo.getOrders(), isEmpty);
+      });
     },
   );
 
@@ -175,6 +259,48 @@ void main() {
 
         await session2Db.close();
         await databaseFactoryFfi.deleteDatabase(durableDbPath);
+      },
+    );
+
+    test(
+      'recovers an interrupted SYNCING mutation with its idempotency key',
+      () async {
+        final localDb = LocalDatabase(
+          customPath: inMemoryDatabasePath,
+          customFactory: databaseFactoryFfi,
+        );
+        final outbox = OutboxRepository(localDb);
+        final queue = QueueLocalRepository(localDb);
+        const key = 'same-idempotency-key-after-crash';
+        await outbox.enqueueMutation(
+          OutboxMutation(
+            id: 'interrupted-1',
+            idempotencyKey: key,
+            clientOrderId: 'client-interrupted-1',
+            payloadJson: '{}',
+            createdAt: DateTime.utc(2026, 9, 6),
+          ),
+        );
+        await outbox.markSyncing('interrupted-1');
+        final gateway = FakeOrderSyncGateway();
+        final sync = SyncService(
+          outboxRepo: outbox,
+          queueRepo: queue,
+          gateway: gateway,
+        );
+
+        await sync.refreshState();
+        final recovered = await outbox.getByClientOrderId(
+          'client-interrupted-1',
+        );
+        expect(recovered?.syncStatus, OutboxSyncStatus.failedTransient);
+        await sync.syncPendingMutations();
+        expect(gateway.submittedIdempotencyKeys, [key]);
+        expect(
+          (await outbox.getByClientOrderId('client-interrupted-1'))?.syncStatus,
+          OutboxSyncStatus.synced,
+        );
+        await localDb.close();
       },
     );
   });
@@ -342,6 +468,24 @@ void main() {
         );
       });
 
+      test('bounded retry jitter avoids synchronized reconnect storms', () {
+        final low = SyncService(
+          outboxRepo: outboxRepo,
+          queueRepo: queueRepo,
+          gateway: fakeGateway,
+          randomDouble: () => 0,
+        );
+        final high = SyncService(
+          outboxRepo: outboxRepo,
+          queueRepo: queueRepo,
+          gateway: fakeGateway,
+          randomDouble: () => 1,
+        );
+        expect(low.calculateRetryDelay(0), const Duration(milliseconds: 800));
+        expect(high.calculateRetryDelay(0), const Duration(milliseconds: 1200));
+        expect(high.calculateRetryDelay(10), const Duration(seconds: 60));
+      });
+
       test(
         'Transient failure increments retry count and sets next_retry_at',
         () async {
@@ -378,6 +522,52 @@ void main() {
           expect(mutation.nextRetryAt, isNotNull);
           expect(mutation.nextRetryAt!.isAfter(DateTime.now()), isTrue);
           expect(mutation.errorMessage, equals('503 Service Unavailable'));
+        },
+      );
+
+      test(
+        'deferred transient mutation wakes the worker automatically',
+        () async {
+          await outboxRepo.enqueueMutation(
+            OutboxMutation(
+              id: 'mut-auto-retry',
+              idempotencyKey: 'idem-auto-retry',
+              clientOrderId: 'ord-auto-retry',
+              payloadJson: '{}',
+              createdAt: DateTime.now(),
+            ),
+          );
+          var submissions = 0;
+          fakeGateway.onSubmit = (_, _) {
+            submissions++;
+            return submissions == 1
+                ? const SyncGatewayResponse.transientError(
+                    errorMessage: 'backend unavailable',
+                  )
+                : const SyncGatewayResponse.success(serverOrderId: 'srv-auto');
+          };
+          late final SyncService automaticSync;
+          automaticSync = SyncService(
+            outboxRepo: outboxRepo,
+            queueRepo: queueRepo,
+            gateway: fakeGateway,
+            baseDelay: const Duration(milliseconds: 10),
+            maxDelay: const Duration(milliseconds: 10),
+            randomDouble: () => .5,
+            onRetryDue: () => unawaited(automaticSync.syncPendingMutations()),
+          );
+          addTearDown(automaticSync.dispose);
+
+          await automaticSync.syncPendingMutations();
+          expect(automaticSync.state.nextRetryAt, isNotNull);
+          await Future<void>.delayed(const Duration(milliseconds: 40));
+
+          expect(submissions, 2);
+          expect(
+            (await outboxRepo.getByClientOrderId('ord-auto-retry'))?.syncStatus,
+            OutboxSyncStatus.synced,
+          );
+          expect(automaticSync.state.nextRetryAt, isNull);
         },
       );
 

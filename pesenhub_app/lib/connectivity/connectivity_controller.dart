@@ -3,7 +3,15 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
-enum OperationalConnectionState { online, offline, syncing }
+enum OperationalConnectionState {
+  online,
+  offline,
+  syncing,
+  degraded,
+  sessionExpired,
+}
+
+enum BackendFailureKind { unreachable, degraded, sessionExpired }
 
 abstract class ConnectivityMonitor {
   Future<bool> isOnline();
@@ -29,58 +37,148 @@ class PlatformConnectivityMonitor implements ConnectivityMonitor {
 
 class ConnectivityController extends ChangeNotifier {
   final ConnectivityMonitor monitor;
+  final bool backendAware;
+  final ValueChanged<bool>? onNetworkChanged;
+  final VoidCallback? onRetryRequested;
+  final void Function(
+    OperationalConnectionState from,
+    OperationalConnectionState to,
+  )?
+  onTransition;
   OperationalConnectionState _state;
   StreamSubscription<bool>? _subscription;
   bool _networkOnline;
+  bool _syncing = false;
+  bool? _backendReachable;
+  BackendFailureKind? _backendFailure;
+
+  int pendingCount = 0;
+  int permanentFailureCount = 0;
+  int retryAttempt = 0;
+  DateTime? lastSuccessfulSyncAt;
+  DateTime? lastBackendResponseAt;
+  DateTime? nextRetryAt;
+  String? lastRequestId;
 
   ConnectivityController({
     ConnectivityMonitor? monitor,
     bool initiallyOnline = true,
+    this.backendAware = false,
+    this.onNetworkChanged,
+    this.onRetryRequested,
+    this.onTransition,
   }) : monitor = monitor ?? PlatformConnectivityMonitor(),
        _networkOnline = initiallyOnline,
        _state = initiallyOnline
-           ? OperationalConnectionState.online
+           ? (backendAware
+                 ? OperationalConnectionState.degraded
+                 : OperationalConnectionState.online)
            : OperationalConnectionState.offline;
 
   OperationalConnectionState get state => _state;
+  bool get networkOnline => _networkOnline;
+  bool get backendReachable => _backendReachable == true;
 
   Future<void> start() async {
     try {
-      _setOnline(await monitor.isOnline());
+      _setNetworkOnline(await monitor.isOnline(), forceCallback: true);
     } catch (_) {
-      _setOnline(false);
+      _setNetworkOnline(false, forceCallback: true);
     }
     await _subscription?.cancel();
     _subscription = monitor.changes.listen(
-      _setOnline,
-      onError: (_) => _setOnline(false),
+      _setNetworkOnline,
+      onError: (_) => _setNetworkOnline(false),
     );
   }
 
-  void setSyncing(bool syncing) {
-    final next = syncing
-        ? OperationalConnectionState.syncing
-        : (_networkOnline
-              ? OperationalConnectionState.online
-              : OperationalConnectionState.offline);
-    _setState(next);
+  void reportBackendReachable({DateTime? at}) {
+    _backendReachable = true;
+    _backendFailure = null;
+    final timestamp = (at ?? DateTime.now()).toUtc();
+    lastBackendResponseAt = timestamp;
+    lastSuccessfulSyncAt = timestamp;
+    retryAttempt = 0;
+    nextRetryAt = null;
+    lastRequestId = null;
+    _recompute();
   }
 
-  void _setOnline(bool online) {
-    _networkOnline = online;
-    if (_state != OperationalConnectionState.syncing) {
-      _setState(
-        online
-            ? OperationalConnectionState.online
-            : OperationalConnectionState.offline,
-      );
+  void reportBackendFailure(
+    BackendFailureKind kind, {
+    String? requestId,
+    int? attempt,
+    DateTime? retryAt,
+  }) {
+    _backendReachable = false;
+    _backendFailure = kind;
+    lastRequestId = requestId;
+    retryAttempt = attempt ?? retryAttempt;
+    nextRetryAt = retryAt;
+    _recompute();
+  }
+
+  void updateSyncState({
+    required bool isSyncing,
+    required int pending,
+    required int permanentFailures,
+    DateTime? lastSyncedAt,
+    DateTime? retryAt,
+  }) {
+    _syncing = isSyncing;
+    pendingCount = pending;
+    permanentFailureCount = permanentFailures;
+    if (lastSyncedAt != null) {
+      lastSuccessfulSyncAt = lastSyncedAt.toUtc();
     }
+    nextRetryAt = retryAt?.toUtc();
+    _recompute(forceNotify: true);
   }
 
-  void _setState(OperationalConnectionState next) {
-    if (_state == next) return;
+  void setSyncing(bool syncing) {
+    _syncing = syncing;
+    _recompute();
+  }
+
+  void requestRetry() => onRetryRequested?.call();
+
+  void _setNetworkOnline(bool online, {bool forceCallback = false}) {
+    final changed = _networkOnline != online;
+    _networkOnline = online;
+    if (!online) {
+      _backendReachable = false;
+      _backendFailure = BackendFailureKind.unreachable;
+    } else if (changed && backendAware) {
+      _backendReachable = null;
+      _backendFailure = null;
+    }
+    _recompute();
+    if (changed || forceCallback) onNetworkChanged?.call(online);
+  }
+
+  void _recompute({bool forceNotify = false}) {
+    OperationalConnectionState next;
+    if (!_networkOnline) {
+      next = OperationalConnectionState.offline;
+    } else if (backendAware &&
+        _backendFailure == BackendFailureKind.sessionExpired) {
+      next = OperationalConnectionState.sessionExpired;
+    } else if (_syncing) {
+      next = OperationalConnectionState.syncing;
+    } else if (!backendAware) {
+      next = OperationalConnectionState.online;
+    } else if (_backendReachable == true) {
+      next = OperationalConnectionState.online;
+    } else if (_backendFailure == BackendFailureKind.unreachable) {
+      next = OperationalConnectionState.offline;
+    } else {
+      next = OperationalConnectionState.degraded;
+    }
+    if (_state == next && !forceNotify) return;
+    final previous = _state;
     _state = next;
     notifyListeners();
+    if (previous != next) onTransition?.call(previous, next);
   }
 
   @override

@@ -64,7 +64,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(
-    'connectivity emits online, offline, and syncing without color-only state',
+    'interface loss remains offline even while sync was requested',
     () async {
       final fake = FakeConnectivity(true);
       final controller = ConnectivityController(monitor: fake);
@@ -74,9 +74,59 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(controller.state, OperationalConnectionState.offline);
       controller.setSyncing(true);
-      expect(controller.state, OperationalConnectionState.syncing);
+      expect(controller.state, OperationalConnectionState.offline);
       controller.setSyncing(false);
       expect(controller.state, OperationalConnectionState.offline);
+      controller.dispose();
+      await fake.close();
+    },
+  );
+
+  test(
+    'backend-aware state does not equate active Wi-Fi with online',
+    () async {
+      final fake = FakeConnectivity(true);
+      final networkChanges = <bool>[];
+      final transitions = <String>[];
+      var retries = 0;
+      final controller = ConnectivityController(
+        monitor: fake,
+        initiallyOnline: false,
+        backendAware: true,
+        onNetworkChanged: networkChanges.add,
+        onRetryRequested: () => retries++,
+        onTransition: (from, to) => transitions.add('${from.name}->${to.name}'),
+      );
+      await controller.start();
+      expect(controller.networkOnline, isTrue);
+      expect(controller.state, OperationalConnectionState.degraded);
+
+      controller.reportBackendReachable(at: DateTime.utc(2026, 9, 6, 10));
+      expect(controller.state, OperationalConnectionState.online);
+      expect(controller.lastSuccessfulSyncAt, DateTime.utc(2026, 9, 6, 10));
+
+      controller.reportBackendFailure(
+        BackendFailureKind.unreachable,
+        requestId: 'safe-request-id',
+        attempt: 2,
+      );
+      expect(controller.networkOnline, isTrue);
+      expect(controller.state, OperationalConnectionState.offline);
+      expect(controller.retryAttempt, 2);
+      controller.requestRetry();
+      expect(retries, 1);
+
+      controller.reportBackendFailure(BackendFailureKind.sessionExpired);
+      expect(controller.state, OperationalConnectionState.sessionExpired);
+      expect(networkChanges, [true]);
+      expect(
+        transitions,
+        containsAllInOrder([
+          'degraded->online',
+          'online->offline',
+          'offline->sessionExpired',
+        ]),
+      );
       controller.dispose();
       await fake.close();
     },
@@ -154,7 +204,7 @@ void main() {
         find.byWidgetPredicate(
           (widget) =>
               widget is Semantics &&
-              widget.properties.label == 'Status koneksi: Offline',
+              widget.properties.label == 'Status koneksi backend: Offline',
         ),
         findsOneWidget,
       );
@@ -164,6 +214,44 @@ void main() {
     await fake.close();
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+  });
+
+  testWidgets('status detail exposes pending, freshness, and retry action', (
+    tester,
+  ) async {
+    final fake = FakeConnectivity(true);
+    var retries = 0;
+    final controller = ConnectivityController(
+      monitor: fake,
+      backendAware: true,
+      onRetryRequested: () => retries++,
+    );
+    controller.reportBackendReachable(at: DateTime.utc(2026, 9, 6, 10, 30));
+    controller.updateSyncState(
+      isSyncing: false,
+      pending: 2,
+      permanentFailures: 1,
+    );
+    controller.reportBackendFailure(BackendFailureKind.unreachable, attempt: 1);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: Scaffold(body: ConnectivityBadge(controller: controller)),
+      ),
+    );
+
+    expect(find.text('Offline • 2'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('connectivity-offline')));
+    await tester.pumpAndSettle();
+    expect(find.text('Status Sinkronisasi'), findsOneWidget);
+    expect(find.text('Menunggu sinkron: 2'), findsOneWidget);
+    expect(find.textContaining('Terakhir sinkron:'), findsOneWidget);
+    expect(find.textContaining('1 pesanan perlu dikoreksi'), findsOneWidget);
+    await tester.tap(find.text('Coba Sinkronkan'));
+    await tester.pumpAndSettle();
+    expect(retries, 1);
+    controller.dispose();
+    await fake.close();
   });
 
   testWidgets('permission denial keeps non-blocking heads-up alert in app', (

@@ -433,7 +433,11 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            ConnectivityBadge(controller: _connectivity),
+            ConnectivityBadge(
+              controller: _connectivity,
+              onReviewErrors: () =>
+                  _onDestinationSelected(AppDestination.pos.index),
+            ),
             const SizedBox(width: AppSpacing.xs),
             AnimatedBuilder(
               animation: _alerts,
