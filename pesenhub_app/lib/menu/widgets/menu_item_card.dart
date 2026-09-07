@@ -77,6 +77,12 @@ class MenuItemCard extends StatelessWidget {
                       Icons.local_drink_rounded,
                       size: 16,
                       color: AppColors.info,
+                    )
+                  else if (item.hasSpiceLevel)
+                    const Icon(
+                      Icons.local_fire_department_rounded,
+                      size: 16,
+                      color: AppColors.error,
                     ),
                 ],
               ),

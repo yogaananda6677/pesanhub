@@ -51,6 +51,18 @@ void main() {
         () => ApiConfig(baseUri: Uri.parse('http://api.example.test/api/v1')),
         throwsFormatException,
       );
+      expect(
+        ApiConfig(
+          baseUri: Uri.parse('http://192.168.1.11:8080/api/v1'),
+        ).baseUri.toString(),
+        'http://192.168.1.11:8080/api/v1/',
+      );
+      expect(
+        ApiConfig(
+          baseUri: Uri.parse('http://10.0.2.2:8080/api/v1/'),
+        ).baseUri.toString(),
+        'http://10.0.2.2:8080/api/v1/',
+      );
     },
   );
 

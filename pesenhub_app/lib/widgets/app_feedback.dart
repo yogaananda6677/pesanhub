@@ -167,21 +167,35 @@ enum AppBannerType { info, success, warning, error }
 /// Every variant combines icon, title, message, and semantic announcement so
 /// meaning never depends on color alone.
 abstract final class AppFeedback {
+  static Duration _defaultDurationFor(AppBannerType type) {
+    switch (type) {
+      case AppBannerType.success:
+        return const Duration(milliseconds: 1200);
+      case AppBannerType.error:
+        return const Duration(seconds: 4);
+      case AppBannerType.warning:
+        return const Duration(seconds: 3);
+      case AppBannerType.info:
+        return const Duration(seconds: 2);
+    }
+  }
+
   static void show(
     BuildContext context, {
     required String message,
     AppBannerType type = AppBannerType.info,
-    Duration duration = const Duration(seconds: 3),
+    Duration? duration,
   }) {
     final messenger = ScaffoldMessenger.of(context);
     final visual = _visualFor(type);
+    final effectiveDuration = duration ?? _defaultDurationFor(type);
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           key: Key('app-feedback-${type.name}'),
           backgroundColor: visual.background,
-          duration: duration,
+          duration: effectiveDuration,
           content: Semantics(
             key: const Key('app-feedback-live-region'),
             liveRegion: true,

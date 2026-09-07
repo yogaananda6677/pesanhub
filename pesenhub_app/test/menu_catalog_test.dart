@@ -268,5 +268,58 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
+
+    testWidgets(
+      'Spice level indicator renders fire icon for dishes with spice modifiers',
+      (tester) async {
+        final controller = mc.MenuController(
+          initialCategories: SampleMenuData.sampleCategories,
+          initialMenus: SampleMenuData.sampleMenus,
+        );
+
+        await tester.pumpWidget(buildMenuTestApp(controller));
+        await tester.pumpAndSettle();
+
+        // Nasi Goreng Spesial has spice_level modifier
+        expect(find.byIcon(Icons.local_fire_department_rounded), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'AppFeedback applies differentiated durations for success and error',
+      (tester) async {
+        late BuildContext capturedContext;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) {
+                  capturedContext = context;
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ),
+        );
+
+        AppFeedback.show(
+          capturedContext,
+          message: 'Berhasil',
+          type: AppBannerType.success,
+        );
+        await tester.pump();
+        final successSnackBar = tester.widget<SnackBar>(find.byType(SnackBar));
+        expect(successSnackBar.duration, const Duration(milliseconds: 1200));
+
+        AppFeedback.show(
+          capturedContext,
+          message: 'Gagal',
+          type: AppBannerType.error,
+        );
+        await tester.pump();
+        final errorSnackBar = tester.widget<SnackBar>(find.byType(SnackBar));
+        expect(errorSnackBar.duration, const Duration(seconds: 4));
+      },
+    );
   });
 }

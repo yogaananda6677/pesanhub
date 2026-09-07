@@ -17,14 +17,27 @@ class ApiConfig {
     if (requestTimeout <= Duration.zero) {
       throw const FormatException('request timeout must be positive');
     }
-    final localHost = {
-      'localhost',
-      '127.0.0.1',
-      '10.0.2.2',
-    }.contains(this.baseUri.host);
-    if (this.baseUri.scheme != 'https' && !localHost) {
+    if (this.baseUri.scheme != 'https' &&
+        !_isLocalOrPrivateHost(this.baseUri.host)) {
       throw const FormatException('API base URL must use HTTPS');
     }
+  }
+
+  static bool _isLocalOrPrivateHost(String host) {
+    if (host == 'localhost') return true;
+    final ipv4Parts = host.split('.');
+    if (ipv4Parts.length == 4) {
+      final octets = ipv4Parts.map(int.tryParse).toList();
+      if (!octets.contains(null)) {
+        final a = octets[0]!;
+        final b = octets[1]!;
+        if (a == 127) return true;
+        if (a == 10) return true;
+        if (a == 172 && b >= 16 && b <= 31) return true;
+        if (a == 192 && b == 168) return true;
+      }
+    }
+    return false;
   }
 
   static ApiConfig? fromEnvironment() {

@@ -15,8 +15,8 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
 | Last updated   | 8 September 2026                                           |
-| Updated by     | Issue #139 Arsitektur login Google dan approval Owner       |
 | Updated by     | Issue #140 Portal web Superadmin untuk approval user & health |
+| Updated by     | Issue #143 Dukungan koneksi LAN lokal, feedback, dan kepedasan |
 
 ## 2. Product Intent
 
@@ -80,12 +80,12 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#6 — Phase 1D MVP Integration & Release](https://github.com/yogaananda6677/pesanhub/issues/6)
 - Child Issue: #133
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#140 — Bangun portal Superadmin untuk approval user dan monitoring kesehatan sistem (web only)](https://github.com/yogaananda6677/pesanhub/issues/140)
-- Current Branch: `feature/140-superadmin-portal`
-- Merged Pull Requests: sampai [#141](https://github.com/yogaananda6677/pesanhub/pull/141) (Issue #139)
+- Current Issue: [#143 — Dukungan koneksi LAN lokal, durasi feedback responsif, dan indikator kepedasan mobile](https://github.com/yogaananda6677/pesanhub/issues/143)
+- Current Branch: `feature/143-mobile-lan-feedback-spice`
+- Merged Pull Requests: sampai [#142](https://github.com/yogaananda6677/pesanhub/pull/142) (Issue #140)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Portal web Superadmin terisolasi penuh (web-only, zero mobile touchpoints); zero operational access pada data menu/order/transaksi outlet; masking PII email/identifier; approval/rejection/suspension/reactivation/session-revocation transaksional dengan audit trail; dashboard kesehatan 6 komponen & telemetri traffic 15m/1h/24h/7d; auto-refresh 30s & manual refresh; native dialog modal; responsif & high contrast WCAG AA.
-- Validation: Unit tests RBAC 100% lulus, store PostgreSQL integration tests lulus, migration 22 up/down/up lulus, `go test ./...` lulus.
+- Exit Criteria: ApiConfig mengizinkan host LAN privat untuk device fisik; AndroidManifest mengaktifkan cleartext traffic; durasi AppFeedback 1.2s untuk sukses dan 4s untuk error; indikator ikon api pada item makanan berlevel kepedasan; pengujian deterministik pada queue realtime coordinator.
+- Validation: Unit & widget tests Flutter 100% lulus (215 tests), flutter analyze clean, go test ./... clean.
 
 ## 6. Current Phase Checklist
 

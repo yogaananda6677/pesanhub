@@ -103,8 +103,22 @@ class _ConnectionFactory implements RealtimeConnectionFactory {
   }
 }
 
-Future<void> _settle() =>
-    Future<void>.delayed(const Duration(milliseconds: 25));
+Future<void> _settle([Duration duration = const Duration(milliseconds: 50)]) =>
+    Future<void>.delayed(duration);
+
+Future<void> _waitUntil(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 3),
+  Duration pollInterval = const Duration(milliseconds: 10),
+}) async {
+  final watch = Stopwatch()..start();
+  while (!condition()) {
+    if (watch.elapsed > timeout) {
+      throw TimeoutException('Condition not met within $timeout');
+    }
+    await Future<void>.delayed(pollInterval);
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -197,6 +211,7 @@ void main() {
       expect(gateway.snapshotCalls, 2);
 
       await connections.connections.single.controller.close();
+      await _waitUntil(() => connections.connections.length >= 2);
       await _settle();
       expect(connections.connections.length, greaterThanOrEqualTo(2));
       expect(queue.allOrders.single.version, 5);
@@ -250,6 +265,7 @@ void main() {
       coordinator.retryNow();
       coordinator.retryNow();
       coordinator.retryNow();
+      await _waitUntil(() => gateway.snapshotCalls >= 2);
       await _settle();
       expect(gateway.maxActiveCalls, 1);
       expect(gateway.snapshotCalls, 2);
