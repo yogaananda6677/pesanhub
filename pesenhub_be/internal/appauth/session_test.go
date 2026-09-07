@@ -1,6 +1,7 @@
 package appauth
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -13,11 +14,11 @@ func TestSessionIssueVerifyTamperAndExpiry(t *testing.T) {
 	}
 	now := time.Date(2026, 9, 6, 8, 0, 0, 0, time.UTC)
 	manager.now = func() time.Time { return now }
-	token, expiresAt, err := manager.Issue("outlet-app")
+	token, expiresAt, err := manager.Issue("outlet-app", "STAFF")
 	if err != nil {
 		t.Fatal(err)
 	}
-	principal, ok := manager.Verify(token)
+	principal, ok := manager.Verify(context.Background(), token)
 	if !ok || principal.Subject != "outlet-app" || principal.Role != "STAFF" {
 		t.Fatalf("unexpected principal: %#v, ok=%v", principal, ok)
 	}
@@ -28,11 +29,11 @@ func TestSessionIssueVerifyTamperAndExpiry(t *testing.T) {
 	if len(parts) != 2 {
 		t.Fatal("token format is invalid")
 	}
-	if _, ok := manager.Verify(parts[0] + ".tampered"); ok {
+	if _, ok := manager.Verify(context.Background(), parts[0]+".tampered"); ok {
 		t.Fatal("tampered signature accepted")
 	}
 	manager.now = func() time.Time { return expiresAt }
-	if _, ok := manager.Verify(token); ok {
+	if _, ok := manager.Verify(context.Background(), token); ok {
 		t.Fatal("expired token accepted")
 	}
 }

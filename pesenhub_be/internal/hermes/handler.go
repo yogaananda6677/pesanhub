@@ -30,7 +30,7 @@ func NewHandler(service *Service) *Handler {
 
 func staffPrincipal(r *http.Request) customer.Principal {
 	p := customer.PrincipalFromRequest(r)
-	if p.Subject != "" && (p.Role == "STAFF" || p.Role == "ADMIN") {
+	if customer.CanOperateOutlet(p) || (p.Subject != "" && p.Role == "ADMIN") {
 		return p
 	}
 	staffID := strings.TrimSpace(r.Header.Get("X-Staff-ID"))
@@ -44,7 +44,7 @@ func staffPrincipal(r *http.Request) customer.Principal {
 // ListHandoffs lists conversations currently needing staff intervention.
 func (h *Handler) ListHandoffs(w http.ResponseWriter, r *http.Request) {
 	p := staffPrincipal(r)
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "ADMIN") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "ADMIN") {
 		h.writeError(w, r, ErrUnauthorized)
 		return
 	}
@@ -83,7 +83,7 @@ func (h *Handler) ListHandoffs(w http.ResponseWriter, r *http.Request) {
 // Pause pauses automation for a conversation.
 func (h *Handler) Pause(w http.ResponseWriter, r *http.Request) {
 	p := staffPrincipal(r)
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "ADMIN") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "ADMIN") {
 		h.writeError(w, r, ErrUnauthorized)
 		return
 	}
@@ -120,7 +120,7 @@ func (h *Handler) Pause(w http.ResponseWriter, r *http.Request) {
 // Resume unpauses automation for a conversation.
 func (h *Handler) Resume(w http.ResponseWriter, r *http.Request) {
 	p := staffPrincipal(r)
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "ADMIN") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "ADMIN") {
 		h.writeError(w, r, ErrUnauthorized)
 		return
 	}
@@ -157,7 +157,7 @@ func (h *Handler) Resume(w http.ResponseWriter, r *http.Request) {
 // Assign assigns a staff member to handle a handoff.
 func (h *Handler) Assign(w http.ResponseWriter, r *http.Request) {
 	p := staffPrincipal(r)
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "ADMIN") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "ADMIN") {
 		h.writeError(w, r, ErrUnauthorized)
 		return
 	}
@@ -194,7 +194,7 @@ func (h *Handler) Assign(w http.ResponseWriter, r *http.Request) {
 // Resolve marks handoff as resolved, optionally resuming automation.
 func (h *Handler) Resolve(w http.ResponseWriter, r *http.Request) {
 	p := staffPrincipal(r)
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "ADMIN") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "ADMIN") {
 		h.writeError(w, r, ErrUnauthorized)
 		return
 	}
@@ -232,7 +232,7 @@ func (h *Handler) Resolve(w http.ResponseWriter, r *http.Request) {
 // GetAuditLogs returns the audit trail for a conversation.
 func (h *Handler) GetAuditLogs(w http.ResponseWriter, r *http.Request) {
 	p := staffPrincipal(r)
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "ADMIN") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "ADMIN") {
 		h.writeError(w, r, ErrUnauthorized)
 		return
 	}

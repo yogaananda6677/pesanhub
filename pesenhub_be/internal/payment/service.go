@@ -39,7 +39,7 @@ func NewServiceWithMidtrans(store interface {
 }
 
 func (s *Service) RecordCash(ctx context.Context, principal customer.Principal, orderID string, in CashInput, key, requestID string) (Payment, bool, error) {
-	if principal.Subject == "" || principal.Role != "STAFF" {
+	if !customer.CanOperateOutlet(principal) {
 		return Payment{}, false, customer.ErrUnauthorized
 	}
 	orderID = strings.TrimSpace(orderID)
@@ -62,7 +62,7 @@ func (s *Service) RecordCash(ctx context.Context, principal customer.Principal, 
 }
 
 func (s *Service) CreateQRIS(ctx context.Context, principal customer.Principal, orderID, key, requestID string) (Payment, bool, error) {
-	if principal.Subject == "" || principal.Role != "STAFF" {
+	if !customer.CanOperateOutlet(principal) {
 		return Payment{}, false, customer.ErrUnauthorized
 	}
 	if s.qrisStore == nil || s.midtrans == nil {

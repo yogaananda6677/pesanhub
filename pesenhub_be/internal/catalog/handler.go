@@ -127,7 +127,7 @@ func (h *Handler) Availability(w http.ResponseWriter, r *http.Request) {
 func actorID(r *http.Request) string { return customer.PrincipalFromRequest(r).Subject }
 func staff(r *http.Request) bool {
 	p := customer.PrincipalFromRequest(r)
-	return p.Subject != "" && p.Role == "STAFF"
+	return customer.CanOperateOutlet(p)
 }
 func decode(r *http.Request, v any) error {
 	d := json.NewDecoder(io.LimitReader(r.Body, (1<<20)+1))

@@ -77,7 +77,7 @@ func (h *Handler) SetHub(hub *ws.Hub) {
 }
 func (h *Handler) CreateManual(w http.ResponseWriter, r *http.Request) {
 	p := customer.PrincipalFromRequest(r)
-	if p.Subject == "" || p.Role != "STAFF" {
+	if !customer.CanOperateOutlet(p) {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}
@@ -106,7 +106,7 @@ func (h *Handler) CreateManual(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) TransitionStatus(w http.ResponseWriter, r *http.Request) {
 	p := customer.PrincipalFromRequest(r)
-	if p.Subject == "" || p.Role != "STAFF" {
+	if !customer.CanOperateOutlet(p) {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}
@@ -131,7 +131,7 @@ func (h *Handler) TransitionStatus(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	p := customer.PrincipalFromRequest(r)
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "KDS") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "KDS") {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}
@@ -191,7 +191,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	p := customer.PrincipalFromRequest(r)
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "KDS") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "KDS") {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}
@@ -205,7 +205,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	p := customer.PrincipalFromRequest(r)
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "KDS") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "KDS") {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}
@@ -219,7 +219,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) WS(w http.ResponseWriter, r *http.Request) {
 	p := customer.PrincipalFromRequest(r)
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "KDS") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "KDS") {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}
@@ -312,7 +312,7 @@ func (h *Handler) GetByPublicToken(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetAuditLogs(w http.ResponseWriter, r *http.Request) {
 	p := customer.PrincipalFromRequest(r)
-	if p.Subject == "" || p.Role != "STAFF" {
+	if !customer.CanOperateOutlet(p) {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}

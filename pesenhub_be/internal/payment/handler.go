@@ -25,7 +25,7 @@ func NewHandlerWithReconciler(service *Service, reconciler *Reconciler) *Handler
 
 func (h *Handler) RecordCash(w http.ResponseWriter, r *http.Request) {
 	principal := customer.PrincipalFromRequest(r)
-	if principal.Subject == "" || principal.Role != "STAFF" {
+	if !customer.CanOperateOutlet(principal) {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}
@@ -55,7 +55,7 @@ func (h *Handler) RecordCash(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateQRIS(w http.ResponseWriter, r *http.Request) {
 	principal := customer.PrincipalFromRequest(r)
-	if principal.Subject == "" || principal.Role != "STAFF" {
+	if !customer.CanOperateOutlet(principal) {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}
@@ -76,7 +76,7 @@ func (h *Handler) CreateQRIS(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Reconcile(w http.ResponseWriter, r *http.Request) {
 	principal := customer.PrincipalFromRequest(r)
-	if principal.Subject == "" || principal.Role != "STAFF" {
+	if !customer.CanOperateOutlet(principal) {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}

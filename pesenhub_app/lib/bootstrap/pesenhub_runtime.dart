@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../alerts/order_alert_controller.dart';
 import '../auth/login_view.dart';
+import '../auth/approval_locked_view.dart';
+import '../auth/google_identity_client.dart';
 import '../auth/session.dart';
 import '../cart/controllers/cart_controller.dart';
 import '../cart/models/cart_order_draft.dart';
@@ -64,7 +66,13 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
       config: config,
       accessToken: () => session.accessToken(),
     );
-    session = SessionController(store: SecureSessionStore(), gateway: api);
+    session = SessionController(
+      store: SecureSessionStore(),
+      gateway: api,
+      identityClient: PlatformGoogleIdentityClient(
+        serverClientId: config.googleServerClientId,
+      ),
+    );
     session.addListener(_onSessionChanged);
     _config = config;
     _api = api;
@@ -77,7 +85,7 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
     if (!mounted || session == null) return;
     if (session.status == SessionStatus.signedIn && _coordinator == null) {
       _startServices();
-    } else if (session.status == SessionStatus.signedOut &&
+    } else if (session.status != SessionStatus.signedIn &&
         _coordinator != null) {
       _stopServices();
     }
@@ -273,8 +281,12 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
       if (session.status == SessionStatus.restoring) {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
-      if (session.status != SessionStatus.signedIn) {
+      if (session.status == SessionStatus.signedOut ||
+          session.status == SessionStatus.signingIn) {
         return LoginView(controller: session);
+      }
+      if (session.status != SessionStatus.signedIn) {
+        return ApprovalLockedView(controller: session);
       }
     }
     return AppShell(

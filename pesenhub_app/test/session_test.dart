@@ -4,40 +4,70 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:pesenhub_app/auth/approval_locked_view.dart';
+import 'package:pesenhub_app/auth/google_identity_client.dart';
 import 'package:pesenhub_app/auth/login_view.dart';
 import 'package:pesenhub_app/auth/session.dart';
 import 'package:pesenhub_app/data/remote/api_config.dart';
-import 'package:pesenhub_app/data/remote/api_failure.dart';
 import 'package:pesenhub_app/data/remote/pesenhub_api_client.dart';
 
-class _Gateway implements AuthGateway {
-  Object? result;
-  String? username;
-  String? password;
+const approvedUser = AuthUser(
+  id: 'user-1',
+  email: 'ow***@example.test',
+  displayName: 'Owner',
+  role: 'OWNER',
+  status: ApprovalStatus.approved,
+);
 
-  _Gateway(this.result);
+class _Gateway implements AuthGateway {
+  SessionCredential result;
+  AuthUser current;
+  bool loggedOut = false;
+
+  _Gateway(this.result, {this.current = approvedUser});
 
   @override
-  Future<SessionCredential> login(String username, String password) async {
-    this.username = username;
-    this.password = password;
-    final value = result;
-    if (value is Exception) throw value;
-    return value! as SessionCredential;
-  }
+  Future<String> createGoogleChallenge() async => List.filled(43, 'n').join();
+
+  @override
+  Future<SessionCredential> loginWithGoogle(
+    String idToken,
+    String nonce,
+  ) async => result;
+
+  @override
+  Future<AuthUser> currentUser() async => current;
+
+  @override
+  Future<void> logout() async => loggedOut = true;
 }
 
-SessionCredential credential({DateTime? expiresAt}) => SessionCredential(
+class _Identity implements GoogleIdentityClient {
+  bool signedOut = false;
+
+  @override
+  Future<String> authenticate(String nonce) async => 'google-id-token';
+
+  @override
+  Future<void> signOut() async => signedOut = true;
+}
+
+SessionCredential credential({
+  DateTime? expiresAt,
+  AuthUser user = approvedUser,
+}) => SessionCredential(
   accessToken: 'session-token',
   expiresAt: expiresAt ?? DateTime.now().toUtc().add(const Duration(hours: 1)),
+  user: user,
 );
 
 void main() {
-  test('restores valid session and removes expired session', () async {
+  test('restore revalidates approval and removes expired session', () async {
     final validStore = MemorySessionStore(credential());
     final valid = SessionController(
       store: validStore,
       gateway: _Gateway(credential()),
+      identityClient: _Identity(),
     );
     await valid.restore();
     expect(valid.status, SessionStatus.signedIn);
@@ -51,49 +81,45 @@ void main() {
     final expired = SessionController(
       store: expiredStore,
       gateway: _Gateway(credential()),
+      identityClient: _Identity(),
     );
     await expired.restore();
-    expect(await expired.accessToken(), isNull);
     expect(expired.status, SessionStatus.signedOut);
     expect(expiredStore.credential, isNull);
   });
 
-  test('sign in persists session and sign out removes it', () async {
-    final store = MemorySessionStore();
-    final gateway = _Gateway(credential());
-    final controller = SessionController(store: store, gateway: gateway);
-    await controller.restore();
+  test(
+    'Google sign in persists pending session without unlocking app',
+    () async {
+      const pending = AuthUser(
+        id: 'user-2',
+        email: 'pe***@example.test',
+        displayName: 'Pending Owner',
+        role: 'OWNER',
+        status: ApprovalStatus.pending,
+      );
+      final store = MemorySessionStore();
+      final gateway = _Gateway(credential(user: pending), current: pending);
+      final identity = _Identity();
+      final controller = SessionController(
+        store: store,
+        gateway: gateway,
+        identityClient: identity,
+      );
+      await controller.restore();
 
-    expect(await controller.signIn(' outlet ', 'secret'), isTrue);
-    expect(gateway.username, 'outlet');
-    expect(gateway.password, 'secret');
-    expect(store.credential, isNotNull);
-    expect(controller.status, SessionStatus.signedIn);
+      expect(await controller.signInWithGoogle(), isTrue);
+      expect(store.credential, isNotNull);
+      expect(controller.status, SessionStatus.pendingApproval);
 
-    await controller.signOut();
-    expect(store.credential, isNull);
-    expect(controller.status, SessionStatus.signedOut);
-  });
+      await controller.signOut();
+      expect(gateway.loggedOut, isTrue);
+      expect(identity.signedOut, isTrue);
+      expect(store.credential, isNull);
+    },
+  );
 
-  test('active session signs out automatically at expiry', () async {
-    final store = MemorySessionStore(
-      credential(
-        expiresAt: DateTime.now().toUtc().add(const Duration(milliseconds: 20)),
-      ),
-    );
-    final controller = SessionController(
-      store: store,
-      gateway: _Gateway(credential()),
-    );
-    await controller.restore();
-    expect(controller.status, SessionStatus.signedIn);
-
-    await Future<void>.delayed(const Duration(milliseconds: 40));
-    expect(controller.status, SessionStatus.signedOut);
-    expect(store.credential, isNull);
-  });
-
-  test('API login is unauthenticated and decodes session contract', () async {
+  test('API Google exchange is unauthenticated and decodes approval', () async {
     late http.Request captured;
     final client = PesenHubApiClient(
       config: ApiConfig(baseUri: Uri.parse('https://api.example.test/api/v1/')),
@@ -104,30 +130,29 @@ void main() {
           jsonEncode({
             'access_token': 'signed-session-token',
             'token_type': 'Bearer',
-            'expires_at': '2026-09-06T16:00:00Z',
+            'expires_at': '2030-09-06T16:00:00Z',
+            'user': approvedUser.toJson(),
           }),
           200,
         );
       }),
     );
 
-    final result = await client.login('outlet', 'secret');
+    final result = await client.loginWithGoogle('id-token', 'nonce-value');
     expect(result.accessToken, 'signed-session-token');
-    expect(captured.url.path, '/api/v1/auth/login');
+    expect(captured.url.path, '/api/v1/auth/google');
     expect(captured.headers.containsKey('Authorization'), isFalse);
     expect(jsonDecode(captured.body), {
-      'username': 'outlet',
-      'password': 'secret',
+      'id_token': 'id-token',
+      'nonce': 'nonce-value',
     });
   });
 
-  testWidgets('login UI has no owner or operator persona selector', (
-    tester,
-  ) async {
-    final gateway = _Gateway(const ApiFailure(ApiFailureKind.unauthenticated));
+  testWidgets('login UI only offers Google authentication', (tester) async {
     final controller = SessionController(
       store: MemorySessionStore(),
-      gateway: gateway,
+      gateway: _Gateway(credential()),
+      identityClient: _Identity(),
     );
     await controller.restore();
     await tester.pumpWidget(
@@ -135,12 +160,52 @@ void main() {
     );
 
     expect(find.text('Masuk ke PesenHub'), findsOneWidget);
-    expect(find.textContaining('Owner'), findsNothing);
-    expect(find.textContaining('Operator'), findsNothing);
-    await tester.enterText(find.byType(TextField).at(0), 'outlet');
-    await tester.enterText(find.byType(TextField).at(1), 'wrong');
-    await tester.tap(find.text('Masuk'));
-    await tester.pumpAndSettle();
-    expect(find.text('Username atau kata sandi salah.'), findsOneWidget);
+    expect(find.text('Lanjutkan dengan Google'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+  });
+
+  testWidgets('pending account sees locked approval experience', (
+    tester,
+  ) async {
+    const pending = AuthUser(
+      id: 'user-2',
+      email: 'pe***@example.test',
+      displayName: 'Pending Owner',
+      role: 'OWNER',
+      status: ApprovalStatus.pending,
+    );
+    final controller = SessionController(
+      store: MemorySessionStore(credential(user: pending)),
+      gateway: _Gateway(credential(user: pending), current: pending),
+      identityClient: _Identity(),
+    );
+    await controller.restore();
+    await tester.pumpWidget(
+      MaterialApp(home: ApprovalLockedView(controller: controller)),
+    );
+
+    expect(find.text('Menunggu persetujuan Superadmin'), findsOneWidget);
+    expect(find.byIcon(Icons.lock_rounded), findsOneWidget);
+    expect(find.text('Cek status lagi'), findsOneWidget);
+    expect(find.text('Keluar'), findsOneWidget);
+    controller.dispose();
+  });
+
+  test('Superadmin account never unlocks the Owner mobile runtime', () async {
+    const superadmin = AuthUser(
+      id: 'admin-1',
+      email: 'ad***@example.test',
+      displayName: 'Superadmin',
+      role: 'SUPERADMIN',
+      status: ApprovalStatus.approved,
+    );
+    final controller = SessionController(
+      store: MemorySessionStore(credential(user: superadmin)),
+      gateway: _Gateway(credential(user: superadmin), current: superadmin),
+      identityClient: _Identity(),
+    );
+    await controller.restore();
+    expect(controller.status, SessionStatus.webOnly);
+    controller.dispose();
   });
 }

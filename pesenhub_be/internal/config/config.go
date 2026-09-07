@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -9,8 +8,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 type Config struct {
@@ -32,10 +29,10 @@ type Midtrans struct {
 	Timeout                        time.Duration
 }
 type Auth struct {
-	StaffToken, KDSToken             string
-	LoginUsername, LoginPasswordHash string
-	SessionSecret                    string
-	SessionTTL                       time.Duration
+	StaffToken, KDSToken string
+	GoogleClientID       string
+	SessionSecret        string
+	SessionTTL           time.Duration
 }
 
 func Load() (Config, error) {
@@ -46,8 +43,8 @@ func Load() (Config, error) {
 		Midtrans: Midtrans{BaseURL: get("MIDTRANS_BASE_URL", "https://api.sandbox.midtrans.com"), ServerKey: os.Getenv("MIDTRANS_SERVER_KEY"), MerchantID: os.Getenv("MIDTRANS_MERCHANT_ID")},
 		Auth: Auth{
 			StaffToken: os.Getenv("APP_STAFF_TOKEN"), KDSToken: os.Getenv("APP_KDS_TOKEN"),
-			LoginUsername: os.Getenv("APP_LOGIN_USERNAME"), LoginPasswordHash: os.Getenv("APP_LOGIN_PASSWORD_HASH"),
-			SessionSecret: os.Getenv("APP_SESSION_SECRET"),
+			GoogleClientID: os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+			SessionSecret:  os.Getenv("APP_SESSION_SECRET"),
 		},
 	}
 	var err error
@@ -63,15 +60,8 @@ func Load() (Config, error) {
 	if err != nil || c.Auth.SessionTTL <= 0 || c.Auth.SessionTTL > 24*time.Hour {
 		return Config{}, errors.New("APP_SESSION_TTL must be a positive duration no longer than 24h")
 	}
-	if strings.HasPrefix(c.Auth.LoginPasswordHash, "base64:") {
-		decoded, decodeErr := base64.StdEncoding.DecodeString(strings.TrimPrefix(c.Auth.LoginPasswordHash, "base64:"))
-		if decodeErr != nil {
-			return Config{}, errors.New("APP_LOGIN_PASSWORD_HASH must contain a valid bcrypt hash")
-		}
-		c.Auth.LoginPasswordHash = string(decoded)
-	}
 	missing := []string{}
-	for k, v := range map[string]string{"DATABASE_HOST": c.Database.Host, "DATABASE_NAME": c.Database.Name, "DATABASE_USER": c.Database.User, "DATABASE_PASSWORD": c.Database.Password, "GOWA_BASE_URL": c.GOWA.BaseURL, "GOWA_BASIC_AUTH_USERNAME": c.GOWA.Username, "GOWA_BASIC_AUTH_PASSWORD": c.GOWA.Password, "GOWA_DEVICE_ID": c.GOWA.DeviceID, "GOWA_WEBHOOK_SECRET": c.GOWA.WebhookSecret, "MIDTRANS_SERVER_KEY": c.Midtrans.ServerKey, "MIDTRANS_MERCHANT_ID": c.Midtrans.MerchantID, "APP_STAFF_TOKEN": c.Auth.StaffToken, "APP_KDS_TOKEN": c.Auth.KDSToken, "APP_LOGIN_USERNAME": c.Auth.LoginUsername, "APP_LOGIN_PASSWORD_HASH": c.Auth.LoginPasswordHash, "APP_SESSION_SECRET": c.Auth.SessionSecret} {
+	for k, v := range map[string]string{"DATABASE_HOST": c.Database.Host, "DATABASE_NAME": c.Database.Name, "DATABASE_USER": c.Database.User, "DATABASE_PASSWORD": c.Database.Password, "GOWA_BASE_URL": c.GOWA.BaseURL, "GOWA_BASIC_AUTH_USERNAME": c.GOWA.Username, "GOWA_BASIC_AUTH_PASSWORD": c.GOWA.Password, "GOWA_DEVICE_ID": c.GOWA.DeviceID, "GOWA_WEBHOOK_SECRET": c.GOWA.WebhookSecret, "MIDTRANS_SERVER_KEY": c.Midtrans.ServerKey, "MIDTRANS_MERCHANT_ID": c.Midtrans.MerchantID, "APP_STAFF_TOKEN": c.Auth.StaffToken, "APP_KDS_TOKEN": c.Auth.KDSToken, "GOOGLE_OAUTH_CLIENT_ID": c.Auth.GoogleClientID, "APP_SESSION_SECRET": c.Auth.SessionSecret} {
 		if strings.TrimSpace(v) == "" {
 			missing = append(missing, k)
 		}
@@ -84,9 +74,6 @@ func Load() (Config, error) {
 	}
 	if len(c.Auth.StaffToken) < 32 || len(c.Auth.KDSToken) < 32 || c.Auth.StaffToken == c.Auth.KDSToken {
 		return Config{}, errors.New("APP_STAFF_TOKEN and APP_KDS_TOKEN must be distinct and contain at least 32 characters")
-	}
-	if _, err := bcrypt.Cost([]byte(c.Auth.LoginPasswordHash)); err != nil {
-		return Config{}, errors.New("APP_LOGIN_PASSWORD_HASH must be a bcrypt hash")
 	}
 	if len(c.Auth.SessionSecret) < 32 {
 		return Config{}, errors.New("APP_SESSION_SECRET must contain at least 32 characters")

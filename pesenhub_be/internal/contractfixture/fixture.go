@@ -36,7 +36,7 @@ type ErrorCase struct {
 type Fixture struct {
 	ContractVersion int                        `json:"contract_version"`
 	Enums           Enums                      `json:"enums"`
-	LoginResponse   appauth.LoginResponse      `json:"login_response"`
+	LoginResponse   appauth.SessionResponse    `json:"login_response"`
 	QueueResponse   QueueResponse              `json:"queue_response"`
 	OrderCollection order.OrderCollection      `json:"order_collection"`
 	Payment         payment.Payment            `json:"payment"`
@@ -99,11 +99,19 @@ func Canonical() Fixture {
 	}
 
 	return Fixture{
-		ContractVersion: 3,
-		LoginResponse: appauth.LoginResponse{
+		ContractVersion: 4,
+		LoginResponse: appauth.SessionResponse{
 			AccessToken: "synthetic.signed-session-token",
 			TokenType:   "Bearer",
 			ExpiresAt:   createdAt.Add(8 * time.Hour),
+			User: appauth.User{
+				ID:          "a1000000-0000-4000-8000-000000000001",
+				EmailMasked: "ow***@example.test",
+				DisplayName: "Owner Kontrak",
+				Role:        appauth.RoleOwner,
+				Status:      appauth.StatusApproved,
+				ApprovedAt:  &createdAt,
+			},
 		},
 		Enums: Enums{
 			OrderSources: []domain.OrderSource{
