@@ -14,9 +14,9 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current phase  | Phase 1D — MVP Integration & Release                       |
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
-| Last updated   | 7 September 2026                                           |
-| Updated by     | Issue #132 Menu catalog management end-to-end               |
-| Updated by     | Issue #133 POS redesign dengan tab kategori & sticky cart   |
+| Last updated   | 8 September 2026                                           |
+| Updated by     | Issue #139 Arsitektur login Google dan approval Owner       |
+| Updated by     | Issue #140 Portal web Superadmin untuk approval user & health |
 
 ## 2. Product Intent
 
@@ -35,6 +35,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 9. Pesan otomatis dapat dihentikan dan percakapan dapat diambil alih staf.
 10. Perubahan status order, pembayaran, dan agent tool call penting harus dapat diaudit.
 11. Web Customer tidak boleh membuka riwayat pelanggan hanya berdasarkan nama atau nomor HP tanpa verifikasi tambahan.
+12. Superadmin strictly web-only: tidak memiliki akses/route/tampilan mobile dan dilarang mengakses data operasional outlet (menu, order, transaksi, chat pelanggan).
 
 ## 4. Confirmed Architecture Decisions
 
@@ -53,7 +54,8 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | ADR-012 | Stack utama dijalankan dengan Docker Compose                                     | ACCEPTED          | API dibangun multi-stage, PostgreSQL 16 Alpine dan GOWA berjalan sebagai service dalam satu network |
 | ADR-013 | GOWA v9 menggantikan WAHA sebagai gateway WhatsApp aktif                         | ACCEPTED — #118   | Kontrak lebih ringan berbasis Go; domain source `WHATSAPP` dan exit strategy resmi tetap dipertahankan |
 | ADR-011 | Web Customer tanpa akun menggunakan nama dan nomor HP                            | ACCEPTED          | Mengurangi hambatan pelanggan saat membuat order                                                    |
-| ADR-014 | Owner login dengan Google dan memerlukan approval Superadmin                    | IN_PROGRESS — #139 | Autentikasi eksternal dipisahkan dari authorization; pending/rejected/suspended selalu terkunci       |
+| ADR-014 | Owner login dengan Google dan memerlukan approval Superadmin                    | ACCEPTED — #141   | Autentikasi eksternal dipisahkan dari authorization; pending/rejected/suspended selalu terkunci       |
+| ADR-015 | Portal Superadmin web-only untuk approval user & monitoring kesehatan            | ACCEPTED — #140   | Zero operational access; PII masking; session revocation instan; kontrol infrastruktur terpusat     |
 
 ## 5. Phase Progress Summary
 
@@ -78,23 +80,12 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#6 — Phase 1D MVP Integration & Release](https://github.com/yogaananda6677/pesanhub/issues/6)
 - Child Issue: #133
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#132 — Hubungkan pengelolaan katalog dan menu end-to-end](https://github.com/yogaananda6677/pesanhub/issues/132)
-- Current Branch: `feature/132-menu-catalog-e2e`
-- Pull Request: [#136](https://github.com/yogaananda6677/pesanhub/pull/136)
-- Merged Pull Requests: sampai [#135](https://github.com/yogaananda6677/pesanhub/pull/135)
-- Current Issue: [#133 — Redesign POS dengan tab kategori dan sticky bottom cart](https://github.com/yogaananda6677/pesanhub/issues/133)
-- Current Issue: [#139 — Arsitektur login Google dan approval akun Owner](https://github.com/yogaananda6677/pesanhub/issues/139)
-- Depends next: [#140 — Portal web Superadmin](https://github.com/yogaananda6677/pesanhub/issues/140)
-- Current Branch: `feature/133-redesign-pos-tab-sticky-cart`
-- Pull Request: [#137](https://github.com/yogaananda6677/pesanhub/pull/137)
-- Merged Pull Requests: sampai [#136](https://github.com/yogaananda6677/pesanhub/pull/136)
-- Status: `READY_FOR_REVIEW`
-- Exit Criteria: runtime terkonfigurasi memakai katalog backend tunggal; CRUD category/menu/modifier/availability terautentikasi dan berversi; cache offline read-only dan reconnect aman; audit atomik; contract, responsive tests, CI/CD hijau.
-- Validation: 207 Flutter tests, analyze, debug APK, Go test/vet/check, contract fixture, migration up/down/up, integration PostgreSQL, Compose config, dan API image build PASS lokal; CI PR menunggu.
-- Next Issue: lanjut urutan child issue #129 setelah #132 di-merge.
-- Exit Criteria: compact header dengan search bar dan clear button serta connectivity badge; tab kategori horizontal "Semua" + kategori backend dengan min touch target 48dp, indikator aktif/inaktif, dan isolasi state cart/search; fokus katalog mobile dengan kartu menu di baris pertama dan status habis disabled; sticky bottom cart bar mobile (count + total price) membuka checkout sheet; formulir pelanggan dan bungkus dipindahkan ke checkout sheet mobile; tablet split screen (60:40) dengan live cart; bebas RenderFlex overflow di seluruh matrix responsif dan text scale 1.0–2.0.
-- Validation: 214 Flutter tests lulus, `flutter analyze` bersih, `dart format` bersih, `pesenhub_be/run.sh check` lulus.
-- Next Issue: lanjut urutan child issue #129 setelah #133 di-merge.
+- Current Issue: [#140 — Bangun portal Superadmin untuk approval user dan monitoring kesehatan sistem (web only)](https://github.com/yogaananda6677/pesanhub/issues/140)
+- Current Branch: `feature/140-superadmin-portal`
+- Merged Pull Requests: sampai [#141](https://github.com/yogaananda6677/pesanhub/pull/141) (Issue #139)
+- Status: `IN_PROGRESS`
+- Exit Criteria: Portal web Superadmin terisolasi penuh (web-only, zero mobile touchpoints); zero operational access pada data menu/order/transaksi outlet; masking PII email/identifier; approval/rejection/suspension/reactivation/session-revocation transaksional dengan audit trail; dashboard kesehatan 6 komponen & telemetri traffic 15m/1h/24h/7d; auto-refresh 30s & manual refresh; native dialog modal; responsif & high contrast WCAG AA.
+- Validation: Unit tests RBAC 100% lulus, store PostgreSQL integration tests lulus, migration 22 up/down/up lulus, `go test ./...` lulus.
 
 ## 6. Current Phase Checklist
 
@@ -270,6 +261,42 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 8 September 2026 — Superadmin Web Portal & Health Telemetry (Issue #140)
+
+**Goal**
+
+- Membangun portal kontrol Superadmin berbasis web (**web only**) untuk mengelola siklus hidup akun pengguna (Owner) termasuk undangan, approval, penolakan, penangguhan, dan pencabutan sesi instan, serta pemantauan kesehatan infrastruktur dan telemetri beban sistem secara real-time dengan batas isolasi keamanan ketat (zero operational access pada data menu, order, kasir, dan pembayaran outlet).
+
+**Changed**
+
+- Membuat migrasi database `000022_create_superadmin_portal.up.sql` dan `.down.sql` untuk tabel `user_invitations` dan `system_traffic_samples`.
+- Mengembangkan backend domain `internal/superadmin`:
+  - `model.go`: Domain model pengguna, undangan, audit log, snapshot kesehatan 6 komponen, dan metrik telemetri traffic.
+  - `mask.go` & `mask_test.go`: Masking PII email (`yo***@example.com`) dan identifier.
+  - `store.go`: Transaksi PostgreSQL atomik untuk mutasi status akun, audit trail `user_status_audits`, pembatalan sesi instan `app_sessions`, deduplikasi undangan, dan agregasi telemetri.
+  - `service.go`: Orkestrator health check (API, PostgreSQL, GOWA WhatsApp, Outbox Worker, Realtime WebSocket, Mobile Sync) dan user management.
+  - `handler.go` & `handler_test.go`: HTTP control plane endpoints (`/api/v1/superadmin/*`) dengan role guard ketat (HTTP 403 untuk selain SUPERADMIN).
+  - `store_integration_test.go`: Pengujian integrasi PostgreSQL nyata untuk seluruh alur undangan, approval, suspend, audit, dan telemetri.
+- Menghubungkan handler Superadmin dan rute static web di `pesenhub_be/cmd/api/main.go`.
+- Membangun antarmuka web portal di `pesenhub_be/web/superadmin/`:
+  - `index.html`: Layout semantik dengan view autentikasi token/Google, tab Ringkasan Sistem (health cards + grafik metrik), tab Pengguna & Approval (tabel filter status, search, undangan owner), tab Audit Aktivitas, dan modal konfirmasi HTML5 native `<dialog>`.
+  - `style.css`: Tema modern profesional, kontras tinggi WCAG AA/AAA, responsif untuk desktop/tablet/mobile, serta aman zoom browser hingga 200%.
+  - `app.js`: Vanilla JS reaktif dengan polling auto-refresh 30s, toggle manual refresh, penanganan data usang (stale data badge), filter status pengguna, dialog aksi dengan trap fokus, dan toast notifikasi.
+- Memperbarui spesifikasi OpenAPI `docs/api/openapi.yaml` dengan seluruh endpoints dan skema `/superadmin/*`.
+- Menulis dokumen arsitektur dan runbook di `docs/SUPERADMIN_PORTAL.md`.
+- Memperbarui `test-migrations.sh` untuk mencakup migrasi versi 22 up/down/up.
+
+**Validation**
+
+- `go test -v ./internal/superadmin/...`: PASS (RBAC authorization 100%, mask tests, handler endpoints, dan store integration tests).
+- `go test ./...`: PASS (seluruh backend tests lulus).
+- `./scripts/test-migrations.sh`: PASS (migrasi 1–22 up/down/up/down/up lulus tanpa error).
+- `go build ./cmd/api`: PASS (kompilasi bersih tanpa peringatan).
+
+**Next**
+
+- Buka Pull Request untuk Issue #140, pastikan CI/CD remote hijau, dan lakukan squash-and-merge ke `main`.
 
 ### 6 September 2026 — Menu Catalog Management End-to-End (Issue #132)
 

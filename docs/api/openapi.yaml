@@ -478,6 +478,213 @@ paths:
                 $ref: '#/components/schemas/ExampleCollection'
         '400':
           $ref: '#/components/responses/InvalidQuery'
+  /superadmin/health/snapshot:
+    get:
+      summary: Retrieve system health snapshot across all infrastructure components
+      operationId: getSuperadminHealthSnapshot
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Component health snapshot, content: {application/json: {schema: {$ref: '#/components/schemas/SystemHealthSnapshot'}}}}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/telemetry/traffic:
+    get:
+      summary: Retrieve traffic metrics and queue performance series
+      operationId: getSuperadminTrafficTelemetry
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: range
+          in: query
+          required: false
+          schema: {type: string, enum: [15m, 1h, 24h, 7d], default: 24h}
+      responses:
+        '200': {description: Traffic metrics, content: {application/json: {schema: {$ref: '#/components/schemas/TrafficMetrics'}}}}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/users:
+    get:
+      summary: List registered users with status and query filtering
+      operationId: listSuperadminUsers
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: {type: string, enum: [ALL, PENDING_APPROVAL, APPROVED, REJECTED, SUSPENDED]}
+        - name: q
+          in: query
+          required: false
+          schema: {type: string}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, default: 50}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer, default: 0}
+      responses:
+        '200': {description: User list, content: {application/json: {schema: {$ref: '#/components/schemas/SuperadminUserCollection'}}}}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/users/invitations:
+    get:
+      summary: List pending owner invitations
+      operationId: listSuperadminInvitations
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, default: 50}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer, default: 0}
+      responses:
+        '200': {description: Invitations list, content: {application/json: {schema: {$ref: '#/components/schemas/SuperadminInvitationCollection'}}}}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/users/invite:
+    post:
+      summary: Create an invitation for an owner Google email
+      operationId: inviteSuperadminUser
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SuperadminInviteRequest'}
+      responses:
+        '201': {description: Invitation created, content: {application/json: {schema: {$ref: '#/components/schemas/SuperadminInvitation'}}}}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '409': {description: User or active invitation already exists, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '422': {description: Invalid email format, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/users/invitations/{id}:
+    delete:
+      summary: Revoke an active owner invitation
+      operationId: revokeSuperadminInvitation
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200': {description: Invitation revoked}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '404': {description: Invitation not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/users/{id}/approve:
+    post:
+      summary: Approve pending owner registration
+      operationId: approveSuperadminUser
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SuperadminStatusChangeRequest'}
+      responses:
+        '200': {description: User approved}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '404': {description: User not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '409': {description: Invalid status transition, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/users/{id}/reject:
+    post:
+      summary: Reject pending owner registration
+      operationId: rejectSuperadminUser
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SuperadminStatusChangeRequest'}
+      responses:
+        '200': {description: User rejected}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '404': {description: User not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '409': {description: Invalid status transition, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/users/{id}/suspend:
+    post:
+      summary: Suspend user account and revoke all active sessions
+      operationId: suspendSuperadminUser
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SuperadminStatusChangeRequest'}
+      responses:
+        '200': {description: User suspended and sessions revoked}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '404': {description: User not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '409': {description: Invalid status transition, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/users/{id}/reactivate:
+    post:
+      summary: Reactivate a suspended or rejected user
+      operationId: reactivateSuperadminUser
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SuperadminStatusChangeRequest'}
+      responses:
+        '200': {description: User reactivated}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '404': {description: User not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '409': {description: Invalid status transition, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/users/{id}/revoke-sessions:
+    post:
+      summary: Immediately revoke all active sessions for a user
+      operationId: revokeSuperadminUserSessions
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200': {description: Sessions revoked}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '404': {description: User not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/audits:
+    get:
+      summary: List audit trail entries for user status changes
+      operationId: listSuperadminAudits
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: target_user_id
+          in: query
+          required: false
+          schema: {type: string, format: uuid}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, default: 50}
+        - name: offset
+          in: query
+          required: false
+          schema: {type: integer, default: 0}
+      responses:
+        '200': {description: Audit entries, content: {application/json: {schema: {$ref: '#/components/schemas/SuperadminAuditCollection'}}}}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
 components:
   securitySchemes:
     gowaWebhookHMAC:
@@ -1041,3 +1248,123 @@ components:
         data:
           type: array
           items: {$ref: '#/components/schemas/AuditLogEntry'}
+    SuperadminUserSummary:
+      type: object
+      required: [id, email, role, status, created_at, updated_at, active_session_count]
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string}
+        display_name: {type: string}
+        role: {type: string, enum: [OWNER, SUPERADMIN]}
+        status: {type: string, enum: [PENDING_APPROVAL, APPROVED, REJECTED, SUSPENDED]}
+        status_reason: {type: string}
+        approved_at: {type: string, format: date-time, nullable: true}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        active_session_count: {type: integer}
+    SuperadminUserCollection:
+      type: object
+      required: [data, limit, offset]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/SuperadminUserSummary'}
+        limit: {type: integer}
+        offset: {type: integer}
+    SuperadminInvitation:
+      type: object
+      required: [id, email, outlet_name, status, invited_by, created_at, expires_at]
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string}
+        outlet_name: {type: string}
+        status: {type: string}
+        invited_by: {type: string, format: uuid}
+        created_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+    SuperadminInvitationCollection:
+      type: object
+      required: [data, limit, offset]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/SuperadminInvitation'}
+        limit: {type: integer}
+        offset: {type: integer}
+    SuperadminInviteRequest:
+      type: object
+      required: [email]
+      properties:
+        email: {type: string, format: email}
+        outlet_name: {type: string}
+    SuperadminStatusChangeRequest:
+      type: object
+      properties:
+        reason: {type: string}
+    SuperadminAuditEntry:
+      type: object
+      required: [id, user_id, target_email, to_status, request_id, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        user_id: {type: string, format: uuid}
+        target_email: {type: string}
+        actor_user_id: {type: string, format: uuid, nullable: true}
+        actor_email: {type: string}
+        from_status: {type: string, nullable: true}
+        to_status: {type: string}
+        reason: {type: string, nullable: true}
+        request_id: {type: string}
+        created_at: {type: string, format: date-time}
+    SuperadminAuditCollection:
+      type: object
+      required: [data, limit, offset]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/SuperadminAuditEntry'}
+        limit: {type: integer}
+        offset: {type: integer}
+    ComponentHealth:
+      type: object
+      required: [component, status, freshness, message]
+      properties:
+        component: {type: string}
+        status: {type: string, enum: [healthy, degraded, down]}
+        freshness: {type: string, format: date-time}
+        message: {type: string}
+        details: {type: object}
+    SystemHealthSnapshot:
+      type: object
+      required: [overall_status, timestamp, components]
+      properties:
+        overall_status: {type: string, enum: [healthy, degraded, down]}
+        timestamp: {type: string, format: date-time}
+        components:
+          type: array
+          items: {$ref: '#/components/schemas/ComponentHealth'}
+    TrafficMetrics:
+      type: object
+      required: [range, total_requests, success_requests, client_errors, server_errors, request_rate_per_min, success_rate, latency_p50_ms, latency_p95_ms, wa_inbound_count, wa_outbound_count, queue_pending, queue_preparing, queue_ready, sync_success_count, sync_failure_count, sync_conflict_count, series]
+      properties:
+        range: {type: string}
+        total_requests: {type: integer, format: int64}
+        success_requests: {type: integer, format: int64}
+        client_errors: {type: integer, format: int64}
+        server_errors: {type: integer, format: int64}
+        request_rate_per_min: {type: number}
+        success_rate: {type: number}
+        latency_p50_ms: {type: integer}
+        latency_p95_ms: {type: integer}
+        wa_inbound_count: {type: integer, format: int64}
+        wa_outbound_count: {type: integer, format: int64}
+        queue_pending: {type: integer, format: int64}
+        queue_preparing: {type: integer, format: int64}
+        queue_ready: {type: integer, format: int64}
+        sync_success_count: {type: integer, format: int64}
+        sync_failure_count: {type: integer, format: int64}
+        sync_conflict_count: {type: integer, format: int64}
+        series:
+          type: array
+          items:
+            type: object
+
