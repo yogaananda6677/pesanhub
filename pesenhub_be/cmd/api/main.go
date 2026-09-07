@@ -22,6 +22,7 @@ import (
 	"pesenhub/backend/internal/notification"
 	orderapi "pesenhub/backend/internal/order"
 	"pesenhub/backend/internal/payment"
+	"pesenhub/backend/internal/superadmin"
 	"pesenhub/backend/internal/ws"
 )
 
@@ -106,6 +107,10 @@ func main() {
 		ConversationStore: hermesConvStore,
 	})
 	hermesHandler := hermes.NewHandler(hermesService)
+	superadminStore := superadmin.NewStore(pool)
+	superadminService := superadmin.NewService(superadminStore, pool, wc, orderHub)
+	superadminHandler := superadmin.NewHandler(superadminService)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", h.Live)
 	mux.HandleFunc("GET /health/ready", h.Ready)
@@ -145,6 +150,18 @@ func main() {
 	mux.HandleFunc("POST /api/v1/orders/{id}/payments/cash", payments.RecordCash)
 	mux.HandleFunc("POST /api/v1/orders/{id}/payments/qris", payments.CreateQRIS)
 	mux.HandleFunc("POST /api/v1/payments/{id}/reconcile", payments.Reconcile)
+	mux.HandleFunc("GET /api/v1/superadmin/health/snapshot", superadminHandler.HealthSnapshot)
+	mux.HandleFunc("GET /api/v1/superadmin/telemetry/traffic", superadminHandler.TrafficTelemetry)
+	mux.HandleFunc("GET /api/v1/superadmin/users", superadminHandler.ListUsers)
+	mux.HandleFunc("GET /api/v1/superadmin/users/invitations", superadminHandler.ListInvitations)
+	mux.HandleFunc("POST /api/v1/superadmin/users/invite", superadminHandler.Invite)
+	mux.HandleFunc("DELETE /api/v1/superadmin/users/invitations/{id}", superadminHandler.RevokeInvitation)
+	mux.HandleFunc("POST /api/v1/superadmin/users/{id}/approve", superadminHandler.Approve)
+	mux.HandleFunc("POST /api/v1/superadmin/users/{id}/reject", superadminHandler.Reject)
+	mux.HandleFunc("POST /api/v1/superadmin/users/{id}/suspend", superadminHandler.Suspend)
+	mux.HandleFunc("POST /api/v1/superadmin/users/{id}/reactivate", superadminHandler.Reactivate)
+	mux.HandleFunc("POST /api/v1/superadmin/users/{id}/revoke-sessions", superadminHandler.RevokeSessions)
+	mux.HandleFunc("GET /api/v1/superadmin/audits", superadminHandler.ListAudits)
 	mux.Handle("GET /", http.FileServer(http.Dir("web")))
 	authenticatedMux := customer.Authenticate(cfg.Auth.StaffToken, cfg.Auth.KDSToken, sessions, mux)
 	server := &http.Server{Addr: cfg.Address(), Handler: httpserver.Middleware(logger, authenticatedMux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}

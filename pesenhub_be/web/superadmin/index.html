@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PesenHub — Superadmin Control Plane</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-badge">CONTROL PLANE</div>
+      <h1 class="brand-title">PesenHub Superadmin</h1>
+    </div>
+    <div class="header-status">
+      <span id="system-quick-status" class="status-pill status-healthy" aria-live="polite">
+        <span class="status-dot"></span> <span id="quick-status-text">Memeriksa sistem...</span>
+      </span>
+      <div id="user-profile" class="user-profile hidden">
+        <span id="user-email" class="user-email">su***@pesenhub.id</span>
+        <span class="role-tag">SUPERADMIN</span>
+        <button id="btn-logout" class="btn btn-outline btn-sm" type="button">Keluar</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <!-- Auth Screen -->
+    <section id="auth-section" class="auth-card">
+      <h2>Autentikasi Superadmin</h2>
+      <p class="auth-desc">Portal ini khusus kendali sistem & approval pengguna. Masukkan sesi token Superadmin atau login Google yang telah di-bootstrap.</p>
+      
+      <form id="form-login" class="form-group">
+        <label for="input-token">Sesi Token / Bearer Token:</label>
+        <div class="input-with-action">
+          <input type="password" id="input-token" placeholder="Masukkan token sesi valid" required autocomplete="off">
+          <button type="submit" class="btn btn-primary" id="btn-submit-token">Masuk ke Portal</button>
+        </div>
+        <p class="help-text">Token diperoleh dari login Google akun Superadmin terdaftar atau CLI bootstrap.</p>
+      </form>
+      <div id="auth-error" class="alert alert-danger hidden" role="alert"></div>
+    </section>
+
+    <!-- Portal Dashboard (Hidden until authenticated) -->
+    <div id="portal-section" class="portal-content hidden">
+      <!-- Tabs Navigation -->
+      <nav class="tab-bar" role="tablist" aria-label="Portal Navigation">
+        <button type="button" class="tab-btn active" role="tab" id="tab-btn-health" aria-selected="true" aria-controls="panel-health" data-tab="health">
+          <span class="tab-icon">⚡</span> Ringkasan Sistem
+        </button>
+        <button type="button" class="tab-btn" role="tab" id="tab-btn-users" aria-selected="false" aria-controls="panel-users" data-tab="users">
+          <span class="tab-icon">👥</span> Pengguna & Approval
+          <span id="pending-badge" class="badge-count hidden">0</span>
+        </button>
+        <button type="button" class="tab-btn" role="tab" id="tab-btn-audits" aria-selected="false" aria-controls="panel-audits" data-tab="audits">
+          <span class="tab-icon">📋</span> Audit Aktivitas
+        </button>
+      </nav>
+
+      <!-- TAB 1: System Health & Traffic -->
+      <section id="panel-health" class="tab-panel active" role="tabpanel" aria-labelledby="tab-btn-health">
+        <div class="panel-header">
+          <div>
+            <h2>Status & Telemetri Infrastruktur</h2>
+            <p class="panel-subtitle">Pemantauan liveness, readiness gateway, dan antrean waktu-nyata.</p>
+          </div>
+          <div class="controls-row">
+            <label class="toggle-control">
+              <input type="checkbox" id="toggle-autorefresh" checked>
+              <span>Auto-refresh (30d)</span>
+            </label>
+            <div class="range-selector">
+              <label for="select-range" class="sr-only">Rentang Waktu</label>
+              <select id="select-range" class="form-select">
+                <option value="15m">15 Menit</option>
+                <option value="1h">1 Jam</option>
+                <option value="24h" selected>24 Jam</option>
+                <option value="7d">7 Hari</option>
+              </select>
+            </div>
+            <button type="button" id="btn-refresh-health" class="btn btn-secondary btn-sm">
+              <span class="refresh-icon">🔄</span> Segarkan
+            </button>
+          </div>
+        </div>
+
+        <div id="health-stale-banner" class="alert alert-warning hidden" role="status">
+          Data mungkin tidak terkini. Gagal memperbarui telemetri pada <span id="stale-time">-</span>.
+        </div>
+
+        <!-- Health Cards Grid -->
+        <div class="grid-cards" id="health-cards-container">
+          <!-- Populated by JS -->
+          <div class="card card-loading">Memuat status komponen...</div>
+        </div>
+
+        <!-- Traffic & Queues Summary -->
+        <div class="metric-section">
+          <h3>Statistik Kinerja & Beban Antrean</h3>
+          <div class="metric-grid" id="metrics-summary">
+            <div class="metric-box">
+              <span class="metric-label">Tingkat Permintaan</span>
+              <span class="metric-value" id="metric-rate">0 /mnt</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-label">Success Rate</span>
+              <span class="metric-value" id="metric-success-rate">100%</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-label">Latensi p50 / p95</span>
+              <span class="metric-value" id="metric-latency">0 / 0 ms</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-label">Total Permintaan</span>
+              <span class="metric-value" id="metric-total-requests">0</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-label">WA Pesan Masuk / Keluar</span>
+              <span class="metric-value" id="metric-wa-count">0 / 0</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-label">Antrean Pesanan (Aktif)</span>
+              <span class="metric-value text-accent" id="metric-queue-active">0</span>
+              <span class="metric-detail" id="metric-queue-detail">Pending: 0 | Masak: 0 | Siap: 0</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: User Management -->
+      <section id="panel-users" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-btn-users">
+        <div class="panel-header">
+          <div>
+            <h2>Kelola Pengguna & Akses Owner</h2>
+            <p class="panel-subtitle">Verifikasi pendaftaran akun, undang calon mitra, dan kelola sesi aktif.</p>
+          </div>
+          <div class="controls-row">
+            <button type="button" id="btn-open-invite" class="btn btn-primary">
+              <span>➕</span> Undang Calon Owner
+            </button>
+            <button type="button" id="btn-refresh-users" class="btn btn-secondary">
+              <span>🔄</span> Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-toolbar">
+          <div class="filter-pills" role="radiogroup" aria-label="Filter status pengguna">
+            <button type="button" class="pill-btn active" data-status="ALL" role="radio" aria-checked="true">Semua</button>
+            <button type="button" class="pill-btn" data-status="PENDING_APPROVAL" role="radio" aria-checked="false">Menunggu Approval</button>
+            <button type="button" class="pill-btn" data-status="APPROVED" role="radio" aria-checked="false">Disetujui</button>
+            <button type="button" class="pill-btn" data-status="INVITED" role="radio" aria-checked="false">Undangan Terkirim</button>
+            <button type="button" class="pill-btn" data-status="SUSPENDED" role="radio" aria-checked="false">Ditangguhkan</button>
+            <button type="button" class="pill-btn" data-status="REJECTED" role="radio" aria-checked="false">Ditolak</button>
+          </div>
+          <div class="search-box">
+            <input type="search" id="input-user-search" placeholder="Cari email / nama..." aria-label="Cari pengguna">
+          </div>
+        </div>
+
+        <!-- Users Table Container -->
+        <div class="table-responsive">
+          <table class="data-table" id="users-table">
+            <thead>
+              <tr>
+                <th scope="col">Pengguna / Email (Dimasker)</th>
+                <th scope="col">Nama Tampilan</th>
+                <th scope="col">Role</th>
+                <th scope="col">Status Akun</th>
+                <th scope="col">Sesi Aktif</th>
+                <th scope="col">Terdaftar</th>
+                <th scope="col" class="text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body">
+              <tr>
+                <td colspan="7" class="text-center py-4">Memuat data pengguna...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 3: Activity Audits -->
+      <section id="panel-audits" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-btn-audits">
+        <div class="panel-header">
+          <div>
+            <h2>Audit Jejak Aktivitas Control Plane</h2>
+            <p class="panel-subtitle">Riwayat seluruh aksi approval, penolakan, penangguhan, dan pencabutan sesi.</p>
+          </div>
+          <button type="button" id="btn-refresh-audits" class="btn btn-secondary">
+            <span>🔄</span> Refresh
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table" id="audits-table">
+            <thead>
+              <tr>
+                <th scope="col">Waktu (UTC)</th>
+                <th scope="col">Target Pengguna</th>
+                <th scope="col">Perubahan Status</th>
+                <th scope="col">Alasan / Catatan</th>
+                <th scope="col">Pelaku (Superadmin)</th>
+                <th scope="col">Request ID</th>
+              </tr>
+            </thead>
+            <tbody id="audits-table-body">
+              <tr>
+                <td colspan="6" class="text-center py-4">Memuat log audit...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Native HTML5 Dialog: Invite Owner -->
+  <dialog id="dialog-invite" class="modal-dialog" aria-labelledby="dialog-invite-title">
+    <form method="dialog" id="form-invite" class="modal-content">
+      <div class="modal-header">
+        <h3 id="dialog-invite-title">Undang Calon Owner Baru</h3>
+        <button type="button" class="btn-close" id="btn-close-invite" aria-label="Tutup dialog">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Calon Owner akan diizinkan mendaftar dan login dengan akun Google mereka.</p>
+        <div class="form-group mb-3">
+          <label for="invite-email">Alamat Email Google *</label>
+          <input type="email" id="invite-email" required placeholder="contoh: calon.mitra@gmail.com" class="form-input">
+        </div>
+        <div class="form-group mb-3">
+          <label for="invite-outlet">Nama Outlet Awal</label>
+          <input type="text" id="invite-outlet" placeholder="PesenHub Outlet #01" class="form-input">
+        </div>
+        <div id="invite-error" class="alert alert-danger hidden" role="alert"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" id="btn-cancel-invite">Batal</button>
+        <button type="submit" class="btn btn-primary" id="btn-submit-invite">Kirim Undangan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Native HTML5 Dialog: Status Transition Confirmation -->
+  <dialog id="dialog-action" class="modal-dialog" aria-labelledby="dialog-action-title">
+    <form method="dialog" id="form-action" class="modal-content">
+      <div class="modal-header">
+        <h3 id="dialog-action-title">Konfirmasi Tindakan</h3>
+        <button type="button" class="btn-close" id="btn-close-action" aria-label="Tutup dialog">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="action-warning-box" class="alert alert-warning mb-3">
+          <strong id="action-target-desc">Detail Tindakan</strong>
+        </div>
+        <p id="action-detail-text">Apakah Anda yakin ingin melanjutkan tindakan ini?</p>
+        <div class="form-group mb-3">
+          <label for="action-reason">Alasan / Catatan Kebijakan (Opsional)</label>
+          <input type="text" id="action-reason" placeholder="Contoh: Dokumen NIB telah diverifikasi" class="form-input">
+        </div>
+        <div id="action-error" class="alert alert-danger hidden" role="alert"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" id="btn-cancel-action">Batal</button>
+        <button type="submit" class="btn" id="btn-confirm-action">Konfirmasi</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Toast Notification Area -->
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

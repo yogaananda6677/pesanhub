@@ -98,6 +98,7 @@ flowchart TD
     C["Pelanggan WhatsApp"] <--> W["GOWA"]
     W <--> B["Backend Golang"]
     CW["Web Customer"] <--> B
+    SA["Web Control Plane (Superadmin)"] <--> B
     H["Hermes Agent"] <--> B
     F["Flutter POS & KDS"] <--> B
     B <--> D["Database Utama"]
@@ -274,6 +275,12 @@ stateDiagram-v2
 `UNPAID`, `PENDING`, `PAID`, `FAILED`, `EXPIRED`, `REFUNDED`, `PARTIALLY_REFUNDED`.
 
 Status order dan pembayaran dipisahkan. Order tidak otomatis dianggap selesai hanya karena pembayaran berhasil.
+
+### 8.3 Status Pengguna & Approval (Owner)
+
+`INVITED`, `PENDING_APPROVAL`, `APPROVED`, `REJECTED`, `SUSPENDED`.
+
+Status akun dikelola oleh Superadmin melalui Web Control Plane (`/superadmin/`). Pengguna yang berada dalam status selain `APPROVED` tidak dapat mengakses fungsi operasional POS/KDS atau API outlet. Penangguhan akun (`SUSPENDED`) mencabut seluruh sesi aktif secara seketika.
 
 ## 9. Model Data Inti
 
