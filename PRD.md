@@ -55,7 +55,7 @@ Dalam dokumen ini, pengguna yang memesan disebut **pelanggan**.
 
 ### 3.1 Termasuk dalam MVP
 
-- Login staf sederhana dan pembagian peran dasar.
+- Login Google untuk Owner dengan persetujuan Superadmin sebelum fitur operasional terbuka.
 - Pengelolaan menu, varian, topping, harga, dan ketersediaan.
 - Web Customer tanpa akun: pelanggan cukup memasukkan nama dan nomor HP, memilih menu, mengonfirmasi pesanan, lalu memilih pembayaran.
 - Identifikasi pelanggan berdasarkan nomor WhatsApp yang dinormalisasi.
@@ -85,8 +85,8 @@ Dalam dokumen ini, pengguna yang memesan disebut **pelanggan**.
 
 | Peran | Kebutuhan utama | Hak akses MVP |
 | --- | --- | --- |
-| Owner/Admin | Melihat operasi dan mengatur sistem | Menu, staf, laporan, konfigurasi, seluruh order |
-| Kasir | Membuat dan mengonfirmasi order | Order, pelanggan, pembayaran, antrean |
+| Owner | Menjalankan aplikasi outlet tunggal | Menu, order, pelanggan, pembayaran, antrean, dan KDS |
+| Superadmin | Mengelola akses Owner dan memantau kesehatan platform melalui web | Approval/suspend/revoke user dan monitoring read-only; tanpa akses data bisnis outlet |
 | Dapur/KDS | Mengetahui urutan produksi | Melihat antrean dan mengubah status produksi |
 | Hermes Agent | Membantu percakapan order | Membaca event terotorisasi dan memanggil tool/API terbatas |
 | Pelanggan | Memesan dan menerima status | Chat WhatsApp, Web Customer, dan halaman pembayaran Midtrans |

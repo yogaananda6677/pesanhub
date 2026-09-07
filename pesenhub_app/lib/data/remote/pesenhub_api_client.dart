@@ -37,21 +37,59 @@ class PesenHubApiClient
   }) : _client = client ?? http.Client();
 
   @override
-  Future<SessionCredential> login(String username, String password) async {
+  Future<String> createGoogleChallenge() async {
     final response = await _send(
       'POST',
-      config.resolve('auth/login'),
-      body: jsonEncode({'username': username, 'password': password}),
+      config.resolve('auth/google/challenge'),
       authenticated: false,
     );
     try {
       final json = _decodeObject(response);
-      return SessionCredential.fromJson(json);
+      final nonce = json['nonce'];
+      if (nonce is! String || nonce.length < 32) throw const FormatException();
+      return nonce;
     } on ApiFailure {
       rethrow;
     } catch (_) {
       throw _invalidResponse(response);
     }
+  }
+
+  @override
+  Future<SessionCredential> loginWithGoogle(
+    String idToken,
+    String nonce,
+  ) async {
+    final response = await _send(
+      'POST',
+      config.resolve('auth/google'),
+      body: jsonEncode({'id_token': idToken, 'nonce': nonce}),
+      authenticated: false,
+    );
+    try {
+      return SessionCredential.fromJson(_decodeObject(response));
+    } on ApiFailure {
+      rethrow;
+    } catch (_) {
+      throw _invalidResponse(response);
+    }
+  }
+
+  @override
+  Future<AuthUser> currentUser() async {
+    final response = await _send('GET', config.resolve('auth/me'));
+    try {
+      return AuthUser.fromJson(_decodeObject(response));
+    } on ApiFailure {
+      rethrow;
+    } catch (_) {
+      throw _invalidResponse(response);
+    }
+  }
+
+  @override
+  Future<void> logout() async {
+    await _send('POST', config.resolve('auth/logout'));
   }
 
   @override

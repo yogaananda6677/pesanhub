@@ -1,5 +1,5 @@
 {
-  "contract_version": 3,
+  "contract_version": 4,
   "enums": {
     "order_sources": [
       "CASHIER_MANUAL",
@@ -35,7 +35,15 @@
   "login_response": {
     "access_token": "synthetic.signed-session-token",
     "token_type": "Bearer",
-    "expires_at": "2026-09-05T16:00:00Z"
+    "expires_at": "2026-09-05T16:00:00Z",
+    "user": {
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "email": "ow***@example.test",
+      "display_name": "Owner Kontrak",
+      "role": "OWNER",
+      "status": "APPROVED",
+      "approved_at": "2026-09-05T08:00:00Z"
+    }
   },
   "queue_response": {
     "data": [

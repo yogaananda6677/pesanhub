@@ -1,13 +1,14 @@
 package customer
 
 import (
+	"context"
 	"crypto/subtle"
 	"net/http"
 	"strings"
 )
 
 type TokenVerifier interface {
-	Verify(token string) (Principal, bool)
+	Verify(context.Context, string) (Principal, bool)
 }
 
 func Authenticate(staffToken, kdsToken string, sessions TokenVerifier, next http.Handler) http.Handler {
@@ -23,7 +24,7 @@ func Authenticate(staffToken, kdsToken string, sessions TokenVerifier, next http
 		case constantTimeTokenEqual(token, kdsToken):
 			principal = Principal{Subject: "kds-api", Role: "KDS"}
 		case sessions != nil:
-			principal, _ = sessions.Verify(token)
+			principal, _ = sessions.Verify(r.Context(), token)
 		}
 		if principal.Subject != "" {
 			r = r.WithContext(WithPrincipal(r.Context(), principal))

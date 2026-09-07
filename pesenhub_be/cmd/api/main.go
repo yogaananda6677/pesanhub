@@ -37,11 +37,6 @@ func main() {
 		logger.Error("session configuration failed", "error", "invalid configuration")
 		os.Exit(1)
 	}
-	login, err := appauth.NewHandler(cfg.Auth.LoginUsername, cfg.Auth.LoginPasswordHash, sessions)
-	if err != nil {
-		logger.Error("login configuration failed", "error", "invalid configuration")
-		os.Exit(1)
-	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	pool, err := database.Open(ctx, cfg.Database.DSN())
@@ -50,6 +45,18 @@ func main() {
 		os.Exit(1)
 	}
 	defer pool.Close()
+	identityStore := appauth.NewStore(pool)
+	sessions.SetValidator(identityStore)
+	googleVerifier, err := appauth.NewOIDCGoogleVerifier(ctx, cfg.Auth.GoogleClientID)
+	if err != nil {
+		logger.Error("Google authentication configuration failed", "error", "invalid configuration")
+		os.Exit(1)
+	}
+	googleAuth, err := appauth.NewGoogleHandler(googleVerifier, identityStore, sessions)
+	if err != nil {
+		logger.Error("authentication handler configuration failed", "error", "invalid configuration")
+		os.Exit(1)
+	}
 	wc := gowa.New(cfg.GOWA.BaseURL, cfg.GOWA.Username, cfg.GOWA.Password, cfg.GOWA.DeviceID, cfg.GOWA.Timeout)
 	gowaStore := gowa.NewStore(pool)
 	gowaWebhook := gowa.NewWebhookHandler(cfg.GOWA.WebhookSecret, logger, gowa.WithStore(gowaStore))
@@ -102,7 +109,10 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", h.Live)
 	mux.HandleFunc("GET /health/ready", h.Ready)
-	mux.HandleFunc("POST /api/v1/auth/login", login.Login)
+	mux.HandleFunc("POST /api/v1/auth/google/challenge", googleAuth.Challenge)
+	mux.HandleFunc("POST /api/v1/auth/google", googleAuth.Login)
+	mux.HandleFunc("GET /api/v1/auth/me", googleAuth.Me)
+	mux.HandleFunc("POST /api/v1/auth/logout", googleAuth.Logout)
 	mux.Handle("POST /webhooks/gowa", gowaWebhook)
 	mux.Handle("POST /webhooks/midtrans", midtransWebhook)
 	mux.HandleFunc("POST /api/v1/customers", customers.Create)

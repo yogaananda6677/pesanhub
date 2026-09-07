@@ -67,8 +67,7 @@ Semua nama berikut berasal dari `pesenhub_be/.env.example`, config Go, atau Dock
 | `APP_TIMEZONE` | Public config | Domain display/schedule | Keputusan outlet | Product/Backend Owner | Saat timezone outlet berubah |
 | `APP_STAFF_TOKEN` | Secret | REST/WS operator | Generator + secret store | Backend/Outlet Owner | Berkala, setelah exposure, dan saat perangkat dicabut |
 | `APP_KDS_TOKEN` | Secret | REST/WS KDS | Generator + secret store | Backend/Outlet Owner | Berkala, setelah exposure, dan saat perangkat dicabut |
-| `APP_LOGIN_USERNAME` | Sensitive identity | Login aplikasi outlet tunggal | Deployment config | Outlet | Saat akun diganti |
-| `APP_LOGIN_PASSWORD_HASH` | Secret verifier | Login aplikasi outlet tunggal | Hash bcrypt dari password yang diprovisi di luar repository | Outlet/Backend | Saat password diganti atau dicurigai bocor |
+| `GOOGLE_OAUTH_CLIENT_ID` | Public OAuth identifier | Verifikasi audience Google OIDC | Google Cloud OAuth client | Backend/Security | Saat OAuth client diganti |
 | `APP_SESSION_SECRET` | Secret | Penandatanganan sesi REST/WS | Generator + secret store | Backend | Berkala dan setelah suspected exposure |
 | `APP_SESSION_TTL` | Security config | Masa berlaku sesi | Deployment policy, maksimum 24 jam | Backend | Saat kebijakan sesi berubah |
 | `DATABASE_HOST` | Sensitive config | API → PostgreSQL | Compose/service discovery atau secret platform | DevOps Owner | Saat endpoint berubah |

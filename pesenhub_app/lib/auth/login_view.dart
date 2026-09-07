@@ -5,7 +5,6 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_card.dart';
-import '../widgets/app_text_field.dart';
 import 'session.dart';
 
 class LoginView extends StatefulWidget {
@@ -17,34 +16,28 @@ class LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<LoginView> {
-  final _username = TextEditingController();
-  final _password = TextEditingController();
-  bool _showPassword = false;
-
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(_onControllerChanged);
+    widget.controller.addListener(_changed);
   }
 
   @override
   void didUpdateWidget(covariant LoginView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.controller, widget.controller)) {
-      oldWidget.controller.removeListener(_onControllerChanged);
-      widget.controller.addListener(_onControllerChanged);
+      oldWidget.controller.removeListener(_changed);
+      widget.controller.addListener(_changed);
     }
   }
 
-  void _onControllerChanged() {
+  void _changed() {
     if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    widget.controller.removeListener(_onControllerChanged);
-    _username.dispose();
-    _password.dispose();
+    widget.controller.removeListener(_changed);
     super.dispose();
   }
 
@@ -68,7 +61,7 @@ class _LoginViewState extends State<LoginView> {
                     children: [
                       const Icon(
                         Icons.storefront_rounded,
-                        size: 52,
+                        size: 56,
                         color: AppColors.primary,
                       ),
                       const SizedBox(height: AppSpacing.md),
@@ -79,51 +72,19 @@ class _LoginViewState extends State<LoginView> {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Gunakan akun outlet untuk melanjutkan.',
+                        'Gunakan akun Google Owner yang telah disetujui Superadmin.',
                         textAlign: TextAlign.center,
                         style: AppTypography.bodyMedium.copyWith(
                           color: AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xl),
-                      AppTextField(
-                        label: 'Username',
-                        controller: _username,
-                        enabled: !busy,
-                        textInputAction: TextInputAction.next,
-                        prefixIcon: const Icon(Icons.person_outline_rounded),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      AppTextField(
-                        label: 'Kata sandi',
-                        controller: _password,
-                        enabled: !busy,
-                        obscureText: !_showPassword,
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (_) => _submit(),
-                        prefixIcon: const Icon(Icons.lock_outline_rounded),
-                        suffixIcon: IconButton(
-                          tooltip: _showPassword
-                              ? 'Sembunyikan kata sandi'
-                              : 'Tampilkan kata sandi',
-                          onPressed: busy
-                              ? null
-                              : () => setState(
-                                  () => _showPassword = !_showPassword,
-                                ),
-                          icon: Icon(
-                            _showPassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                          ),
-                        ),
-                      ),
                       if (widget.controller.errorMessage case final error?) ...[
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.lg),
                         Semantics(
                           liveRegion: true,
                           child: Text(
                             error,
+                            textAlign: TextAlign.center,
                             style: AppTypography.bodyMedium.copyWith(
                               color: AppColors.error,
                             ),
@@ -131,11 +92,22 @@ class _LoginViewState extends State<LoginView> {
                         ),
                       ],
                       const SizedBox(height: AppSpacing.xl),
-                      AppButton(
-                        label: 'Masuk',
+                      AppButton.outlined(
+                        label: 'Lanjutkan dengan Google',
+                        icon: Icons.account_circle_outlined,
                         isFullWidth: true,
                         isLoading: busy,
-                        onPressed: busy ? null : _submit,
+                        onPressed: busy
+                            ? null
+                            : widget.controller.signInWithGoogle,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        'Login Google hanya memverifikasi identitas. Akses aplikasi diberikan setelah persetujuan Superadmin.',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -146,10 +118,5 @@ class _LoginViewState extends State<LoginView> {
         ),
       ),
     );
-  }
-
-  Future<void> _submit() async {
-    if (_username.text.trim().isEmpty || _password.text.isEmpty) return;
-    await widget.controller.signIn(_username.text, _password.text);
   }
 }

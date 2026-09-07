@@ -181,7 +181,7 @@ func (s *Service) List(ctx context.Context, p customer.Principal, filter OrderFi
 	if s.reader == nil {
 		return OrderCollection{}, errors.New("order reader unavailable")
 	}
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "KDS") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "KDS") {
 		return OrderCollection{}, customer.ErrUnauthorized
 	}
 	for i, st := range filter.Statuses {
@@ -228,7 +228,7 @@ func (s *Service) GetByID(ctx context.Context, p customer.Principal, id string) 
 	if s.reader == nil {
 		return OrderDetail{}, errors.New("order reader unavailable")
 	}
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "KDS") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "KDS") {
 		return OrderDetail{}, customer.ErrUnauthorized
 	}
 	id = strings.TrimSpace(id)
@@ -247,7 +247,7 @@ func (s *Service) QueueSnapshot(ctx context.Context, p customer.Principal) ([]Or
 	if s.reader == nil {
 		return nil, errors.New("order reader unavailable")
 	}
-	if p.Subject == "" || (p.Role != "STAFF" && p.Role != "KDS") {
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "KDS") {
 		return nil, customer.ErrUnauthorized
 	}
 	filter := OrderFilter{
@@ -372,7 +372,7 @@ func (s *Service) GetByPublicToken(ctx context.Context, token string) (PublicTra
 }
 
 func (s *Service) GetAuditLogs(ctx context.Context, orderID string, p customer.Principal, requestID string) ([]AuditLogEntry, error) {
-	if p.Role != "STAFF" {
+	if !customer.CanOperateOutlet(p) {
 		return nil, customer.ErrUnauthorized
 	}
 	orderID = strings.TrimSpace(orderID)

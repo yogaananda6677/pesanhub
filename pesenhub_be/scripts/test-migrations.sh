@@ -16,7 +16,7 @@ sleep 1
 port="$(docker port "$container" 5432/tcp | sed 's/.*://')"
 
 run_migration() {
-  DATABASE_HOST=127.0.0.1 DATABASE_PORT="$port" DATABASE_NAME=pesenhub_test DATABASE_USER=pesenhub_test DATABASE_PASSWORD="$password" DATABASE_SSLMODE=disable GOWA_BASE_URL=http://127.0.0.1:3000 GOWA_BASIC_AUTH_USERNAME=test GOWA_BASIC_AUTH_PASSWORD=test-only GOWA_DEVICE_ID=pesenhub-dev GOWA_WEBHOOK_SECRET=test-hmac-key-at-least-32-chars-long MIDTRANS_SERVER_KEY=SB-Mid-server-test MIDTRANS_MERCHANT_ID=G123456789 MIDTRANS_BASE_URL=https://api.sandbox.midtrans.com APP_STAFF_TOKEN=staff-script-token-at-least-32-characters APP_KDS_TOKEN=kds-script-token-at-least-32-charactersxx APP_LOGIN_USERNAME=outlet APP_LOGIN_PASSWORD_HASH='$2b$12$Hh3DcQ1Vtgt8PCVFA2oG3uLZ5nhlXvGDk90Rq.8hLr.4poYps/5tK' APP_SESSION_SECRET=session-script-secret-at-least-32-characters APP_SESSION_TTL=8h GOCACHE=/tmp/pesenhub-migration-test-cache go run ./cmd/migrate "$1"
+  DATABASE_HOST=127.0.0.1 DATABASE_PORT="$port" DATABASE_NAME=pesenhub_test DATABASE_USER=pesenhub_test DATABASE_PASSWORD="$password" DATABASE_SSLMODE=disable GOWA_BASE_URL=http://127.0.0.1:3000 GOWA_BASIC_AUTH_USERNAME=test GOWA_BASIC_AUTH_PASSWORD=test-only GOWA_DEVICE_ID=pesenhub-dev GOWA_WEBHOOK_SECRET=test-hmac-key-at-least-32-chars-long MIDTRANS_SERVER_KEY=SB-Mid-server-test MIDTRANS_MERCHANT_ID=G123456789 MIDTRANS_BASE_URL=https://api.sandbox.midtrans.com APP_STAFF_TOKEN=staff-script-token-at-least-32-characters APP_KDS_TOKEN=kds-script-token-at-least-32-charactersxx GOOGLE_OAUTH_CLIENT_ID=google-test.apps.googleusercontent.com APP_SESSION_SECRET=session-script-secret-at-least-32-characters APP_SESSION_TTL=8h GOCACHE=/tmp/pesenhub-migration-test-cache go run ./cmd/migrate "$1"
 }
 
 run_migration up
@@ -48,6 +48,11 @@ DO $$ BEGIN
 END $$;
 SQL
 
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.app_users') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.external_identities') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.app_sessions') IS NOT NULL")" = "t"
+run_migration down
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.app_users') IS NULL")" = "t"
 run_migration down
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=0 FROM information_schema.columns WHERE table_name='menu_categories' AND column_name='version'")" = "t"
 run_migration down
@@ -143,6 +148,7 @@ test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.customer_opt_outs') IS NOT NULL")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT count(*)=1 FROM information_schema.columns WHERE table_name='order_notifications' AND column_name='next_retry_at'")" = "t"
 test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.payments_reconciliation_due_idx') IS NOT NULL")" = "t"
+test "$(docker exec "$container" psql -At -U pesenhub_test -d pesenhub_test -c "SELECT to_regclass('public.app_users') IS NOT NULL")" = "t"
 
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U pesenhub_test -d pesenhub_test -c "INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key) VALUES ('81000000-0000-0000-0000-000000000001', '+628111111111', 'Race Test', 'race-key-1') ON CONFLICT DO NOTHING" >/dev/null &
 first_pid=$!

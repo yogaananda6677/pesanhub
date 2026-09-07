@@ -36,7 +36,13 @@ type OrderSummary struct {
 	ID, OrderNumber, Status string
 	TotalAmount             int64
 }
-type Principal struct{ Subject, Role, CustomerID string }
+type Principal struct{ Subject, Role, CustomerID, SessionID string }
+
+// CanOperateOutlet keeps service credentials compatible while making OWNER the
+// user-facing role issued by the Google identity flow.
+func CanOperateOutlet(p Principal) bool {
+	return p.Subject != "" && (p.Role == "STAFF" || p.Role == "OWNER")
+}
 
 type Repository interface {
 	CreateOrGet(context.Context, Profile, string) (Profile, bool, error)
@@ -91,7 +97,7 @@ func authorize(p Principal, id string) error {
 	if p.Subject == "" {
 		return ErrUnauthenticated
 	}
-	if p.Role == "STAFF" || (p.Role == "CUSTOMER" && p.CustomerID != "" && p.CustomerID == id) {
+	if CanOperateOutlet(p) || (p.Role == "CUSTOMER" && p.CustomerID != "" && p.CustomerID == id) {
 		return nil
 	}
 	return ErrUnauthorized

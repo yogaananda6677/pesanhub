@@ -2,12 +2,17 @@ class ApiConfig {
   static const _environmentBaseUrl = String.fromEnvironment(
     'PESENHUB_API_BASE_URL',
   );
+  static const _environmentGoogleServerClientId = String.fromEnvironment(
+    'PESENHUB_GOOGLE_SERVER_CLIENT_ID',
+  );
   final Uri baseUri;
   final Duration requestTimeout;
+  final String googleServerClientId;
 
   ApiConfig({
     required Uri baseUri,
     this.requestTimeout = const Duration(seconds: 10),
+    this.googleServerClientId = '',
   }) : baseUri = _normalize(baseUri) {
     if (requestTimeout <= Duration.zero) {
       throw const FormatException('request timeout must be positive');
@@ -24,7 +29,10 @@ class ApiConfig {
 
   static ApiConfig? fromEnvironment() {
     if (_environmentBaseUrl.isEmpty) return null;
-    return ApiConfig(baseUri: Uri.parse(_environmentBaseUrl));
+    return ApiConfig(
+      baseUri: Uri.parse(_environmentBaseUrl),
+      googleServerClientId: _environmentGoogleServerClientId,
+    );
   }
 
   Uri resolve(String relativePath) => baseUri.resolve(relativePath);

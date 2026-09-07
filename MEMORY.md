@@ -14,7 +14,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current phase  | Phase 1D — MVP Integration & Release                       |
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
-| Last updated   | 6 September 2026                                           |
+| Last updated   | 7 September 2026                                           |
 | Updated by     | Issue #132 Menu catalog management end-to-end               |
 | Updated by     | Issue #133 POS redesign dengan tab kategori & sticky cart   |
 
@@ -53,6 +53,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng
 | ADR-012 | Stack utama dijalankan dengan Docker Compose                                     | ACCEPTED          | API dibangun multi-stage, PostgreSQL 16 Alpine dan GOWA berjalan sebagai service dalam satu network |
 | ADR-013 | GOWA v9 menggantikan WAHA sebagai gateway WhatsApp aktif                         | ACCEPTED — #118   | Kontrak lebih ringan berbasis Go; domain source `WHATSAPP` dan exit strategy resmi tetap dipertahankan |
 | ADR-011 | Web Customer tanpa akun menggunakan nama dan nomor HP                            | ACCEPTED          | Mengurangi hambatan pelanggan saat membuat order                                                    |
+| ADR-014 | Owner login dengan Google dan memerlukan approval Superadmin                    | IN_PROGRESS — #139 | Autentikasi eksternal dipisahkan dari authorization; pending/rejected/suspended selalu terkunci       |
 
 ## 5. Phase Progress Summary
 
@@ -82,6 +83,8 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Pull Request: [#136](https://github.com/yogaananda6677/pesanhub/pull/136)
 - Merged Pull Requests: sampai [#135](https://github.com/yogaananda6677/pesanhub/pull/135)
 - Current Issue: [#133 — Redesign POS dengan tab kategori dan sticky bottom cart](https://github.com/yogaananda6677/pesanhub/issues/133)
+- Current Issue: [#139 — Arsitektur login Google dan approval akun Owner](https://github.com/yogaananda6677/pesanhub/issues/139)
+- Depends next: [#140 — Portal web Superadmin](https://github.com/yogaananda6677/pesanhub/issues/140)
 - Current Branch: `feature/133-redesign-pos-tab-sticky-cart`
 - Pull Request: [#137](https://github.com/yogaananda6677/pesanhub/pull/137)
 - Merged Pull Requests: sampai [#136](https://github.com/yogaananda6677/pesanhub/pull/136)
@@ -1621,4 +1624,3 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 **Next**
 
 - Push branch `feature/133-redesign-pos-tab-sticky-cart` and open PR for Issue #133.
-

@@ -11,15 +11,15 @@ cd pesenhub_app
 cp config/runtime.example.json config/runtime.local.json
 ```
 
-Isi hanya `PESENHUB_API_BASE_URL` dengan endpoint backend, lalu jalankan:
+Isi `PESENHUB_API_BASE_URL` dan `PESENHUB_GOOGLE_SERVER_CLIENT_ID`, lalu jalankan:
 
 ```bash
 flutter run --dart-define-from-file=config/runtime.local.json
 ```
 
-HTTP hanya diizinkan untuk `localhost`, `127.0.0.1`, dan alamat emulator Android `10.0.2.2`; host lain wajib HTTPS. Build tanpa base URL berhenti pada layar konfigurasi dan tidak dapat melewati login. Aplikasi meminta username dan password akun outlet tunggal melalui `POST /api/v1/auth/login`, lalu menyimpan sesi kedaluwarsa di secure storage platform. Tidak ada pemilih role Owner/Operator/Kasir; capability `STAFF` hanya detail internal backend.
+HTTP hanya diizinkan untuk host lokal/private yang divalidasi client; host lain wajib HTTPS. Build tanpa base URL berhenti pada layar konfigurasi dan tidak dapat melewati login. Aplikasi meminta nonce backend, menjalankan Google Sign-In, lalu menukar ID token di `POST /api/v1/auth/google`. Sesi dan status approval disimpan di secure storage; database lokal, sync, order, katalog, dan WebSocket tidak dinyalakan untuk akun pending/rejected/suspended.
 
-Backend memakai `APP_LOGIN_USERNAME`, hash bcrypt `APP_LOGIN_PASSWORD_HASH`, secret penandatangan `APP_SESSION_SECRET`, dan TTL maksimum 24 jam melalui `APP_SESSION_TTL`. Password plaintext tidak disimpan. Sesi yang sama dipakai sebagai bearer REST dan query handshake WebSocket; URL handshake tidak boleh dicatat. `APP_STAFF_TOKEN`/`APP_KDS_TOKEN` tetap diterima sementara untuk service compatibility, bukan ditanam ke build mobile.
+Backend memakai `GOOGLE_OAUTH_CLIENT_ID`, secret penandatangan `APP_SESSION_SECRET`, dan TTL maksimum 24 jam melalui `APP_SESSION_TTL`. Role dan status selalu berasal dari backend. Sesi yang sama dipakai sebagai bearer REST dan query handshake WebSocket; URL handshake tidak boleh dicatat. `APP_STAFF_TOKEN`/`APP_KDS_TOKEN` tetap diterima sementara untuk service compatibility, bukan ditanam ke build mobile.
 
 ## Alur recovery
 

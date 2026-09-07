@@ -36,7 +36,7 @@ void main() {
     Set<String> values(String key) =>
         (enums[key] as List).cast<String>().toSet();
 
-    expect(fixture['contract_version'], 3);
+    expect(fixture['contract_version'], 4);
     expect(values('order_sources'), QueueOrderDto.validSources);
     expect(values('order_statuses'), QueueOrderDto.validStatuses);
     expect(values('payment_methods'), PaymentDto.validMethods);
@@ -61,6 +61,7 @@ void main() {
     expect(session.accessToken, isNotEmpty);
     expect(response['token_type'], 'Bearer');
     expect(session.expiresAt.isUtc, isTrue);
+    expect(session.user.status, ApprovalStatus.approved);
   });
 
   test(

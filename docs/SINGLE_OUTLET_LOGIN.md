@@ -1,4 +1,8 @@
-# Login dan Sesi Aplikasi Outlet Tunggal
+# Login dan Sesi Aplikasi Outlet Tunggal (Superseded)
+
+> Keputusan Issue #130 ini digantikan oleh Issue #139. Kontrak aktif dijelaskan
+> dalam `GOOGLE_OWNER_APPROVAL_AUTH.md`; username/password tidak lagi menjadi
+> jalur login default.
 
 Dokumen ini mencatat keputusan Issue #130. PesenHub adalah satu aplikasi untuk satu outlet, bukan produk multi-tenant dengan pemilihan persona. Karena itu layar login hanya menerima username dan kata sandi; istilah Owner, Operator, dan pemilih role tidak ditampilkan. Backend tetap menggunakan capability internal `STAFF` untuk otorisasi endpoint yang sudah ada.
 
