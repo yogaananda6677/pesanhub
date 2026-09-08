@@ -281,8 +281,7 @@ class SessionController extends ChangeNotifier {
         errorMessage =
             'Verifikasi akun Google gagal. Pastikan akun terdaftar dan periksa koneksi ke server.';
       } else if (failure.kind == ApiFailureKind.conflict) {
-        errorMessage =
-            'Akun Google ini sudah terhubung dengan peran lain.';
+        errorMessage = 'Akun Google ini sudah terhubung dengan peran lain.';
       } else if (failure.kind == ApiFailureKind.network) {
         errorMessage =
             'Koneksi ke server backend gagal. Pastikan perangkat terhubung ke server.';
