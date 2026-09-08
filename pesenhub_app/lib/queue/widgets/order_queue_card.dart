@@ -1,14 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
-import '../../theme/app_typography.dart';
-import '../../widgets/app_button.dart';
-import '../../widgets/app_card.dart';
-import '../../widgets/app_status_badge.dart';
 import '../models/queue_order.dart';
 
-/// OrderQueueCard renders a scannable order in the unified queue.
-/// Fulfills Issue #26 Acceptance Criteria #1, #3, and #5.
 /// OrderQueueCard renders an order queue card matching the streamlined kitchen queue design.
 /// Fulfills Issue #147: Redesign Antrean Dapur.
 class OrderQueueCard extends StatelessWidget {
@@ -31,50 +25,6 @@ class OrderQueueCard extends StatelessWidget {
         ? order.isOverdueAt(now!)
         : order.isOverdue;
 
-    return AppCard(
-      onTap: onTap,
-      borderSide: isOverdue
-          ? const BorderSide(color: AppColors.error, width: 2)
-          : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 1. Overdue banner if applicable (Criteria #3)
-          if (isOverdue) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.errorBg,
-                borderRadius: AppSpacing.borderRadiusSm,
-              ),
-              child: const Row(
-                children: [
-                  Icon(
-                    Icons.timer_off_rounded,
-                    size: 16,
-                    color: AppColors.error,
-                  ),
-                  SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: Text(
-                      'TERLAMBAT (> 15 MENIT BELUM SELESAI)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.error,
-                        letterSpacing: 0.5,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
     return Semantics(
       label: '${order.displayQueueTitle} ${order.orderNumber}',
       child: Material(
@@ -92,35 +42,6 @@ class OrderQueueCard extends StatelessWidget {
               // 1. Teal Card Header
               _buildHeader(context, isOverdue),
 
-          // 2. Card Header: Order Number, Time, and Badges (Criteria #1)
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.start,
-            alignment: WrapAlignment.spaceBetween,
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.xs,
-            children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    order.orderNumber,
-                    style: AppTypography.titleLarge.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.access_time_rounded,
-                        size: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Text(order.formattedTime, style: AppTypography.bodySmall),
               // 2. Card Body
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -131,26 +52,7 @@ class OrderQueueCard extends StatelessWidget {
                       _buildOverdueBanner(),
                       const SizedBox(height: 12),
                     ],
-                  ),
-                ],
-              ),
-              // Source badge: CASHIER_MANUAL, CUSTOMER_WEB, WHATSAPP (Criteria #1)
-              AppStatusBadge.source(order.source),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
 
-          // 3. Customer Info & Badges
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.xs,
-            children: [
-              Text(
-                '${order.customerName} (${order.customerPhone})',
-                style: AppTypography.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w600,
                     // Gray Item Container
                     _buildItemsBox(),
 
@@ -161,41 +63,98 @@ class OrderQueueCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Wrap(
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xs,
-                children: [
-                  AppStatusBadge.order(order.orderStatus),
-                  AppStatusBadge.payment(order.paymentStatus),
-                ],
-              ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          const Divider(height: 1),
-          const SizedBox(height: AppSpacing.md),
         ),
       ),
     );
   }
 
-          // 4. Takeaway / Packing Section (Criteria #3)
-          if (order.isTakeaway) ...[
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: AppSpacing.borderRadiusSm,
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.shopping_bag_outlined,
-                    size: 18,
-                    color: AppColors.primary,
   Widget _buildHeader(BuildContext context, bool isOverdue) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final isLargeText = textScale > 1.3;
+
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            order.isTakeaway
+                ? Icons.shopping_bag_outlined
+                : Icons.restaurant_outlined,
+            size: 14,
+            color: const Color(0xFF1B7C71),
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              order.diningOptionLabel,
+              style: const TextStyle(
+                color: Color(0xFF1B7C71),
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (isLargeText) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: const BoxDecoration(color: Color(0xFF1B7C71)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.receipt_long_rounded,
+                    color: Color(0xFF1B7C71),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    order.displayQueueTitle,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              order.formattedDateTime,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            badge,
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: const BoxDecoration(
@@ -231,222 +190,25 @@ class OrderQueueCard extends StatelessWidget {
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Pesanan Dibungkus (Takeaway)',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        if (order.takeawayNotes != null &&
-                            order.takeawayNotes!.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            'Catatan Bungkus: ${order.takeawayNotes}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-          ],
-
-          // 5. Drinks Highlight Section (Criteria #3)
-          if (order.drinkItems.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: AppColors.infoBg,
-                borderRadius: AppSpacing.borderRadiusSm,
-                border: Border.all(
-                  color: AppColors.info.withValues(alpha: 0.3),
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.local_drink_rounded,
-                        size: 16,
-                        color: AppColors.info,
-                      ),
-                      SizedBox(width: AppSpacing.xs),
-                      Expanded(
-                        child: Text(
-                          'Minuman / Barista',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.info,
-                          ),
-                        ),
-                      ),
-                    ],
                 const SizedBox(height: 2),
                 Text(
                   order.formattedDateTime,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 12,
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  ...order.drinkItems.map((drink) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${drink.quantity}x ${drink.name}${drink.notes != null ? ' (${drink.notes})' : ''}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            'Rp ${drink.subtotal}',
-                            style: AppTypography.bodySmall,
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-          ],
-
-          // 6. Food Items List (Criteria #3)
-          if (order.foodItems.isNotEmpty) ...[
-            const Text('Makanan / Dapur:', style: AppTypography.labelSmall),
-            const SizedBox(height: AppSpacing.xs),
-            ...order.foodItems.map((food) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${food.quantity}x ${food.name}',
-                            style: AppTypography.bodyLarge.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          'Rp ${food.subtotal}',
-                          style: AppTypography.bodyMedium,
-                        ),
-                      ],
-                    ),
-                    if (food.notes != null && food.notes!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: AppSpacing.md,
-                          top: 2,
-                        ),
-                        child: Text(
-                          'Catatan: ${food.notes}',
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.secondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            }),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-
-          // 7. Total Amount
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Expanded(
-                child: Text(
-                  'Total Pembayaran',
-                  style: AppTypography.titleMedium,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          // Dining preference badge
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Rp ${order.totalAmount}',
-                style: AppTypography.titleMedium.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w800,
-              child: Text(
-                order.diningOptionLabel,
-                style: const TextStyle(
-                  color: Color(0xFF1B7C71),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          // 8. Contextual Action Buttons
-          _buildActionButtons(context),
+          // Dining Option Pill Badge
+          badge,
         ],
       ),
     );
   }
 
-  Widget _buildActionButtons(BuildContext context) {
-    switch (order.orderStatus) {
-      case 'PENDING':
-        return Row(
-          children: [
-            Expanded(
-              child: AppButton.danger(
-                label: 'Tolak',
-                icon: Icons.cancel_outlined,
-                onPressed: onStatusChanged != null
-                    ? () => onStatusChanged!(order, 'REJECTED')
-                    : null,
   Widget _buildOverdueBanner() {
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -472,15 +234,6 @@ class OrderQueueCard extends StatelessWidget {
               ),
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              flex: 2,
-              child: AppButton(
-                label: 'Terima Pesanan',
-                icon: Icons.check_circle_outline_rounded,
-                onPressed: onStatusChanged != null
-                    ? () => onStatusChanged!(order, 'ACCEPTED')
-                    : null,
           ),
         ],
       ),
@@ -533,8 +286,6 @@ class OrderQueueCard extends StatelessWidget {
                 ],
               ],
             ),
-          ],
-        );
     );
   }
 
@@ -546,43 +297,16 @@ class OrderQueueCard extends StatelessWidget {
     switch (order.orderStatus) {
       case 'PENDING':
       case 'ACCEPTED':
-        return AppButton(
-          label: 'Mulai Masak di Dapur',
-          icon: Icons.outdoor_grill_rounded,
-          isFullWidth: true,
-          onPressed: onStatusChanged != null
-              ? () => onStatusChanged!(order, 'PREPARING')
-              : null,
-        );
-
         label = 'Mulai Proses';
         icon = Icons.soup_kitchen_outlined;
         nextStatus = 'PREPARING';
         break;
       case 'PREPARING':
-        return AppButton(
-          label: 'Tandai Siap Diambil',
-          icon: Icons.shopping_bag_outlined,
-          isFullWidth: true,
-          onPressed: onStatusChanged != null
-              ? () => onStatusChanged!(order, 'READY_FOR_PICKUP')
-              : null,
-        );
-
         label = 'Siap Diambil';
         icon = Icons.check_circle_outline_rounded;
         nextStatus = 'READY_FOR_PICKUP';
         break;
       case 'READY_FOR_PICKUP':
-        return AppButton(
-          label: 'Serahkan ke Pelanggan',
-          icon: Icons.task_alt_rounded,
-          isFullWidth: true,
-          onPressed: onStatusChanged != null
-              ? () => onStatusChanged!(order, 'COMPLETED')
-              : null,
-        );
-
         label = 'Selesai';
         icon = Icons.done_all_rounded;
         nextStatus = 'COMPLETED';
@@ -593,7 +317,6 @@ class OrderQueueCard extends StatelessWidget {
         nextStatus = null;
         break;
       default:
-        return const SizedBox.shrink();
         label = 'Perbarui Status';
         icon = Icons.update_rounded;
         nextStatus = null;

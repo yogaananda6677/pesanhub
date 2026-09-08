@@ -24,33 +24,14 @@ void main() {
         expect(find.byType(NavigationBar), findsOneWidget);
         expect(find.byType(NavigationRail), findsNothing);
 
-        // Mobile keeps only the four operational destinations plus Lainnya.
-        for (final destination in AppDestination.values.take(4)) {
         // Mobile keeps all five operational destinations directly without Lainnya sheet.
         for (final destination in AppDestination.values) {
           expect(find.text(destination.label), findsOneWidget);
         }
-        expect(find.text('Lainnya'), findsOneWidget);
         final navigationBar = tester.widget<NavigationBar>(
           find.byKey(const Key('primary-bottom-navigation')),
         );
         expect(navigationBar.destinations, hasLength(5));
-        expect(
-          find.descendant(
-            of: find.byKey(const Key('primary-bottom-navigation')),
-            matching: find.text('Menu'),
-          ),
-          findsNothing,
-          findsOneWidget,
-        );
-        expect(
-          find.descendant(
-            of: find.byKey(const Key('primary-bottom-navigation')),
-            matching: find.text('Pengaturan'),
-          ),
-          findsNothing,
-          findsOneWidget,
-        );
 
         // Verify no exceptions or overflows
         expect(tester.takeException(), isNull);
@@ -95,14 +76,10 @@ void main() {
           MaterialApp(theme: AppTheme.lightTheme, home: const AppShell()),
         );
 
-        // Navigate to 'Dapur KDS' (index 3)
-        await tester.tap(find.text('Dapur KDS'));
         // Navigate to 'Antrean' (index 2)
         await tester.tap(find.text('Antrean'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Dapur KDS — Tiket Memasak'), findsOneWidget);
-        expect(find.byType(KdsDestinationView), findsOneWidget);
         expect(find.text('Antrean Dapur'), findsOneWidget);
         expect(find.byType(QueueDestinationView), findsOneWidget);
 
@@ -110,9 +87,6 @@ void main() {
         tester.view.physicalSize = const Size(800, 400);
         await tester.pumpAndSettle();
 
-        // Verify KDS destination remains active after rotation/resize
-        expect(find.text('Dapur KDS — Tiket Memasak'), findsOneWidget);
-        expect(find.byType(KdsDestinationView), findsOneWidget);
         // Verify Antrean destination remains active after rotation/resize
         expect(find.text('Antrean Dapur'), findsOneWidget);
         expect(find.byType(QueueDestinationView), findsOneWidget);
@@ -136,7 +110,6 @@ void main() {
           ),
         );
 
-        // Enter customer name in POS view
         // Enter search text in POS mobile view
         final searchField = find.widgetWithText(
           TextField,
@@ -171,7 +144,6 @@ void main() {
         tester.view.physicalSize = const Size(400, 700);
         await tester.pumpAndSettle();
 
-        // Expand to tablet size (900 x 700)
         // Verify search query is still retained
         expect(find.text('Nasi Goreng'), findsOneWidget);
 
@@ -245,28 +217,15 @@ void main() {
         // 3. Switch to Antrean
         await tester.tap(find.text('Antrean'));
         await tester.pumpAndSettle();
-        expect(find.text('Antrean Pesanan'), findsOneWidget);
         expect(find.text('Antrean Dapur'), findsOneWidget);
 
-        // 4. Open secondary destinations, then switch to Menu.
-        await tester.tap(find.text('Lainnya'));
-        // 4. Switch to Menu
+        // 4. Switch to Menu directly
         await tester.tap(find.text('Menu'));
-        await tester.pumpAndSettle();
-        expect(
-          find.byKey(const Key('more-destinations-sheet')),
-          findsOneWidget,
-        );
-        await tester.tap(find.byKey(const Key('more-menu')));
         await tester.pumpAndSettle();
         expect(find.text('Kelola Ketersediaan Menu'), findsOneWidget);
 
-        // 5. Open Lainnya again, then switch to Pengaturan.
-        await tester.tap(find.text('Lainnya'));
-        // 5. Switch to Pengaturan
+        // 5. Switch to Pengaturan directly
         await tester.tap(find.text('Pengaturan'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const Key('more-settings')));
         await tester.pumpAndSettle();
         expect(find.text('Pengaturan Outlet'), findsOneWidget);
 

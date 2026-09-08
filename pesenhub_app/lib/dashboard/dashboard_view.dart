@@ -118,8 +118,6 @@ class DashboardView extends StatelessWidget {
                     count: summary.preparingCount,
                     icon: Icons.outdoor_grill_rounded,
                     accentColor: AppColors.statusPreparing,
-                    subtitle: 'Di dapur KDS',
-                    onTap: onNavigateToKds,
                     subtitle: 'Sedang diproses',
                     onTap: onNavigateToQueue ?? onNavigateToKds,
                   ),
@@ -190,9 +188,6 @@ class DashboardView extends StatelessWidget {
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: AppButton.secondary(
-                  label: 'Lihat Dapur KDS',
-                  icon: Icons.outdoor_grill_rounded,
-                  onPressed: onNavigateToKds,
                   label: 'Lihat Antrean',
                   icon: Icons.receipt_long_rounded,
                   onPressed: onNavigateToQueue ?? onNavigateToKds,

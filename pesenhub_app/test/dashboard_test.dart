@@ -134,12 +134,9 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Ringkasan Operasional'), findsOneWidget);
 
-        // 1-Tap to KDS: tap 'Lihat Dapur KDS' button
-        await tester.tap(find.text('Lihat Dapur KDS'));
         // 1-Tap to Queue: tap 'Lihat Antrean' button
         await tester.tap(find.text('Lihat Antrean'));
         await tester.pumpAndSettle();
-        expect(find.text('Dapur KDS — Tiket Memasak'), findsOneWidget);
         expect(find.text('Antrean Dapur'), findsOneWidget);
 
         // Return to Ringkasan tab
@@ -150,7 +147,6 @@ void main() {
         // 1-Tap to Queue: tap 'Menunggu Konfirmasi' metric card
         await tester.tap(find.text('Menunggu Konfirmasi'));
         await tester.pumpAndSettle();
-        expect(find.text('Antrean Pesanan'), findsOneWidget);
         expect(find.text('Antrean Dapur'), findsOneWidget);
       },
     );

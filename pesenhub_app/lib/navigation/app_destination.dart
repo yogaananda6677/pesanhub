@@ -5,7 +5,6 @@ enum AppDestination {
   dashboard,
   pos,
   queue,
-  kds,
   menu,
   settings;
 
@@ -17,8 +16,6 @@ enum AppDestination {
         return 'Kasir';
       case AppDestination.queue:
         return 'Antrean';
-      case AppDestination.kds:
-        return 'Dapur KDS';
       case AppDestination.menu:
         return 'Menu';
       case AppDestination.settings:
@@ -33,9 +30,6 @@ enum AppDestination {
       case AppDestination.pos:
         return 'Kasir — Buat Pesanan';
       case AppDestination.queue:
-        return 'Antrean Pesanan';
-      case AppDestination.kds:
-        return 'Dapur KDS — Tiket Memasak';
         return 'Antrean Dapur';
       case AppDestination.menu:
         return 'Kelola Ketersediaan Menu';
@@ -52,8 +46,6 @@ enum AppDestination {
         return Icons.point_of_sale_outlined;
       case AppDestination.queue:
         return Icons.receipt_long_outlined;
-      case AppDestination.kds:
-        return Icons.outdoor_grill_outlined;
       case AppDestination.menu:
         return Icons.restaurant_menu_outlined;
       case AppDestination.settings:
@@ -69,8 +61,6 @@ enum AppDestination {
         return Icons.point_of_sale_rounded;
       case AppDestination.queue:
         return Icons.receipt_long_rounded;
-      case AppDestination.kds:
-        return Icons.outdoor_grill_rounded;
       case AppDestination.menu:
         return Icons.restaurant_menu_rounded;
       case AppDestination.settings:

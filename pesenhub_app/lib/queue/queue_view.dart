@@ -6,10 +6,7 @@ import 'controllers/queue_controller.dart';
 import 'models/queue_order.dart';
 import 'models/queue_state.dart';
 import 'widgets/order_queue_card.dart';
-import 'widgets/queue_filter_bar.dart';
 
-/// QueueView renders the unified order queue with source badges, visual alerts, and filters.
-/// Fulfills Issue #26 Acceptance Criteria #1, #2, #3, #4, and #5.
 /// QueueView renders the streamlined kitchen queue with tabs: Menunggu, Diproses, Siap.
 /// Fulfills Issue #147: Redesign Antrean Dapur.
 class QueueView extends StatefulWidget {
@@ -28,7 +25,6 @@ class QueueView extends StatefulWidget {
   State<QueueView> createState() => _QueueViewState();
 }
 
-class _QueueViewState extends State<QueueView> {
 class _QueueViewState extends State<QueueView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
@@ -80,7 +76,6 @@ class _QueueViewState extends State<QueueView>
 
   String _statusLabel(String status) => switch (status) {
     'ACCEPTED' => 'Diterima',
-    'PREPARING' => 'Sedang Dimasak',
     'PREPARING' => 'Diproses',
     'READY_FOR_PICKUP' => 'Siap Diambil',
     'COMPLETED' => 'Selesai',
@@ -142,28 +137,12 @@ class _QueueViewState extends State<QueueView>
   Widget build(BuildContext context) {
     final state = widget.controller.state;
 
-    switch (state.status) {
-      case QueueStatus.loading:
-        return const Center(
-          child: AppLoadingState(message: 'Memuat antrean pesanan...'),
-        );
     if (state.status == QueueStatus.loading) {
       return const Center(
         child: AppLoadingState(message: 'Memuat antrean pesanan...'),
       );
     }
 
-      case QueueStatus.error:
-        return Center(
-          child: AppErrorState(
-            message: state.errorMessage ?? 'Gagal memuat antrean pesanan.',
-            onRetry: widget.onRefresh,
-          ),
-        );
-
-      case QueueStatus.empty:
-      case QueueStatus.success:
-        return _buildContent(context, state);
     if (state.status == QueueStatus.error) {
       return Center(
         child: AppErrorState(
@@ -172,31 +151,16 @@ class _QueueViewState extends State<QueueView>
         ),
       );
     }
-  }
-
-  Widget _buildContent(BuildContext context, QueueState state) {
-    final orders = widget.controller.filteredOrders;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isTablet =
             constraints.maxWidth >= AppSpacing.tabletBreakpoint;
 
-        return SingleChildScrollView(
-          key: const PageStorageKey('unified_queue_scroll'),
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
         return Scaffold(
           backgroundColor: const Color(0xFFF4F7F6),
           body: Column(
             children: [
-              // 1. Offline or Stale Alert Banner
-              if (state.isOffline) ...[
-                const AppBanner(
-                  message:
-                      'Mode Offline: Menampilkan data antrean lokal. Sinkronisasi tertunda.',
-                  type: AppBannerType.warning,
               _buildTopHeader(context),
               Expanded(
                 child: TabBarView(
@@ -207,42 +171,7 @@ class _QueueViewState extends State<QueueView>
                     _buildTabContent(2, isTablet),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-              ] else if (state.isStale) ...[
-                const AppBanner(
-                  message:
-                      'Data Usang: Hubungan real-time terputus. Menampilkan snapshot terakhir.',
-                  type: AppBannerType.warning,
-                ),
-                const SizedBox(height: AppSpacing.md),
-              ],
-
-              // 2. Filter Bar
-              QueueFilterBar(
-                selectedStatus: widget.controller.statusFilter,
-                selectedSource: widget.controller.sourceFilter,
-                onStatusChanged: widget.controller.setStatusFilter,
-                onSourceChanged: widget.controller.setSourceFilter,
-                onSearchChanged: widget.controller.setSearchQuery,
-                countForStatus: widget.controller.countForStatus,
               ),
-              const SizedBox(height: AppSpacing.lg),
-
-              // 3. Orders List or Empty State
-              if (orders.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-                  child: AppEmptyState(
-                    icon: Icons.receipt_long_outlined,
-                    title: 'Tidak Ada Pesanan',
-                    description:
-                        'Tidak ada pesanan yang sesuai dengan filter saat ini.',
-                  ),
-                )
-              else if (isTablet)
-                _buildTabletOrderGrid(orders)
-              else
-                _buildMobileOrderList(orders),
             ],
           ),
         );
