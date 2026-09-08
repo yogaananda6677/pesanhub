@@ -64,9 +64,19 @@ services:
       start_period: 20s
     networks: [pesenhub]
 
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_storage:/root/.ollama
+    networks: [pesenhub]
+
 volumes:
   postgres_data:
   gowa_storage:
+  ollama_storage:
 
 networks:
   pesenhub:

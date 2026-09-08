@@ -86,6 +86,61 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             lastUpdatedAt: DateTime.now(),
           ),
         );
+    DashboardState.success(_calculateSummary());
+    widget.queueController?.addListener(_onQueueChanged);
+  }
+
+  OperationalSummary _calculateSummary() {
+    final queue = widget.queueController;
+    if (queue == null) {
+      return OperationalSummary(lastUpdatedAt: DateTime.now());
+    }
+    int pending = 0;
+    int preparing = 0;
+    int ready = 0;
+    int overdue = 0;
+    int completed = 0;
+    final now = DateTime.now();
+    for (final order in queue.allOrders) {
+      switch (order.orderStatus) {
+        case 'PENDING':
+        case 'ACCEPTED':
+          pending++;
+          if (now.difference(order.createdAt).inMinutes > 15) {
+            overdue++;
+          }
+          break;
+        case 'PREPARING':
+          preparing++;
+          if (now.difference(order.createdAt).inMinutes > 20) {
+            overdue++;
+          }
+          break;
+        case 'READY_FOR_PICKUP':
+        case 'READY':
+          ready++;
+          break;
+        case 'COMPLETED':
+          completed++;
+          break;
+      }
+    }
+    return OperationalSummary(
+      pendingCount: pending,
+      preparingCount: preparing,
+      readyCount: ready,
+      overdueCount: overdue,
+      completedCount: completed,
+      lastUpdatedAt: now,
+    );
+  }
+
+  void _onQueueChanged() {
+    if (widget.initialDashboardState == null && mounted) {
+      setState(() {
+        _dashboardState = DashboardState.success(_calculateSummary());
+      });
+    }
   }
 
   @override
@@ -95,6 +150,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.queueController?.removeListener(_onQueueChanged);
     if (_ownsConnectivity) _connectivity.dispose();
     if (_ownsAlerts) _alerts.dispose();
     super.dispose();
@@ -131,6 +187,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             lastUpdatedAt: DateTime.now(),
           ),
         );
+        _dashboardState = DashboardState.success(_calculateSummary());
       });
     }
   }

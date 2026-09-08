@@ -256,6 +256,79 @@ func (h *Handler) GetAuditLogs(w http.ResponseWriter, r *http.Request) {
 	httpapi.WriteJSON(w, http.StatusOK, map[string]any{"data": logs})
 }
 
+// GetStatus returns the operational status and metadata of Hermes agent.
+func (h *Handler) GetStatus(w http.ResponseWriter, r *http.Request) {
+	threshold := DefaultConfidenceThreshold
+	if h.service.evaluator != nil {
+		threshold = h.service.evaluator.threshold
+	}
+	maxAttempts := MaxClarificationAttempts
+	if h.service.clarifier != nil {
+		maxAttempts = h.service.clarifier.maxAttempts
+	}
+
+	httpapi.WriteJSON(w, http.StatusOK, map[string]any{
+		"data": map[string]any{
+			"status":               "READY",
+			"agent":                "Hermes",
+			"model":                h.service.modelName,
+			"prompt_version":       h.service.promptVersion,
+			"confidence_threshold": threshold,
+			"max_attempts":         maxAttempts,
+		},
+	})
+}
+
+// Turn processes a conversation turn via HTTP API for testing and simulation.
+func (h *Handler) Turn(w http.ResponseWriter, r *http.Request) {
+	p := staffPrincipal(r)
+	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "ADMIN") {
+		h.writeError(w, r, ErrUnauthorized)
+		return
+	}
+
+	var body struct {
+		Session       string `json:"session"`
+		CustomerPhone string `json:"customer_phone"`
+		MessageText   string `json:"message_text"`
+		CorrelationID string `json:"correlation_id"`
+	}
+	if err := decodeBody(r, &body); err != nil {
+		h.writeError(w, r, ErrBadRequest)
+		return
+	}
+	if strings.TrimSpace(body.CustomerPhone) == "" || strings.TrimSpace(body.MessageText) == "" {
+		h.writeError(w, r, ErrBadRequest)
+		return
+	}
+
+	session := strings.TrimSpace(body.Session)
+	if session == "" {
+		session = "default"
+	}
+
+	reqID := httpserver.RequestID(r.Context())
+	correlationID := strings.TrimSpace(body.CorrelationID)
+	if correlationID == "" {
+		correlationID = reqID
+	}
+
+	msgID := newID()
+	resp, err := h.service.ProcessTurn(r.Context(), TurnRequest{
+		InboundMessageID: &msgID,
+		Session:          session,
+		SenderPhone:      body.CustomerPhone,
+		MessageText:      body.MessageText,
+		CorrelationID:    correlationID,
+	})
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+
+	httpapi.WriteJSON(w, http.StatusOK, map[string]any{"data": resp})
+}
+
 func decodeBody(r *http.Request, dest any) error {
 	d := json.NewDecoder(io.LimitReader(r.Body, (1<<20)+1))
 	d.DisallowUnknownFields()
