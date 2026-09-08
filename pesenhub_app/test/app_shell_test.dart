@@ -230,7 +230,10 @@ void main() {
         expect(find.text('Pengaturan Outlet'), findsOneWidget);
 
         // 6. Open Design System Catalog from Settings
-        await tester.tap(find.text('Buka Katalog Design System'));
+        final catalogFinder = find.text('Buka Katalog Design System');
+        await tester.ensureVisible(catalogFinder);
+        await tester.pumpAndSettle();
+        await tester.tap(catalogFinder);
         await tester.pumpAndSettle();
         expect(find.byType(DesignSystemShowcase), findsOneWidget);
       },

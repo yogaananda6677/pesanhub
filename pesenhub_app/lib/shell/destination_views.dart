@@ -13,6 +13,8 @@ import '../pos/pos_view.dart';
 import '../queue/controllers/queue_controller.dart';
 import '../queue/models/queue_order.dart';
 import '../queue/queue_view.dart';
+import '../settings/controllers/whatsapp_settings_controller.dart';
+import '../settings/widgets/whatsapp_settings_card.dart';
 import '../showcase/design_system_showcase.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
@@ -155,10 +157,45 @@ class _MenuDestinationViewState extends State<MenuDestinationView> {
   }
 }
 
-/// SettingsDestinationView provides outlet settings and access to the Design System Catalog.
-class SettingsDestinationView extends StatelessWidget {
+/// SettingsDestinationView provides outlet settings, WhatsApp connection status & QR pairing, and access to the Design System Catalog.
+class SettingsDestinationView extends StatefulWidget {
   final Future<void> Function()? onSignOut;
-  const SettingsDestinationView({super.key, this.onSignOut});
+  final WhatsAppSettingsController? whatsAppController;
+
+  const SettingsDestinationView({
+    super.key,
+    this.onSignOut,
+    this.whatsAppController,
+  });
+
+  @override
+  State<SettingsDestinationView> createState() =>
+      _SettingsDestinationViewState();
+}
+
+class _SettingsDestinationViewState extends State<SettingsDestinationView> {
+  late final WhatsAppSettingsController _whatsAppController;
+  bool _ownsController = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.whatsAppController != null) {
+      _whatsAppController = widget.whatsAppController!;
+    } else {
+      _whatsAppController = WhatsAppSettingsController();
+      _ownsController = true;
+    }
+    _whatsAppController.loadSettings();
+  }
+
+  @override
+  void dispose() {
+    if (_ownsController) {
+      _whatsAppController.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -168,6 +205,8 @@ class SettingsDestinationView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          WhatsAppSettingsCard(controller: _whatsAppController),
+          const SizedBox(height: AppSpacing.lg),
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,13 +238,13 @@ class SettingsDestinationView extends StatelessWidget {
                     );
                   },
                 ),
-                if (onSignOut != null) ...[
+                if (widget.onSignOut != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   AppButton.outlined(
                     label: 'Keluar dari Aplikasi',
                     icon: Icons.logout_rounded,
                     isFullWidth: true,
-                    onPressed: () async => onSignOut?.call(),
+                    onPressed: () async => widget.onSignOut?.call(),
                   ),
                 ],
               ],

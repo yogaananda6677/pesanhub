@@ -81,12 +81,12 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#6 — Phase 1D MVP Integration & Release](https://github.com/yogaananda6677/pesanhub/issues/6)
 - Child Issue: #133
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#143 — Dukungan koneksi LAN lokal, durasi feedback responsif, dan indikator kepedasan mobile](https://github.com/yogaananda6677/pesanhub/issues/143)
-- Current Branch: `feature/143-mobile-lan-feedback-spice`
-- Merged Pull Requests: sampai [#142](https://github.com/yogaananda6677/pesanhub/pull/142) (Issue #140)
+- Current Issue: [#153 — feat(settings): informasi status koneksi whatsapp gowa, pairing qr realtime, dan privasi di menu pengaturan](https://github.com/yogaananda6677/pesanhub/issues/153)
+- Current Branch: `feature/153-whatsapp-settings-qr-pairing`
+- Merged Pull Requests: sampai [#150](https://github.com/yogaananda6677/pesanhub/pull/150)
 - Status: `IN_PROGRESS`
-- Exit Criteria: ApiConfig mengizinkan host LAN privat untuk device fisik; AndroidManifest mengaktifkan cleartext traffic; durasi AppFeedback 1.2s untuk sukses dan 4s untuk error; indikator ikon api pada item makanan berlevel kepedasan; pengujian deterministik pada queue realtime coordinator.
-- Validation: Unit & widget tests Flutter 100% lulus (215 tests), flutter analyze clean, go test ./... clean.
+- Exit Criteria: Menu Pengaturan menampilkan kartu "Integrasi WhatsApp" dengan status realtime (Terhubung / Belum Terhubung / Gateway Offline); nomor WhatsApp terhubung disanitasi dengan PII masking; privasi data transaksi dijelaskan; tombol hubungkan WhatsApp memunculkan QR modal realtime dari GOWA via proxy backend; auto-detect sukses connect dan auto-close modal; tombol putuskan sambungan; pengujian backend dan widget Flutter 100% lulus.
+- Validation: Unit & widget tests Flutter 100% lulus (223 tests), flutter analyze clean (0 issues), go test ./... clean (100% pass).
 
 ## 6. Current Phase Checklist
 
