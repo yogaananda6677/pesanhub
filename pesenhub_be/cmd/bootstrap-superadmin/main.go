@@ -33,7 +33,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer pool.Close()
-	_, created, err := appauth.NewStore(pool).ProvisionSuperadmin(ctx, *email, *displayName, "controlled-bootstrap")
+	user, created, err := appauth.NewStore(pool).ProvisionSuperadmin(ctx, *email, *displayName, "controlled-bootstrap")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Superadmin bootstrap failed")
 		os.Exit(1)
@@ -43,4 +43,20 @@ func main() {
 	} else {
 		fmt.Println("Superadmin pre-authorization already exists")
 	}
+
+	sessionMgr, err := appauth.NewSessionManager(cfg.Auth.SessionSecret, cfg.Auth.SessionTTL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "session manager init failed: %v\n", err)
+		os.Exit(1)
+	}
+	token, sessionID, expiresAt, err := sessionMgr.IssuePersistent(user.ID, string(appauth.RoleSuperadmin))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to issue session: %v\n", err)
+		os.Exit(1)
+	}
+	if err := appauth.NewStore(pool).CreateSession(ctx, sessionID, user.ID, expiresAt); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to store session: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("\nToken Sesi Superadmin (berlaku %s):\n%s\n", cfg.Auth.SessionTTL, token)
 }

@@ -224,6 +224,16 @@ class SessionController extends ChangeNotifier {
       } else {
         try {
           await _refreshUser();
+        } on ApiFailure catch (failure) {
+          if (failure.kind == ApiFailureKind.unauthenticated) {
+            _credential = null;
+            await store.clear();
+            status = SessionStatus.signedOut;
+          } else {
+            status = _credential!.hasFreshApproval
+                ? SessionStatus.signedIn
+                : SessionStatus.offlineLocked;
+          }
         } catch (_) {
           status = _credential!.hasFreshApproval
               ? SessionStatus.signedIn
@@ -267,7 +277,23 @@ class SessionController extends ChangeNotifier {
       notifyListeners();
       return true;
     } on ApiFailure catch (failure) {
-      errorMessage = failure.presentationMessage;
+      if (failure.kind == ApiFailureKind.unauthenticated) {
+        errorMessage =
+            'Verifikasi akun Google gagal. Pastikan akun terdaftar dan periksa koneksi ke server.';
+      } else if (failure.kind == ApiFailureKind.conflict) {
+        errorMessage =
+            'Akun Google ini sudah terhubung dengan peran lain.';
+      } else if (failure.kind == ApiFailureKind.network) {
+        errorMessage =
+            'Koneksi ke server backend gagal. Pastikan perangkat terhubung ke server.';
+      } else {
+        errorMessage = failure.presentationMessage;
+      }
+    } on FormatException catch (e) {
+      errorMessage = e.message;
+    } on UnsupportedError catch (e) {
+      errorMessage =
+          e.message ?? 'Google Sign-In tidak didukung pada perangkat ini.';
     } catch (_) {
       errorMessage =
           'Login Google belum berhasil. Periksa koneksi lalu coba lagi.';
@@ -282,6 +308,16 @@ class SessionController extends ChangeNotifier {
     errorMessage = null;
     try {
       await _refreshUser();
+    } on ApiFailure catch (failure) {
+      if (failure.kind == ApiFailureKind.unauthenticated) {
+        await signOut();
+        errorMessage =
+            'Sesi telah kedaluwarsa atau dicabut. Silakan masuk kembali.';
+        return;
+      }
+      status = SessionStatus.offlineLocked;
+      errorMessage =
+          'Status belum dapat diperiksa. Hubungkan ke backend lalu coba lagi.';
     } catch (_) {
       status = SessionStatus.offlineLocked;
       errorMessage =

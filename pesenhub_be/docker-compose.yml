@@ -45,7 +45,7 @@ services:
     restart: unless-stopped
     environment:
       APP_BASIC_AUTH: ${GOWA_BASIC_AUTH_USERNAME:?GOWA_BASIC_AUTH_USERNAME is required}:${GOWA_BASIC_AUTH_PASSWORD:?GOWA_BASIC_AUTH_PASSWORD is required}
-      APP_UI_ENABLED: "false"
+      APP_UI_ENABLED: "true"
       MCP_ENABLED: "false"
       WHATSAPP_WEBHOOK: http://api:8080/webhooks/gowa
       WHATSAPP_WEBHOOK_SECRET: ${GOWA_WEBHOOK_SECRET:?GOWA_WEBHOOK_SECRET is required}

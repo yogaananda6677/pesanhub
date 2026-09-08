@@ -17,6 +17,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Last updated   | 8 September 2026                                           |
 | Updated by     | Issue #140 Portal web Superadmin untuk approval user & health |
 | Updated by     | Issue #143 Dukungan koneksi LAN lokal, feedback, dan kepedasan |
+| Updated by     | Issue #145 Perbaikan error autentikasi Google dan menu terkunci pending |
 
 ## 2. Product Intent
 
