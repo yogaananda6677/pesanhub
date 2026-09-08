@@ -32,6 +32,10 @@ class MenuItem {
   /// True if item has customizable modifier groups.
   bool get hasModifiers => modifierGroups.isNotEmpty;
 
+  /// True if item has spice level modifier group.
+  bool get hasSpiceLevel =>
+      modifierGroups.any((g) => g.code == 'spice_level' && g.isActive);
+
   /// Returns active modifier groups.
   List<MenuModifierGroup> get activeModifierGroups =>
       modifierGroups.where((g) => g.isActive).toList();
