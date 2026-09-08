@@ -254,4 +254,3 @@ func TestHandler_Turn(t *testing.T) {
 		t.Fatalf("expected state not to be nil")
 	}
 }
-

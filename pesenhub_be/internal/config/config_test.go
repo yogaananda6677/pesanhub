@@ -132,4 +132,3 @@ func TestLoadHermesConfiguration(t *testing.T) {
 		t.Errorf("expected max attempts 5, got %d", cfg.Hermes.MaxAttempts)
 	}
 }
-
