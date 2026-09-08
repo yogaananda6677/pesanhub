@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -16,6 +17,7 @@ type Config struct {
 	GOWA     GOWA
 	Midtrans Midtrans
 	Auth     Auth
+	Hermes   Hermes
 }
 
 type App struct{ Name, Env, Host, Port, Timezone string }
@@ -34,6 +36,14 @@ type Auth struct {
 	SessionSecret        string
 	SessionTTL           time.Duration
 }
+type Hermes struct {
+	BaseURL             string
+	Model               string
+	APIKey              string
+	Timeout             time.Duration
+	ConfidenceThreshold float64
+	MaxAttempts         int
+}
 
 func Load() (Config, error) {
 	c := Config{
@@ -45,6 +55,13 @@ func Load() (Config, error) {
 			StaffToken: os.Getenv("APP_STAFF_TOKEN"), KDSToken: os.Getenv("APP_KDS_TOKEN"),
 			GoogleClientID: os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
 			SessionSecret:  os.Getenv("APP_SESSION_SECRET"),
+		},
+		Hermes: Hermes{
+			BaseURL:             get("HERMES_LLM_BASE_URL", "http://localhost:11434"),
+			Model:               get("HERMES_LLM_MODEL", "hermes-3-llama-3.1-8b"),
+			APIKey:              os.Getenv("HERMES_LLM_API_KEY"),
+			ConfidenceThreshold: 0.75,
+			MaxAttempts:         3,
 		},
 	}
 	var err error
@@ -59,6 +76,20 @@ func Load() (Config, error) {
 	c.Auth.SessionTTL, err = time.ParseDuration(get("APP_SESSION_TTL", "8h"))
 	if err != nil || c.Auth.SessionTTL <= 0 || c.Auth.SessionTTL > 24*time.Hour {
 		return Config{}, errors.New("APP_SESSION_TTL must be a positive duration no longer than 24h")
+	}
+	c.Hermes.Timeout, err = time.ParseDuration(get("HERMES_LLM_TIMEOUT", "30s"))
+	if err != nil || c.Hermes.Timeout <= 0 {
+		return Config{}, errors.New("HERMES_LLM_TIMEOUT must be a positive duration")
+	}
+	if v := os.Getenv("HERMES_CONFIDENCE_THRESHOLD"); v != "" {
+		if threshold, err := strconv.ParseFloat(v, 64); err == nil && threshold > 0 && threshold <= 1.0 {
+			c.Hermes.ConfidenceThreshold = threshold
+		}
+	}
+	if v := os.Getenv("HERMES_MAX_ATTEMPTS"); v != "" {
+		if attempts, err := strconv.Atoi(v); err == nil && attempts > 0 {
+			c.Hermes.MaxAttempts = attempts
+		}
 	}
 	missing := []string{}
 	for k, v := range map[string]string{"DATABASE_HOST": c.Database.Host, "DATABASE_NAME": c.Database.Name, "DATABASE_USER": c.Database.User, "DATABASE_PASSWORD": c.Database.Password, "GOWA_BASE_URL": c.GOWA.BaseURL, "GOWA_BASIC_AUTH_USERNAME": c.GOWA.Username, "GOWA_BASIC_AUTH_PASSWORD": c.GOWA.Password, "GOWA_DEVICE_ID": c.GOWA.DeviceID, "GOWA_WEBHOOK_SECRET": c.GOWA.WebhookSecret, "MIDTRANS_SERVER_KEY": c.Midtrans.ServerKey, "MIDTRANS_MERCHANT_ID": c.Midtrans.MerchantID, "APP_STAFF_TOKEN": c.Auth.StaffToken, "APP_KDS_TOKEN": c.Auth.KDSToken, "GOOGLE_OAUTH_CLIENT_ID": c.Auth.GoogleClientID, "APP_SESSION_SECRET": c.Auth.SessionSecret} {

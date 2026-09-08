@@ -12,7 +12,6 @@ import '../menu/models/sample_menu_data.dart';
 import '../pos/pos_view.dart';
 import '../queue/controllers/queue_controller.dart';
 import '../queue/models/queue_order.dart';
-import '../queue/models/queue_order_item.dart';
 import '../queue/queue_view.dart';
 import '../showcase/design_system_showcase.dart';
 import '../theme/app_spacing.dart';
@@ -73,105 +72,9 @@ class _QueueDestinationViewState extends State<QueueDestinationView> {
     if (widget.controller != null) {
       _controller = widget.controller!;
     } else {
-      final now = DateTime.now();
       _controller = QueueController(
         alertController: widget.alertController,
-        initialOrders: [
-          QueueOrder(
-            id: 'ord-104',
-            orderNumber: '#ORD-104',
-            customerName: 'Pak Ahmad',
-            customerPhone: '0813****1122',
-            source: 'CUSTOMER_WEB',
-            orderStatus: 'PENDING',
-            paymentStatus: 'PAID',
-            isTakeaway: true,
-            takeawayNotes: 'Bungkus cepat, buru-buru',
-            createdAt: now.subtract(const Duration(minutes: 20)),
-            items: const [
-              QueueOrderItem(
-                name: 'Nasi Goreng Petai',
-                quantity: 1,
-                unitPrice: 28000,
-                notes: 'Pedas sedang',
-              ),
-              QueueOrderItem(
-                name: 'Teh Tarik Hangat',
-                quantity: 1,
-                unitPrice: 10000,
-                isDrink: true,
-              ),
-            ],
-          ),
-          QueueOrder(
-            id: 'ord-101',
-            orderNumber: '#ORD-101',
-            customerName: 'Siti Rahma',
-            customerPhone: '0812****7890',
-            source: 'CUSTOMER_WEB',
-            orderStatus: 'PENDING',
-            paymentStatus: 'UNPAID',
-            isTakeaway: true,
-            takeawayNotes: 'Pisah sambal & jangan pakai sendok plastik',
-            createdAt: now.subtract(const Duration(minutes: 5)),
-            items: const [
-              QueueOrderItem(
-                name: 'Nasi Goreng Gila',
-                quantity: 1,
-                unitPrice: 25000,
-                notes: 'Pedas Level 3, Telur Matang',
-              ),
-              QueueOrderItem(
-                name: 'Es Teh Manis',
-                quantity: 1,
-                unitPrice: 5000,
-                notes: 'Less sugar',
-                isDrink: true,
-              ),
-            ],
-          ),
-          QueueOrder(
-            id: 'ord-102',
-            orderNumber: '#ORD-102',
-            customerName: 'Budi Santoso',
-            customerPhone: '0857****3344',
-            source: 'WHATSAPP',
-            orderStatus: 'PREPARING',
-            paymentStatus: 'PAID',
-            createdAt: now.subtract(const Duration(minutes: 10)),
-            items: const [
-              QueueOrderItem(
-                name: 'Nasi Goreng Spesial',
-                quantity: 2,
-                unitPrice: 30000,
-                notes: 'Tidak pakai acar',
-              ),
-              QueueOrderItem(
-                name: 'Es Jeruk Nipis',
-                quantity: 2,
-                unitPrice: 8000,
-                isDrink: true,
-              ),
-            ],
-          ),
-          QueueOrder(
-            id: 'ord-103',
-            orderNumber: '#ORD-103',
-            customerName: 'Meja 4 (Dine-in)',
-            customerPhone: 'Kasir',
-            source: 'CASHIER_MANUAL',
-            orderStatus: 'READY_FOR_PICKUP',
-            paymentStatus: 'PAID',
-            createdAt: now.subtract(const Duration(minutes: 12)),
-            items: const [
-              QueueOrderItem(
-                name: 'Nasi Goreng Babat',
-                quantity: 1,
-                unitPrice: 32000,
-              ),
-            ],
-          ),
-        ],
+        initialOrders: const [],
       );
     }
   }
@@ -201,57 +104,7 @@ class _KdsDestinationViewState extends State<KdsDestinationView> {
     if (widget.controller != null) {
       _controller = widget.controller!;
     } else {
-      final now = DateTime.now();
-      _controller = KdsController(
-        initialOrders: [
-          QueueOrder(
-            id: 'kds-001',
-            orderNumber: 'ORD-101',
-            customerName: 'Budi Santoso',
-            customerPhone: '0812****7890',
-            source: 'WHATSAPP',
-            orderStatus: 'ACCEPTED',
-            paymentStatus: 'PAID',
-            isTakeaway: false,
-            createdAt: now.subtract(const Duration(minutes: 6)),
-            items: const [
-              QueueOrderItem(
-                name: 'Nasi Goreng Spesial',
-                quantity: 2,
-                unitPrice: 28000,
-                notes: 'Pedas Level 2, Telur Ceplok',
-              ),
-              QueueOrderItem(
-                name: 'Es Teh Manis',
-                quantity: 2,
-                unitPrice: 5000,
-                notes: 'Gula Normal',
-                isDrink: true,
-              ),
-            ],
-          ),
-          QueueOrder(
-            id: 'kds-002',
-            orderNumber: 'ORD-102',
-            customerName: 'Siti Rahma',
-            customerPhone: '0819****4321',
-            source: 'CUSTOMER_WEB',
-            orderStatus: 'PREPARING',
-            paymentStatus: 'PAID',
-            isTakeaway: true,
-            takeawayNotes: 'Pisah bumbu & kuah',
-            createdAt: now.subtract(const Duration(minutes: 18)),
-            items: const [
-              QueueOrderItem(
-                name: 'Mie Goreng Seafood',
-                quantity: 1,
-                unitPrice: 32000,
-                notes: 'Pedas Sedang',
-              ),
-            ],
-          ),
-        ],
-      );
+      _controller = KdsController(initialOrders: const []);
     }
   }
 

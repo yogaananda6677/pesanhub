@@ -188,3 +188,70 @@ func TestHandler_PauseResumeAssignResolveFlow(t *testing.T) {
 
 	_ = svc
 }
+
+func TestHandler_GetStatus(t *testing.T) {
+	handler, _, _ := setupTestHandler()
+
+	req := httptest.NewRequest("GET", "/api/v1/agent/status", nil)
+	rr := httptest.NewRecorder()
+	handler.GetStatus(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp struct {
+		Data map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Data["status"] != "READY" {
+		t.Errorf("expected status READY, got %v", resp.Data["status"])
+	}
+	if resp.Data["agent"] != "Hermes" {
+		t.Errorf("expected agent Hermes, got %v", resp.Data["agent"])
+	}
+}
+
+func TestHandler_Turn(t *testing.T) {
+	handler, _, _ := setupTestHandler()
+
+	body := map[string]string{
+		"session":        "default",
+		"customer_phone": "+6281234567890",
+		"message_text":   "halo mau pesan",
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	// 1. Unauthorized request
+	reqUnauth := httptest.NewRequest("POST", "/api/v1/agent/turn", bytes.NewReader(bodyBytes))
+	rrUnauth := httptest.NewRecorder()
+	handler.Turn(rrUnauth, reqUnauth)
+	if rrUnauth.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden, got %d", rrUnauth.Code)
+	}
+
+	// 2. Authorized request
+	reqAuth := httptest.NewRequest("POST", "/api/v1/agent/turn", bytes.NewReader(bodyBytes))
+	reqAuth.Header.Set("X-Staff-ID", "staff_1")
+	reqAuth.Header.Set("X-Staff-Role", "STAFF")
+	rrAuth := httptest.NewRecorder()
+	handler.Turn(rrAuth, reqAuth)
+
+	if rrAuth.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rrAuth.Code, rrAuth.Body.String())
+	}
+
+	var resp struct {
+		Data TurnResponse `json:"data"`
+	}
+	if err := json.Unmarshal(rrAuth.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal turn response: %v", err)
+	}
+	if resp.Data.State == nil {
+		t.Fatalf("expected state not to be nil")
+	}
+}
+

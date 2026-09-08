@@ -1,6 +1,5 @@
 import '../../menu/models/sample_menu_data.dart';
 import '../../queue/models/queue_order.dart';
-import '../../queue/models/queue_order_item.dart';
 import 'local_database.dart';
 import 'menu_local_repository.dart';
 import 'models/cached_result.dart';
@@ -81,89 +80,5 @@ class ColdStartCacheService {
       items: SampleMenuData.sampleMenus,
       cachedAt: DateTime.now(),
     );
-
-    // Seed sample queue orders with PII masking
-    final now = DateTime.now();
-    final sampleOrders = [
-      QueueOrder(
-        id: 'ord-104',
-        orderNumber: '#ORD-104',
-        customerName: 'Pak Ahmad',
-        customerPhone: '081311223344',
-        source: 'CUSTOMER_WEB',
-        orderStatus: 'PENDING',
-        paymentStatus: 'PAID',
-        isTakeaway: true,
-        takeawayNotes: 'Bungkus cepat, buru-buru',
-        createdAt: now.subtract(const Duration(minutes: 20)),
-        items: const [
-          QueueOrderItem(
-            name: 'Nasi Goreng Petai',
-            quantity: 1,
-            unitPrice: 28000,
-            notes: 'Pedas sedang',
-          ),
-          QueueOrderItem(
-            name: 'Teh Tarik Hangat',
-            quantity: 1,
-            unitPrice: 10000,
-            isDrink: true,
-          ),
-        ],
-      ),
-      QueueOrder(
-        id: 'ord-101',
-        orderNumber: '#ORD-101',
-        customerName: 'Siti Rahma',
-        customerPhone: '081234567890',
-        source: 'CUSTOMER_WEB',
-        orderStatus: 'PENDING',
-        paymentStatus: 'UNPAID',
-        isTakeaway: true,
-        takeawayNotes: 'Pisah sambal & jangan pakai sendok plastik',
-        createdAt: now.subtract(const Duration(minutes: 5)),
-        items: const [
-          QueueOrderItem(
-            name: 'Nasi Goreng Gila',
-            quantity: 1,
-            unitPrice: 25000,
-            notes: 'Pedas Level 3, Telur Matang',
-          ),
-          QueueOrderItem(
-            name: 'Es Teh Manis',
-            quantity: 1,
-            unitPrice: 5000,
-            notes: 'Less sugar',
-            isDrink: true,
-          ),
-        ],
-      ),
-      QueueOrder(
-        id: 'ord-102',
-        orderNumber: '#ORD-102',
-        customerName: 'Budi Santoso',
-        customerPhone: '085711223344',
-        source: 'WHATSAPP',
-        orderStatus: 'PREPARING',
-        paymentStatus: 'PAID',
-        createdAt: now.subtract(const Duration(minutes: 10)),
-        items: const [
-          QueueOrderItem(
-            name: 'Nasi Goreng Spesial',
-            quantity: 2,
-            unitPrice: 30000,
-            notes: 'Tidak pakai acar',
-          ),
-          QueueOrderItem(
-            name: 'Es Jeruk Nipis',
-            quantity: 2,
-            unitPrice: 8000,
-            isDrink: true,
-          ),
-        ],
-      ),
-    ];
-
-    await queueRepo.saveOrders(orders: sampleOrders, cachedAt: now);
   }
 }

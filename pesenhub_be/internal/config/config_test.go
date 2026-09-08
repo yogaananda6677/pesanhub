@@ -101,3 +101,35 @@ func TestLoadRejectsUnsafeLoginSessionConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadHermesConfiguration(t *testing.T) {
+	validEnv(t)
+	t.Setenv("HERMES_LLM_BASE_URL", "http://127.0.0.1:11434")
+	t.Setenv("HERMES_LLM_MODEL", "qwen2.5:7b")
+	t.Setenv("HERMES_LLM_API_KEY", "test-key")
+	t.Setenv("HERMES_LLM_TIMEOUT", "45s")
+	t.Setenv("HERMES_CONFIDENCE_THRESHOLD", "0.85")
+	t.Setenv("HERMES_MAX_ATTEMPTS", "5")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.Hermes.BaseURL != "http://127.0.0.1:11434" {
+		t.Errorf("expected base URL http://127.0.0.1:11434, got %s", cfg.Hermes.BaseURL)
+	}
+	if cfg.Hermes.Model != "qwen2.5:7b" {
+		t.Errorf("expected model qwen2.5:7b, got %s", cfg.Hermes.Model)
+	}
+	if cfg.Hermes.APIKey != "test-key" {
+		t.Errorf("expected API key test-key, got %s", cfg.Hermes.APIKey)
+	}
+	if cfg.Hermes.ConfidenceThreshold != 0.85 {
+		t.Errorf("expected threshold 0.85, got %f", cfg.Hermes.ConfidenceThreshold)
+	}
+	if cfg.Hermes.MaxAttempts != 5 {
+		t.Errorf("expected max attempts 5, got %d", cfg.Hermes.MaxAttempts)
+	}
+}
+

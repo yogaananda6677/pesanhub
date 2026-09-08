@@ -172,19 +172,14 @@ void main() {
     });
 
     test(
-      'Seeding sample data populates initial catalog and queue with PII masking',
+      'Seeding sample data populates initial catalog and leaves queue empty without dummy orders',
       () async {
         await coldStartService.seedInitialSampleDataIfEmpty();
 
         final snapshot = await coldStartService.hydrate();
         expect(snapshot.hasCachedData, isTrue);
         expect(snapshot.catalog.data.items.length, greaterThanOrEqualTo(6));
-        expect(snapshot.queue.data.length, greaterThanOrEqualTo(2));
-
-        // Check all seeded phone numbers are masked
-        for (final order in snapshot.queue.data) {
-          expect(order.customerPhone.contains('*'), isTrue);
-        }
+        expect(snapshot.queue.data.isEmpty, isTrue);
       },
     );
   });

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -60,7 +61,6 @@ func main() {
 	}
 	wc := gowa.New(cfg.GOWA.BaseURL, cfg.GOWA.Username, cfg.GOWA.Password, cfg.GOWA.DeviceID, cfg.GOWA.Timeout)
 	gowaStore := gowa.NewStore(pool)
-	gowaWebhook := gowa.NewWebhookHandler(cfg.GOWA.WebhookSecret, logger, gowa.WithStore(gowaStore))
 	h := health.New("pesenhub-api", pool, wc)
 	customers := customer.NewHandler(customer.NewService(customer.NewStore(pool), customer.NewID))
 	catalogService := catalog.NewService(catalog.NewStore(pool), customer.NewID)
@@ -97,16 +97,66 @@ func main() {
 	midtransWebhook := payment.NewMidtransWebhookHandler(cfg.Midtrans.ServerKey, cfg.Midtrans.MerchantID, paymentStore, logger)
 	go reconciler.Start(ctx)
 
+	var llmClient hermes.LLMClient
+	if cfg.Hermes.BaseURL != "" && cfg.App.Env != "test" {
+		llmClient = hermes.NewHTTPLLMClient(cfg.Hermes.BaseURL, cfg.Hermes.APIKey, cfg.Hermes.Model, cfg.Hermes.Timeout)
+	} else {
+		llmClient = &hermes.MockLLMClient{}
+	}
+
 	hermesStore := hermes.NewStore(pool)
 	hermesConvStore := hermes.NewPGConversationStore(pool)
 	hermesService := hermes.NewService(hermes.Config{
-		Client:            &hermes.MockLLMClient{},
-		CatalogProvider:   catalogService,
-		OrderCreator:      orderService,
-		Store:             hermesStore,
-		ConversationStore: hermesConvStore,
+		Client:              llmClient,
+		CatalogProvider:     catalogService,
+		OrderCreator:        orderService,
+		Store:               hermesStore,
+		ConversationStore:   hermesConvStore,
+		ModelName:           cfg.Hermes.Model,
+		ConfidenceThreshold: cfg.Hermes.ConfidenceThreshold,
+		MaxAttempts:         cfg.Hermes.MaxAttempts,
 	})
 	hermesHandler := hermes.NewHandler(hermesService)
+
+	onWhatsAppMessage := func(msgCtx context.Context, msg *gowa.InboundMessage) {
+		if msg == nil || strings.TrimSpace(msg.MessageBody) == "" {
+			return
+		}
+		senderPhone := strings.TrimSpace(msg.FromRaw)
+		if msg.PhoneE164 != nil && strings.TrimSpace(*msg.PhoneE164) != "" {
+			senderPhone = strings.TrimSpace(*msg.PhoneE164)
+		}
+		if senderPhone == "" {
+			return
+		}
+		session := strings.TrimSpace(msg.SessionID)
+		if session == "" {
+			session = "default"
+		}
+		correlationID := strings.TrimSpace(msg.WebhookRequestID)
+		if correlationID == "" {
+			correlationID = msg.ID
+		}
+
+		turnResp, err := hermesService.ProcessTurn(msgCtx, hermes.TurnRequest{
+			InboundMessageID: &msg.ID,
+			Session:          session,
+			SenderPhone:      senderPhone,
+			MessageText:      msg.MessageBody,
+			CorrelationID:    correlationID,
+		})
+		if err != nil {
+			logger.Error("Hermes WhatsApp turn processing error", "error", err, "sender", senderPhone, "msg_id", msg.ID)
+			return
+		}
+		if turnResp != nil && strings.TrimSpace(turnResp.ReplyText) != "" && !turnResp.AutomationPaused {
+			if _, sendErr := wc.SendMessage(msgCtx, senderPhone, turnResp.ReplyText); sendErr != nil {
+				logger.Error("Failed to send Hermes reply via WhatsApp", "error", sendErr, "sender", senderPhone)
+			}
+		}
+	}
+	gowaWebhook := gowa.NewWebhookHandler(cfg.GOWA.WebhookSecret, logger, gowa.WithStore(gowaStore), gowa.WithOnMessage(onWhatsAppMessage))
+
 	superadminStore := superadmin.NewStore(pool)
 	superadminService := superadmin.NewService(superadminStore, pool, wc, orderHub)
 	superadminHandler := superadmin.NewHandler(superadminService)
@@ -128,6 +178,8 @@ func main() {
 	mux.HandleFunc("POST /api/v1/public/orders", orders.CreateWeb)
 	mux.HandleFunc("GET /api/v1/public/orders/{token}", orders.GetByPublicToken)
 	mux.HandleFunc("GET /api/v1/agent/menu", catalogHandler.Public)
+	mux.HandleFunc("GET /api/v1/agent/status", hermesHandler.GetStatus)
+	mux.HandleFunc("POST /api/v1/agent/turn", hermesHandler.Turn)
 	mux.HandleFunc("GET /api/v1/agent/handoffs", hermesHandler.ListHandoffs)
 	mux.HandleFunc("POST /api/v1/agent/conversations/pause", hermesHandler.Pause)
 	mux.HandleFunc("POST /api/v1/agent/conversations/resume", hermesHandler.Resume)
