@@ -120,6 +120,8 @@ class DashboardView extends StatelessWidget {
                     accentColor: AppColors.statusPreparing,
                     subtitle: 'Di dapur KDS',
                     onTap: onNavigateToKds,
+                    subtitle: 'Sedang diproses',
+                    onTap: onNavigateToQueue ?? onNavigateToKds,
                   ),
                   MetricCard(
                     title: 'Siap Diambil',
@@ -191,6 +193,9 @@ class DashboardView extends StatelessWidget {
                   label: 'Lihat Dapur KDS',
                   icon: Icons.outdoor_grill_rounded,
                   onPressed: onNavigateToKds,
+                  label: 'Lihat Antrean',
+                  icon: Icons.receipt_long_rounded,
+                  onPressed: onNavigateToQueue ?? onNavigateToKds,
                 ),
               ),
             ],

@@ -10,6 +10,8 @@ import 'widgets/queue_filter_bar.dart';
 
 /// QueueView renders the unified order queue with source badges, visual alerts, and filters.
 /// Fulfills Issue #26 Acceptance Criteria #1, #2, #3, #4, and #5.
+/// QueueView renders the streamlined kitchen queue with tabs: Menunggu, Diproses, Siap.
+/// Fulfills Issue #147: Redesign Antrean Dapur.
 class QueueView extends StatefulWidget {
   final QueueController controller;
   final VoidCallback? onRefresh;
@@ -27,9 +29,14 @@ class QueueView extends StatefulWidget {
 }
 
 class _QueueViewState extends State<QueueView> {
+class _QueueViewState extends State<QueueView>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     widget.controller.addListener(_onControllerChanged);
   }
 
@@ -44,6 +51,7 @@ class _QueueViewState extends State<QueueView> {
 
   @override
   void dispose() {
+    _tabController.dispose();
     widget.controller.removeListener(_onControllerChanged);
     super.dispose();
   }
@@ -73,6 +81,7 @@ class _QueueViewState extends State<QueueView> {
   String _statusLabel(String status) => switch (status) {
     'ACCEPTED' => 'Diterima',
     'PREPARING' => 'Sedang Dimasak',
+    'PREPARING' => 'Diproses',
     'READY_FOR_PICKUP' => 'Siap Diambil',
     'COMPLETED' => 'Selesai',
     _ => status,
@@ -93,6 +102,42 @@ class _QueueViewState extends State<QueueView> {
     );
   }
 
+  List<QueueOrder> _getOrdersForTab(int tabIndex) {
+    final now = widget.controller.now;
+    final query = widget.controller.searchQuery.trim().toLowerCase();
+    final source = widget.controller.sourceFilter;
+
+    final filtered = widget.controller.allOrders.where((order) {
+      final matchesStatus = switch (tabIndex) {
+        0 => order.orderStatus == 'PENDING' || order.orderStatus == 'ACCEPTED',
+        1 => order.orderStatus == 'PREPARING',
+        2 => order.orderStatus == 'READY_FOR_PICKUP',
+        _ => order.isActive,
+      };
+      if (!matchesStatus) return false;
+
+      if (source != 'ALL' && order.source != source) return false;
+
+      if (query.isNotEmpty) {
+        final matchesNumber = order.orderNumber.toLowerCase().contains(query);
+        final matchesName = order.customerName.toLowerCase().contains(query);
+        if (!matchesNumber && !matchesName) return false;
+      }
+
+      return true;
+    }).toList();
+
+    filtered.sort((a, b) {
+      final aOverdue = a.isOverdueAt(now);
+      final bOverdue = b.isOverdueAt(now);
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
+      return a.createdAt.compareTo(b.createdAt);
+    });
+
+    return filtered;
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = widget.controller.state;
@@ -102,6 +147,11 @@ class _QueueViewState extends State<QueueView> {
         return const Center(
           child: AppLoadingState(message: 'Memuat antrean pesanan...'),
         );
+    if (state.status == QueueStatus.loading) {
+      return const Center(
+        child: AppLoadingState(message: 'Memuat antrean pesanan...'),
+      );
+    }
 
       case QueueStatus.error:
         return Center(
@@ -114,6 +164,13 @@ class _QueueViewState extends State<QueueView> {
       case QueueStatus.empty:
       case QueueStatus.success:
         return _buildContent(context, state);
+    if (state.status == QueueStatus.error) {
+      return Center(
+        child: AppErrorState(
+          message: state.errorMessage ?? 'Gagal memuat antrean pesanan.',
+          onRetry: widget.onRefresh,
+        ),
+      );
     }
   }
 
@@ -130,6 +187,9 @@ class _QueueViewState extends State<QueueView> {
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
+        return Scaffold(
+          backgroundColor: const Color(0xFFF4F7F6),
+          body: Column(
             children: [
               // 1. Offline or Stale Alert Banner
               if (state.isOffline) ...[
@@ -137,6 +197,15 @@ class _QueueViewState extends State<QueueView> {
                   message:
                       'Mode Offline: Menampilkan data antrean lokal. Sinkronisasi tertunda.',
                   type: AppBannerType.warning,
+              _buildTopHeader(context),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildTabContent(0, isTablet),
+                    _buildTabContent(1, isTablet),
+                    _buildTabContent(2, isTablet),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.md),
               ] else if (state.isStale) ...[
@@ -178,6 +247,133 @@ class _QueueViewState extends State<QueueView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildTopHeader(BuildContext context) {
+    return Container(
+      color: const Color(0xFF1B7C71),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  if (Navigator.of(context).canPop())
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    )
+                  else
+                    const SizedBox(width: 48),
+                  const Expanded(
+                    child: Text(
+                      'Antrean Dapur',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    key: const Key('queue-refresh-button'),
+                    icon: const Icon(
+                      Icons.refresh_rounded,
+                      color: Colors.white,
+                    ),
+                    onPressed: widget.onRefresh ?? () => setState(() {}),
+                  ),
+                ],
+              ),
+            ),
+            TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.white,
+              indicatorWeight: 3.5,
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              labelStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.normal,
+              ),
+              tabs: const [
+                Tab(text: 'Menunggu'),
+                Tab(text: 'Diproses'),
+                Tab(text: 'Siap'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabContent(int tabIndex, bool isTablet) {
+    final orders = _getOrdersForTab(tabIndex);
+    final state = widget.controller.state;
+
+    if (orders.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: () async => widget.onRefresh?.call(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.xxl,
+          ),
+          child: AppEmptyState(
+            icon: Icons.receipt_long_outlined,
+            title: 'Tidak Ada Pesanan',
+            description: switch (tabIndex) {
+              0 => 'Belum ada pesanan yang menunggu diproses.',
+              1 => 'Tidak ada pesanan yang sedang dimasak.',
+              2 => 'Tidak ada pesanan yang siap diambil.',
+              _ => 'Tidak ada pesanan.',
+            },
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async => widget.onRefresh?.call(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (state.isOffline) ...[
+              const AppBanner(
+                message:
+                    'Mode Offline: Menampilkan data antrean lokal. Sinkronisasi tertunda.',
+                type: AppBannerType.warning,
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ] else if (state.isStale) ...[
+              const AppBanner(
+                message:
+                    'Data Usang: Hubungan real-time terputus. Menampilkan snapshot terakhir.',
+                type: AppBannerType.warning,
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            if (isTablet)
+              _buildTabletOrderGrid(orders)
+            else
+              _buildMobileOrderList(orders),
+          ],
+        ),
+      ),
     );
   }
 

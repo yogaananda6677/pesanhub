@@ -36,6 +36,7 @@ enum AppDestination {
         return 'Antrean Pesanan';
       case AppDestination.kds:
         return 'Dapur KDS — Tiket Memasak';
+        return 'Antrean Dapur';
       case AppDestination.menu:
         return 'Kelola Ketersediaan Menu';
       case AppDestination.settings:

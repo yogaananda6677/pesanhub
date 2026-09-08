@@ -65,6 +65,33 @@ class QueueOrder {
     return '$hour:$minute';
   }
 
+  /// Formatted date and time string (dd/MM/yyyy HH:mm) of order creation.
+  String get formattedDateTime {
+    final day = createdAt.day.toString().padLeft(2, '0');
+    final month = createdAt.month.toString().padLeft(2, '0');
+    final year = createdAt.year.toString();
+    final hour = createdAt.hour.toString().padLeft(2, '0');
+    final minute = createdAt.minute.toString().padLeft(2, '0');
+    return '$day/$month/$year $hour:$minute';
+  }
+
+  /// Extract numeric queue identifier from order number or fallback.
+  String get displayQueueNumber {
+    final digits = RegExp(r'\d+').firstMatch(orderNumber);
+    if (digits != null) {
+      final numVal = int.tryParse(digits.group(0)!);
+      return numVal != null ? '$numVal' : digits.group(0)!;
+    }
+    return orderNumber.replaceAll('#', '');
+  }
+
+  /// Clean display title for queue card header (e.g. "Antrean 1").
+  String get displayQueueTitle => 'Antrean $displayQueueNumber';
+
+  /// Human-friendly dining preference label.
+  String get diningOptionLabel =>
+      isTakeaway ? 'Bawa pulang' : 'Makan di tempat';
+
   QueueOrder copyWith({
     String? id,
     String? orderNumber,

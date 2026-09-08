@@ -10,6 +10,7 @@ import 'package:pesenhub_app/widgets/app_feedback.dart';
 
 void main() {
   final fixedNow = DateTime(2026, 9, 4, 12, 30);
+  final fixedNow = DateTime(2026, 9, 8, 12, 30);
 
   QueueOrder buildOrder({
     required String id,
@@ -48,8 +49,10 @@ void main() {
   }
 
   group('Issue #26: Unified Order Queue Tests', () {
+  group('Issue #147: Redesign Antrean Dapur Tests', () {
     testWidgets(
       'Criteria #1: Three MVP sources render distinct text and icon badges',
+      'Criteria #1: Top Teal Header renders title "Antrean Dapur" and 3 tabs',
       (tester) async {
         final orders = [
           buildOrder(
@@ -80,8 +83,19 @@ void main() {
 
         final controller = QueueController(
           initialOrders: orders,
+          initialOrders: [
+            buildOrder(
+              id: 'ord-1',
+              orderNumber: '#ORD-1',
+              customerName: 'Customer A',
+              source: 'WHATSAPP',
+              orderStatus: 'ACCEPTED',
+              paymentStatus: 'PAID',
+            ),
+          ],
           timeOverride: fixedNow,
         );
+
         await tester.pumpWidget(buildQueueTestApp(controller));
         await tester.pumpAndSettle();
 
@@ -89,36 +103,68 @@ void main() {
         expect(find.text('WhatsApp'), findsAtLeastNWidgets(1));
         expect(find.text('Web Customer'), findsAtLeastNWidgets(1));
         expect(find.text('Kasir Manual'), findsAtLeastNWidgets(1));
+        // Title and refresh action
+        expect(find.text('Antrean Dapur'), findsOneWidget);
+        expect(find.byKey(const Key('queue-refresh-button')), findsOneWidget);
+
+        // 3 Tabs
+        expect(find.text('Menunggu'), findsOneWidget);
+        expect(find.text('Diproses'), findsOneWidget);
+        expect(find.text('Siap'), findsOneWidget);
       },
     );
 
     testWidgets(
       'Criteria #2: Real-time upsert prevents duplicate cards and handles versions',
+      'Criteria #2: Order card renders teal header, queue number, date/time, dining option, and items',
       (tester) async {
         final initial = buildOrder(
           id: 'ord-dup',
           orderNumber: '#ORD-DUP',
           customerName: 'Budi Santoso',
+        final order = buildOrder(
+          id: 'ord-1',
+          orderNumber: '#ORD-1',
+          customerName: 'Siti Rahma',
           source: 'CUSTOMER_WEB',
           orderStatus: 'PENDING',
           paymentStatus: 'UNPAID',
           version: 1,
+          paymentStatus: 'PAID',
+          isTakeaway: false,
+          items: const [
+            QueueOrderItem(
+              name: 'Seblak Prasmanan',
+              quantity: 1,
+              unitPrice: 25000,
+              notes: 'Level 0\nKuah Nyemek',
+            ),
+          ],
         );
 
         final controller = QueueController(
           initialOrders: [initial],
+          initialOrders: [order],
           timeOverride: fixedNow,
         );
+
         await tester.pumpWidget(buildQueueTestApp(controller));
         await tester.pumpAndSettle();
 
         expect(find.byType(OrderQueueCard), findsOneWidget);
         expect(find.text('Menunggu Konfirmasi'), findsAtLeastNWidgets(1));
+        // Card header
+        expect(find.text('Antrean 1'), findsOneWidget);
+        expect(find.text(order.formattedDateTime), findsOneWidget);
+        expect(find.text('Makan di tempat'), findsOneWidget);
 
         // Upsert duplicate order event (same ID, updated status, higher version)
         final updated = initial.copyWith(orderStatus: 'PREPARING', version: 2);
         controller.upsertOrder(updated);
         await tester.pumpAndSettle();
+        // Items and notes in gray box
+        expect(find.text('1 x Seblak Prasmanan'), findsOneWidget);
+        expect(find.text('Level 0\nKuah Nyemek'), findsOneWidget);
 
         // Still only 1 card, not duplicated
         expect(find.byType(OrderQueueCard), findsOneWidget);
@@ -131,11 +177,14 @@ void main() {
 
         expect(find.byType(OrderQueueCard), findsOneWidget);
         expect(find.text('Sedang Dimasak'), findsAtLeastNWidgets(1));
+        // Action button for Menunggu tab
+        expect(find.text('Mulai Proses'), findsOneWidget);
       },
     );
 
     testWidgets(
       'Criteria #3: Overdue alert, drinks highlight, and takeaway notes visible on card',
+      'Criteria #3: 1-Tap status transition from Menunggu -> Diproses -> Siap -> Selesai',
       (tester) async {
         final specialOrder = buildOrder(
           id: 'ord-special',
@@ -143,6 +192,12 @@ void main() {
           customerName: 'Siti Rahma',
           source: 'CUSTOMER_WEB',
           orderStatus: 'PREPARING',
+        final order = buildOrder(
+          id: 'ord-flow',
+          orderNumber: '#ORD-7',
+          customerName: 'Budi Santoso',
+          source: 'CASHIER_MANUAL',
+          orderStatus: 'ACCEPTED',
           paymentStatus: 'PAID',
           minutesAgo: 20, // > 15 minutes -> Overdue
           isTakeaway: true,
@@ -153,6 +208,9 @@ void main() {
               quantity: 2,
               unitPrice: 30000,
               notes: 'Pedas level 2',
+              name: 'Nasi Goreng Gila',
+              quantity: 1,
+              unitPrice: 28000,
             ),
             QueueOrderItem(
               name: 'Es Teh Manis Jumbo',
@@ -166,8 +224,10 @@ void main() {
 
         final controller = QueueController(
           initialOrders: [specialOrder],
+          initialOrders: [order],
           timeOverride: fixedNow,
         );
+
         await tester.pumpWidget(buildQueueTestApp(controller));
         await tester.pumpAndSettle();
 
@@ -176,6 +236,9 @@ void main() {
           find.text('TERLAMBAT (> 15 MENIT BELUM SELESAI)'),
           findsOneWidget,
         );
+        // 1. Initially in "Menunggu" tab
+        expect(find.text('Antrean 7'), findsOneWidget);
+        expect(find.text('Mulai Proses'), findsOneWidget);
 
         // 2. Takeaway notes
         expect(find.text('Pesanan Dibungkus (Takeaway)'), findsOneWidget);
@@ -183,6 +246,9 @@ void main() {
           find.text('Catatan Bungkus: Pisah sambal & tanpa sendok'),
           findsOneWidget,
         );
+        // 2. Tap "Mulai Proses" -> moves to Diproses
+        await tester.tap(find.text('Mulai Proses'));
+        await tester.pumpAndSettle();
 
         // 3. Drinks section
         expect(find.text('Minuman / Barista'), findsOneWidget);
@@ -190,25 +256,59 @@ void main() {
           find.text('2x Es Teh Manis Jumbo (Sedikit es batu)'),
           findsOneWidget,
         );
+        // Order is no longer in Menunggu tab
+        expect(find.text('Tidak Ada Pesanan'), findsOneWidget);
 
         // 4. Food section
         expect(find.text('2x Nasi Goreng Spesial'), findsOneWidget);
         expect(find.text('Catatan: Pedas level 2'), findsOneWidget);
+        // Switch to "Diproses" tab
+        await tester.tap(find.text('Diproses'));
+        await tester.pumpAndSettle();
 
         // 5. Total
         expect(find.text('Rp 72000'), findsOneWidget);
+        expect(find.text('Antrean 7'), findsOneWidget);
+        expect(find.text('Siap Diambil'), findsOneWidget);
+
+        // 3. Tap "Siap Diambil" -> moves to Siap
+        await tester.tap(find.text('Siap Diambil'));
+        await tester.pumpAndSettle();
+
+        // Order leaves Diproses tab
+        expect(find.text('Tidak Ada Pesanan'), findsOneWidget);
+
+        // Switch to "Siap" tab
+        await tester.tap(find.text('Siap'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Antrean 7'), findsOneWidget);
+        expect(find.text('Selesai'), findsOneWidget);
+
+        // 4. Tap "Selesai" -> completes order
+        await tester.tap(find.text('Selesai'));
+        await tester.pumpAndSettle();
+
+        // Completed order leaves Siap tab
+        expect(find.text('Tidak Ada Pesanan'), findsOneWidget);
       },
     );
 
     testWidgets(
       'Criteria #4: Stable sorting prioritizes overdue, PENDING FIFO, and recovery preserves order',
+      'Criteria #4: Overdue orders (> 15m) display overdue banner and take priority',
       (tester) async {
         final normalPending = buildOrder(
           id: 'ord-norm-pending',
           orderNumber: '#ORD-001',
           customerName: 'Normal Pending',
+        final normalOrder = buildOrder(
+          id: 'ord-normal',
+          orderNumber: '#ORD-10',
+          customerName: 'Normal',
           source: 'WHATSAPP',
           orderStatus: 'PENDING',
+          orderStatus: 'ACCEPTED',
           paymentStatus: 'PAID',
           minutesAgo: 5,
         );
@@ -219,8 +319,15 @@ void main() {
           customerName: 'Older Pending',
           source: 'CUSTOMER_WEB',
           orderStatus: 'PENDING',
+        final overdueOrder = buildOrder(
+          id: 'ord-late',
+          orderNumber: '#ORD-20',
+          customerName: 'Late',
+          source: 'WHATSAPP',
+          orderStatus: 'ACCEPTED',
           paymentStatus: 'PAID',
           minutesAgo: 10,
+          minutesAgo: 18, // > 15 minutes overdue
         );
 
         final overduePreparing = buildOrder(
@@ -251,6 +358,7 @@ void main() {
             overduePreparing,
             olderPending,
           ],
+          initialOrders: [normalOrder, overdueOrder],
           timeOverride: fixedNow,
         );
 
@@ -263,6 +371,8 @@ void main() {
         expect(sorted[2].id, equals('ord-norm-pending'));
         // Then ready order
         expect(sorted[3].id, equals('ord-ready'));
+        await tester.pumpWidget(buildQueueTestApp(controller));
+        await tester.pumpAndSettle();
 
         // Simulate recovery snapshot reconnect
         controller.setSnapshot([
@@ -271,12 +381,22 @@ void main() {
           readyOrder,
           olderPending,
         ], isStale: false);
+        // Overdue banner
+        expect(
+          find.text('TERLAMBAT (> 15 MENIT BELUM SELESAI)'),
+          findsOneWidget,
+        );
 
         final recoveredSorted = controller.filteredOrders;
         expect(recoveredSorted[0].id, equals('ord-overdue-prep'));
         expect(recoveredSorted[1].id, equals('ord-old-pending'));
         expect(recoveredSorted[2].id, equals('ord-norm-pending'));
         expect(recoveredSorted[3].id, equals('ord-ready'));
+        // Verify order priority: late order card appears first
+        final cards = tester.widgetList<OrderQueueCard>(
+          find.byType(OrderQueueCard),
+        );
+        expect(cards.first.order.id, equals('ord-late'));
       },
     );
 
@@ -289,6 +409,14 @@ void main() {
           orderNumber: '#ORD-W1',
           customerName: 'WA Pending',
           source: 'WHATSAPP',
+    testWidgets(
+      'Criteria #5: Real-time upsert updates existing cards without duplication',
+      (tester) async {
+        final initial = buildOrder(
+          id: 'ord-dup',
+          orderNumber: '#ORD-DUP',
+          customerName: 'Budi Santoso',
+          source: 'CUSTOMER_WEB',
           orderStatus: 'PENDING',
           paymentStatus: 'PAID',
         ),
@@ -301,6 +429,9 @@ void main() {
           paymentStatus: 'PAID',
         ),
       ];
+          paymentStatus: 'UNPAID',
+          version: 1,
+        );
 
       final controller = QueueController(
         initialOrders: orders,
@@ -308,16 +439,33 @@ void main() {
       );
       await tester.pumpWidget(buildQueueTestApp(controller));
       await tester.pumpAndSettle();
+        final controller = QueueController(
+          initialOrders: [initial],
+          timeOverride: fixedNow,
+        );
+        await tester.pumpWidget(buildQueueTestApp(controller));
+        await tester.pumpAndSettle();
 
       expect(find.text('#ORD-W1'), findsOneWidget);
       expect(find.text('#ORD-C1'), findsOneWidget);
+        expect(find.byType(OrderQueueCard), findsOneWidget);
 
       // Tap filter status 'Menunggu'
       await tester.tap(find.text('Menunggu (1)'));
       await tester.pumpAndSettle();
+        // Upsert updated order
+        final updated = initial.copyWith(
+          customerName: 'Budi Santoso Updated',
+          version: 2,
+        );
+        controller.upsertOrder(updated);
+        await tester.pumpAndSettle();
 
       expect(find.text('#ORD-W1'), findsOneWidget);
       expect(find.text('#ORD-C1'), findsNothing);
+        expect(find.byType(OrderQueueCard), findsOneWidget);
+      },
+    );
 
       // Tap filter status 'Semua'
       await tester.tap(find.text('Semua (2)'));
@@ -333,6 +481,7 @@ void main() {
 
     testWidgets(
       'Criteria #5: Complete presentation states (Loading, Empty, Error, Stale)',
+      'Criteria #6: Presentation states (Loading, Empty per tab, Error, Stale banner)',
       (tester) async {
         final controller = QueueController(timeOverride: fixedNow);
 
@@ -353,6 +502,7 @@ void main() {
         expect(find.text('Koneksi antrean terputus.'), findsOneWidget);
 
         // 4. Stale state
+        // 4. Stale / Offline state
         controller.setSnapshot([
           buildOrder(
             id: 'ord-stale',
@@ -375,22 +525,29 @@ void main() {
 
     testWidgets(
       'Criteria #5: Responsive layout on mobile and tablet without overflow',
+      'Criteria #7: Responsive layout renders without overflow on mobile and tablet',
       (tester) async {
         final orders = List.generate(4, (i) {
           return buildOrder(
             id: 'ord-resp-$i',
             orderNumber: '#ORD-R$i',
+            orderNumber: '#ORD-$i',
             customerName: 'Pelanggan $i',
             source: i % 2 == 0 ? 'WHATSAPP' : 'CUSTOMER_WEB',
             orderStatus: i % 2 == 0 ? 'PENDING' : 'PREPARING',
+            orderStatus: 'ACCEPTED',
             paymentStatus: 'PAID',
             isTakeaway: true,
             takeawayNotes: 'Bungkus rapi $i',
+            isTakeaway: i % 2 == 0,
             items: [
               QueueOrderItem(
                 name: 'Nasi Goreng $i',
                 quantity: 1,
                 unitPrice: 25000,
+                name: 'Menu $i',
+                quantity: i + 1,
+                unitPrice: 20000,
                 notes: 'Catatan $i',
               ),
               QueueOrderItem(
@@ -409,6 +566,7 @@ void main() {
         );
 
         // Test mobile viewport
+        // Mobile viewport
         tester.view.physicalSize = const Size(390, 844);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
@@ -419,6 +577,7 @@ void main() {
         expect(tester.takeException(), isNull);
 
         // Test tablet viewport
+        // Tablet viewport
         tester.view.physicalSize = const Size(1024, 768);
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);

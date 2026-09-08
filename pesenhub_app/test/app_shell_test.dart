@@ -26,6 +26,8 @@ void main() {
 
         // Mobile keeps only the four operational destinations plus Lainnya.
         for (final destination in AppDestination.values.take(4)) {
+        // Mobile keeps all five operational destinations directly without Lainnya sheet.
+        for (final destination in AppDestination.values) {
           expect(find.text(destination.label), findsOneWidget);
         }
         expect(find.text('Lainnya'), findsOneWidget);
@@ -39,6 +41,7 @@ void main() {
             matching: find.text('Menu'),
           ),
           findsNothing,
+          findsOneWidget,
         );
         expect(
           find.descendant(
@@ -46,6 +49,7 @@ void main() {
             matching: find.text('Pengaturan'),
           ),
           findsNothing,
+          findsOneWidget,
         );
 
         // Verify no exceptions or overflows
@@ -93,10 +97,14 @@ void main() {
 
         // Navigate to 'Dapur KDS' (index 3)
         await tester.tap(find.text('Dapur KDS'));
+        // Navigate to 'Antrean' (index 2)
+        await tester.tap(find.text('Antrean'));
         await tester.pumpAndSettle();
 
         expect(find.text('Dapur KDS — Tiket Memasak'), findsOneWidget);
         expect(find.byType(KdsDestinationView), findsOneWidget);
+        expect(find.text('Antrean Dapur'), findsOneWidget);
+        expect(find.byType(QueueDestinationView), findsOneWidget);
 
         // Rotate device to landscape (800 x 400)
         tester.view.physicalSize = const Size(800, 400);
@@ -105,6 +113,9 @@ void main() {
         // Verify KDS destination remains active after rotation/resize
         expect(find.text('Dapur KDS — Tiket Memasak'), findsOneWidget);
         expect(find.byType(KdsDestinationView), findsOneWidget);
+        // Verify Antrean destination remains active after rotation/resize
+        expect(find.text('Antrean Dapur'), findsOneWidget);
+        expect(find.byType(QueueDestinationView), findsOneWidget);
         expect(find.byType(NavigationRail), findsOneWidget);
       },
     );
@@ -235,9 +246,12 @@ void main() {
         await tester.tap(find.text('Antrean'));
         await tester.pumpAndSettle();
         expect(find.text('Antrean Pesanan'), findsOneWidget);
+        expect(find.text('Antrean Dapur'), findsOneWidget);
 
         // 4. Open secondary destinations, then switch to Menu.
         await tester.tap(find.text('Lainnya'));
+        // 4. Switch to Menu
+        await tester.tap(find.text('Menu'));
         await tester.pumpAndSettle();
         expect(
           find.byKey(const Key('more-destinations-sheet')),
@@ -249,6 +263,8 @@ void main() {
 
         // 5. Open Lainnya again, then switch to Pengaturan.
         await tester.tap(find.text('Lainnya'));
+        // 5. Switch to Pengaturan
+        await tester.tap(find.text('Pengaturan'));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const Key('more-settings')));
         await tester.pumpAndSettle();

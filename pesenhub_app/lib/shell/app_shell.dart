@@ -59,6 +59,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     AppDestination.queue,
     AppDestination.kds,
   ];
+  static const _primaryDestinations = AppDestination.values;
 
   late int _selectedIndex;
   final GlobalKey _contentStackKey = GlobalKey();
@@ -117,12 +118,15 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     final destination = AppDestination.fromIndex(_selectedIndex);
     final primaryIndex = _primaryDestinations.indexOf(destination);
     return primaryIndex == -1 ? _primaryDestinations.length : primaryIndex;
+    return primaryIndex == -1 ? 0 : primaryIndex;
   }
 
   void _onMobileDestinationSelected(int index) {
     if (index == _primaryDestinations.length) {
       _showMoreDestinations();
       return;
+    if (index >= 0 && index < _primaryDestinations.length) {
+      _onDestinationSelected(_primaryDestinations[index].index);
     }
     _onDestinationSelected(_primaryDestinations[index].index);
   }
@@ -259,6 +263,11 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                           destination: destination,
                           showBrand: !isTablet,
                         ),
+                        if (destination != AppDestination.queue)
+                          _buildHeader(
+                            destination: destination,
+                            showBrand: !isTablet,
+                          ),
                         Expanded(
                           child: IndexedStack(
                             key: _contentStackKey,
