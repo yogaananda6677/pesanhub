@@ -20,6 +20,7 @@ import 'destination_views.dart';
 
 /// AppShell provides an adaptive, state-preserving navigation framework.
 /// Fulfills Issue #24 and Issue #25 Acceptance Criteria.
+/// Simplified kitchen queue & navbar matching Issue #147.
 class AppShell extends StatefulWidget {
   final int initialIndex;
   final DashboardState? initialDashboardState;
@@ -53,13 +54,6 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
-  static const _primaryDestinations = [
-    AppDestination.dashboard,
-    AppDestination.pos,
-    AppDestination.queue,
-    AppDestination.kds,
-  ];
-
   late int _selectedIndex;
   final GlobalKey _contentStackKey = GlobalKey();
   late DashboardState _dashboardState;
@@ -97,6 +91,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) =>
       _alerts.setLifecycle(state);
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -114,67 +109,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 
   int get _mobileSelectedIndex {
-    final destination = AppDestination.fromIndex(_selectedIndex);
-    final primaryIndex = _primaryDestinations.indexOf(destination);
-    return primaryIndex == -1 ? _primaryDestinations.length : primaryIndex;
-  }
-
-  void _onMobileDestinationSelected(int index) {
-    if (index == _primaryDestinations.length) {
-      _showMoreDestinations();
-      return;
+    if (_selectedIndex >= 0 && _selectedIndex < AppDestination.values.length) {
+      return _selectedIndex;
     }
-    _onDestinationSelected(_primaryDestinations[index].index);
-  }
-
-  Future<void> _showMoreDestinations() async {
-    final selected = await showModalBottomSheet<AppDestination>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            0,
-            AppSpacing.lg,
-            AppSpacing.lg,
-          ),
-          child: Column(
-            key: const Key('more-destinations-sheet'),
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('Lainnya', style: AppTypography.titleLarge),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Fitur sekunder outlet tetap tersedia tanpa memenuhi navigasi utama.',
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _MoreDestinationTile(
-                destination: AppDestination.menu,
-                selected: _selectedIndex == AppDestination.menu.index,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _MoreDestinationTile(
-                destination: AppDestination.settings,
-                selected: _selectedIndex == AppDestination.settings.index,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (selected != null && mounted) {
-      _onDestinationSelected(selected.index);
-    }
+    return 0;
   }
 
   void _handleRefreshDashboard() {
@@ -205,7 +143,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         onNavigateToPos: () => _onDestinationSelected(AppDestination.pos.index),
         onNavigateToQueue: () =>
             _onDestinationSelected(AppDestination.queue.index),
-        onNavigateToKds: () => _onDestinationSelected(AppDestination.kds.index),
       ),
       PosDestinationView(
         menuController: widget.menuController,
@@ -219,7 +156,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         controller: widget.queueController,
         alertController: _alerts,
       ),
-      const KdsDestinationView(),
       MenuDestinationView(
         menuController: widget.menuController,
         availabilityController: widget.menuManagementController,
@@ -255,10 +191,11 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                   Expanded(
                     child: Column(
                       children: [
-                        _buildHeader(
-                          destination: destination,
-                          showBrand: !isTablet,
-                        ),
+                        if (destination != AppDestination.queue)
+                          _buildHeader(
+                            destination: destination,
+                            showBrand: !isTablet,
+                          ),
                         Expanded(
                           child: IndexedStack(
                             key: _contentStackKey,
@@ -297,30 +234,17 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               : NavigationBar(
                   key: const Key('primary-bottom-navigation'),
                   selectedIndex: _mobileSelectedIndex,
-                  onDestinationSelected: _onMobileDestinationSelected,
-                  destinations: [
-                    ..._primaryDestinations.map((d) {
-                      return NavigationDestination(
-                        icon: Icon(d.icon, color: AppColors.textSecondary),
-                        selectedIcon: Icon(
-                          d.selectedIcon,
-                          color: AppColors.primary,
-                        ),
-                        label: d.label,
-                      );
-                    }),
-                    const NavigationDestination(
-                      icon: Icon(
-                        Icons.more_horiz_rounded,
-                        color: AppColors.textSecondary,
-                      ),
+                  onDestinationSelected: _onDestinationSelected,
+                  destinations: AppDestination.values.map((d) {
+                    return NavigationDestination(
+                      icon: Icon(d.icon, color: AppColors.textSecondary),
                       selectedIcon: Icon(
-                        Icons.more_horiz_rounded,
+                        d.selectedIcon,
                         color: AppColors.primary,
                       ),
-                      label: 'Lainnya',
-                    ),
-                  ],
+                      label: d.label,
+                    );
+                  }).toList(),
                 ),
         );
       },
@@ -466,76 +390,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MoreDestinationTile extends StatelessWidget {
-  final AppDestination destination;
-  final bool selected;
-
-  const _MoreDestinationTile({
-    required this.destination,
-    required this.selected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      selected: selected,
-      button: true,
-      child: Material(
-        color: selected ? AppColors.primaryContainer : AppColors.surfaceVariant,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppSpacing.borderRadiusMd,
-          side: BorderSide(
-            color: selected ? AppColors.primary : AppColors.border,
-          ),
-        ),
-        child: InkWell(
-          key: Key('more-${destination.name}'),
-          borderRadius: AppSpacing.borderRadiusMd,
-          onTap: () => Navigator.of(context).pop(destination),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
-              children: [
-                Container(
-                  width: AppSpacing.minTouchTarget,
-                  height: AppSpacing.minTouchTarget,
-                  decoration: BoxDecoration(
-                    color: selected ? AppColors.primary : AppColors.surface,
-                    borderRadius: AppSpacing.borderRadiusSm,
-                  ),
-                  child: Icon(
-                    destination.selectedIcon,
-                    color: selected ? AppColors.onPrimary : AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(destination.label, style: AppTypography.titleMedium),
-                      Text(
-                        destination == AppDestination.menu
-                            ? 'Atur menu tersedia atau habis'
-                            : 'Profil, perangkat, dan preferensi outlet',
-                        style: AppTypography.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  selected ? Icons.check_circle_rounded : Icons.chevron_right,
-                  color: selected ? AppColors.primary : AppColors.textMuted,
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
