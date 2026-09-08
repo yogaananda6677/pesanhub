@@ -9,6 +9,7 @@ import 'package:pesenhub_app/auth/google_identity_client.dart';
 import 'package:pesenhub_app/auth/login_view.dart';
 import 'package:pesenhub_app/auth/session.dart';
 import 'package:pesenhub_app/data/remote/api_config.dart';
+import 'package:pesenhub_app/data/remote/api_failure.dart';
 import 'package:pesenhub_app/data/remote/pesenhub_api_client.dart';
 
 const approvedUser = AuthUser(
@@ -22,9 +23,16 @@ const approvedUser = AuthUser(
 class _Gateway implements AuthGateway {
   SessionCredential result;
   AuthUser current;
+  Object? loginError;
+  Object? currentError;
   bool loggedOut = false;
 
-  _Gateway(this.result, {this.current = approvedUser});
+  _Gateway(
+    this.result, {
+    this.current = approvedUser,
+    this.loginError,
+    this.currentError,
+  });
 
   @override
   Future<String> createGoogleChallenge() async => List.filled(43, 'n').join();
@@ -33,10 +41,16 @@ class _Gateway implements AuthGateway {
   Future<SessionCredential> loginWithGoogle(
     String idToken,
     String nonce,
-  ) async => result;
+  ) async {
+    if (loginError != null) throw loginError!;
+    return result;
+  }
 
   @override
-  Future<AuthUser> currentUser() async => current;
+  Future<AuthUser> currentUser() async {
+    if (currentError != null) throw currentError!;
+    return current;
+  }
 
   @override
   Future<void> logout() async => loggedOut = true;
@@ -116,6 +130,79 @@ void main() {
       expect(gateway.loggedOut, isTrue);
       expect(identity.signedOut, isTrue);
       expect(store.credential, isNull);
+    },
+  );
+
+  test(
+    'Google sign in with 401 unauthenticated gives helpful contextual message',
+    () async {
+      final store = MemorySessionStore();
+      final gateway = _Gateway(
+        credential(),
+        loginError: const ApiFailure(ApiFailureKind.unauthenticated),
+      );
+      final identity = _Identity();
+      final controller = SessionController(
+        store: store,
+        gateway: gateway,
+        identityClient: identity,
+      );
+      await controller.restore();
+
+      expect(await controller.signInWithGoogle(), isFalse);
+      expect(
+        controller.errorMessage,
+        'Verifikasi akun Google gagal. Pastikan akun terdaftar dan periksa koneksi ke server.',
+      );
+      expect(controller.status, SessionStatus.signedOut);
+      expect(store.credential, isNull);
+      controller.dispose();
+    },
+  );
+
+  test('restore clears session on 401 unauthenticated response', () async {
+    final store = MemorySessionStore(credential());
+    final gateway = _Gateway(
+      credential(),
+      currentError: const ApiFailure(ApiFailureKind.unauthenticated),
+    );
+    final identity = _Identity();
+    final controller = SessionController(
+      store: store,
+      gateway: gateway,
+      identityClient: identity,
+    );
+    await controller.restore();
+
+    expect(controller.status, SessionStatus.signedOut);
+    expect(store.credential, isNull);
+    controller.dispose();
+  });
+
+  test(
+    'refreshApproval signs out cleanly when session is unauthenticated',
+    () async {
+      final store = MemorySessionStore(credential());
+      final gateway = _Gateway(credential());
+      final identity = _Identity();
+      final controller = SessionController(
+        store: store,
+        gateway: gateway,
+        identityClient: identity,
+      );
+      await controller.restore();
+      expect(controller.status, SessionStatus.signedIn);
+
+      gateway.currentError = const ApiFailure(ApiFailureKind.unauthenticated);
+      await controller.refreshApproval();
+
+      expect(controller.status, SessionStatus.signedOut);
+      expect(store.credential, isNull);
+      expect(
+        controller.errorMessage,
+        'Sesi telah kedaluwarsa atau dicabut. Silakan masuk kembali.',
+      );
+      controller.dispose();
     },
   );
 
