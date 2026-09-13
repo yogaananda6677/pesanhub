@@ -6,7 +6,7 @@ Dokumen ini adalah bukti penutupan [Phase Issue #3](https://github.com/yogaanand
 
 ## 1. Scope yang Ditutup
 
-Phase 1A menyediakan fondasi system of record untuk PesenHub di backend Golang dan PostgreSQL 16:
+Phase 1A menyediakan fondasi system of record untuk PesenHub di backend Golang dan MySQL 16:
 - REST API conventions, standard envelope, error codes, cursor pagination, dan idempotency middleware.
 - Reversible database migrations (000001–000008).
 - Customer profile, deduplikasi nomor HP Indonesia E.164, dan preference store.

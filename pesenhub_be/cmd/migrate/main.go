@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"pesenhub/backend/internal/config"
 )
@@ -33,7 +33,7 @@ func main() {
 			return
 		}
 		if versionErr != nil {
-			fmt.Fprintln(os.Stderr, "read migration status failed")
+			fmt.Fprintln(os.Stderr, "read migration status failed:", versionErr)
 			os.Exit(1)
 		}
 		fmt.Printf("migration status: version=%d dirty=%t\n", version, dirty)
@@ -45,7 +45,7 @@ func main() {
 		err = m.Steps(-1)
 	}
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		fmt.Fprintln(os.Stderr, "migration failed")
+		fmt.Fprintln(os.Stderr, "migration failed:", err)
 		os.Exit(1)
 	}
 	fmt.Println("migration", os.Args[1], "complete")

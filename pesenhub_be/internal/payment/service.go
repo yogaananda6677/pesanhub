@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"pesenhub/backend/internal/customer"
+	"pesenhub/backend/internal/domain"
 )
 
 type CashStore interface {
@@ -43,8 +43,7 @@ func (s *Service) RecordCash(ctx context.Context, principal customer.Principal, 
 		return Payment{}, false, customer.ErrUnauthorized
 	}
 	orderID = strings.TrimSpace(orderID)
-	var id pgtype.UUID
-	if id.Scan(orderID) != nil {
+	if !domain.ValidUUID(orderID) {
 		return Payment{}, false, ErrOrderNotFound
 	}
 	if !validKey(key) {
@@ -69,8 +68,7 @@ func (s *Service) CreateQRIS(ctx context.Context, principal customer.Principal, 
 		return Payment{}, false, ErrMidtransNotReady
 	}
 	orderID = strings.TrimSpace(orderID)
-	var id pgtype.UUID
-	if id.Scan(orderID) != nil {
+	if !domain.ValidUUID(orderID) {
 		return Payment{}, false, ErrOrderNotFound
 	}
 	if !validKey(key) {

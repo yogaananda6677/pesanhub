@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"database/sql"
 	"pesenhub/backend/internal/customer"
+	dbx "pesenhub/backend/internal/database"
 )
 
 const reconciliationCandidateColumns = `id::text,order_id::text,provider_order_id,COALESCE(provider_reference,''),amount,reconciliation_attempt_count,reconciliation_failure_count,expires_at`
 
-func scanReconciliationCandidate(row pgx.Row, candidate *ReconciliationCandidate) error {
+func scanReconciliationCandidate(row dbx.Row, candidate *ReconciliationCandidate) error {
 	return row.Scan(&candidate.PaymentID, &candidate.OrderID, &candidate.ProviderOrderID, &candidate.ProviderReference, &candidate.Amount, &candidate.Attempt, &candidate.FailureCount, &candidate.ExpiresAt)
 }
 
@@ -21,17 +22,16 @@ func (s *Store) ClaimDueReconciliations(ctx context.Context, limit int, now time
 	if limit <= 0 {
 		limit = 10
 	}
-	rows, err := s.db.Query(ctx, `
-		WITH due AS (
-			SELECT id FROM payments
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	rows, err := tx.Query(ctx, `SELECT `+reconciliationCandidateColumns+` FROM payments
 			WHERE method='MIDTRANS_QRIS' AND status IN ('UNPAID','PENDING_PAYMENT')
-			  AND ((reconciliation_state IN ('DUE','RETRY') AND reconciliation_next_at <= $1::timestamptz)
-			    OR (reconciliation_state='IN_FLIGHT' AND reconciliation_last_attempt_at <= $1::timestamptz-make_interval(secs => $3::double precision)))
-			ORDER BY reconciliation_next_at NULLS FIRST,id FOR UPDATE SKIP LOCKED LIMIT $2
-		)
-		UPDATE payments p SET reconciliation_state='IN_FLIGHT',reconciliation_attempt_count=p.reconciliation_attempt_count+1,
-			reconciliation_last_attempt_at=$1::timestamptz,reconciliation_error_code=NULL,updated_at=now()
-		FROM due WHERE p.id=due.id RETURNING p.`+reconciliationCandidateColumns, now, limit, staleAfter.Seconds())
+			  AND ((reconciliation_state IN ('DUE','RETRY') AND reconciliation_next_at <= $1)
+			    OR (reconciliation_state='IN_FLIGHT' AND reconciliation_last_attempt_at <= DATE_SUB($1, INTERVAL $3 MICROSECOND)))
+			ORDER BY reconciliation_next_at IS NOT NULL,reconciliation_next_at,id LIMIT $2 FOR UPDATE SKIP LOCKED`, now, limit, staleAfter.Microseconds())
 	if err != nil {
 		return nil, err
 	}
@@ -44,16 +44,35 @@ func (s *Store) ClaimDueReconciliations(ctx context.Context, limit int, now time
 		}
 		candidates = append(candidates, candidate)
 	}
-	return candidates, rows.Err()
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if len(candidates) == 0 {
+		_ = tx.Commit(ctx)
+		return candidates, nil
+	}
+	ids := make([]string, len(candidates))
+	for i := range candidates {
+		ids[i] = candidates[i].PaymentID
+		candidates[i].Attempt++
+	}
+	if _, err := tx.Exec(ctx, `UPDATE payments SET reconciliation_state='IN_FLIGHT',reconciliation_attempt_count=reconciliation_attempt_count+1,
+		reconciliation_last_attempt_at=$1,reconciliation_error_code=NULL,updated_at=now() WHERE id = ANY($2)`, now, ids); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return candidates, nil
 }
 
 func (s *Store) ClaimReconciliation(ctx context.Context, paymentID string, now time.Time, staleAfter time.Duration) (ReconciliationCandidate, error) {
 	var candidate ReconciliationCandidate
 	err := scanReconciliationCandidate(s.db.QueryRow(ctx, `UPDATE payments SET reconciliation_state='IN_FLIGHT',reconciliation_attempt_count=reconciliation_attempt_count+1,reconciliation_last_attempt_at=$2,reconciliation_error_code=NULL,updated_at=now()
 		WHERE id=$1 AND method='MIDTRANS_QRIS' AND status IN ('UNPAID','PENDING_PAYMENT')
-		  AND (reconciliation_state IS DISTINCT FROM 'IN_FLIGHT' OR reconciliation_last_attempt_at <= $2::timestamptz-make_interval(secs => $3::double precision))
-		RETURNING `+reconciliationCandidateColumns, paymentID, now, staleAfter.Seconds()), &candidate)
-	if errors.Is(err, pgx.ErrNoRows) {
+		  AND (reconciliation_state IS NULL OR reconciliation_state <> 'IN_FLIGHT' OR reconciliation_last_attempt_at <= DATE_SUB($2, INTERVAL $3 MICROSECOND))
+		RETURNING `+reconciliationCandidateColumns, paymentID, now, staleAfter.Microseconds()), &candidate)
+	if errors.Is(err, sql.ErrNoRows) {
 		return ReconciliationCandidate{}, ErrPaymentNotReconcilable
 	}
 	return candidate, err
@@ -66,7 +85,7 @@ func (s *Store) FinishReconciliation(ctx context.Context, candidate Reconciliati
 		state, next = "RESOLVED", nil
 	}
 	result, err := s.db.Exec(ctx, `UPDATE payments SET reconciliation_state=$2,reconciliation_next_at=$3,reconciliation_error_code=NULL,reconciliation_failure_count=0,
-		provider_response_redacted=provider_response_redacted || jsonb_build_object('last_reconciled_status',$4::text,'last_reconciled_at',now()),updated_at=now()
+		provider_response_redacted=JSON_SET(provider_response_redacted,'$.last_reconciled_status',$4,'$.last_reconciled_at',now()),updated_at=now()
 		WHERE id=$1 AND reconciliation_attempt_count=$5`, candidate.PaymentID, state, next, providerStatus, candidate.Attempt)
 	if err != nil {
 		return err
@@ -85,7 +104,7 @@ func (s *Store) FailReconciliation(ctx context.Context, candidate Reconciliation
 	if alert {
 		state, next = "ALERT", nil
 	}
-	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	tx, err := s.db.BeginTx(ctx, dbx.TxOptions{})
 	if err != nil {
 		return false, err
 	}

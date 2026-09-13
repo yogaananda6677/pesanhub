@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	dbx "pesenhub/backend/internal/database"
 )
 
 func TestGoogleIdentityApprovalAndBootstrapIntegration(t *testing.T) {
@@ -18,7 +18,7 @@ func TestGoogleIdentityApprovalAndBootstrapIntegration(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	pool, err := pgxpool.New(ctx, dsn)
+	pool, err := dbx.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

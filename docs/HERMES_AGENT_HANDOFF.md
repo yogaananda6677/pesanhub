@@ -13,7 +13,7 @@ Dokumen ini menjelaskan arsitektur pengalihan percakapan dari AI Agent (Hermes) 
 3. **Repeated Tool Failure Threshold**:
    Ambang batas deterministik kegagalan internal tool (seperti kegagalan resolusi katalog atau error inferensi LLM) adalah `MaxToolFailures = 3`. Jika tercapai berturut-turut, sistem otomatis mengalihkan sesi ke staf manusia (`HANDOFF`) dengan alasan `repeated_tool_failure` dan prioritas `HIGH`.
 4. **Actor-Audited State Transitions**:
-   Setiap aksi `HANDOFF_TRIGGERED`, `PAUSED`, `RESUMED`, `ASSIGNED`, dan `RESOLVED` dicatat ke dalam tabel audit PostgreSQL `agent_conversation_audits` lengkap dengan aktor, alasan, korelasi, dan metadata.
+   Setiap aksi `HANDOFF_TRIGGERED`, `PAUSED`, `RESUMED`, `ASSIGNED`, dan `RESOLVED` dicatat ke dalam tabel audit MySQL `agent_conversation_audits` lengkap dengan aktor, alasan, korelasi, dan metadata.
 
 ---
 

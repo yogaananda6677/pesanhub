@@ -25,7 +25,7 @@ Portal Superadmin adalah kontrol plane berbasis web (**Web Only**) yang dirancan
        |                  |                    |                  |
        v                  v                    v                  v
 +--------------+   +--------------+     +--------------+   +--------------+
-|  PostgreSQL  |   | GOWA Service |     | WebSocket    |   | Outbox       |
+|  MySQL  |   | GOWA Service |     | WebSocket    |   | Outbox       |
 |  (App DB)    |   | (WhatsApp)   |     | Hub          |   | Workers      |
 +--------------+   +--------------+     +--------------+   +--------------+
 ```
@@ -92,7 +92,7 @@ Portal Superadmin memantau 6 komponen infrastruktur utama:
 | Komponen | Target Pemantauan | Status Normal | Status Degradasi | Status Down |
 | :--- | :--- | :--- | :--- | :--- |
 | **API Gateway** | HTTP Listener & Routing | Liveness & Readiness 200 OK | Response time lambat | HTTP Server error |
-| **PostgreSQL** | Connection Pool Ping | Ping selesai < 500ms | Ping > 2000ms | Connection refused / down |
+| **MySQL** | Connection Pool Ping | Ping selesai < 500ms | Ping > 2000ms | Connection refused / down |
 | **GOWA Gateway** | WhatsApp Web Multidevice | API Ready & Device Paired | Device unlinked / QR pending | GOWA Service unreachable |
 | **Outbox Worker** | Notifikasi WhatsApp Dispatcher | Background worker running | Retry queue menumpuk | Worker stopped |
 | **Realtime WS** | Order Broadcast WebSocket | Hub open, streaming aktif | Backpressure high | WS Hub closed |

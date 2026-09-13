@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"database/sql"
+	"github.com/go-sql-driver/mysql"
+	dbx "pesenhub/backend/internal/database"
 )
 
 var ErrIdentityConflict = errors.New("google identity conflicts with an existing account")
@@ -21,9 +21,9 @@ type IdentityStore interface {
 	RevokeSession(context.Context, string, string) error
 }
 
-type Store struct{ pool *pgxpool.Pool }
+type Store struct{ pool *dbx.Pool }
 
-func NewStore(pool *pgxpool.Pool) *Store { return &Store{pool: pool} }
+func NewStore(pool *dbx.Pool) *Store { return &Store{pool: pool} }
 
 func (s *Store) ProvisionSuperadmin(ctx context.Context, email, displayName, requestID string) (User, bool, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
@@ -74,7 +74,24 @@ func (s *Store) ProvisionSuperadmin(ctx context.Context, email, displayName, req
 }
 
 func (s *Store) UpsertGoogleIdentity(ctx context.Context, identity GoogleIdentity) (User, error) {
-	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	var last error
+	for attempt := 0; attempt < 3; attempt++ {
+		user, err := s.upsertGoogleIdentity(ctx, identity)
+		if err == nil {
+			return user, nil
+		}
+		var dbErr *mysql.MySQLError
+		if !errors.As(err, &dbErr) || (dbErr.Number != 1213 && dbErr.Number != 1205) {
+			return User{}, err
+		}
+		last = err
+		time.Sleep(time.Duration(attempt+1) * 10 * time.Millisecond)
+	}
+	return User{}, last
+}
+
+func (s *Store) upsertGoogleIdentity(ctx context.Context, identity GoogleIdentity) (User, error) {
+	tx, err := s.pool.BeginTx(ctx, dbx.TxOptions{})
 	if err != nil {
 		return User{}, err
 	}
@@ -83,19 +100,22 @@ func (s *Store) UpsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 	email := strings.ToLower(strings.TrimSpace(identity.Email))
 	var linkedUserID string
 	err = tx.QueryRow(ctx, `SELECT user_id::text FROM external_identities WHERE provider = 'GOOGLE' AND provider_subject = $1 FOR UPDATE`, identity.Subject).Scan(&linkedUserID)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return User{}, err
 	}
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		userID, idErr := newUUID()
 		if idErr != nil {
 			return User{}, idErr
 		}
-		err = tx.QueryRow(ctx, `
+		_, err = tx.Exec(ctx, `
 			INSERT INTO app_users (id, email_normalized, display_name, role, status)
 			VALUES ($1::uuid, $2, $3, 'OWNER', 'PENDING_APPROVAL')
-			ON CONFLICT (email_normalized) DO UPDATE SET display_name = EXCLUDED.display_name, updated_at = now()
-			RETURNING id::text`, userID, email, strings.TrimSpace(identity.DisplayName)).Scan(&linkedUserID)
+			ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), updated_at = now()`, userID, email, strings.TrimSpace(identity.DisplayName))
+		if err != nil {
+			return User{}, err
+		}
+		err = tx.QueryRow(ctx, `SELECT id FROM app_users WHERE email_normalized=$1`, email).Scan(&linkedUserID)
 		if err != nil {
 			return User{}, err
 		}
@@ -104,7 +124,7 @@ func (s *Store) UpsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 		if err == nil && existingSubject != identity.Subject {
 			return User{}, ErrIdentityConflict
 		}
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return User{}, err
 		}
 		identityID, idErr := newUUID()
@@ -112,15 +132,16 @@ func (s *Store) UpsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 			return User{}, idErr
 		}
 		var actualUserID string
-		err = tx.QueryRow(ctx, `
+		_, err = tx.Exec(ctx, `
 			INSERT INTO external_identities (id, user_id, provider, provider_subject, email_at_login)
 			VALUES ($1::uuid, $2::uuid, 'GOOGLE', $3, $4)
-			ON CONFLICT (provider, provider_subject) DO UPDATE
-			SET email_at_login = EXCLUDED.email_at_login, last_login_at = now()
-			RETURNING user_id::text`, identityID, linkedUserID, identity.Subject, email).Scan(&actualUserID)
+			ON DUPLICATE KEY UPDATE email_at_login = VALUES(email_at_login), last_login_at = now()`, identityID, linkedUserID, identity.Subject, email)
+		if err == nil {
+			err = tx.QueryRow(ctx, `SELECT user_id FROM external_identities WHERE provider='GOOGLE' AND provider_subject=$1`, identity.Subject).Scan(&actualUserID)
+		}
 		if err != nil || actualUserID != linkedUserID {
-			var constraintError *pgconn.PgError
-			if errors.As(err, &constraintError) && constraintError.Code == "23505" {
+			var constraintError *mysql.MySQLError
+			if errors.As(err, &constraintError) && constraintError.Number == 1062 {
 				err = ErrIdentityConflict
 			}
 			if err == nil {

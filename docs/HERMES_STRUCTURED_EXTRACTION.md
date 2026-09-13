@@ -30,7 +30,7 @@ Hermes bertindak sebagai conversational AI agent order extraction di PesenHub. P
    [Confidence Evaluator] ──► Cek Ambang Batas (0.75) & Deteksi Keraguan
             │
             ▼
-    [DraftCandidate] + [AgentRun Audit] ──► Disimpan ke PostgreSQL (agent_runs)
+    [DraftCandidate] + [AgentRun Audit] ──► Disimpan ke MySQL (agent_runs)
 ```
 
 ---
@@ -87,7 +87,7 @@ Hermes bertindak sebagai conversational AI agent order extraction di PesenHub. P
 
 ## 5. Audit Trail (`agent_runs` Table)
 
-Setiap pemanggilan ekstraksi dicatat ke tabel PostgreSQL `agent_runs`:
+Setiap pemanggilan ekstraksi dicatat ke tabel MySQL `agent_runs`:
 
 | Kolom | Tipe | Keterangan |
 | --- | --- | --- |
@@ -100,8 +100,8 @@ Setiap pemanggilan ekstraksi dicatat ke tabel PostgreSQL `agent_runs`:
 | `confidence_score` | NUMERIC(3,2) | Skor confidence final (0.00 – 1.00) |
 | `is_ambiguous` | BOOLEAN | Menandakan apakah butuh klarifikasi |
 | `ambiguity_reasons` | TEXT[] | Daftar alasan jika ambigu |
-| `extracted_draft` | JSONB | Snapshot data draft yang diekstrak |
-| `tool_calls` | JSONB | Audit pemanggilan tool internal (LLM, catalog) |
+| `extracted_draft` | JSON | Snapshot data draft yang diekstrak |
+| `tool_calls` | JSON | Audit pemanggilan tool internal (LLM, catalog) |
 | `duration_ms` | INTEGER | Waktu eksekusi pipeline dalam milidetik |
 | `status` | TEXT | `SUCCESS`, `AMBIGUOUS`, `FAILED`, `REJECTED_INJECTION` |
 | `error_message` | TEXT | Pesan error bila terjadi kegagalan |
@@ -114,4 +114,4 @@ Setiap pemanggilan ekstraksi dicatat ke tabel PostgreSQL `agent_runs`:
 
 - Semua unit test di `internal/hermes` menggunakan `MockLLMClient` dan `mockCatalogProvider`.
 - Tidak ada dependensi ke external LLM provider, GPU, atau network eksternal di CI.
-- Integration test `store_integration_test.go` memverifikasi skema dan query PostgreSQL terhadap instance database test terisolasi.
+- Integration test `store_integration_test.go` memverifikasi skema dan query MySQL terhadap instance database test terisolasi.

@@ -10,7 +10,7 @@ import (
 
 	"pesenhub/backend/internal/ws"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	dbx "pesenhub/backend/internal/database"
 )
 
 type EventBroadcaster interface {
@@ -29,7 +29,7 @@ type OrderEventEnvelope struct {
 }
 
 type OutboxPublisher struct {
-	db       *pgxpool.Pool
+	db       *dbx.Pool
 	hub      EventBroadcaster
 	logger   *slog.Logger
 	notifyCh chan struct{}
@@ -37,7 +37,7 @@ type OutboxPublisher struct {
 	running  bool
 }
 
-func NewOutboxPublisher(db *pgxpool.Pool, hub EventBroadcaster, logger *slog.Logger) *OutboxPublisher {
+func NewOutboxPublisher(db *dbx.Pool, hub EventBroadcaster, logger *slog.Logger) *OutboxPublisher {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -110,7 +110,7 @@ func (p *OutboxPublisher) ProcessBatch(ctx context.Context) (int, error) {
 
 	rows, err := tx.Query(ctx, `SELECT id::text, aggregate_id::text, event_type, payload, created_at
 		FROM outbox_events
-		WHERE status IN ('PENDING', 'FAILED') AND available_at <= now()
+		WHERE status IN ('PENDING', 'FAILED') AND available_at <= CURRENT_TIMESTAMP(6)
 		ORDER BY created_at ASC, id ASC
 		LIMIT 50
 		FOR UPDATE SKIP LOCKED`)

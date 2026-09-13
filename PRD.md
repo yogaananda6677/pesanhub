@@ -108,7 +108,7 @@ flowchart TD
 
 ### 5.1 Prinsip Arsitektur
 
-- Stack Backend utama dijalankan melalui Docker Compose: API Golang memakai multi-stage build dan runtime non-root, bersama PostgreSQL 16 Alpine dan GOWA dalam satu network. Mode `go run ./cmd/api` tetap tersedia untuk development lokal.
+- Stack Backend utama dijalankan melalui Docker Compose: API Golang memakai multi-stage build dan runtime non-root, bersama MySQL 8.4 dan GOWA dalam satu network. Mode `go run ./cmd/api` tetap tersedia untuk development lokal.
 - Backend Golang menjadi **system of record** untuk order, pelanggan, menu, dan pembayaran.
 - Web Customer berada di dalam area backend untuk MVP dan menggunakan API domain yang sama. Jika kebutuhan UI berkembang besar, komponen ini dapat dipisahkan tanpa mengubah aturan bisnis.
 - Hermes hanya menggunakan tool/API yang disediakan backend. Agent tidak memperoleh akses langsung ke database maupun secret Midtrans.
@@ -520,4 +520,4 @@ Sebuah fitur dinyatakan selesai jika:
 - Apakah pembayaran tunai tetap diperbolehkan untuk order WhatsApp?
 - Berapa lama reminder order dan batas maksimal pesan otomatis?
 - Apakah Flutter digunakan pada satu perangkat gabungan POS/KDS atau beberapa perangkat?
-- Database server yang dipilih: PostgreSQL atau alternatif lain?
+- Database server yang dipilih: MySQL 8.4 (migrasi dari PostgreSQL dilacak pada issue #155).

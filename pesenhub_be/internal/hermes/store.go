@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"database/sql"
+	dbx "pesenhub/backend/internal/database"
 )
 
 var (
@@ -22,17 +22,17 @@ type RunStore interface {
 	GetByCorrelationID(ctx context.Context, correlationID string) (*AgentRun, error)
 }
 
-// Store is the PostgreSQL implementation of RunStore.
+// Store is the MySQL implementation of RunStore.
 type Store struct {
-	db *pgxpool.Pool
+	db *dbx.Pool
 }
 
-// NewStore creates a new Store with a PostgreSQL connection pool.
-func NewStore(db *pgxpool.Pool) *Store {
+// NewStore creates a new Store with a MySQL connection pool.
+func NewStore(db *dbx.Pool) *Store {
 	return &Store{db: db}
 }
 
-// RecordRun persists an AgentRun record into PostgreSQL.
+// RecordRun persists an AgentRun record into MySQL.
 func (s *Store) RecordRun(ctx context.Context, run *AgentRun) error {
 	if s == nil || s.db == nil {
 		return nil
@@ -50,6 +50,10 @@ func (s *Store) RecordRun(ctx context.Context, run *AgentRun) error {
 	if len(run.ToolCalls) == 0 {
 		run.ToolCalls = json.RawMessage("[]")
 	}
+	reasonsJSON, err := json.Marshal(run.AmbiguityReasons)
+	if err != nil {
+		return fmt.Errorf("encode ambiguity reasons: %w", err)
+	}
 
 	query := `
 		INSERT INTO agent_runs (
@@ -65,7 +69,7 @@ func (s *Store) RecordRun(ctx context.Context, run *AgentRun) error {
 		)
 	`
 
-	_, err := s.db.Exec(ctx, query,
+	_, err = s.db.Exec(ctx, query,
 		run.ID,
 		run.InboundMessageID,
 		run.Session,
@@ -74,7 +78,7 @@ func (s *Store) RecordRun(ctx context.Context, run *AgentRun) error {
 		run.PromptVersion,
 		run.ConfidenceScore,
 		run.IsAmbiguous,
-		run.AmbiguityReasons,
+		reasonsJSON,
 		run.ExtractedDraft,
 		run.ToolCalls,
 		run.DurationMs,
@@ -135,7 +139,7 @@ type rowScanner interface {
 func scanAgentRun(row rowScanner) (*AgentRun, error) {
 	var run AgentRun
 	var inboundID *string
-	var reasons []string
+	var reasonsJSON []byte
 
 	err := row.Scan(
 		&run.ID,
@@ -146,7 +150,7 @@ func scanAgentRun(row rowScanner) (*AgentRun, error) {
 		&run.PromptVersion,
 		&run.ConfidenceScore,
 		&run.IsAmbiguous,
-		&reasons,
+		&reasonsJSON,
 		&run.ExtractedDraft,
 		&run.ToolCalls,
 		&run.DurationMs,
@@ -156,14 +160,16 @@ func scanAgentRun(row rowScanner) (*AgentRun, error) {
 		&run.CreatedAt,
 	)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrRunNotFound
 		}
 		return nil, err
 	}
 
 	run.InboundMessageID = inboundID
-	run.AmbiguityReasons = reasons
+	if err := json.Unmarshal(reasonsJSON, &run.AmbiguityReasons); err != nil {
+		return nil, fmt.Errorf("decode ambiguity reasons: %w", err)
+	}
 	return &run, nil
 }
 

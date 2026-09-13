@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/domain"
 	"pesenhub/backend/internal/httpapi"
@@ -115,7 +114,12 @@ func (s *Service) CreateManual(ctx context.Context, in CreateInput, key, actorID
 	return s.store.Create(ctx, in, key, hex.EncodeToString(sum[:]), actorID+"|"+requestID)
 }
 
-func validateUUID(value string) error { var id pgtype.UUID; return id.Scan(value) }
+func validateUUID(value string) error {
+	if !domain.ValidUUID(value) {
+		return errors.New("invalid UUID")
+	}
+	return nil
+}
 
 func (s *Service) Transition(ctx context.Context, orderID string, in TransitionInput, key, actorID, actorRole, requestID string) (StatusResult, bool, error) {
 	if s.transitions == nil {
@@ -379,8 +383,7 @@ func (s *Service) GetAuditLogs(ctx context.Context, orderID string, p customer.P
 	if orderID == "" {
 		return nil, ErrNotFound
 	}
-	var u pgtype.UUID
-	if err := u.Scan(orderID); err != nil || !u.Valid {
+	if !domain.ValidUUID(orderID) {
 		return nil, ErrNotFound
 	}
 	if s.auditStore == nil {

@@ -10,7 +10,7 @@ Dokumentasi arsitektur dan operasional pengiriman notifikasi WhatsApp pelanggan 
    - Seluruh mutasi status order dan kalkulasi harga berasal dari Backend Golang.
    - Kegagalan transport GOWA (timeout, error 500/503, session terputus) **TIDAK BOLEH** menggagalkan atau me-rollback transaksi domain pesanan yang sudah di-commit.
 2. **At-Most-Once Delivery per Template Version**:
-   - Setiap notifikasi memiliki kunci idempoten unik format `order:<order_id>:type:<type>:v:<version>` dengan constraint unik di PostgreSQL (`order_notifications.idempotency_key`).
+   - Setiap notifikasi memiliki kunci idempoten unik format `order:<order_id>:type:<type>:v:<version>` dengan constraint unik di MySQL (`order_notifications.idempotency_key`).
    - Replay event atau pemanggilan berulang tidak akan memicu pengiriman pesan kedua ke GOWA.
 3. **Zero AI Price Hallucination**:
    - Seluruh pesan notifikasi dibuat menggunakan template deterministik backend.
@@ -106,7 +106,7 @@ Terima kasih telah memesan di PesenHub! 🙏
 | `id` | uuid PRIMARY KEY | ID unik opt-out |
 | `phone_e164` | text NOT NULL UNIQUE | Nomor E.164 (`+628...`) |
 | `reason` | text | Alasan opt-out |
-| `created_at` | timestamptz | Timestamp UTC |
+| `created_at` | datetime(6) | Timestamp UTC |
 
 ### `order_notifications`
 | Kolom | Tipe | Keterangan |
@@ -123,9 +123,9 @@ Terima kasih telah memesan di PesenHub! 🙏
 | `provider_message_id` | text | ID pesan dari provider GOWA |
 | `attempts` | integer DEFAULT 0 | Jumlah percobaan pengiriman |
 | `last_error` | text | Kategori/pesan error tersanitasi |
-| `sent_at` | timestamptz | Waktu pesan berhasil dikirim |
-| `created_at` | timestamptz | Timestamp pembuatan |
-| `updated_at` | timestamptz | Timestamp pembaruan |
+| `sent_at` | datetime(6) | Waktu pesan berhasil dikirim |
+| `created_at` | datetime(6) | Timestamp pembuatan |
+| `updated_at` | datetime(6) | Timestamp pembaruan |
 
 ---
 

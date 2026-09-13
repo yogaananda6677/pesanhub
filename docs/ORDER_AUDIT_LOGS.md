@@ -32,7 +32,7 @@ PesenHub mencatat setiap mutasi status dan pembuatan pesanan (`ORDER_CREATED`, `
 | `actor_id` | `text` | ID aktor yang melakukan aksi |
 | `request_id` | `text NOT NULL` | HTTP correlation request ID |
 | `metadata_redacted` | `jsonb NOT NULL` | Detail perubahan status & harga dengan PII tersensor |
-| `created_at` | `timestamptz NOT NULL` | Waktu mutasi dicatat (UTC) |
+| `created_at` | `datetime(6) NOT NULL` | Waktu mutasi dicatat (UTC) |
 
 ---
 

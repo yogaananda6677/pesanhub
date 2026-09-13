@@ -7,7 +7,7 @@
 - Go `1.26.0`, sesuai directive pada `go.mod`.
 - Builder API: `golang:1.26.0-alpine`.
 - Runtime API: `alpine:3.24.1`, hanya berisi CA certificates, timezone data, binary statis, migration SQL, dan asset web.
-- PostgreSQL: `postgres:16-alpine`.
+- MySQL: `mysql:8.4`.
 - GOWA: `aldinokemal2104/go-whatsapp-web-multidevice:v9.3.0`.
 
 Runtime API menggunakan user non-root `pesenhub` UID/GID 10001 dan tidak memuat Go toolchain atau source Go.
@@ -17,16 +17,16 @@ Runtime API menggunakan user non-root `pesenhub` UID/GID 10001 dan tidak memuat 
 | Service | Host | Container | Fungsi |
 | --- | ---: | ---: | --- |
 | `api` | 8080 | 8080 | REST API dan placeholder Web Customer |
-| `postgres` | 5432 | 5432 | Database; host port dapat dioverride dengan `POSTGRES_HOST_PORT` |
+| `mysql` | 3306 | 3306 | Database; host port dapat dioverride dengan `MYSQL_HOST_PORT` |
 | `gowa` | 3000 | 3000 | WhatsApp HTTP API |
 
-Di network Docker, API selalu menggunakan `DATABASE_HOST=postgres`, `DATABASE_PORT=5432`, dan `GOWA_BASE_URL=http://gowa:3000`.
+Di network Docker, API selalu menggunakan `DATABASE_HOST=mysql`, `DATABASE_PORT=3306`, dan `GOWA_BASE_URL=http://gowa:3000`.
 
 ## Environment
 
-Salin `.env.example` menjadi `.env`. Aplikasi menggunakan `APP_NAME`, `APP_ENV`, `APP_HOST`, `APP_PORT`, `APP_TIMEZONE`, akun outlet tunggal `APP_LOGIN_USERNAME` + `APP_LOGIN_PASSWORD_HASH`, `APP_SESSION_SECRET`, `APP_SESSION_TTL`, token kompatibilitas layanan `APP_STAFF_TOKEN` dan `APP_KDS_TOKEN` yang berbeda (minimum 32 karakter), konfigurasi PostgreSQL, `GOWA_BASE_URL`, `GOWA_BASIC_AUTH_USERNAME`, `GOWA_BASIC_AUTH_PASSWORD`, `GOWA_DEVICE_ID`, `GOWA_REQUEST_TIMEOUT`, `GOWA_WEBHOOK_SECRET`, serta konfigurasi sandbox `MIDTRANS_BASE_URL`, `MIDTRANS_SERVER_KEY`, `MIDTRANS_MERCHANT_ID`, dan `MIDTRANS_REQUEST_TIMEOUT`.
+Salin `.env.example` menjadi `.env`. Aplikasi menggunakan `APP_NAME`, `APP_ENV`, `APP_HOST`, `APP_PORT`, `APP_TIMEZONE`, akun outlet tunggal `APP_LOGIN_USERNAME` + `APP_LOGIN_PASSWORD_HASH`, `APP_SESSION_SECRET`, `APP_SESSION_TTL`, token kompatibilitas layanan `APP_STAFF_TOKEN` dan `APP_KDS_TOKEN` yang berbeda (minimum 32 karakter), konfigurasi MySQL, `GOWA_BASE_URL`, `GOWA_BASIC_AUTH_USERNAME`, `GOWA_BASIC_AUTH_PASSWORD`, `GOWA_DEVICE_ID`, `GOWA_REQUEST_TIMEOUT`, `GOWA_WEBHOOK_SECRET`, serta konfigurasi sandbox `MIDTRANS_BASE_URL`, `MIDTRANS_SERVER_KEY`, `MIDTRANS_MERCHANT_ID`, dan `MIDTRANS_REQUEST_TIMEOUT`.
 
-Compose juga menggunakan `POSTGRES_HOST_PORT`; autentikasi API dan UI GOWA memakai pasangan Basic Auth yang sama. `.env` diabaikan dan tidak dimasukkan ke build context. Jangan menyimpan credential asli di repository.
+Compose juga menggunakan `MYSQL_HOST_PORT`; autentikasi API dan UI GOWA memakai pasangan Basic Auth yang sama. `.env` diabaikan dan tidak dimasukkan ke build context. Jangan menyimpan credential asli di repository.
 
 Untuk API yang dijalankan langsung dari host, ubah `DATABASE_HOST=localhost` dan `GOWA_BASE_URL=http://localhost:3000`.
 
@@ -48,15 +48,15 @@ Migration runner memakai konfigurasi network Docker dan hanya mengubah schema se
 ```bash
 ./run.sh status
 ./run.sh health
-docker compose exec postgres pg_isready
+docker compose exec mysql mysqladmin ping -h 127.0.0.1 -u"$DATABASE_USER" -p"$DATABASE_PASSWORD"
 docker compose logs --no-color api
-docker compose logs --no-color postgres
+docker compose logs --no-color mysql
 docker compose logs --no-color gowa
 ```
 
-- API tidak mulai: pastikan PostgreSQL mencapai `healthy`; `api` menunggu kondisi tersebut.
-- Readiness 503: PostgreSQL tidak dapat diping dari API.
-- Readiness `degraded`: PostgreSQL aktif tetapi API/device GOWA belum siap. Periksa `gowa_api`, `gowa_device`, dan `gowa_reason`; `absent`/`disconnected` berbeda dari API `down` atau `timeout`.
-- Port host bentrok: ubah hanya host mapping, misalnya `POSTGRES_HOST_PORT=55432`; jangan mengubah `DATABASE_PORT=5432` untuk API dalam Docker.
+- API tidak mulai: pastikan MySQL mencapai `healthy`; `api` menunggu kondisi tersebut.
+- Readiness 503: MySQL tidak dapat diping dari API.
+- Readiness `degraded`: MySQL aktif tetapi API/device GOWA belum siap. Periksa `gowa_api`, `gowa_device`, dan `gowa_reason`; `absent`/`disconnected` berbeda dari API `down` atau `timeout`.
+- Port host bentrok: ubah hanya host mapping, misalnya `MYSQL_HOST_PORT=53306`; jangan mengubah `DATABASE_PORT=3306` untuk API dalam Docker.
 
 Hentikan stack tanpa menghapus data dengan `docker compose down`.

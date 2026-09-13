@@ -7,10 +7,10 @@ Dokumen ini adalah panduan utama developer dan coding agent untuk setup, operasi
 | Service | Fungsi | Host Port | Internal Address |
 | --- | --- | --- | --- |
 | API | Backend Golang | 8080 | `api:8080` |
-| PostgreSQL | Database | dari `.env`, saat ini 55432 | `postgres:5432` |
+| MySQL | Database | dari `.env`, saat ini 53306 | `mysql:3306` |
 | GOWA | WhatsApp gateway | 3000 | `gowa:3000` |
 
-API di dalam Docker wajib menggunakan `postgres:5432` dan `http://gowa:3000`. Host port PostgreSQL boleh diubah melalui `POSTGRES_HOST_PORT` jika 5432 sedang dipakai, tetapi host port tidak boleh digunakan untuk koneksi antar-container. Sebelum device WhatsApp dipasangkan, container GOWA dapat sehat sementara readiness API berstatus `degraded`.
+API di dalam Docker wajib menggunakan `mysql:3306` dan `http://gowa:3000`. Host port MySQL boleh diubah melalui `MYSQL_HOST_PORT` jika 3306 sedang dipakai, tetapi host port tidak boleh digunakan untuk koneksi antar-container. Sebelum device WhatsApp dipasangkan, container GOWA dapat sehat sementara readiness API berstatus `degraded`.
 
 ## Prasyarat
 
@@ -19,7 +19,7 @@ API di dalam Docker wajib menggunakan `postgres:5432` dan `http://gowa:3000`. Ho
 - Go hanya untuk test, format, pemeriksaan statis, atau development lokal.
 - `curl` atau `wget` untuk health check.
 - Host port 8080 dan 3000 tersedia.
-- Host port PostgreSQL tersedia dan ditentukan melalui `.env`.
+- Host port MySQL tersedia dan ditentukan melalui `.env`.
 
 ## Setup Pertama
 
@@ -41,13 +41,13 @@ Setelah `.env` dibuat pertama kali, ganti nilai `change_me` dengan credential de
 | --- | --- |
 | `./run.sh help` | Menampilkan bantuan dan contoh. Tanpa argumen dan `--help` setara. |
 | `./run.sh setup` | Memeriksa dependency, menyiapkan `.env` dengan aman, dan memvalidasi Compose. |
-| `./run.sh dev` | Build lalu menjalankan stack, menunggu API/PostgreSQL, dan memeriksa health. |
+| `./run.sh dev` | Build lalu menjalankan stack, menunggu API/MySQL, dan memeriksa health. |
 | `./run.sh start` | Menjalankan stack tanpa memaksa rebuild. |
 | `./run.sh build` | Membangun image API dan menampilkan ukurannya tanpa memulai service. |
 | `./run.sh rebuild` | Build bersih API tanpa cache; gunakan hanya saat diperlukan. |
 | `./run.sh stop` | Menghentikan container tanpa menghapus container, network, atau volume. |
 | `./run.sh down` | Menghapus container dan network tanpa menghapus volume. |
-| `./run.sh restart [service]` | Restart semua service atau hanya `api`, `postgres`, atau `gowa`, lalu cek health. |
+| `./run.sh restart [service]` | Restart semua service atau hanya `api`, `mysql`, atau `gowa`, lalu cek health. |
 | `./run.sh status` | Menampilkan `docker compose ps` dan ringkasan health bila API aktif. |
 | `./run.sh logs [service]` | Follow log semua/service tertentu dengan 100 baris awal. Tekan Ctrl-C untuk keluar. |
 | `./run.sh health` | Menampilkan HTTP status, status API, database, dan GOWA. |
@@ -66,7 +66,7 @@ Contoh: `./run.sh logs api`, `./run.sh restart gowa`, `./run.sh migrate-status`,
 - Jangan commit `.env`, API key, session/QR GOWA, data pelanggan, log sensitif, atau secret apa pun.
 - Jangan mencetak password, connection string, API key, atau token ke log.
 - Jangan menjalankan `docker compose down -v`, `docker volume prune`, atau `docker system prune`.
-- Jangan menghapus volume PostgreSQL tanpa backup dan persetujuan eksplisit.
+- Jangan menghapus volume MySQL tanpa backup dan persetujuan eksplisit.
 - Jangan memasangkan nomor WhatsApp production saat development.
 - Jangan memakai data pelanggan asli untuk test.
 - Jangan mengubah migration yang sudah pernah digunakan; buat migration baru.
@@ -84,21 +84,21 @@ Tidak ada command reset database, penghapusan volume, destroy, atau clean-all pa
 
 ## Troubleshooting
 
-### Port 5432 sedang digunakan
+### Port 3306 sedang digunakan
 
-Ubah hanya `POSTGRES_HOST_PORT` dalam `.env`, misalnya `POSTGRES_HOST_PORT=55432`. Pertahankan `DATABASE_HOST=postgres` dan `DATABASE_PORT=5432` untuk API Docker.
+Ubah hanya `MYSQL_HOST_PORT` dalam `.env`, misalnya `MYSQL_HOST_PORT=53306`. Pertahankan `DATABASE_HOST=mysql` dan `DATABASE_PORT=3306` untuk API Docker.
 
 ### Port 8080 sedang digunakan
 
 Hentikan proses yang tidak diperlukan atau atur host port API melalui `APP_PORT` dalam `.env`. Health script mengikuti nilai tersebut. Port container tetap 8080.
 
-### PostgreSQL unhealthy
+### MySQL unhealthy
 
-Jalankan `./run.sh status` dan `./run.sh logs postgres`. Periksa credential `.env`, kapasitas disk, permission volume, dan apakah data lama dibuat dengan credential berbeda. Jangan menghapus volume sebagai jalan pintas.
+Jalankan `./run.sh status` dan `./run.sh logs mysql`. Periksa credential `.env`, kapasitas disk, permission volume, dan apakah data lama dibuat dengan credential berbeda. Jangan menghapus volume sebagai jalan pintas.
 
-### API tidak dapat terhubung ke PostgreSQL
+### API tidak dapat terhubung ke MySQL
 
-Pastikan `DATABASE_HOST=postgres`, `DATABASE_PORT=5432`, kedua service berada di network Compose yang sama, dan PostgreSQL healthy. Host port 55432 tidak digunakan API container.
+Pastikan `DATABASE_HOST=mysql`, `DATABASE_PORT=3306`, kedua service berada di network Compose yang sama, dan MySQL healthy. Host port 53306 tidak digunakan API container.
 
 ### GOWA berstatus degraded
 
@@ -114,7 +114,7 @@ Pastikan URL menunjuk `POST /webhooks/gowa`, raw body tidak diubah proxy, dan ko
 
 ### Migration gagal
 
-Pastikan stack aktif, PostgreSQL healthy, image API terbaru, serta migration sebelumnya tidak dirty. Jalankan `./run.sh migrate-status` dan lihat log error tanpa menampilkan DSN. Jangan mengedit migration yang sudah diterapkan.
+Pastikan stack aktif, MySQL healthy, image API terbaru, serta migration sebelumnya tidak dirty. Jalankan `./run.sh migrate-status` dan lihat log error tanpa menampilkan DSN. Jangan mengedit migration yang sudah diterapkan.
 
 ### Docker image gagal dibangun
 

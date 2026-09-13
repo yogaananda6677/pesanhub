@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"database/sql"
+	"github.com/go-sql-driver/mysql"
+	dbx "pesenhub/backend/internal/database"
 
 	"pesenhub/backend/internal/catalog"
 	"pesenhub/backend/internal/customer"
@@ -22,11 +22,11 @@ type OutboxNotifier interface {
 }
 
 type Store struct {
-	db       *pgxpool.Pool
+	db       *dbx.Pool
 	notifier OutboxNotifier
 }
 
-func NewStore(db *pgxpool.Pool) *Store { return &Store{db: db} }
+func NewStore(db *dbx.Pool) *Store { return &Store{db: db} }
 
 func (s *Store) SetNotifier(n OutboxNotifier) {
 	s.notifier = n
@@ -39,7 +39,7 @@ func (s *Store) notifyOutbox() {
 }
 
 func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInput, key, hash, actorID, roleRequest string) (StatusResult, bool, error) {
-	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	tx, err := s.db.BeginTx(ctx, dbx.TxOptions{})
 	if err != nil {
 		return StatusResult{}, false, err
 	}
@@ -64,13 +64,13 @@ func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInp
 		}
 		return replay, false, nil
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return StatusResult{}, false, err
 	}
 	var current string
 	var version int64
 	err = tx.QueryRow(ctx, `SELECT status,version FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&current, &version)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return StatusResult{}, false, ErrNotFound
 	}
 	if err != nil {
@@ -111,7 +111,7 @@ func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInp
 }
 
 func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequest string) (Order, bool, error) {
-	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	tx, err := s.db.BeginTx(ctx, dbx.TxOptions{})
 	if err != nil {
 		return Order{}, false, err
 	}
@@ -156,8 +156,8 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 	}
 	err = tx.QueryRow(ctx, `INSERT INTO orders (id,order_number,customer_id,source,status,customer_name_snapshot,customer_phone_snapshot,notes,subtotal_amount,total_amount,idempotency_key,client_order_id,request_hash) VALUES ($1,$2,$3,'CASHIER_MANUAL','PENDING',$4,NULLIF($5,''),NULLIF($6,''),$7,$7,$8,$9,$10) RETURNING created_at`, o.ID, o.OrderNumber, customerRef, in.CustomerName, in.CustomerPhone, in.Notes, total, key, in.ClientOrderID, hash).Scan(&o.CreatedAt)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		var dbErr *mysql.MySQLError
+		if errors.As(err, &dbErr) && dbErr.Number == 1062 {
 			return Order{}, false, ErrIdempotencyConflict
 		}
 		return Order{}, false, err
@@ -223,11 +223,11 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 	return o, true, nil
 }
 
-func loadExisting(ctx context.Context, tx pgx.Tx, key, hash string) (Order, bool, error) {
+func loadExisting(ctx context.Context, tx *dbx.Tx, key, hash string) (Order, bool, error) {
 	var o Order
 	var stored string
 	err := tx.QueryRow(ctx, `SELECT id::text,order_number,client_order_id::text,source,status,total_amount,version,created_at,request_hash FROM orders WHERE source='CASHIER_MANUAL' AND idempotency_key=$1`, key).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.Source, &o.Status, &o.TotalAmount, &o.Version, &o.CreatedAt, &stored)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return Order{}, false, nil
 	}
 	if err != nil {
@@ -251,16 +251,16 @@ func loadExisting(ctx context.Context, tx pgx.Tx, key, hash string) (Order, bool
 	return o, true, rows.Err()
 }
 
-func loadMenu(ctx context.Context, tx pgx.Tx, id string) (catalog.Menu, error) {
+func loadMenu(ctx context.Context, tx *dbx.Tx, id string) (catalog.Menu, error) {
 	var m catalog.Menu
 	err := tx.QueryRow(ctx, `SELECT id::text,category_id::text,sku,name,price_amount,is_available,version,sort_order FROM menus WHERE id=$1 FOR SHARE`, id).Scan(&m.ID, &m.CategoryID, &m.SKU, &m.Name, &m.PriceAmount, &m.Available, &m.Version, &m.SortOrder)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return m, &catalog.ValidationError{Field: "menu_id", Err: catalog.ErrUnavailable}
 	}
 	if err != nil {
 		return m, err
 	}
-	rows, err := tx.Query(ctx, `SELECT g.id::text,g.code,g.name,g.min_select,g.max_select,g.sort_order,g.is_active,o.id::text,o.code,o.name,o.price_delta_amount,o.is_available,o.sort_order FROM modifier_groups g LEFT JOIN modifier_options o ON o.group_id=g.id WHERE g.menu_id=$1 ORDER BY g.sort_order,g.id,o.sort_order,o.id FOR SHARE OF g`, id)
+	rows, err := tx.Query(ctx, `SELECT g.id::text,g.code,g.name,g.min_select,g.max_select,g.sort_order,g.is_active,o.id::text,o.code,o.name,o.price_delta_amount,o.is_available,o.sort_order FROM modifier_groups g LEFT JOIN modifier_options o ON o.group_id=g.id WHERE g.menu_id=$1 ORDER BY g.sort_order,g.id,o.sort_order,o.id FOR SHARE`, id)
 	if err != nil {
 		return m, err
 	}
@@ -392,7 +392,7 @@ func (s *Store) GetByID(ctx context.Context, orderID string) (OrderDetail, error
 		COALESCE(o.notes, ''), o.total_amount, o.version, o.created_at, o.updated_at,
 		COALESCE(o.public_tracking_token, '')
 		FROM orders o WHERE o.id = $1`, orderID).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt, &o.PublicTrackingToken)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return OrderDetail{}, ErrNotFound
 	}
 	if err != nil {
@@ -500,7 +500,7 @@ func (s *Store) populateItems(ctx context.Context, orders []OrderDetail) error {
 }
 
 func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, hash, requestID string) (PublicOrderResponse, bool, error) {
-	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	tx, err := s.db.BeginTx(ctx, dbx.TxOptions{})
 	if err != nil {
 		return PublicOrderResponse{}, false, err
 	}
@@ -522,7 +522,7 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 			return PublicOrderResponse{}, false, ErrIdempotencyConflict
 		}
 		return existing, false, nil
-	} else if !errors.Is(err, pgx.ErrNoRows) {
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		return PublicOrderResponse{}, false, err
 	}
 
@@ -557,10 +557,12 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 	}
 
 	var customerID string
-	err = tx.QueryRow(ctx, `INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key)
+	_, err = tx.Exec(ctx, `INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key)
 		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (phone_e164) DO UPDATE SET display_name = EXCLUDED.display_name
-		RETURNING id::text`, customer.NewID(), in.CustomerPhone, in.CustomerName, "cust-"+in.CustomerPhone).Scan(&customerID)
+		ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)`, customer.NewID(), in.CustomerPhone, in.CustomerName, "cust-"+in.CustomerPhone)
+	if err == nil {
+		err = tx.QueryRow(ctx, `SELECT id FROM customers WHERE phone_e164=$1`, in.CustomerPhone).Scan(&customerID)
+	}
 	if err != nil {
 		return PublicOrderResponse{}, false, err
 	}
@@ -580,8 +582,8 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 		VALUES ($1, $2, $3, 'CUSTOMER_WEB', 'PICKUP', 'PENDING', $4, $5, NULLIF($6, ''), $7, $7, $8, 1, $9, $10)
 		RETURNING created_at`, orderID, orderNumber, customerID, in.CustomerName, in.CustomerPhone, in.Notes, total, key, hash, trackingToken).Scan(&res.CreatedAt)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		var dbErr *mysql.MySQLError
+		if errors.As(err, &dbErr) && dbErr.Number == 1062 {
 			return PublicOrderResponse{}, false, ErrIdempotencyConflict
 		}
 		return PublicOrderResponse{}, false, err
@@ -658,7 +660,7 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 }
 
 func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput, key, hash, requestID string) (WhatsAppOrderResponse, bool, error) {
-	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	tx, err := s.db.BeginTx(ctx, dbx.TxOptions{})
 	if err != nil {
 		return WhatsAppOrderResponse{}, false, err
 	}
@@ -680,7 +682,7 @@ func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput,
 			return WhatsAppOrderResponse{}, false, ErrIdempotencyConflict
 		}
 		return existing, false, nil
-	} else if !errors.Is(err, pgx.ErrNoRows) {
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		return WhatsAppOrderResponse{}, false, err
 	}
 
@@ -720,10 +722,12 @@ func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput,
 	}
 
 	var customerID string
-	err = tx.QueryRow(ctx, `INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key)
+	_, err = tx.Exec(ctx, `INSERT INTO customers (id, phone_e164, display_name, create_idempotency_key)
 		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (phone_e164) DO UPDATE SET display_name = EXCLUDED.display_name
-		RETURNING id::text`, customer.NewID(), in.CustomerPhone, custName, "cust-"+in.CustomerPhone).Scan(&customerID)
+		ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)`, customer.NewID(), in.CustomerPhone, custName, "cust-"+in.CustomerPhone)
+	if err == nil {
+		err = tx.QueryRow(ctx, `SELECT id FROM customers WHERE phone_e164=$1`, in.CustomerPhone).Scan(&customerID)
+	}
 	if err != nil {
 		return WhatsAppOrderResponse{}, false, err
 	}
@@ -744,8 +748,8 @@ func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput,
 		VALUES ($1, $2, $3, 'WHATSAPP', 'PICKUP', 'PENDING', $4, $5, NULLIF($6, ''), $7, $7, $8, 1, $9, $10)
 		RETURNING created_at`, orderID, orderNumber, customerID, custName, in.CustomerPhone, in.Notes, total, key, hash, trackingToken).Scan(&res.CreatedAt)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		var dbErr *mysql.MySQLError
+		if errors.As(err, &dbErr) && dbErr.Number == 1062 {
 			return WhatsAppOrderResponse{}, false, ErrIdempotencyConflict
 		}
 		return WhatsAppOrderResponse{}, false, err
@@ -897,7 +901,7 @@ func (s *Store) GetByPublicToken(ctx context.Context, token string) (PublicTrack
 		WHERE public_tracking_token = $1`, token).Scan(
 		&o.ID, &o.OrderNumber, &o.Source, &o.Status, &o.CustomerName, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt,
 	)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return PublicTrackingDetail{}, ErrNotFound
 	}
 	if err != nil {

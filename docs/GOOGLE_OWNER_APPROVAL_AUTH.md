@@ -16,7 +16,7 @@ yang dibangun terpisah pada Issue #140.
 5. Login pertama membuat atau menghubungkan identity secara idempoten. Akun baru
    selalu `PENDING_APPROVAL`; autentikasi Google tidak pernah memberi role.
 6. Backend menerbitkan sesi opaque bertanda tangan dan mencatat session ID di
-   PostgreSQL. Setiap request memvalidasi expiry, revoke, role, dan status akun.
+   MySQL. Setiap request memvalidasi expiry, revoke, role, dan status akun.
 
 ## State akses
 

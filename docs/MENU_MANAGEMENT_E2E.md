@@ -1,6 +1,6 @@
 # Pengelolaan Katalog End-to-End (#132)
 
-Issue #132 menjadikan PostgreSQL sebagai sumber katalog tunggal untuk aplikasi PesenHub satu outlet. Runtime aplikasi yang memiliki konfigurasi backend tidak lagi mengisi POS atau layar Menu dari `SampleMenuData`; sampel hanya dipertahankan untuk showcase/test yang tidak dikonfigurasi.
+Issue #132 menjadikan MySQL sebagai sumber katalog tunggal untuk aplikasi PesenHub satu outlet. Runtime aplikasi yang memiliki konfigurasi backend tidak lagi mengisi POS atau layar Menu dari `SampleMenuData`; sampel hanya dipertahankan untuk showcase/test yang tidak dikonfigurasi.
 
 ## Alur data
 
@@ -25,7 +25,7 @@ Semua endpoint di bawah memerlukan principal `STAFF` terverifikasi dan mengembal
 | `PATCH` | `/api/v1/admin/menus/{id}` | Ubah menu, harga, urutan, dan modifier dengan `version` |
 | `PATCH` | `/api/v1/admin/menus/{id}/availability` | Ubah tersedia/habis dengan `version` |
 
-`version` adalah optimistic concurrency guard. Versi stale menghasilkan `409 VERSION_CONFLICT`; aplikasi me-rollback perubahan optimistik, menampilkan request ID, lalu mengambil snapshot server terbaru. Create/update kategori, menu, modifier, availability, dan audit log dilakukan dalam transaksi PostgreSQL yang sama. Mutasi gagal tidak menghasilkan audit palsu.
+`version` adalah optimistic concurrency guard. Versi stale menghasilkan `409 VERSION_CONFLICT`; aplikasi me-rollback perubahan optimistik, menampilkan request ID, lalu mengambil snapshot server terbaru. Create/update kategori, menu, modifier, availability, dan audit log dilakukan dalam transaksi MySQL yang sama. Mutasi gagal tidak menghasilkan audit palsu.
 
 Harga memakai integer Rupiah. Flutter hanya mengirim data menu/modifier; harga final order selalu dihitung dan divalidasi ulang oleh backend ketika order di-commit. Karena itu perubahan harga atau availability setelah keranjang dibuka tidak dapat dilewati oleh nilai dari client.
 
@@ -48,7 +48,7 @@ Backend menambah migration reversible `000020_add_catalog_category_version`. Jal
 ## Validasi
 
 - `go test ./...` menguji service, authorization handler, contract fixture, serta seluruh regresi backend.
-- `TestCatalogCRUDVersionAndAuditIntegration` berjalan ketika `TEST_DATABASE_URL` tersedia dan membuktikan CRUD, modifier, version conflict, serta atomic audit di PostgreSQL.
+- `TestCatalogCRUDVersionAndAuditIntegration` berjalan ketika `TEST_DATABASE_URL` tersedia dan membuktikan CRUD, modifier, version conflict, serta atomic audit di MySQL.
 - `flutter test test/catalog_runtime_test.dart` menguji cache offline/reconnect, read-only offline, rollback konflik, autentikasi/version request, publikasi snapshot bersama, dan viewport mobile.
 - `flutter test test/menu_availability_test.dart`, `test/backend_contract_test.dart`, dan `test/local_database_test.dart` menjaga regresi availability, kontrak provider-consumer, serta migrasi/cache lokal.
 - Kontrak kanonis `contracts/backend_flutter_v1.json` berada pada `contract_version: 3`; OpenAPI lengkap berada di `docs/api/openapi.yaml`.

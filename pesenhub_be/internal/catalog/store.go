@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"database/sql"
+	dbx "pesenhub/backend/internal/database"
 )
 
-type Store struct{ db *pgxpool.Pool }
+type Store struct{ db *dbx.Pool }
 
-func NewStore(db *pgxpool.Pool) *Store { return &Store{db: db} }
+func NewStore(db *dbx.Pool) *Store { return &Store{db: db} }
 
 func (s *Store) CreateCategory(ctx context.Context, c Category, meta MutationMeta) (Category, error) {
 	tx, err := s.db.Begin(ctx)
@@ -35,7 +35,7 @@ func (s *Store) UpdateCategory(ctx context.Context, c Category, expectedVersion 
 	}
 	defer tx.Rollback(ctx)
 	err = tx.QueryRow(ctx, `UPDATE menu_categories SET name=$2,sort_order=$3,is_active=$4,version=version+1,updated_at=now() WHERE id=$1 AND version=$5 RETURNING id::text,name,sort_order,is_active,version`, c.ID, c.Name, c.SortOrder, c.Active, expectedVersion).Scan(&c.ID, &c.Name, &c.SortOrder, &c.Active, &c.Version)
-	if err == pgx.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return Category{}, fmt.Errorf("%w", ErrVersionConflict)
 	}
 	if err != nil {
@@ -72,7 +72,7 @@ func (s *Store) UpdateMenu(ctx context.Context, m Menu, expectedVersion int64, m
 	}
 	defer tx.Rollback(ctx)
 	err = tx.QueryRow(ctx, `UPDATE menus SET category_id=$2,sku=$3,name=$4,description=$5,price_amount=$6,sort_order=$7,version=version+1,updated_at=now() WHERE id=$1 AND version=$8 RETURNING is_available,version`, m.ID, m.CategoryID, m.SKU, m.Name, m.Description, m.PriceAmount, m.SortOrder, expectedVersion).Scan(&m.Available, &m.Version)
-	if err == pgx.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return Menu{}, fmt.Errorf("%w", ErrVersionConflict)
 	}
 	if err != nil {
@@ -98,7 +98,7 @@ func (s *Store) SetMenuAvailability(ctx context.Context, id string, available bo
 	defer tx.Rollback(ctx)
 	var m Menu
 	err = tx.QueryRow(ctx, `UPDATE menus SET is_available=$2,version=version+1,updated_at=now() WHERE id=$1 AND version=$3 RETURNING id::text,category_id::text,sku,name,COALESCE(description,''),price_amount,is_available,version,sort_order`, id, available, version).Scan(&m.ID, &m.CategoryID, &m.SKU, &m.Name, &m.Description, &m.PriceAmount, &m.Available, &m.Version, &m.SortOrder)
-	if err == pgx.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return Menu{}, fmt.Errorf("%w", ErrVersionConflict)
 	}
 	if err != nil {
@@ -110,7 +110,7 @@ func (s *Store) SetMenuAvailability(ctx context.Context, id string, available bo
 	return m, tx.Commit(ctx)
 }
 
-func insertGroups(ctx context.Context, tx pgx.Tx, m Menu) error {
+func insertGroups(ctx context.Context, tx *dbx.Tx, m Menu) error {
 	for _, g := range m.Groups {
 		if _, err := tx.Exec(ctx, `INSERT INTO modifier_groups(id,menu_id,code,name,min_select,max_select,is_active,sort_order) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, g.ID, m.ID, g.Code, g.Name, g.MinSelect, g.MaxSelect, g.Active, g.SortOrder); err != nil {
 			return err
@@ -124,7 +124,7 @@ func insertGroups(ctx context.Context, tx pgx.Tx, m Menu) error {
 	return nil
 }
 
-func audit(ctx context.Context, tx pgx.Tx, meta MutationMeta, aggregateType, aggregateID, action string) error {
+func audit(ctx context.Context, tx *dbx.Tx, meta MutationMeta, aggregateType, aggregateID, action string) error {
 	_, err := tx.Exec(ctx, `INSERT INTO audit_logs(id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES($1,$2,$3,$4,'STAFF',$5,$6,'{}'::jsonb)`, meta.AuditID, aggregateType, aggregateID, action, meta.ActorID, meta.RequestID)
 	return err
 }

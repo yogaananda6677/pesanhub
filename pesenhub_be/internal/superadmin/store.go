@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"database/sql"
+	dbx "pesenhub/backend/internal/database"
 )
 
 var (
@@ -21,11 +21,11 @@ var (
 )
 
 type Store struct {
-	pool *pgxpool.Pool
+	pool *dbx.Pool
 	now  func() time.Time
 }
 
-func NewStore(pool *pgxpool.Pool) *Store {
+func NewStore(pool *dbx.Pool) *Store {
 	return &Store{pool: pool, now: time.Now}
 }
 
@@ -59,7 +59,7 @@ func (s *Store) ListUsers(ctx context.Context, filterStatus Status, search strin
 		       ), 0) AS active_sessions
 		FROM app_users u
 		WHERE ($1 = '' OR u.status = $1)
-		  AND ($2 = '' OR u.email_normalized LIKE '%' || $2 || '%' OR lower(u.display_name) LIKE '%' || $2 || '%')
+		  AND ($2 = '' OR u.email_normalized LIKE CONCAT('%',$2,'%') OR lower(u.display_name) LIKE CONCAT('%',$2,'%'))
 		ORDER BY u.created_at DESC
 		LIMIT $3 OFFSET $4
 	`
@@ -162,13 +162,12 @@ func (s *Store) CreateInvitation(ctx context.Context, actorID, email, outletName
 	query := `
 		INSERT INTO user_invitations (id, email_normalized, invited_by, outlet_name, status, expires_at, created_at, updated_at)
 		VALUES ($1::uuid, $2, $3::uuid, $4, 'PENDING', $5, $6, $6)
-		ON CONFLICT (email_normalized) DO UPDATE
-		SET invited_by = EXCLUDED.invited_by,
-		    outlet_name = EXCLUDED.outlet_name,
+		ON DUPLICATE KEY UPDATE
+		    invited_by = VALUES(invited_by),
+		    outlet_name = VALUES(outlet_name),
 		    status = 'PENDING',
-		    expires_at = EXCLUDED.expires_at,
-		    updated_at = EXCLUDED.updated_at
-		RETURNING id::text, created_at, expires_at
+		    expires_at = VALUES(expires_at),
+		    updated_at = VALUES(updated_at)
 	`
 
 	var inv Invitation
@@ -178,7 +177,11 @@ func (s *Store) CreateInvitation(ctx context.Context, actorID, email, outletName
 	inv.InvitedBy = actorID
 	inv.EmailMasked = MaskEmail(email)
 
-	err = s.pool.QueryRow(ctx, query, invID, email, actorID, outletName, expiresAt, now).Scan(
+	_, err = s.pool.Exec(ctx, query, invID, email, actorID, outletName, expiresAt, now)
+	if err != nil {
+		return Invitation{}, err
+	}
+	err = s.pool.QueryRow(ctx, `SELECT id, created_at, expires_at FROM user_invitations WHERE email_normalized=$1`, email).Scan(
 		&inv.ID, &inv.CreatedAt, &inv.ExpiresAt,
 	)
 	return inv, err
@@ -208,7 +211,7 @@ func (s *Store) UpdateUserStatus(ctx context.Context, actorID, targetUserID stri
 	var currentStatus, currentRole string
 	err = tx.QueryRow(ctx, `SELECT status, role FROM app_users WHERE id = $1::uuid FOR UPDATE`, targetUserID).Scan(&currentStatus, &currentRole)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return ErrUserNotFound
 		}
 		return err

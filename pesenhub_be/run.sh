@@ -31,9 +31,9 @@ Commands:
   rebuild                      Build bersih image API tanpa cache
   stop                         Hentikan container tanpa menghapusnya
   down                         Hapus container/network, pertahankan volume
-  restart [api|postgres|gowa]  Restart seluruh stack atau satu service
+  restart [api|mysql|gowa]  Restart seluruh stack atau satu service
   status                       Tampilkan status container dan ringkasan health
-  logs [api|postgres|gowa]     Ikuti maksimum 100 baris awal log
+  logs [api|mysql|gowa]     Ikuti maksimum 100 baris awal log
   health                       Periksa endpoint live dan ready
   test                         Jalankan unit test Go
   check                        Verify module, format, vet, test, dan Compose
@@ -61,7 +61,7 @@ need_env() { [[ -f .env ]] || die ".env belum tersedia. Jalankan './run.sh setup
 compose() { docker compose "$@"; }
 
 validate_service() {
-  case "${1:-}" in api|postgres|gowa) ;; *) die "Service '${1:-<kosong>}' tidak dikenal. Gunakan api, postgres, atau gowa." ;; esac
+  case "${1:-}" in api|mysql|gowa) ;; *) die "Service '${1:-<kosong>}' tidak dikenal. Gunakan api, mysql, atau gowa." ;; esac
 }
 
 env_value() {
@@ -82,19 +82,19 @@ container_state() {
 }
 
 wait_ready() {
-  local deadline=$((SECONDS + 60)) postgres_state api_state
-  info "Menunggu PostgreSQL dan API siap (timeout 60 detik)..."
+  local deadline=$((SECONDS + 60)) mysql_state api_state
+  info "Menunggu MySQL dan API siap (timeout 60 detik)..."
   while (( SECONDS < deadline )); do
-    postgres_state="$(container_state postgres)"
+    mysql_state="$(container_state mysql)"
     api_state="$(container_state api)"
-    if [[ "$postgres_state" == "healthy" && "$api_state" == "healthy" ]]; then
-      ok "PostgreSQL dan API healthy."
+    if [[ "$mysql_state" == "healthy" && "$api_state" == "healthy" ]]; then
+      ok "MySQL dan API healthy."
       return 0
     fi
     sleep 1
   done
   compose ps
-  die "Timeout menunggu service: postgres=$postgres_state api=$api_state"
+  die "Timeout menunggu service: mysql=$mysql_state api=$api_state"
 }
 
 http_request() {
@@ -204,15 +204,15 @@ migrate_down() {
 }
 
 show_version() {
-  local go_version builder runtime postgres gowa
+  local go_version builder runtime mysql gowa
   go_version="$(sed -n 's/^go //p' go.mod | head -n 1)"
   builder="$(sed -n '1s/^FROM \([^ ]*\).*/\1/p' Dockerfile)"
   runtime="$(sed -n 's/^FROM \([^ ]*\) AS runtime$/\1/p' Dockerfile)"
-  postgres="$(sed -n '/^  postgres:/,/^  [a-z]/s/^    image: //p' docker-compose.yml | head -n 1)"
+  mysql="$(sed -n '/^  mysql:/,/^  [a-z]/s/^    image: //p' docker-compose.yml | head -n 1)"
   gowa="$(sed -n '/^  gowa:/,/^volumes:/s/^    image: //p' docker-compose.yml | head -n 1)"
   printf 'Go (go.mod): %s\n' "$go_version"
   if command -v docker >/dev/null 2>&1; then docker --version; docker compose version; else printf 'Docker: tidak tersedia\n'; fi
-  printf 'PostgreSQL image: %s\nGOWA image: %s\nBuilder image: %s\nRuntime image: %s\nAPI image: pesenhub-api:dev\n' "$postgres" "$gowa" "$builder" "$runtime"
+  printf 'MySQL image: %s\nGOWA image: %s\nBuilder image: %s\nRuntime image: %s\nAPI image: pesenhub-api:dev\n' "$mysql" "$gowa" "$builder" "$runtime"
 }
 
 command_name="${1:-help}"
@@ -226,16 +226,16 @@ case "$command_name" in
   build) [[ $# -eq 0 ]] || die "Command build tidak menerima argumen."; need_docker; need_env; compose build api; show_image_size ;;
   rebuild) [[ $# -eq 0 ]] || die "Command rebuild tidak menerima argumen."; need_docker; need_env; compose build --no-cache api; show_image_size ;;
   stop) [[ $# -eq 0 ]] || die "Command stop tidak menerima argumen."; need_docker; need_env; compose stop; ok "Container berhenti; network, volume, dan data dipertahankan." ;;
-  down) [[ $# -eq 0 ]] || die "Command down tidak menerima argumen."; need_docker; need_env; compose down --remove-orphans; ok "Container/network dihapus; volume dan data PostgreSQL dipertahankan." ;;
+  down) [[ $# -eq 0 ]] || die "Command down tidak menerima argumen."; need_docker; need_env; compose down --remove-orphans; ok "Container/network dihapus; volume dan data MySQL dipertahankan." ;;
   restart)
-    [[ $# -le 1 ]] || die "Gunakan: ./run.sh restart [api|postgres|gowa]"
+    [[ $# -le 1 ]] || die "Gunakan: ./run.sh restart [api|mysql|gowa]"
     need_docker; need_env
     if [[ $# -eq 1 ]]; then validate_service "$1"; compose restart "$1"; else compose restart; fi
     wait_ready; compose ps; health
     ;;
   status) [[ $# -eq 0 ]] || die "Command status tidak menerima argumen."; need_docker; need_env; compose ps; [[ "$(container_state api)" == "healthy" ]] && health || warn "API belum berjalan atau belum healthy." ;;
   logs)
-    [[ $# -le 1 ]] || die "Gunakan: ./run.sh logs [api|postgres|gowa]"
+    [[ $# -le 1 ]] || die "Gunakan: ./run.sh logs [api|mysql|gowa]"
     need_docker; need_env
     if [[ $# -eq 1 ]]; then validate_service "$1"; compose logs --follow --tail=100 "$1"; else compose logs --follow --tail=100; fi
     ;;

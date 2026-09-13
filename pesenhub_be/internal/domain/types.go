@@ -1,5 +1,23 @@
 package domain
 
+import "strings"
+
+func ValidUUID(value string) bool {
+	if len(value) != 36 {
+		return false
+	}
+	for i, c := range strings.ToLower(value) {
+		if i == 8 || i == 13 || i == 18 || i == 23 {
+			if c != '-' {
+				return false
+			}
+		} else if !strings.ContainsRune("0123456789abcdef", c) {
+			return false
+		}
+	}
+	return true
+}
+
 type OrderSource string
 type Fulfillment string
 type OrderStatus string

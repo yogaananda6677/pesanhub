@@ -16,7 +16,7 @@ import (
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/ws"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	dbx "pesenhub/backend/internal/database"
 )
 
 func TestWebSocketOrderEventsIntegration(t *testing.T) {
@@ -28,7 +28,7 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	db, err := pgxpool.New(ctx, dsn)
+	db, err := dbx.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

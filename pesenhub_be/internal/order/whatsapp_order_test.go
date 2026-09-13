@@ -11,7 +11,7 @@ import (
 	"pesenhub/backend/internal/catalog"
 	"pesenhub/backend/internal/customer"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	dbx "pesenhub/backend/internal/database"
 )
 
 func TestWhatsAppOrderValidation(t *testing.T) {
@@ -37,7 +37,7 @@ func TestWhatsAppOrderIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	db, err := pgxpool.New(ctx, dsn)
+	db, err := dbx.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

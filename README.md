@@ -6,7 +6,7 @@ PesenHub adalah monorepo dengan satu histori Git dan dua komponen aplikasi:
 .
 ├── .github/        # Issue/PR template dan workflow CI/CD
 ├── docs/           # Panduan konfigurasi repository
-├── pesenhub_be/    # Backend Golang, PostgreSQL, GOWA, dan Web Customer
+├── pesenhub_be/    # Backend Golang, MySQL, GOWA, dan Web Customer
 ├── pesenhub_app/   # Flutter POS/KDS
 ├── CONTRIBUTING.md
 ├── PRD.md

@@ -21,7 +21,7 @@ GOWA Webhook Event (POST /webhooks/gowa)
    │      ├─ Nomor bukan format Indonesia (`08`, `628`, `+628`) ──► Status: QUARANTINED (invalid phone)
    │      └─ Nomor valid Indonesia ──► Dinormalisasi ke E.164 (`+628...`), Status: RECEIVED
    │
-   ├─► 5. Lapis 2 Deduplikasi: Persisten PostgreSQL (`whatsapp_inbound_messages`)
+   ├─► 5. Lapis 2 Deduplikasi: Persisten MySQL (`whatsapp_inbound_messages`)
    │      ├─ INSERT ON CONFLICT (provider_message_id) DO NOTHING
    │      └─ Jika duplikat: HTTP 204 (X-PesenHub-Deduplicated: true) tanpa trigger event kedua
    │
@@ -40,7 +40,7 @@ Untuk mematuhi **Invarian #1** (Backend Golang adalah system of record) dan **In
 ## Deduplikasi 2-Lapis
 
 1. **Lapis 1 (In-Memory)**: Mencegah burst request ulang dari GOWA untuk request HTTP yang sama persis dalam rentang 10 menit menggunakan bounded ring (10.000 request ID).
-2. **Lapis 2 (PostgreSQL Durable)**: Menggunakan constraint unik `provider_message_id` pada tabel `whatsapp_inbound_messages`. Sekalipun service di-restart atau GOWA mengirimkan ulang payload yang sama, pesan tidak diproses ganda.
+2. **Lapis 2 (MySQL Durable)**: Menggunakan constraint unik `provider_message_id` pada tabel `whatsapp_inbound_messages`. Sekalipun service di-restart atau GOWA mengirimkan ulang payload yang sama, pesan tidak diproses ganda.
 
 ## Sanitasi PII & Logging
 

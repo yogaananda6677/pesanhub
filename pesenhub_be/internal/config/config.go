@@ -21,7 +21,7 @@ type Config struct {
 }
 
 type App struct{ Name, Env, Host, Port, Timezone string }
-type Database struct{ Host, Port, Name, User, Password, SSLMode string }
+type Database struct{ Host, Port, Name, User, Password, TLS string }
 type GOWA struct {
 	BaseURL, Username, Password, DeviceID, WebhookSecret string
 	Timeout                                              time.Duration
@@ -48,7 +48,7 @@ type Hermes struct {
 func Load() (Config, error) {
 	c := Config{
 		App:      App{get("APP_NAME", "PesenHub"), get("APP_ENV", "development"), get("APP_HOST", "0.0.0.0"), get("APP_PORT", "8080"), get("APP_TIMEZONE", "Asia/Jakarta")},
-		Database: Database{os.Getenv("DATABASE_HOST"), get("DATABASE_PORT", "5432"), os.Getenv("DATABASE_NAME"), os.Getenv("DATABASE_USER"), os.Getenv("DATABASE_PASSWORD"), get("DATABASE_SSLMODE", "disable")},
+		Database: Database{os.Getenv("DATABASE_HOST"), get("DATABASE_PORT", "3306"), os.Getenv("DATABASE_NAME"), os.Getenv("DATABASE_USER"), os.Getenv("DATABASE_PASSWORD"), get("DATABASE_TLS", "false")},
 		GOWA:     GOWA{BaseURL: os.Getenv("GOWA_BASE_URL"), Username: os.Getenv("GOWA_BASIC_AUTH_USERNAME"), Password: os.Getenv("GOWA_BASIC_AUTH_PASSWORD"), DeviceID: get("GOWA_DEVICE_ID", "pesenhub-dev"), WebhookSecret: os.Getenv("GOWA_WEBHOOK_SECRET")},
 		Midtrans: Midtrans{BaseURL: get("MIDTRANS_BASE_URL", "https://api.sandbox.midtrans.com"), ServerKey: os.Getenv("MIDTRANS_SERVER_KEY"), MerchantID: os.Getenv("MIDTRANS_MERCHANT_ID")},
 		Auth: Auth{
@@ -123,7 +123,7 @@ func Load() (Config, error) {
 
 func (c Config) Address() string { return net.JoinHostPort(c.App.Host, c.App.Port) }
 func (d Database) DSN() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", url.QueryEscape(d.User), url.QueryEscape(d.Password), d.Host, d.Port, d.Name, url.QueryEscape(d.SSLMode))
+	return fmt.Sprintf("mysql://%s:%s@tcp(%s)/%s?parseTime=true&loc=UTC&multiStatements=true&tls=%s&charset=utf8mb4&collation=utf8mb4_0900_ai_ci", d.User, d.Password, net.JoinHostPort(d.Host, d.Port), d.Name, url.QueryEscape(d.TLS))
 }
 func get(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {

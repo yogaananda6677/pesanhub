@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"database/sql"
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/httpapi"
 	"pesenhub/backend/internal/httpserver"
@@ -95,7 +95,7 @@ func (h *GoogleHandler) Me(w http.ResponseWriter, r *http.Request) {
 	user, err := h.store.UserByID(r.Context(), principal.Subject)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			status = http.StatusUnauthorized
 		}
 		httpapi.WriteError(w, status, "UNAUTHENTICATED", "Authentication is required.", httpserver.RequestID(r.Context()), nil)
