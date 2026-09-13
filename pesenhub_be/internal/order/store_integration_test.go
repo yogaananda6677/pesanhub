@@ -13,7 +13,7 @@ import (
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/httpapi"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	dbx "pesenhub/backend/internal/database"
 )
 
 func TestStoreCreateConcurrentIdempotencyIntegration(t *testing.T) {
@@ -22,7 +22,7 @@ func TestStoreCreateConcurrentIdempotencyIntegration(t *testing.T) {
 		t.Skip("TEST_DATABASE_URL is not set")
 	}
 	ctx := context.Background()
-	db, err := pgxpool.New(ctx, dsn)
+	db, err := dbx.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestStoreOrderQueryAndQueueIntegration(t *testing.T) {
 		t.Skip("TEST_DATABASE_URL is not set")
 	}
 	ctx := context.Background()
-	db, err := pgxpool.New(ctx, dsn)
+	db, err := dbx.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func TestStoreOrderQueryAndQueueIntegration(t *testing.T) {
 
 	for _, od := range ordersData {
 		_, err = db.Exec(ctx, `INSERT INTO orders(id,order_number,source,status,customer_name_snapshot,customer_phone_snapshot,notes,subtotal_amount,total_amount,idempotency_key,created_at,updated_at)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,'key-' || $2,$9,$9) ON CONFLICT (id) DO NOTHING`,
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,CONCAT('key-', $2),$9,$9) ON CONFLICT (id) DO NOTHING`,
 			od.id, od.orderNum, od.source, od.status, od.name, od.phone, od.notes, od.total, od.createdAt)
 		if err != nil {
 			t.Fatal(err)
@@ -311,7 +311,7 @@ func TestStoreOrderQueryAndQueueIntegration(t *testing.T) {
 	}
 
 	var plan string
-	err = db.QueryRow(ctx, `EXPLAIN SELECT id FROM orders WHERE source='CUSTOMER_WEB' AND status='PREPARING' ORDER BY created_at ASC, id ASC LIMIT 20`).Scan(&plan)
+	err = db.QueryRow(ctx, `EXPLAIN FORMAT=JSON SELECT id FROM orders WHERE source='CUSTOMER_WEB' AND status='PREPARING' ORDER BY created_at ASC, id ASC LIMIT 20`).Scan(&plan)
 	if err != nil {
 		t.Fatalf("explain query: %v", err)
 	}

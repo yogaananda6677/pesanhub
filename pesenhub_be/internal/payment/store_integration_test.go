@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"pesenhub/backend/internal/customer"
+	dbx "pesenhub/backend/internal/database"
 )
 
 func TestRecordCashIntegration(t *testing.T) {
@@ -18,7 +18,7 @@ func TestRecordCashIntegration(t *testing.T) {
 		t.Skip("TEST_DATABASE_URL is not set")
 	}
 	ctx := context.Background()
-	db, err := pgxpool.New(ctx, dsn)
+	db, err := dbx.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestMidtransReconciliationIntegrationExpiryAndBoundedAlert(t *testing.T) {
 		t.Skip("TEST_DATABASE_URL is not set")
 	}
 	ctx := context.Background()
-	db, err := pgxpool.New(ctx, dsn)
+	db, err := dbx.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestCreateQRISIntegrationRetryUsesOnePaymentAndStableProviderOrderID(t *tes
 		t.Skip("TEST_DATABASE_URL is not set")
 	}
 	ctx := context.Background()
-	db, err := pgxpool.New(ctx, dsn)
+	db, err := dbx.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +208,7 @@ func TestApplyMidtransWebhookIntegrationIsIdempotentAndMonotonic(t *testing.T) {
 		t.Skip("TEST_DATABASE_URL is not set")
 	}
 	ctx := context.Background()
-	db, err := pgxpool.New(ctx, dsn)
+	db, err := dbx.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +271,7 @@ func TestApplyMidtransWebhookIntegrationIsIdempotentAndMonotonic(t *testing.T) {
 	var paymentStatus, orderStatus string
 	var version, events, audits, outbox int
 	var eventPayloads string
-	err = db.QueryRow(ctx, `SELECT p.status,p.version,o.status,(SELECT count(*) FROM payment_events WHERE payment_id=p.id AND event_type LIKE 'MIDTRANS_PAYMENT_STATUS_%'),(SELECT count(*) FROM audit_logs WHERE aggregate_id=p.id AND action='MIDTRANS_PAYMENT_STATUS_CHANGED'),(SELECT count(*) FROM outbox_events WHERE aggregate_id=p.id AND event_type='PAYMENT_STATUS_CHANGED'),(SELECT string_agg(payload_redacted::text,'') FROM payment_events WHERE payment_id=p.id) FROM payments p JOIN orders o ON o.id=p.order_id WHERE p.id=$1`, paymentID).Scan(&paymentStatus, &version, &orderStatus, &events, &audits, &outbox, &eventPayloads)
+	err = db.QueryRow(ctx, `SELECT p.status,p.version,o.status,(SELECT count(*) FROM payment_events WHERE payment_id=p.id AND event_type LIKE 'MIDTRANS_PAYMENT_STATUS_%'),(SELECT count(*) FROM audit_logs WHERE aggregate_id=p.id AND action='MIDTRANS_PAYMENT_STATUS_CHANGED'),(SELECT count(*) FROM outbox_events WHERE aggregate_id=p.id AND event_type='PAYMENT_STATUS_CHANGED'),(SELECT GROUP_CONCAT(payload_redacted SEPARATOR '') FROM payment_events WHERE payment_id=p.id) FROM payments p JOIN orders o ON o.id=p.order_id WHERE p.id=$1`, paymentID).Scan(&paymentStatus, &version, &orderStatus, &events, &audits, &outbox, &eventPayloads)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,19 +9,19 @@ import (
 
 	"pesenhub/backend/internal/customer"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	dbx "pesenhub/backend/internal/database"
 )
 
 func TestNotificationStoreIntegration(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
-		t.Skip("TEST_DATABASE_URL is not set; skipping PostgreSQL integration test")
+		t.Skip("TEST_DATABASE_URL is not set; skipping MySQL integration test")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	db, err := pgxpool.New(ctx, dsn)
+	db, err := dbx.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +261,7 @@ func TestNotificationStoreIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Mark PROCESSING and set updated_at in past
-	_, err = db.Exec(ctx, `UPDATE order_notifications SET status = 'PROCESSING', updated_at = now() - interval '5 minutes' WHERE id = $1`, createdStale.ID)
+	_, err = db.Exec(ctx, `UPDATE order_notifications SET status = 'PROCESSING', updated_at = DATE_SUB(now(), INTERVAL 5 MINUTE) WHERE id = $1`, createdStale.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

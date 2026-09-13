@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"database/sql"
+	dbx "pesenhub/backend/internal/database"
 )
 
 var (
@@ -32,13 +32,14 @@ type ConversationStore interface {
 	GetAuditEvents(ctx context.Context, conversationID string) ([]ConversationAuditEvent, error)
 }
 
-// PGConversationStore is the PostgreSQL implementation of ConversationStore.
+// PGConversationStore is the SQL-backed implementation of ConversationStore.
+// Its historical name is retained for compatibility.
 type PGConversationStore struct {
-	db *pgxpool.Pool
+	db *dbx.Pool
 }
 
 // NewPGConversationStore creates a new PGConversationStore.
-func NewPGConversationStore(db *pgxpool.Pool) *PGConversationStore {
+func NewPGConversationStore(db *dbx.Pool) *PGConversationStore {
 	return &PGConversationStore{db: db}
 }
 
@@ -154,7 +155,7 @@ func (s *PGConversationStore) GetOrCreate(ctx context.Context, session, customer
 	return nil, fmt.Errorf("failed to insert initial conversation: %w", err)
 }
 
-// Save updates the conversation state in PostgreSQL.
+// Save updates the conversation state in MySQL.
 func (s *PGConversationStore) Save(ctx context.Context, state *ConversationState) error {
 	if s == nil || s.db == nil || state == nil {
 		return nil
@@ -713,7 +714,7 @@ func scanConversationState(row rowScanner) (*ConversationState, error) {
 		&state.UpdatedAt,
 	)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrConversationNotFound
 		}
 		return nil, err

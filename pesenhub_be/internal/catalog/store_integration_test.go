@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	dbx "pesenhub/backend/internal/database"
 )
 
 func TestCatalogCRUDVersionAndAuditIntegration(t *testing.T) {
@@ -17,7 +17,7 @@ func TestCatalogCRUDVersionAndAuditIntegration(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	db, err := pgxpool.New(ctx, dsn)
+	db, err := dbx.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

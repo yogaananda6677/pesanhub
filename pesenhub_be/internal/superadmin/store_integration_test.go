@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	dbx "pesenhub/backend/internal/database"
 )
 
 func TestSuperadminStoreIntegration(t *testing.T) {
@@ -18,7 +18,7 @@ func TestSuperadminStoreIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	pool, err := pgxpool.New(ctx, dsn)
+	pool, err := dbx.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,18 +38,18 @@ func TestSuperadminStoreIntegration(t *testing.T) {
 
 	// 1. Setup superadmin and test target user in app_users
 	var superadminID, targetUserID string
-	err = pool.QueryRow(ctx, `
+	superadminID, _ = newUUID()
+	targetUserID, _ = newUUID()
+	_, err = pool.Exec(ctx, `
 		INSERT INTO app_users (id, email_normalized, display_name, role, status, approved_at, created_at, updated_at)
-		VALUES (gen_random_uuid(), $1, 'Super Admin', 'SUPERADMIN', 'APPROVED', now(), now(), now())
-		RETURNING id::text`, actorEmail).Scan(&superadminID)
+		VALUES ($1, $2, 'Super Admin', 'SUPERADMIN', 'APPROVED', now(), now(), now())`, superadminID, actorEmail)
 	if err != nil {
 		t.Fatalf("failed to insert superadmin: %v", err)
 	}
 
-	err = pool.QueryRow(ctx, `
+	_, err = pool.Exec(ctx, `
 		INSERT INTO app_users (id, email_normalized, display_name, role, status, created_at, updated_at)
-		VALUES (gen_random_uuid(), $1, 'Test Owner', 'OWNER', 'PENDING_APPROVAL', now(), now())
-		RETURNING id::text`, targetEmail).Scan(&targetUserID)
+		VALUES ($1, $2, 'Test Owner', 'OWNER', 'PENDING_APPROVAL', now(), now())`, targetUserID, targetEmail)
 	if err != nil {
 		t.Fatalf("failed to insert target user: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestSuperadminStoreIntegration(t *testing.T) {
 		// Insert active session for target user
 		_, err := pool.Exec(ctx, `
 			INSERT INTO app_sessions (id, user_id, expires_at, created_at)
-			VALUES ('session-test-integration-12345', $1::uuid, now() + interval '1 hour', now())`, targetUserID)
+			VALUES ('session-test-integration-12345', $1::uuid, DATE_ADD(now(), INTERVAL 1 HOUR), now())`, targetUserID)
 		if err != nil {
 			t.Fatalf("failed to insert session: %v", err)
 		}

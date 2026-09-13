@@ -38,7 +38,7 @@ pesenhub_app/lib/
   - `idempotencyKey` (UUIDv4)
   - `clientOrderId` (UUIDv4)
 - **Double-Tap Lock**: Method `submitOrder()` di `CartController` memeriksa flag `_isSubmitting`. Jika request sedang berjalan, pemanggilan berikutnya ditolak seketika (*early exit*).
-- **Konsistensi Retry**: Jika terjadi kegagalan jaringan atau timeout, `_idempotencyKey` dan `_clientOrderId` **tetap dipertahankan** pada controller. Pengiriman ulang (*retry*) menggunakan kunci yang persis sama sehingga backend Postgres (`pg_advisory_xact_lock`) mendeteksi request yang identik dan tidak membuat order ganda.
+- **Konsistensi Retry**: Jika terjadi kegagalan jaringan atau timeout, `_idempotencyKey` dan `_clientOrderId` **tetap dipertahankan** pada controller. Pengiriman ulang (*retry*) menggunakan kunci yang persis sama sehingga transaction lock MySQL mendeteksi request yang identik dan tidak membuat order ganda.
 - Kunci baru hanya digenerate ketika pesanan sukses dibuat atau kasir secara sadar menekan *"Kosongkan"* / *"Pesanan Baru"*.
 
 ### 2.3 Konfirmasi Diskrepansi Backend (Kriteria #3)

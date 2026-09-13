@@ -7,23 +7,23 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"database/sql"
 	"pesenhub/backend/internal/customer"
+	dbx "pesenhub/backend/internal/database"
 )
 
-type Store struct{ db *pgxpool.Pool }
+type Store struct{ db *dbx.Pool }
 
-func NewStore(db *pgxpool.Pool) *Store { return &Store{db: db} }
+func NewStore(db *dbx.Pool) *Store { return &Store{db: db} }
 
 const paymentColumns = `id::text,order_id::text,method,status,amount,version,paid_at,created_at,updated_at,COALESCE(provider_order_id,''),COALESCE(provider_reference,''),COALESCE(qr_code_url,''),expires_at`
 
-func scanPayment(row pgx.Row, p *Payment) error {
+func scanPayment(row dbx.Row, p *Payment) error {
 	return row.Scan(&p.ID, &p.OrderID, &p.Method, &p.Status, &p.Amount, &p.Version, &p.PaidAt, &p.CreatedAt, &p.UpdatedAt, &p.ProviderOrderID, &p.ProviderReference, &p.QRCodeURL, &p.ExpiresAt)
 }
 
 func (s *Store) ApplyMidtransWebhook(ctx context.Context, notification MidtransNotification, eventID, requestID string, occurredAt *time.Time) (WebhookResult, error) {
-	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	tx, err := s.db.BeginTx(ctx, dbx.TxOptions{})
 	if err != nil {
 		return WebhookResult{}, err
 	}
@@ -32,7 +32,7 @@ func (s *Store) ApplyMidtransWebhook(ctx context.Context, notification MidtransN
 		return WebhookResult{}, err
 	}
 	var p Payment
-	if err = scanPayment(tx.QueryRow(ctx, `SELECT `+paymentColumns+` FROM payments WHERE provider_order_id=$1 AND method='MIDTRANS_QRIS' FOR UPDATE`, notification.OrderID), &p); errors.Is(err, pgx.ErrNoRows) {
+	if err = scanPayment(tx.QueryRow(ctx, `SELECT `+paymentColumns+` FROM payments WHERE provider_order_id=$1 AND method='MIDTRANS_QRIS' FOR UPDATE`, notification.OrderID), &p); errors.Is(err, sql.ErrNoRows) {
 		return WebhookResult{}, ErrPaymentNotFound
 	} else if err != nil {
 		return WebhookResult{}, err
@@ -138,7 +138,7 @@ func paymentStatusRank(status string) int {
 }
 
 func (s *Store) PrepareQRIS(ctx context.Context, orderID, key, hash, actorID, requestID string) (Payment, bool, bool, error) {
-	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	tx, err := s.db.BeginTx(ctx, dbx.TxOptions{})
 	if err != nil {
 		return Payment{}, false, false, err
 	}
@@ -171,14 +171,14 @@ func (s *Store) PrepareQRIS(ctx context.Context, orderID, key, hash, actorID, re
 		}
 		return p, true, false, nil
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return Payment{}, false, false, err
 	}
 
 	var total int64
 	var orderStatus string
 	err = tx.QueryRow(ctx, `SELECT total_amount,status FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&total, &orderStatus)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return Payment{}, false, false, ErrOrderNotFound
 	}
 	if err != nil {
@@ -193,7 +193,7 @@ func (s *Store) PrepareQRIS(ctx context.Context, orderID, key, hash, actorID, re
 	if err = scanPayment(tx.QueryRow(ctx, `SELECT `+paymentColumns+` FROM payments WHERE order_id=$1 AND method='MIDTRANS_QRIS'`, orderID), &p); err == nil {
 		return Payment{}, false, false, ErrIdempotencyConflict
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return Payment{}, false, false, err
 	}
 
@@ -220,7 +220,7 @@ func (s *Store) CompleteQRIS(ctx context.Context, original Payment, charge QRISC
 	if charge.ProviderOrderID != original.ProviderOrderID {
 		return Payment{}, ErrMidtransUnavailable
 	}
-	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	tx, err := s.db.BeginTx(ctx, dbx.TxOptions{})
 	if err != nil {
 		return Payment{}, err
 	}
@@ -232,7 +232,7 @@ func (s *Store) CompleteQRIS(ctx context.Context, original Payment, charge QRISC
 		nextReconciliation = *charge.ExpiresAt
 	}
 	err = scanPayment(tx.QueryRow(ctx, `UPDATE payments SET status='PENDING_PAYMENT',provider_reference=$2,qr_code_url=$3,expires_at=$4,provider_attempt_state='SUCCEEDED',provider_error_code=NULL,provider_response_redacted=$5,reconciliation_state='DUE',reconciliation_next_at=$6,version=version+1,updated_at=now() WHERE id=$1 AND provider_attempt_state='IN_FLIGHT' RETURNING `+paymentColumns, original.ID, charge.ProviderReference, charge.QRCodeURL, charge.ExpiresAt, redacted, nextReconciliation), &p)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return Payment{}, ErrIdempotencyConflict
 	}
 	if err != nil {
@@ -259,7 +259,7 @@ func (s *Store) FailQRIS(ctx context.Context, p Payment, code string, permanent 
 		state, status = "PERMANENT_FAILURE", "FAILED"
 	}
 	redacted, _ := json.Marshal(map[string]any{"payment_id": p.ID, "provider_order_id": p.ProviderOrderID, "status": status, "error_code": code})
-	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	tx, err := s.db.BeginTx(ctx, dbx.TxOptions{})
 	if err != nil {
 		return err
 	}
@@ -282,7 +282,7 @@ func (s *Store) FailQRIS(ctx context.Context, p Payment, code string, permanent 
 }
 
 func (s *Store) RecordCash(ctx context.Context, orderID string, in CashInput, key, hash, actorID, requestID string) (Payment, bool, error) {
-	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	tx, err := s.db.BeginTx(ctx, dbx.TxOptions{})
 	if err != nil {
 		return Payment{}, false, err
 	}
@@ -300,14 +300,14 @@ func (s *Store) RecordCash(ctx context.Context, orderID string, in CashInput, ke
 		}
 		return existing, false, nil
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return Payment{}, false, err
 	}
 
 	var total int64
 	var status string
 	err = tx.QueryRow(ctx, `SELECT total_amount,status FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&total, &status)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return Payment{}, false, ErrOrderNotFound
 	}
 	if err != nil {
@@ -325,7 +325,7 @@ func (s *Store) RecordCash(ctx context.Context, orderID string, in CashInput, ke
 	if err == nil {
 		return Payment{}, false, ErrIdempotencyConflict
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return Payment{}, false, err
 	}
 

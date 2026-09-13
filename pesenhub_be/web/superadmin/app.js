@@ -288,7 +288,7 @@
 
       const titleMap = {
         api: 'API Gateway',
-        database: 'PostgreSQL Database',
+        database: 'MySQL Database',
         gowa: 'WhatsApp Gateway (GOWA)',
         outbox_worker: 'Notifikasi Outbox Worker',
         realtime_ws: 'Real-Time WebSocket',

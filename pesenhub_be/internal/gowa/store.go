@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"database/sql"
+	dbx "pesenhub/backend/internal/database"
 )
 
 // InboundStore defines the persistence interface for GOWA inbound messages and deduplication.
@@ -16,13 +16,13 @@ type InboundStore interface {
 	GetByID(ctx context.Context, id string) (*InboundMessage, error)
 }
 
-// Store is a PostgreSQL implementation of InboundStore.
+// Store is a MySQL implementation of InboundStore.
 type Store struct {
-	db *pgxpool.Pool
+	db *dbx.Pool
 }
 
-// NewStore creates a new PostgreSQL InboundStore.
-func NewStore(db *pgxpool.Pool) *Store {
+// NewStore creates a new MySQL InboundStore.
+func NewStore(db *dbx.Pool) *Store {
 	return &Store{db: db}
 }
 
@@ -55,7 +55,7 @@ func (s *Store) StoreInbound(ctx context.Context, msg *InboundMessage) (*Inbound
 	if err == nil {
 		return stored, false, nil
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return nil, false, err
 	}
 

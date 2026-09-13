@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"pesenhub/backend/internal/customer"
+	"pesenhub/backend/internal/domain"
 	"pesenhub/backend/internal/httpapi"
 	"pesenhub/backend/internal/httpserver"
 )
@@ -85,8 +85,7 @@ func (h *Handler) Reconcile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	paymentID := r.PathValue("id")
-	var id pgtype.UUID
-	if id.Scan(paymentID) != nil {
+	if !domain.ValidUUID(paymentID) {
 		h.writeError(w, r, ErrPaymentNotReconcilable)
 		return
 	}

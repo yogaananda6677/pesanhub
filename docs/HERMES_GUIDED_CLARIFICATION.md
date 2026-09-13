@@ -10,7 +10,7 @@ Melalui **Guided Clarification Engine** (Issue #39):
 3. **Penggabungan Parsial Non-Destruktif**: Jawaban pelanggan hanya memperbarui field terkait tanpa mereset atau menghapus menu/porsi lain yang sudah benar.
 4. **Revalidasi Real-Time Katalog Backend**: Setiap turn memverifikasi ulang apakah item dan modifier di draft masih tersedia (`is_available = true`). Jika ada menu yang mendadak habis, sistem langsung mendeteksi dan meminta klarifikasi penggantian menu.
 5. **Bounded Retry & Human Handoff**: Percobaan klarifikasi dibatasi maksimal 3 kali (`MaxClarificationAttempts = 3`). Jika gagal mencapai kesepahaman, percakapan otomatis dialihkan ke staf kasir manusia (`HANDOFF`).
-6. **State Persistence**: State percakapan dicatat secara persisten ke tabel PostgreSQL `agent_conversations`.
+6. **State Persistence**: State percakapan dicatat secara persisten ke tabel MySQL `agent_conversations`.
 
 ```
 [Inbound WhatsApp Message]
@@ -84,7 +84,7 @@ Ketika terdapat beberapa data yang belum lengkap atau ambigu, sistem mempriorita
 
 ## 5. Persistence State Percakapan (`agent_conversations`)
 
-State percakapan disimpan pada tabel PostgreSQL `agent_conversations`:
+State percakapan disimpan pada tabel MySQL `agent_conversations`:
 
 | Kolom | Tipe | Deskripsi |
 | --- | --- | --- |
@@ -92,7 +92,7 @@ State percakapan disimpan pada tabel PostgreSQL `agent_conversations`:
 | `session` | TEXT | Nama sesi GOWA (default: `default`) |
 | `customer_phone` | TEXT | Nomor telepon pengirim (E.164) |
 | `status` | TEXT | `COLLECTING`, `AWAITING_CLARIFICATION`, `READY_FOR_CONFIRMATION`, `HANDOFF` |
-| `current_draft` | JSONB | Data `DraftCandidate` yang sedang diisi |
+| `current_draft` | JSON | Data `DraftCandidate` yang sedang diisi |
 | `pending_ambiguity` | TEXT | Ambiguitas yang sedang ditanyakan saat ini |
 | `clarification_attempts` | INTEGER | Jumlah percobaan klarifikasi berturut-turut |
 | `last_question` | TEXT | Teks pertanyaan terakhir yang dikirim ke pelanggan |
@@ -108,4 +108,4 @@ Constraint: `UNIQUE (session, customer_phone)` memastikan satu nomor pelanggan m
 
 - Seluruh alur klarifikasi dan merging diuji dengan mock provider katalog dan in-memory conversation store (`service_clarification_test.go`, `merger_test.go`, `clarification_test.go`).
 - Tidak membutuhkan koneksi model LLM eksternal atau GPU.
-- Integration test PostgreSQL memverifikasi skema database tabel `agent_conversations` dan query upsert/reset.
+- Integration test MySQL memverifikasi skema database tabel `agent_conversations` dan query upsert/reset.

@@ -10,7 +10,7 @@ Dokumentasi arsitektur penyimpanan pesan outbound WhatsApp (*durable outbox patt
 2. **At-Most-Once Idempotency**: Setiap event notifikasi memiliki kunci idempoten unik (`order:<order_id>:type:<type>:v:<version>`). Pengiriman ulang atau event duplikat tidak akan menduplikasi pesan WhatsApp ke pelanggan.
 3. **Zero AI Price Hallucination**: Konten notifikasi WhatsApp dihasilkan dari data snapshot transaksi yang sudah divalidasi backend, bukan teks bebas yang rawan halusinasi harga.
 4. **Privacy & Log Redaction**: Nomor telepon pelanggan selalu dimasking (`MaskPhone`, format `+6281****7890`), dan tidak ada secret, token, atau raw payload yang disimpan di kolom error atau log.
-5. **Durable & Crash-Resilient**: Seluruh antrean disimpan secara persisten di PostgreSQL table `order_notifications` dengan lock `FOR UPDATE SKIP LOCKED`.
+5. **Durable & Crash-Resilient**: Seluruh antrean disimpan secara persisten di MySQL table `order_notifications` dengan lock `FOR UPDATE SKIP LOCKED`.
 
 ---
 
@@ -113,7 +113,7 @@ Fungsi `SanitizeError(err)` menghapus secret API key (`[REDACTED]`), memasking n
 
 ## 6. Crash Recovery & Concurrency Safety
 
-1. **Zero Row Lock Exhaustion**: Worker mengambil batch dengan kueri CTE pendek `FOR UPDATE SKIP LOCKED` dan segera mengubah status menjadi `PROCESSING`, melepaskan koneksi PostgreSQL sebelum melakukan panggilan HTTP ke GOWA.
+1. **Zero Row Lock Exhaustion**: Worker mengambil batch dengan kueri CTE pendek `FOR UPDATE SKIP LOCKED` dan segera mengubah status menjadi `PROCESSING`, melepaskan koneksi MySQL sebelum melakukan panggilan HTTP ke GOWA.
 2. **Multi-Worker Safety**: `FOR UPDATE SKIP LOCKED` memastikan beberapa replika worker tidak akan pernah memproses baris yang sama secara bersamaan.
 3. **Startup Recovery**: Saat aplikasi dinyalakan ulang (*restart / crash*), `RecoverStaleProcessing(ctx, 0)` secara otomatis mereset seluruh baris berstatus `PROCESSING` kembali ke `FAILED` agar segera dijadwalkan ulang tanpa kehilangan job.
 4. **Periodic Stale Sweep**: Worker secara berkala membersihkan baris `PROCESSING` yang menggantung lebih dari `staleThreshold` (default 2 menit).

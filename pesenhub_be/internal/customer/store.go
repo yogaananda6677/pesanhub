@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"database/sql"
+	dbx "pesenhub/backend/internal/database"
 )
 
-type Store struct{ db *pgxpool.Pool }
+type Store struct{ db *dbx.Pool }
 
-func NewStore(db *pgxpool.Pool) *Store { return &Store{db: db} }
+func NewStore(db *dbx.Pool) *Store { return &Store{db: db} }
 
 func (s *Store) CreateOrGet(ctx context.Context, p Profile, key string) (Profile, bool, error) {
 	row := s.db.QueryRow(ctx, `INSERT INTO customers (id, phone_e164, display_name, preferences, create_idempotency_key)
@@ -21,7 +21,7 @@ func (s *Store) CreateOrGet(ctx context.Context, p Profile, key string) (Profile
 	if err == nil {
 		return got, true, nil
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return Profile{}, false, err
 	}
 	row = s.db.QueryRow(ctx, `SELECT id::text, phone_e164, display_name, preferences, version FROM customers WHERE create_idempotency_key=$1 OR phone_e164=$2 ORDER BY (create_idempotency_key=$1) DESC LIMIT 1`, key, p.PhoneE164)
@@ -32,7 +32,7 @@ func (s *Store) CreateOrGet(ctx context.Context, p Profile, key string) (Profile
 func (s *Store) Update(ctx context.Context, id string, in UpdateInput) (Profile, error) {
 	row := s.db.QueryRow(ctx, `UPDATE customers SET display_name=$2, preferences=$3, version=version+1, updated_at=now() WHERE id=$1 AND version=$4 RETURNING id::text, phone_e164, display_name, preferences, version`, id, in.DisplayName, in.Preferences, in.ExpectedVersion)
 	p, err := scanProfile(row)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return Profile{}, ErrVersionConflict
 	}
 	return p, err

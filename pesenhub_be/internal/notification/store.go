@@ -9,8 +9,8 @@ import (
 
 	"pesenhub/backend/internal/customer"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"database/sql"
+	dbx "pesenhub/backend/internal/database"
 )
 
 // Store provides persistence for notification records, opt-outs, and pause status checks.
@@ -31,13 +31,14 @@ type Store interface {
 	RecoverStaleProcessing(ctx context.Context, staleThreshold time.Duration) (int64, error)
 }
 
-// PGStore is the PostgreSQL implementation of Store.
+// PGStore is the SQL-backed implementation of Store. The historical name is
+// retained to avoid an unrelated public API rename during the MySQL migration.
 type PGStore struct {
-	db *pgxpool.Pool
+	db *dbx.Pool
 }
 
 // NewPGStore creates a new PGStore.
-func NewPGStore(db *pgxpool.Pool) *PGStore {
+func NewPGStore(db *dbx.Pool) *PGStore {
 	return &PGStore{db: db}
 }
 
@@ -84,7 +85,7 @@ func (s *PGStore) CreatePending(ctx context.Context, r *NotificationRecord) (*No
 		return &rec, true, nil
 	}
 
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		// Conflict occurred; fetch existing
 		existing, getErr := s.GetByIdempotencyKey(ctx, r.IdempotencyKey)
 		if getErr != nil {
@@ -175,7 +176,7 @@ func (s *PGStore) SetOptOut(ctx context.Context, phoneE164, reason string) error
 	_, err := s.db.Exec(ctx, `
 		INSERT INTO customer_opt_outs (id, phone_e164, reason, created_at)
 		VALUES ($1, $2, $3, now())
-		ON CONFLICT (phone_e164) DO UPDATE SET reason = EXCLUDED.reason
+		ON DUPLICATE KEY UPDATE reason = VALUES(reason)
 	`, customer.NewID(), phoneE164, reason)
 	return err
 }
@@ -203,7 +204,7 @@ func (s *PGStore) IsConversationPaused(ctx context.Context, phoneE164 string) (b
 	var isPaused bool
 	var status, handoffStatus string
 	err := s.db.QueryRow(ctx, query, phoneE164).Scan(&isPaused, &status, &handoffStatus)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, "", nil
 	}
 	if err != nil {
@@ -263,27 +264,39 @@ func (s *PGStore) ClaimBatchForProcessing(ctx context.Context, limit int) ([]*No
 		limit = 10
 	}
 
-	query := `
-		WITH selected AS (
-			SELECT id
-			FROM order_notifications
-			WHERE (status = 'PENDING' OR status = 'FAILED')
-			  AND (next_retry_at IS NULL OR next_retry_at <= now())
-			ORDER BY created_at ASC, id ASC
-			LIMIT $1
-			FOR UPDATE SKIP LOCKED
-		)
-		UPDATE order_notifications n
-		SET status = 'PROCESSING', updated_at = now()
-		FROM selected
-		WHERE n.id = selected.id
-		RETURNING n.id, n.order_id, n.customer_phone, n.notification_type, n.template_version,
-		          n.idempotency_key, n.message_text, n.status, n.suppress_reason,
-		          n.provider_message_id, n.attempts, n.max_attempts, n.next_retry_at,
-		          n.error_category, n.last_error, n.sent_at, n.created_at, n.updated_at
-	`
-
-	rows, err := s.db.Query(ctx, query, limit)
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	rows, err := tx.Query(ctx, `SELECT id FROM order_notifications
+		WHERE status IN ('PENDING','FAILED') AND (next_retry_at IS NULL OR next_retry_at <= now())
+		ORDER BY created_at,id LIMIT $1 FOR UPDATE SKIP LOCKED`, limit)
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		_ = tx.Commit(ctx)
+		return []*NotificationRecord{}, nil
+	}
+	if _, err = tx.Exec(ctx, `UPDATE order_notifications SET status='PROCESSING',updated_at=now() WHERE id = ANY($1)`, ids); err != nil {
+		return nil, err
+	}
+	rows, err = tx.Query(ctx, `SELECT id,order_id,customer_phone,notification_type,template_version,
+		idempotency_key,message_text,status,suppress_reason,provider_message_id,attempts,max_attempts,next_retry_at,
+		error_category,last_error,sent_at,created_at,updated_at FROM order_notifications WHERE id = ANY($1) ORDER BY created_at,id`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +315,13 @@ func (s *PGStore) ClaimBatchForProcessing(ctx context.Context, limit int) ([]*No
 		}
 		records = append(records, &rec)
 	}
-	return records, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return records, nil
 }
 
 func (s *PGStore) RecoverStaleProcessing(ctx context.Context, staleThreshold time.Duration) (int64, error) {

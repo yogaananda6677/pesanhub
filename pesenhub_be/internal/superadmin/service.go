@@ -64,13 +64,13 @@ func (s *Service) GetSystemHealth(ctx context.Context) (SystemHealthSnapshot, er
 
 	// 2. Database Component
 	dbStatus := HealthHealthy
-	dbMessage := "PostgreSQL connection pool healthy"
+	dbMessage := "MySQL connection pool healthy"
 	if s.db != nil {
 		pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
 		if err := s.db.Ping(pingCtx); err != nil {
 			dbStatus = HealthDown
-			dbMessage = "PostgreSQL unavailable"
+			dbMessage = "MySQL unavailable"
 			overallStatus = HealthDown
 		}
 	} else {

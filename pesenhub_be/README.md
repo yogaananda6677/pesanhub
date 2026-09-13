@@ -3,7 +3,7 @@
 Kontrak HTTP lintas endpoint mengikuti [`docs/API_CONVENTIONS.md`](../docs/API_CONVENTIONS.md) dan schema OpenAPI [`docs/api/openapi.yaml`](../docs/api/openapi.yaml).
 Model data inti dan ERD tersedia di [`docs/CORE_DOMAIN_MODEL.md`](../docs/CORE_DOMAIN_MODEL.md). Jalankan integration test migration terisolasi dengan `./scripts/test-migrations.sh`.
 
-Fondasi REST API Phase 0. Cara utama menjalankan PesenHub adalah Docker Compose: API Golang, PostgreSQL, dan GOWA berada dalam satu network. Web Customer masih berupa placeholder dan tidak ada pairing atau pengiriman WhatsApp otomatis.
+Fondasi REST API Phase 0. Cara utama menjalankan PesenHub adalah Docker Compose: API Golang, MySQL, dan GOWA berada dalam satu network. Web Customer masih berupa placeholder dan tidak ada pairing atau pengiriman WhatsApp otomatis.
 
 ## Quick start
 
@@ -20,14 +20,14 @@ Panduan lengkap dan aturan operasional tersedia di [ATURAN.md](ATURAN.md).
 Owner masuk melalui Google dan backend menukar identity token tervalidasi di
 `POST /api/v1/auth/google`. Login pertama menghasilkan akun
 `PENDING_APPROVAL`; fitur operasional tetap terkunci sampai Superadmin menyetujui
-akun. Sesi bertanda tangan dan tercatat di PostgreSQL dipakai untuk REST serta WebSocket.
+akun. Sesi bertanda tangan dan tercatat di MySQL dipakai untuk REST serta WebSocket.
 Token `APP_STAFF_TOKEN`/`APP_KDS_TOKEN` masih diterima untuk integrasi layanan
 lama, tidak ditanam pada artifact mobile. Jangan mencatat URL handshake WebSocket
 yang memuat query token. Detail keamanan ada di
 [GOOGLE_OWNER_APPROVAL_AUTH.md](../docs/GOOGLE_OWNER_APPROVAL_AUTH.md), dan panduan client di
 [FLUTTER_BACKEND_INTEGRATION.md](../docs/FLUTTER_BACKEND_INTEGRATION.md).
 
-Readiness gagal dengan HTTP 503 bila PostgreSQL turun. GOWA yang belum memiliki device terhubung menghasilkan HTTP 200 berstatus `degraded`; field `gowa_api`, `gowa_device`, dan `gowa_reason` membedakan API gagal, device tidak ada, device terputus, dan timeout tanpa melakukan pairing otomatis.
+Readiness gagal dengan HTTP 503 bila MySQL turun. GOWA yang belum memiliki device terhubung menghasilkan HTTP 200 berstatus `degraded`; field `gowa_api`, `gowa_device`, dan `gowa_reason` membedakan API gagal, device tidak ada, device terputus, dan timeout tanpa melakukan pairing otomatis.
 
 Webhook GOWA diterima pada `POST /webhooks/gowa` dan wajib memakai header HMAC-SHA256 `X-Hub-Signature-256`. Lihat [GOWA_HEALTH_WEBHOOK_SECURITY.md](../docs/GOWA_HEALTH_WEBHOOK_SECURITY.md) sebelum memasangkan device development.
 
@@ -45,6 +45,8 @@ Staf dapat memicu satu pemeriksaan melalui `POST /api/v1/payments/{id}/reconcile
 
 ## Migration
 
+Strategi pemindahan data, rehearsal, cutover, dan rollback PostgreSQL → MySQL dijelaskan di [`docs/MYSQL_MIGRATION.md`](../docs/MYSQL_MIGRATION.md).
+
 Setelah stack menyala:
 
 ```bash
@@ -59,7 +61,7 @@ Setelah stack menyala:
 
 ```bash
 ./run.sh logs api
-./run.sh logs postgres
+./run.sh logs mysql
 ./run.sh logs gowa
 ./run.sh down
 ```
@@ -70,7 +72,7 @@ Jalankan `./run.sh help` untuk seluruh command. Target Makefile adalah wrapper t
 
 ## Menjalankan Go langsung
 
-Untuk development tanpa container API, PostgreSQL dan GOWA tetap dapat dijalankan melalui Compose. Ubah `.env` menjadi `DATABASE_HOST=localhost` dan `GOWA_BASE_URL=http://localhost:3000`, muat variabel ke shell, lalu jalankan:
+Untuk development tanpa container API, MySQL dan GOWA tetap dapat dijalankan melalui Compose. Ubah `.env` menjadi `DATABASE_HOST=localhost` dan `GOWA_BASE_URL=http://localhost:3000`, muat variabel ke shell, lalu jalankan:
 
 ```bash
 set -a; . ./.env; set +a

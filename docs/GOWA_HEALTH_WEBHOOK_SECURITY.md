@@ -2,7 +2,7 @@
 
 PesenHub targets GOWA v9.3.0 and follows its official `/health`, `/devices/{device_id}/status`, and webhook contracts. The backend never creates a device or initiates pairing automatically.
 
-`GET /health/ready` checks GOWA with a bounded `GOWA_REQUEST_TIMEOUT`. PostgreSQL failure returns HTTP 503. A healthy GOWA API with no connected/logged-in device returns HTTP 200 `degraded`:
+`GET /health/ready` checks GOWA with a bounded `GOWA_REQUEST_TIMEOUT`. MySQL failure returns HTTP 503. A healthy GOWA API with no connected/logged-in device returns HTTP 200 `degraded`:
 
 | Field | Values | Meaning |
 | --- | --- | --- |
@@ -14,6 +14,6 @@ Outbound requests use HTTP Basic Auth and `X-Device-Id`. Text messages are sent 
 
 GOWA sends webhooks to `POST /webhooks/gowa`. Configure the same minimum-32-character secret in `GOWA_WEBHOOK_SECRET` and GOWA `WHATSAPP_WEBHOOK_SECRET`. PesenHub verifies the raw body using constant-time HMAC-SHA256 against `X-Hub-Signature-256: sha256=<hex>`, limits bodies to 1 MiB, and rejects malformed or invalid signatures.
 
-GOWA does not provide the timestamp/request-ID proof previously used by WAHA. PesenHub therefore uses a bounded raw-body hash replay guard for burst retries and PostgreSQL `provider_message_id` uniqueness for durable deduplication. Only `message` events are ingested. `is_from_me` messages are ignored; groups and unsupported senders are quarantined. The top-level `device_id` is required and `session_id` is retained when supplied.
+GOWA does not provide the timestamp/request-ID proof previously used by WAHA. PesenHub therefore uses a bounded raw-body hash replay guard for burst retries and MySQL `provider_message_id` uniqueness for durable deduplication. Only `message` events are ingested. `is_from_me` messages are ignored; groups and unsupported senders are quarantined. The top-level `device_id` is required and `session_id` is retained when supplied.
 
 Compose disables the optional UI and MCP endpoint, disables automatic media downloads, filters webhook events, ignores group JIDs before delivery, and persists `/app/storages`. Pair only a dedicated development/pilot number and never commit its storage, QR code, credentials, or customer payloads.

@@ -7,7 +7,7 @@ Dokumen ini adalah sumber operasional lintas komponen untuk Issue #12. Nilai sec
 | Komponen | Versi/acuan | Kegunaan |
 | --- | --- | --- |
 | Git dan GitHub CLI | Versi yang masih didukung | Workflow Issue, branch, PR, dan review |
-| Docker Engine + Compose | Compose plugin | Menjalankan API, PostgreSQL, dan GOWA |
+| Docker Engine + Compose | Compose plugin | Menjalankan API, MySQL, dan GOWA |
 | Go | Mengikuti `pesenhub_be/go.mod` | Test, vet, format, dan development Backend |
 | Flutter | `3.44.4` stable | Build/test aplikasi kasir dan KDS |
 | Dart | Mengikuti Flutter; constraint project `^3.12.2` | Analyze, format, dan test |
@@ -30,7 +30,7 @@ cd pesenhub_be
 
 Expected result development:
 
-- PostgreSQL dan container GOWA sehat.
+- MySQL dan container GOWA sehat.
 - API live dan database ready.
 - API boleh melaporkan `degraded` ketika device GOWA development belum dipasangkan.
 - `./run.sh check` menyelesaikan module verification, format check, vet, unit test, dan Compose validation.
@@ -70,20 +70,21 @@ Semua nama berikut berasal dari `pesenhub_be/.env.example`, config Go, atau Dock
 | `GOOGLE_OAUTH_CLIENT_ID` | Public OAuth identifier | Verifikasi audience Google OIDC | Google Cloud OAuth client | Backend/Security | Saat OAuth client diganti |
 | `APP_SESSION_SECRET` | Secret | Penandatanganan sesi REST/WS | Generator + secret store | Backend | Berkala dan setelah suspected exposure |
 | `APP_SESSION_TTL` | Security config | Masa berlaku sesi | Deployment policy, maksimum 24 jam | Backend | Saat kebijakan sesi berubah |
-| `DATABASE_HOST` | Sensitive config | API → PostgreSQL | Compose/service discovery atau secret platform | DevOps Owner | Saat endpoint berubah |
-| `DATABASE_PORT` | Sensitive config | API → PostgreSQL | Compose/service discovery | DevOps Owner | Saat endpoint berubah |
-| `POSTGRES_HOST_PORT` | Local config | Host → PostgreSQL | Developer `.env` | Developer | Saat port host conflict |
-| `DATABASE_NAME` | Sensitive config | API/PostgreSQL | Secret/deployment platform | Database Owner | Saat provision ulang |
-| `DATABASE_USER` | Secret-adjacent identity | API/PostgreSQL | Secret/deployment platform | Database Owner | Saat credential rotation |
-| `DATABASE_PASSWORD` | Secret | API/PostgreSQL | Password generator + secret store | Database/DevOps Owner | Berkala dan setelah suspected exposure |
-| `DATABASE_SSLMODE` | Security config | API → PostgreSQL | Deployment policy | Security/DevOps Owner | Saat topology/TLS berubah |
+| `DATABASE_HOST` | Sensitive config | API → MySQL | Compose/service discovery atau secret platform | DevOps Owner | Saat endpoint berubah |
+| `DATABASE_PORT` | Sensitive config | API → MySQL | Compose/service discovery | DevOps Owner | Saat endpoint berubah |
+| `MYSQL_HOST_PORT` | Local config | Host → MySQL | Developer `.env` | Developer | Saat port host conflict |
+| `DATABASE_NAME` | Sensitive config | API/MySQL | Secret/deployment platform | Database Owner | Saat provision ulang |
+| `DATABASE_USER` | Secret-adjacent identity | API/MySQL | Secret/deployment platform | Database Owner | Saat credential rotation |
+| `DATABASE_PASSWORD` | Secret | API/MySQL | Password generator + secret store | Database/DevOps Owner | Berkala dan setelah suspected exposure |
+| `DATABASE_TLS` | Security config | API → MySQL | Nama profil TLS driver (`false` hanya untuk local/CI) | Security/DevOps Owner | Saat topology/TLS berubah |
+| `MYSQL_ROOT_PASSWORD` | Secret | Inisialisasi container MySQL | Generator + secret store lokal/deployment | Database/DevOps Owner | Berkala dan setelah suspected exposure |
 | `GOWA_BASE_URL` | Sensitive config | API → GOWA | Compose/service discovery | DevOps Owner | Saat endpoint berubah |
 | `GOWA_BASIC_AUTH_USERNAME` | Sensitive identity | API → GOWA | Secret store | WhatsApp/DevOps Owner | Saat credential diganti |
 | `GOWA_BASIC_AUTH_PASSWORD` | Secret | API → GOWA | Generator + secret store | WhatsApp/DevOps Owner | Berkala dan setelah suspected exposure |
 | `GOWA_DEVICE_ID` | Sensitive identifier | API/GOWA | Device development yang disetujui | WhatsApp Owner | Saat device diganti/revoked |
 | `GOWA_REQUEST_TIMEOUT` | Public config | API | `.env.example` / deployment config | Backend Owner | Berdasarkan latency evidence |
 | `GOWA_WEBHOOK_SECRET` | Secret | API/GOWA webhook | Generator + secret store | WhatsApp/DevOps Owner | Berkala dan setelah suspected exposure |
-`DATABASE_HOST=postgres`, `DATABASE_PORT=5432`, dan `GOWA_BASE_URL=http://gowa:3000` adalah alamat antar-container development. Nilai host-side berbeda bila API dijalankan langsung; ikuti `pesenhub_be/REQUIREMENTS.md` dan jangan mengubah default repository hanya karena port lokal bentrok.
+`DATABASE_HOST=mysql`, `DATABASE_PORT=3306`, dan `GOWA_BASE_URL=http://gowa:3000` adalah alamat antar-container development. Nilai host-side berbeda bila API dijalankan langsung; ikuti `pesenhub_be/REQUIREMENTS.md` dan jangan mengubah default repository hanya karena port lokal bentrok.
 
 ## CI/CD dan Future Secret Matrix
 

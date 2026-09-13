@@ -12,7 +12,7 @@ services:
     ports:
       - "${APP_PORT:-8080}:8080"
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/live"]
@@ -22,19 +22,21 @@ services:
       start_period: 5s
     networks: [pesenhub]
 
-  postgres:
-    image: postgres:16-alpine
+  mysql:
+    image: mysql:8.4
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DATABASE_NAME:?DATABASE_NAME is required}
-      POSTGRES_USER: ${DATABASE_USER:?DATABASE_USER is required}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      MYSQL_DATABASE: ${DATABASE_NAME:?DATABASE_NAME is required}
+      MYSQL_USER: ${DATABASE_USER:?DATABASE_USER is required}
+      MYSQL_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      TZ: UTC
     ports:
-      - "${POSTGRES_HOST_PORT:-5432}:5432"
+      - "${MYSQL_HOST_PORT:-3306}:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -74,7 +76,7 @@ services:
     networks: [pesenhub]
 
 volumes:
-  postgres_data:
+  mysql_data:
   gowa_storage:
   ollama_storage:
 

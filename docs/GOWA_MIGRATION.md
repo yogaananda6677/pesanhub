@@ -14,15 +14,15 @@ Issue #118 supersedes WAHA as PesenHub's active WhatsApp gateway with GOWA v9.3.
 
 ## Data preservation
 
-Migration 000017 renames `waha_inbound_messages` to provider-neutral `whatsapp_inbound_messages`, renames `session` to `device_id`, and adds optional `session_id`. PostgreSQL automatically retains referencing foreign keys from Hermes tables. The down migration restores the old names and retains all rows.
+Migration 000017 renames `waha_inbound_messages` to provider-neutral `whatsapp_inbound_messages`, renames `session` to `device_id`, and adds optional `session_id`. MySQL automatically retains referencing foreign keys from Hermes tables. The down migration restores the old names and retains all rows.
 
 The old `waha_sessions` Docker volume is intentionally not deleted or reused automatically. Operators may remove it only after backup and explicit confirmation that rollback is no longer needed.
 
 ## Cutover
 
-1. Back up PostgreSQL and the old gateway volume.
+1. Back up MySQL and the old gateway volume.
 2. Configure all `GOWA_*` variables with development credentials.
-3. Apply migrations and start `postgres`, `gowa`, then `api`.
+3. Apply migrations and start `mysql`, `gowa`, then `api`.
 4. Create/pair the approved development device manually in GOWA; never commit QR/session data.
 5. Verify `/health/ready` reports `gowa_api=up` and `gowa_device=ready`.
 6. Send a synthetic signed webhook and an outbound message to a test number, then verify dedupe and provider message ID persistence.
