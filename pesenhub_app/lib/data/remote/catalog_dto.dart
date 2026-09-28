@@ -36,13 +36,35 @@ MenuItem decodeMenu(Map<String, dynamic> json) {
   if (rawGroups != null && rawGroups is! List) {
     throw const FormatException('invalid modifier groups');
   }
+  final rawPrices = json['channel_prices'];
+  if (rawPrices != null && rawPrices is! List) {
+    throw const FormatException('invalid channel prices');
+  }
+  final channelPrices = <String, int>{};
+  for (final raw in rawPrices as List? ?? const []) {
+    if (raw is! Map) throw const FormatException('invalid channel price');
+    final value = Map<String, dynamic>.from(raw);
+    channelPrices[_string(value, 'channel')] = _integer(
+      value,
+      'amount',
+      minimum: 0,
+    );
+  }
+  final offlinePrice =
+      channelPrices['OFFLINE'] ?? _integer(json, 'price_amount', minimum: 0);
   return MenuItem(
     id: _string(json, 'id'),
     categoryId: _string(json, 'category_id'),
     sku: _string(json, 'sku'),
     name: _string(json, 'name'),
     description: json['description'] as String?,
-    priceAmount: _integer(json, 'price_amount', minimum: 0),
+    productType: json['product_type'] as String? ?? 'MARTABAK_TELUR',
+    imageUrl: json['image_url'] as String?,
+    priceAmount: offlinePrice,
+    hppAmount: json['hpp_amount'] == null
+        ? null
+        : _integer(json, 'hpp_amount', minimum: 0),
+    channelPrices: channelPrices,
     isAvailable: _boolean(json, 'is_available'),
     version: _integer(json, 'version', minimum: 1),
     sortOrder: _integer(json, 'sort_order', minimum: 0),
@@ -90,7 +112,13 @@ Map<String, dynamic> encodeMenu(MenuItem menu) => {
   'sku': menu.sku,
   'name': menu.name,
   if (menu.description != null) 'description': menu.description,
+  'product_type': menu.productType,
+  if (menu.imageUrl != null) 'image_url': menu.imageUrl,
   'price_amount': menu.priceAmount,
+  'hpp_amount': menu.hppAmount,
+  'channel_prices': menu.channelPrices.entries
+      .map((entry) => {'channel': entry.key, 'amount': entry.value})
+      .toList(growable: false),
   'sort_order': menu.sortOrder,
   'version': menu.version,
   'modifier_groups': menu.modifierGroups

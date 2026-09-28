@@ -16,6 +16,8 @@ import 'package:pesenhub_app/menu/controllers/menu_controller.dart' as mc;
 import 'package:pesenhub_app/menu/menu_availability_view.dart';
 import 'package:pesenhub_app/menu/models/menu_category.dart';
 import 'package:pesenhub_app/menu/models/menu_item.dart';
+import 'package:pesenhub_app/menu/models/menu_modifier_group.dart';
+import 'package:pesenhub_app/menu/models/menu_option.dart';
 import 'package:pesenhub_app/theme/app_theme.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -23,8 +25,8 @@ const _category = MenuCategory(id: 'category-1', name: 'Makanan', version: 2);
 const _menu = MenuItem(
   id: 'menu-1',
   categoryId: 'category-1',
-  sku: 'NASGOR',
-  name: 'Nasi Goreng',
+  sku: 'MAR-01',
+  name: 'Martabak Telur',
   priceAmount: 20000,
   version: 3,
 );
@@ -95,8 +97,8 @@ void main() {
             MenuItem(
               id: 'menu-1',
               categoryId: 'category-1',
-              sku: 'NASGOR',
-              name: 'Nasi Goreng Baru',
+              sku: 'MAR-01',
+              name: 'Martabak Telur Baru',
               priceAmount: 23000,
               version: 4,
             ),
@@ -113,7 +115,7 @@ void main() {
       await coordinator.start();
       expect(posCatalog.state.isOffline, isTrue);
       expect(management.state.isOffline, isTrue);
-      expect(posCatalog.allMenus.single.name, 'Nasi Goreng');
+      expect(posCatalog.allMenus.single.name, 'Martabak Telur');
 
       await coordinator.refresh();
       expect(posCatalog.state.isOffline, isFalse);
@@ -196,6 +198,62 @@ void main() {
     expect(publishedMenus.any((item) => item.id == 'created-menu'), isTrue);
   });
 
+  test(
+    'extra global diterapkan dan diwariskan berdasarkan jenis menu',
+    () async {
+      final menus = [
+        _menu,
+        _menu.copyWith(id: 'menu-2', sku: 'MAR-02'),
+        _menu.copyWith(id: 'menu-3', sku: 'TB-01', productType: 'TERANG_BULAN'),
+      ];
+      MenuItem? createdDraft;
+      final controller = MenuAvailabilityController(
+        initialCategories: const [_category],
+        initialMenus: menus,
+        updateMenuFn: (value) async =>
+            value.copyWith(version: value.version + 1),
+        createMenuFn: (value) async {
+          createdDraft = value;
+          return value.copyWith(id: 'menu-new');
+        },
+      );
+      const extra = MenuModifierGroup(
+        id: '',
+        code: 'extra_isian',
+        name: 'Extra Isian',
+        maxSelect: 20,
+        options: [
+          MenuOption(
+            id: '',
+            code: 'sapi',
+            name: 'Sapi',
+            priceDeltaAmount: 7000,
+          ),
+        ],
+      );
+
+      expect(
+        await controller.saveGlobalExtras('MARTABAK_TELUR', extra),
+        isTrue,
+      );
+      expect(
+        controller.allMenus
+            .where((menu) => menu.productType == 'MARTABAK_TELUR')
+            .every((menu) => menu.modifierGroups.single.code == 'extra_isian'),
+        isTrue,
+      );
+      expect(controller.allMenus.last.modifierGroups, isEmpty);
+
+      expect(
+        await controller.saveMenu(
+          _menu.copyWith(id: '', sku: 'MAR-NEW', modifierGroups: const []),
+        ),
+        isTrue,
+      );
+      expect(createdDraft!.modifierGroups.single.code, 'extra_isian');
+    },
+  );
+
   test('API catalog requests carry session and optimistic version', () async {
     final requests = <http.Request>[];
     final client = PesenHubApiClient(
@@ -217,8 +275,8 @@ void main() {
                     {
                       'id': 'menu-1',
                       'category_id': 'category-1',
-                      'sku': 'NASGOR',
-                      'name': 'Nasi Goreng',
+                      'sku': 'MAR-01',
+                      'name': 'Martabak Telur',
                       'price_amount': 20000,
                       'is_available': true,
                       'version': 3,
@@ -236,8 +294,8 @@ void main() {
           jsonEncode({
             'id': 'menu-1',
             'category_id': 'category-1',
-            'sku': 'NASGOR',
-            'name': 'Nasi Goreng',
+            'sku': 'MAR-01',
+            'name': 'Martabak Telur',
             'price_amount': 20000,
             'is_available': false,
             'version': 4,

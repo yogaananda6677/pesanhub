@@ -41,17 +41,25 @@ type Group struct {
 	Active    bool     `json:"is_active"`
 	Options   []Option `json:"options"`
 }
+type ChannelPrice struct {
+	Channel string `json:"channel"`
+	Amount  int64  `json:"amount"`
+}
 type Menu struct {
-	ID          string  `json:"id"`
-	CategoryID  string  `json:"category_id"`
-	SKU         string  `json:"sku"`
-	Name        string  `json:"name"`
-	Description string  `json:"description,omitempty"`
-	PriceAmount int64   `json:"price_amount"`
-	Available   bool    `json:"is_available"`
-	Version     int64   `json:"version"`
-	SortOrder   int     `json:"sort_order"`
-	Groups      []Group `json:"modifier_groups"`
+	ID            string         `json:"id"`
+	CategoryID    string         `json:"category_id"`
+	SKU           string         `json:"sku"`
+	Name          string         `json:"name"`
+	Description   string         `json:"description,omitempty"`
+	ProductType   string         `json:"product_type"`
+	ImageURL      string         `json:"image_url,omitempty"`
+	PriceAmount   int64          `json:"price_amount"`
+	HPPAmount     *int64         `json:"hpp_amount,omitempty"`
+	ChannelPrices []ChannelPrice `json:"channel_prices"`
+	Available     bool           `json:"is_available"`
+	Version       int64          `json:"version"`
+	SortOrder     int            `json:"sort_order"`
+	Groups        []Group        `json:"modifier_groups"`
 }
 type Category struct {
 	ID        string `json:"id"`
@@ -100,7 +108,6 @@ func Price(menu Menu, selections []Selection) (int64, error) {
 		for _, option := range group.Options {
 			options[option.ID] = option
 		}
-		seen := map[string]struct{}{}
 		for _, id := range ids {
 			option, ok := options[id]
 			if !ok {
@@ -109,10 +116,6 @@ func Price(menu Menu, selections []Selection) (int64, error) {
 			if !option.Available {
 				return 0, unavailable("modifier_groups." + group.ID + ".option_ids")
 			}
-			if _, duplicate := seen[id]; duplicate {
-				return 0, invalid("modifier_groups." + group.ID + ".option_ids")
-			}
-			seen[id] = struct{}{}
 			total += option.PriceDeltaAmount
 		}
 		delete(selected, group.ID)

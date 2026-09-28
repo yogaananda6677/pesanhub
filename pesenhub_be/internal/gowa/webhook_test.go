@@ -219,6 +219,40 @@ func TestWebhookInboundMessageProcessing(t *testing.T) {
 	}
 }
 
+func TestWebhookAsyncMessageProcessingAcknowledgesBeforeCallbackCompletes(t *testing.T) {
+	now := time.UnixMilli(1_800_000_000_000)
+	store := newMockInboundStore()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	finished := make(chan error, 1)
+	h := NewWebhookHandler("my-secret-key", nil,
+		WithStore(store),
+		WithOnMessage(func(ctx context.Context, msg *InboundMessage) {
+			close(started)
+			<-release
+			finished <- ctx.Err()
+		}),
+		WithAsyncOnMessage(time.Second),
+	)
+	h.now = func() time.Time { return now }
+	body := `{"event":"message","device_id":"pesenhub-dev","session_id":"default","payload":{"id":"wamid_async","timestamp":"2026-09-04T12:00:00Z","from":"628123456789@s.whatsapp.net","is_from_me":false,"body":"Pesan nasi goreng"}}`
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, signedWebhook(t, h, body, "req-async", now))
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("status = %d", rr.Code)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("async callback did not start")
+	}
+	close(release)
+	if err := <-finished; err != nil {
+		t.Fatalf("callback context canceled with webhook request: %v", err)
+	}
+}
+
 func TestWebhookInboundMessageDeduplication(t *testing.T) {
 	now := time.UnixMilli(1_800_000_000_000)
 	store := newMockInboundStore()

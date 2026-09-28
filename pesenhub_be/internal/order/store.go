@@ -49,7 +49,7 @@ func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInp
 	if len(parts) == 2 && parts[1] != "" {
 		requestID = parts[1]
 	}
-	if role != "STAFF" {
+	if role != "STAFF" && role != "ADMIN" && role != "CASHIER" {
 		return StatusResult{}, false, customer.ErrUnauthorized
 	}
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "ORDER_STATUS:"+orderID+":"+key); err != nil {
@@ -169,20 +169,8 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 			return Order{}, false, err
 		}
 		menu, _ := loadMenu(ctx, tx, item.MenuID)
-		options := map[string]catalog.Option{}
-		for _, g := range menu.Groups {
-			for _, op := range g.Options {
-				options[op.ID] = op
-			}
-		}
-		for _, sel := range requested.Selections {
-			for _, optionID := range sel.OptionIDs {
-				op := options[optionID]
-				_, err = tx.Exec(ctx, `INSERT INTO order_item_modifiers (id,order_item_id,modifier_option_id,name_snapshot,price_delta_amount) VALUES ($1,$2,$3,$4,$5)`, customer.NewID(), item.ID, op.ID, op.Name, op.PriceDeltaAmount)
-				if err != nil {
-					return Order{}, false, err
-				}
-			}
+		if err = insertOrderItemModifiers(ctx, tx, item.ID, menu, requested.Selections); err != nil {
+			return Order{}, false, err
 		}
 	}
 	metadata, _ := json.Marshal(map[string]any{
@@ -249,6 +237,36 @@ func loadExisting(ctx context.Context, tx *dbx.Tx, key, hash string) (Order, boo
 		o.Items = append(o.Items, item)
 	}
 	return o, true, rows.Err()
+}
+
+func selectedOptionCounts(selections []catalog.Selection) map[string]int {
+	counts := make(map[string]int)
+	for _, selection := range selections {
+		for _, optionID := range selection.OptionIDs {
+			counts[optionID]++
+		}
+	}
+	return counts
+}
+
+func insertOrderItemModifiers(ctx context.Context, tx *dbx.Tx, itemID string, menu catalog.Menu, selections []catalog.Selection) error {
+	options := make(map[string]catalog.Option)
+	for _, group := range menu.Groups {
+		for _, option := range group.Options {
+			options[option.ID] = option
+		}
+	}
+	for optionID, quantity := range selectedOptionCounts(selections) {
+		option, ok := options[optionID]
+		if !ok {
+			return ErrInvalidInput
+		}
+		_, err := tx.Exec(ctx, `INSERT INTO order_item_modifiers (id,order_item_id,modifier_option_id,name_snapshot,price_delta_amount,quantity) VALUES ($1,$2,$3,$4,$5,$6)`, customer.NewID(), itemID, option.ID, option.Name, option.PriceDeltaAmount, quantity)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func loadMenu(ctx context.Context, tx *dbx.Tx, id string) (catalog.Menu, error) {
@@ -477,7 +495,7 @@ func (s *Store) populateItems(ctx context.Context, orders []OrderDetail) error {
 		return nil
 	}
 
-	modRows, err := s.db.Query(ctx, `SELECT id::text, order_item_id::text, name_snapshot, price_delta_amount
+	modRows, err := s.db.Query(ctx, `SELECT id::text, order_item_id::text, name_snapshot, price_delta_amount, quantity
 		FROM order_item_modifiers
 		WHERE order_item_id = ANY($1)
 		ORDER BY created_at ASC, id ASC`, itemIDs)
@@ -489,7 +507,7 @@ func (s *Store) populateItems(ctx context.Context, orders []OrderDetail) error {
 	for modRows.Next() {
 		var mod ModifierSnapshot
 		var itemID string
-		if err = modRows.Scan(&mod.ID, &itemID, &mod.Name, &mod.PriceDeltaAmount); err != nil {
+		if err = modRows.Scan(&mod.ID, &itemID, &mod.Name, &mod.PriceDeltaAmount, &mod.Quantity); err != nil {
 			return err
 		}
 		if it, ok := itemMap[itemID]; ok {
@@ -599,21 +617,8 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 		}
 
 		menu, _ := loadMenu(ctx, tx, item.MenuID)
-		options := map[string]catalog.Option{}
-		for _, g := range menu.Groups {
-			for _, op := range g.Options {
-				options[op.ID] = op
-			}
-		}
-		for _, sel := range requested.Selections {
-			for _, optionID := range sel.OptionIDs {
-				op := options[optionID]
-				_, err = tx.Exec(ctx, `INSERT INTO order_item_modifiers (id, order_item_id, modifier_option_id, name_snapshot, price_delta_amount)
-					VALUES ($1, $2, $3, $4, $5)`, customer.NewID(), item.ID, op.ID, op.Name, op.PriceDeltaAmount)
-				if err != nil {
-					return PublicOrderResponse{}, false, err
-				}
-			}
+		if err = insertOrderItemModifiers(ctx, tx, item.ID, menu, requested.Selections); err != nil {
+			return PublicOrderResponse{}, false, err
 		}
 	}
 
@@ -765,21 +770,8 @@ func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput,
 		}
 
 		menu, _ := loadMenu(ctx, tx, item.MenuID)
-		options := map[string]catalog.Option{}
-		for _, g := range menu.Groups {
-			for _, op := range g.Options {
-				options[op.ID] = op
-			}
-		}
-		for _, sel := range requested.Selections {
-			for _, optionID := range sel.OptionIDs {
-				op := options[optionID]
-				_, err = tx.Exec(ctx, `INSERT INTO order_item_modifiers (id, order_item_id, modifier_option_id, name_snapshot, price_delta_amount)
-					VALUES ($1, $2, $3, $4, $5)`, customer.NewID(), item.ID, op.ID, op.Name, op.PriceDeltaAmount)
-				if err != nil {
-					return WhatsAppOrderResponse{}, false, err
-				}
-			}
+		if err = insertOrderItemModifiers(ctx, tx, item.ID, menu, requested.Selections); err != nil {
+			return WhatsAppOrderResponse{}, false, err
 		}
 	}
 
@@ -860,15 +852,14 @@ func (s *Store) PreviewWeb(ctx context.Context, items []ItemInput) (PreviewRespo
 			}
 		}
 		var mods []ModifierSnapshot
-		for _, sel := range requested.Selections {
-			for _, optionID := range sel.OptionIDs {
-				if op, ok := options[optionID]; ok {
-					mods = append(mods, ModifierSnapshot{
-						ID:               op.ID,
-						Name:             op.Name,
-						PriceDeltaAmount: op.PriceDeltaAmount,
-					})
-				}
+		for optionID, quantity := range selectedOptionCounts(requested.Selections) {
+			if op, ok := options[optionID]; ok {
+				mods = append(mods, ModifierSnapshot{
+					ID:               op.ID,
+					Name:             op.Name,
+					PriceDeltaAmount: op.PriceDeltaAmount,
+					Quantity:         quantity,
+				})
 			}
 		}
 

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../data/remote/api_failure.dart';
 import '../models/menu_category.dart';
 import '../models/menu_item.dart';
+import '../models/menu_modifier_group.dart';
 import '../models/menu_state.dart';
 
 /// Callback signature for remote availability updates.
@@ -12,6 +13,8 @@ typedef CategoryMutationFn = Future<MenuCategory> Function(MenuCategory value);
 typedef MenuMutationFn = Future<MenuItem> Function(MenuItem value);
 typedef CatalogChangedFn =
     void Function(List<MenuCategory> categories, List<MenuItem> menus);
+typedef MenuImageUploadFn =
+    Future<String> Function(String filename, List<int> bytes);
 
 /// MenuAvailabilityController manages menu availability status with role guards,
 /// optimistic feedback, server rollback, version tracking, and synchronization.
@@ -19,7 +22,7 @@ typedef CatalogChangedFn =
 class MenuAvailabilityController extends ChangeNotifier {
   List<MenuCategory> _categories = [];
   List<MenuItem> _menus = [];
-  String _role; // 'STAFF', 'KDS', 'CUSTOMER'
+  String role;
 
   final Set<String> _updatingMenuIds = <String>{};
   MenuState _state = const MenuState.loading();
@@ -41,13 +44,14 @@ class MenuAvailabilityController extends ChangeNotifier {
   final Future<void> Function()? onRefresh;
   final bool Function()? canMutate;
   final CatalogChangedFn? onCatalogChanged;
+  final MenuImageUploadFn? uploadMenuImageFn;
   bool _isSaving = false;
   DateTime? _cachedAt;
 
   MenuAvailabilityController({
     List<MenuCategory>? initialCategories,
     List<MenuItem>? initialMenus,
-    this._role = 'STAFF',
+    this.role = 'STAFF',
     this.availabilityUpdateFn,
     this.onAvailabilityChanged,
     this.createCategoryFn,
@@ -57,6 +61,7 @@ class MenuAvailabilityController extends ChangeNotifier {
     this.onRefresh,
     this.canMutate,
     this.onCatalogChanged,
+    this.uploadMenuImageFn,
   }) {
     if (initialCategories != null && initialMenus != null) {
       setCatalog(initialCategories, initialMenus);
@@ -70,8 +75,7 @@ class MenuAvailabilityController extends ChangeNotifier {
   }
 
   // Getters
-  String get role => _role;
-  bool get isStaff => _role == 'STAFF';
+  bool get isStaff => role == 'ADMIN' || role == 'STAFF';
   MenuState get state => _state;
   String get statusFilter => _statusFilter;
   String get selectedCategoryId => _selectedCategoryId;
@@ -94,8 +98,8 @@ class MenuAvailabilityController extends ChangeNotifier {
 
   /// Updates the active role (e.g. for testing or profile switching).
   void setRole(String newRole) {
-    if (_role != newRole) {
-      _role = newRole;
+    if (role != newRole) {
+      role = newRole;
       notifyListeners();
     }
   }
@@ -141,6 +145,20 @@ class MenuAvailabilityController extends ChangeNotifier {
   }
 
   void connectivityChanged() => notifyListeners();
+
+  void applyCachedImage(MenuItem menu) {
+    final index = _menus.indexWhere((item) => item.id == menu.id);
+    if (index == -1 || _menus[index].imageUrl != menu.imageUrl) return;
+    _menus[index] = menu;
+    notifyListeners();
+  }
+
+  Future<String> uploadMenuImage(String filename, List<int> bytes) async {
+    if (!mutationEnabled || uploadMenuImageFn == null) {
+      throw StateError('Upload gambar hanya tersedia untuk Admin online.');
+    }
+    return uploadMenuImageFn!(filename, bytes);
+  }
 
   /// Sets banner message directly (e.g. for informational notices).
   void setBanner(String message, {bool isError = false}) {
@@ -301,6 +319,12 @@ class MenuAvailabilityController extends ChangeNotifier {
 
   Future<bool> saveMenu(MenuItem draft) async {
     final create = draft.id.isEmpty;
+    if (create && draft.modifierGroups.isEmpty) {
+      final sharedExtra = globalExtraFor(draft.productType);
+      if (sharedExtra != null) {
+        draft = draft.copyWith(modifierGroups: [sharedExtra]);
+      }
+    }
     final operation = create ? createMenuFn : updateMenuFn;
     if (!_canStartMutation(operation != null)) return false;
     _isSaving = true;
@@ -315,8 +339,55 @@ class MenuAvailabilityController extends ChangeNotifier {
         _menus[index] = saved;
       }
       _bannerMessage = create
-          ? '${saved.name} berhasil ditambahkan.'
+          ? '${saved.name} tersimpan sebagai draft. Isi harga lalu aktifkan stok saat siap dijual.'
           : '${saved.name} berhasil diperbarui.';
+      _isBannerError = false;
+      _publishCatalog();
+      return true;
+    } catch (error) {
+      await _handleMutationFailure(error);
+      return false;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
+    }
+  }
+
+  MenuModifierGroup? globalExtraFor(String productType) {
+    for (final menu in _menus) {
+      if (menu.productType != productType) continue;
+      for (final group in menu.modifierGroups) {
+        if (group.code == 'extra_isian') return group;
+      }
+    }
+    return null;
+  }
+
+  Future<bool> saveGlobalExtras(
+    String productType,
+    MenuModifierGroup template,
+  ) async {
+    if (!_canStartMutation(updateMenuFn != null)) return false;
+    _isSaving = true;
+    _bannerMessage = null;
+    notifyListeners();
+    try {
+      final targets = _menus
+          .where((menu) => menu.productType == productType)
+          .toList(growable: false);
+      for (final menu in targets) {
+        final groups = menu.modifierGroups
+            .where((group) => group.code != 'extra_isian')
+            .toList();
+        groups.add(template);
+        final saved = await updateMenuFn!(
+          menu.copyWith(modifierGroups: groups),
+        );
+        final index = _menus.indexWhere((item) => item.id == saved.id);
+        if (index != -1) _menus[index] = saved;
+      }
+      _bannerMessage =
+          'Extra isian berhasil diterapkan ke ${targets.length} menu ${productType == "TERANG_BULAN" ? "Terang Bulan" : "Martabak Telur"}.';
       _isBannerError = false;
       _publishCatalog();
       return true;

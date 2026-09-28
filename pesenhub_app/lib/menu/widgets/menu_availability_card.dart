@@ -4,6 +4,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/app_card.dart';
 import '../models/menu_item.dart';
+import 'menu_image_view.dart';
 
 /// MenuAvailabilityCard displays a menu item with scannable availability status,
 /// version chip, and interactive toggle switch protected by role permissions.
@@ -16,6 +17,7 @@ class MenuAvailabilityCard extends StatelessWidget {
   final bool isUpdating;
   final ValueChanged<bool>? onToggle;
   final VoidCallback? onEdit;
+  final VoidCallback? onEditPrice;
 
   const MenuAvailabilityCard({
     super.key,
@@ -26,6 +28,7 @@ class MenuAvailabilityCard extends StatelessWidget {
     this.isUpdating = false,
     this.onToggle,
     this.onEdit,
+    this.onEditPrice,
   });
 
   @override
@@ -93,6 +96,16 @@ class MenuAvailabilityCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.productType == 'TERANG_BULAN'
+                          ? 'Terang Bulan'
+                          : 'Martabak Telur',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -114,15 +127,22 @@ class MenuAvailabilityCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (onEdit != null)
-                IconButton(
-                  key: Key('edit-menu-${item.id}'),
-                  tooltip: 'Edit ${item.name}',
-                  onPressed: isStaff ? onEdit : null,
-                  icon: const Icon(Icons.edit_outlined),
-                ),
             ],
           ),
+
+          if (item.imageUrl != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: MenuImageView(
+                item: item,
+                height: 120,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                allowNetworkFallback: true,
+              ),
+            ),
+          ],
 
           if (item.description != null && item.description!.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xs),
@@ -139,6 +159,32 @@ class MenuAvailabilityCard extends StatelessWidget {
           ],
 
           const SizedBox(height: AppSpacing.sm),
+
+          if (isStaff && (onEdit != null || onEditPrice != null)) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: Key('edit-menu-${item.id}'),
+                    onPressed: isMutationEnabled ? onEdit : null,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Edit Menu'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: Key('edit-price-${item.id}'),
+                    onPressed: isMutationEnabled ? onEditPrice : null,
+                    icon: const Icon(Icons.sell_outlined),
+                    label: const Text('Edit Harga'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+
           const Divider(height: 1, color: AppColors.border),
           const SizedBox(height: AppSpacing.sm),
 
@@ -197,7 +243,7 @@ class MenuAvailabilityCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          isAvailable ? 'Tersedia' : 'Habis',
+                          isAvailable ? 'Stok tersedia' : 'Stok habis',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -253,6 +299,27 @@ class MenuAvailabilityCard extends StatelessWidget {
             ],
           ),
 
+          if (isStaff &&
+              (item.hppAmount != null || item.channelPrices.isNotEmpty)) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                if (item.hppAmount case final hpp?)
+                  _PriceChip(label: 'HPP', amount: hpp),
+                for (final channel in const [
+                  'OFFLINE',
+                  'GOFOOD',
+                  'GRABFOOD',
+                  'SHOPEEFOOD',
+                ])
+                  if (item.channelPrices[channel] case final amount?)
+                    _PriceChip(label: channel, amount: amount),
+              ],
+            ),
+          ],
+
           // Role guard hint if not staff
           if (!isStaff || !isMutationEnabled) ...[
             const SizedBox(height: AppSpacing.xs),
@@ -280,6 +347,21 @@ class MenuAvailabilityCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _PriceChip extends StatelessWidget {
+  final String label;
+  final int amount;
+
+  const _PriceChip({required this.label, required this.amount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      visualDensity: VisualDensity.compact,
+      label: Text('$label · Rp $amount', style: AppTypography.bodySmall),
     );
   }
 }

@@ -57,7 +57,7 @@ func TestCatalogCRUDVersionAndAuditIntegration(t *testing.T) {
 		t.Fatalf("create category=%#v err=%v", category, err)
 	}
 	menu, err := svc.CreateMenu(ctx, Menu{
-		CategoryID: category.ID, SKU: "ISSUE-132", Name: "Menu E2E", PriceAmount: 18000,
+		CategoryID: category.ID, SKU: "ISSUE-132", Name: "Menu E2E", HPPAmount: func() *int64 { h, _ := financials(18000); return h }(), ChannelPrices: func() []ChannelPrice { _, p := financials(18000); return p }(),
 		Groups: []Group{{Code: "size", Name: "Ukuran", MinSelect: 1, MaxSelect: 1, Options: []Option{{Code: "large", Name: "Besar", PriceDeltaAmount: 3000}}}},
 	}, "staff-132", "req-menu")
 	if err != nil || menu.Version != 1 {
@@ -68,7 +68,7 @@ func TestCatalogCRUDVersionAndAuditIntegration(t *testing.T) {
 		t.Fatalf("update category=%#v err=%v", category, err)
 	}
 	menu, err = svc.UpdateMenu(ctx, menu.ID, Menu{
-		CategoryID: category.ID, SKU: "ISSUE-132", Name: "Menu E2E Updated", PriceAmount: 19000,
+		CategoryID: category.ID, SKU: "ISSUE-132", Name: "Menu E2E Updated", HPPAmount: func() *int64 { h, _ := financials(19000); return h }(), ChannelPrices: func() []ChannelPrice { _, p := financials(19000); return p }(),
 		Groups: []Group{{Code: "size", Name: "Ukuran", MinSelect: 1, MaxSelect: 1, Options: []Option{{Code: "large", Name: "Besar", PriceDeltaAmount: 4000}}}},
 	}, menu.Version, "staff-132", "req-menu-update")
 	if err != nil || menu.Version != 2 || menu.PriceAmount != 19000 {

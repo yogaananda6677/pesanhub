@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"pesenhub/backend/internal/appauth"
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/gowa"
 )
@@ -23,6 +24,22 @@ type mockStore struct {
 	updateStatusErr error
 	revokeSessErr   error
 	listUsersErr    error
+	getUserErr      error
+	user            *UserSummary
+}
+func (m *mockStore) GetUser(ctx context.Context, userID string) (*UserSummary, error) {
+	if m.getUserErr != nil {
+		return nil, m.getUserErr
+	}
+	if m.user != nil {
+		return m.user, nil
+	}
+	for _, u := range m.users {
+		if u.ID == userID {
+			return &u, nil
+		}
+	}
+	return nil, ErrUserNotFound
 }
 
 func (m *mockStore) ListUsers(ctx context.Context, filterStatus Status, search string, limit, offset int) ([]UserSummary, error) {
@@ -44,11 +61,36 @@ func (m *mockStore) CreateInvitation(ctx context.Context, actorID, email, outlet
 		ID:          "inv-123",
 		EmailMasked: MaskEmail(email),
 		OutletName:  outletName,
+		Role:        RoleCashier,
 		Status:      "PENDING",
 		InvitedBy:   actorID,
 		CreatedAt:   time.Now().UTC(),
 		ExpiresAt:   time.Now().UTC().Add(expiry),
 	}, nil
+}
+
+func TestAdminCanInviteCashierButOtherRolesCannot(t *testing.T) {
+	handler := NewHandler(NewService(&mockStore{}, nil, nil, nil))
+	for _, role := range []string{"", "CASHIER", "STAFF", "SUPERADMIN"} {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/cashiers/invitations", bytes.NewBufferString(`{"email":"cashier@example.com"}`))
+		req = withPrincipal(req, role)
+		rec := httptest.NewRecorder()
+		handler.InviteCashier(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("role %q: expected 403, got %d", role, rec.Code)
+		}
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/cashiers/invitations", bytes.NewBufferString(`{"email":"cashier@example.com"}`))
+	req = withPrincipal(req, "ADMIN")
+	rec := httptest.NewRecorder()
+	handler.InviteCashier(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var invitation Invitation
+	if err := json.Unmarshal(rec.Body.Bytes(), &invitation); err != nil || invitation.Role != RoleCashier {
+		t.Fatalf("invitation=%#v err=%v", invitation, err)
+	}
 }
 
 func (m *mockStore) RevokeInvitation(ctx context.Context, invitationID string) error {
@@ -409,5 +451,307 @@ func TestAuditsEndpoint(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+}
+
+type mockAuthStore struct {
+	user        appauth.User
+	ensureErr   error
+	createErr   error
+	createdSess map[string]string
+}
+
+func (m *mockAuthStore) EnsureSuperadmin(ctx context.Context, defaultEmail, defaultName string) (appauth.User, error) {
+	if m.ensureErr != nil {
+		return appauth.User{}, m.ensureErr
+	}
+	return m.user, nil
+}
+
+func (m *mockAuthStore) CreateSession(ctx context.Context, sessionID, userID string, expiresAt time.Time) error {
+	if m.createErr != nil {
+		return m.createErr
+	}
+	if m.createdSess == nil {
+		m.createdSess = make(map[string]string)
+	}
+	m.createdSess[sessionID] = userID
+	return nil
+}
+
+type mockSessionIssuer struct {
+	token     string
+	sessionID string
+	expiresAt time.Time
+	err       error
+}
+
+func (m *mockSessionIssuer) IssuePersistent(subject, role string) (string, string, time.Time, error) {
+	if m.err != nil {
+		return "", "", time.Time{}, m.err
+	}
+	return m.token, m.sessionID, m.expiresAt, nil
+}
+
+func TestSuperadminLoginSuccess(t *testing.T) {
+	h := NewHandler(nil)
+	authStore := &mockAuthStore{
+		user: appauth.User{
+			ID:          "sa-uuid-1234",
+			EmailMasked: "su***@pesenhub.id",
+			DisplayName: "Superadmin",
+			Role:        appauth.RoleSuperadmin,
+			Status:      appauth.StatusApproved,
+		},
+	}
+	sessIssuer := &mockSessionIssuer{
+		token:     "valid-superadmin-session-token",
+		sessionID: "sid-5678",
+		expiresAt: time.Now().Add(8 * time.Hour),
+	}
+	h.SetAuth(AuthConfig{Username: "superadmin", Password: "superadmin-secret-password"}, authStore, sessIssuer)
+
+	body := `{"username":"superadmin","password":"superadmin-secret-password"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/superadmin/login", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	h.Login(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp["access_token"] != "valid-superadmin-session-token" {
+		t.Fatalf("unexpected token: %v", resp["access_token"])
+	}
+	userMap, ok := resp["user"].(map[string]any)
+	if !ok || userMap["role"] != "SUPERADMIN" {
+		t.Fatalf("unexpected user in response: %v", resp["user"])
+	}
+}
+
+func TestSuperadminLoginInvalidCredentials(t *testing.T) {
+	h := NewHandler(nil)
+	h.SetAuth(AuthConfig{Username: "superadmin", Password: "correct-password"}, &mockAuthStore{}, &mockSessionIssuer{})
+
+	cases := []struct {
+		name     string
+		username string
+		password string
+	}{
+		{"wrong password", "superadmin", "wrong-password"},
+		{"wrong username", "admin", "correct-password"},
+		{"both wrong", "unknown", "unknown"},
+		{"empty password", "superadmin", ""},
+		{"empty username", "", "correct-password"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			body, _ := json.Marshal(map[string]string{"username": tc.username, "password": tc.password})
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/superadmin/login", bytes.NewReader(body))
+			rec := httptest.NewRecorder()
+
+			h.Login(rec, req)
+
+			if rec.Code != http.StatusUnauthorized {
+				t.Fatalf("expected 401 Unauthorized, got %d: %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestSuperadminLoginRateLimited(t *testing.T) {
+	h := NewHandler(nil)
+	h.SetAuth(AuthConfig{Username: "superadmin", Password: "secret"}, &mockAuthStore{}, &mockSessionIssuer{})
+
+	for i := 0; i < 5; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/superadmin/login", bytes.NewBufferString(`{"username":"superadmin","password":"wrong"}`))
+		req.RemoteAddr = "192.0.2.1:12345"
+		rec := httptest.NewRecorder()
+		h.Login(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: expected 401, got %d", i+1, rec.Code)
+		}
+	}
+
+	// 6th attempt should be rate limited
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/superadmin/login", bytes.NewBufferString(`{"username":"superadmin","password":"wrong"}`))
+	req.RemoteAddr = "192.0.2.1:12345"
+	rec := httptest.NewRecorder()
+	h.Login(rec, req)
+
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 Too Many Requests, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestSuperadminLoginInvalidBody(t *testing.T) {
+	h := NewHandler(nil)
+	h.SetAuth(AuthConfig{Username: "superadmin", Password: "secret"}, &mockAuthStore{}, &mockSessionIssuer{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/superadmin/login", bytes.NewBufferString(`{invalid-json`))
+	rec := httptest.NewRecorder()
+	h.Login(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request, got %d", rec.Code)
+	}
+}
+
+type mockWAInspector struct {
+	readiness    gowa.Readiness
+	deviceID     string
+	activeDevice *gowa.DeviceInfo
+	resolveErr   error
+	devices      []gowa.DeviceInfo
+	listErr      error
+}
+
+func (m *mockWAInspector) Readiness(ctx context.Context) gowa.Readiness {
+	return m.readiness
+}
+
+func (m *mockWAInspector) DeviceID() string {
+	return m.deviceID
+}
+
+func (m *mockWAInspector) ListDevices(ctx context.Context) ([]gowa.DeviceInfo, error) {
+	if m.listErr != nil {
+		return nil, m.listErr
+	}
+	return m.devices, nil
+}
+
+func (m *mockWAInspector) ResolveActiveDevice(ctx context.Context) (*gowa.DeviceInfo, error) {
+	if m.resolveErr != nil {
+		return nil, m.resolveErr
+	}
+	return m.activeDevice, nil
+}
+
+func TestUserWhatsAppStatusEndpoint(t *testing.T) {
+	store := &mockStore{
+		user: &UserSummary{
+			ID:          "u-admin-1",
+			DisplayName: "Admin Outlet",
+			EmailMasked: "ad***@example.com",
+			Role:        RoleAdmin,
+			Status:      StatusApproved,
+		},
+	}
+	wa := &mockWAInspector{
+		readiness: gowa.Readiness{API: gowa.APIUp, Device: gowa.DeviceReady},
+		deviceID:  "pesenhub-dev",
+		activeDevice: &gowa.DeviceInfo{
+			ID:    "pesenhub-dev",
+			State: "logged_in",
+			JID:   "628123456789@s.whatsapp.net",
+		},
+	}
+	svc := NewService(store, nil, wa, nil)
+	h := NewHandler(svc)
+
+	// 1. Success connected
+	req := httptest.NewRequest("GET", "/api/v1/superadmin/users/u-admin-1/whatsapp", nil)
+	req.SetPathValue("id", "u-admin-1")
+	req = withPrincipal(req, "SUPERADMIN")
+	rec := httptest.NewRecorder()
+	h.UserWhatsAppStatus(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var res WhatsAppAccountStatus
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if !res.IsConnected || res.Status != "CONNECTED" || res.PhoneMasked != "+6281****6789" {
+		t.Fatalf("unexpected res: %+v", res)
+	}
+
+	// 2. Gateway down
+	wa.readiness = gowa.Readiness{API: gowa.APIDown}
+	req = httptest.NewRequest("GET", "/api/v1/superadmin/users/u-admin-1/whatsapp", nil)
+	req.SetPathValue("id", "u-admin-1")
+	req = withPrincipal(req, "SUPERADMIN")
+	rec = httptest.NewRecorder()
+	h.UserWhatsAppStatus(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if res.IsConnected || res.Status != "GATEWAY_DOWN" {
+		t.Fatalf("expected GATEWAY_DOWN, got %+v", res)
+	}
+
+	// 3. User not found
+	store.getUserErr = ErrUserNotFound
+	req = httptest.NewRequest("GET", "/api/v1/superadmin/users/non-existent/whatsapp", nil)
+	req.SetPathValue("id", "non-existent")
+	req = withPrincipal(req, "SUPERADMIN")
+	rec = httptest.NewRecorder()
+	h.UserWhatsAppStatus(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found, got %d", rec.Code)
+	}
+}
+
+func TestWhatsAppOverviewEndpoint(t *testing.T) {
+	store := &mockStore{
+		users: []UserSummary{
+			{
+				ID:          "u-admin-1",
+				DisplayName: "Admin Outlet",
+				EmailMasked: "ad***@example.com",
+				Role:        RoleAdmin,
+				Status:      StatusApproved,
+			},
+		},
+		user: &UserSummary{
+			ID:          "u-admin-1",
+			DisplayName: "Admin Outlet",
+			EmailMasked: "ad***@example.com",
+			Role:        RoleAdmin,
+			Status:      StatusApproved,
+		},
+	}
+	wa := &mockWAInspector{
+		readiness: gowa.Readiness{API: gowa.APIUp, Device: gowa.DeviceReady},
+		deviceID:  "pesenhub-dev",
+		activeDevice: &gowa.DeviceInfo{
+			ID:    "pesenhub-dev",
+			State: "logged_in",
+			JID:   "628123456789@s.whatsapp.net",
+		},
+	}
+	svc := NewService(store, nil, wa, nil)
+	h := NewHandler(svc)
+
+	req := httptest.NewRequest("GET", "/api/v1/superadmin/whatsapp/status", nil)
+	req = withPrincipal(req, "SUPERADMIN")
+	rec := httptest.NewRecorder()
+	h.WhatsAppOverview(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Accounts []WhatsAppAccountStatus `json:"accounts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if len(resp.Accounts) != 1 || resp.Accounts[0].Status != "CONNECTED" {
+		t.Fatalf("unexpected accounts: %+v", resp.Accounts)
 	}
 }

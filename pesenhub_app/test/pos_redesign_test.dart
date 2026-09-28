@@ -4,7 +4,7 @@ import 'package:pesenhub_app/cart/controllers/cart_controller.dart';
 import 'package:pesenhub_app/connectivity/connectivity_controller.dart';
 import 'package:pesenhub_app/menu/controllers/menu_controller.dart' as mc;
 import 'package:pesenhub_app/menu/controllers/modifier_selection_state.dart';
-import 'package:pesenhub_app/menu/models/sample_menu_data.dart';
+import 'fixtures/sample_menu_data.dart';
 import 'package:pesenhub_app/menu/widgets/menu_category_filter.dart';
 import 'package:pesenhub_app/menu/widgets/menu_item_card.dart';
 import 'package:pesenhub_app/pos/pos_view.dart';
@@ -66,7 +66,7 @@ void main() {
         expect(
           find.widgetWithText(
             TextField,
-            'Cari menu (Nasi Goreng, Es Teh, SKU)...',
+            'Cari menu (Martabak, Terang Bulan, SKU)...',
           ),
           findsOneWidget,
         );
@@ -123,7 +123,7 @@ void main() {
         await tester.enterText(
           find.widgetWithText(
             TextField,
-            'Cari menu (Nasi Goreng, Es Teh, SKU)...',
+            'Cari menu (Martabak, Terang Bulan, SKU)...',
           ),
           'Teh',
         );
@@ -148,7 +148,7 @@ void main() {
         expect(cartController.customerName, equals('Budi Test'));
         expect(
           cartController.items.first.menuItem.name,
-          equals('Nasi Goreng Spesial'),
+          equals('Martabak Telur Spesial'),
         );
 
         // Search query is preserved
@@ -188,17 +188,17 @@ void main() {
         await tester.pumpAndSettle();
 
         // Menu cards are visible at the top without scrolling past customer card
-        expect(find.text('Nasi Goreng Spesial'), findsOneWidget);
-        expect(find.text('Nasi Goreng Gila'), findsOneWidget);
+        expect(find.text('Martabak Telur Spesial'), findsOneWidget);
+        expect(find.text('Martabak Telur Bebek'), findsOneWidget);
 
         // Unavailable item shows Habis badge
-        expect(find.text('Nasi Goreng Seafood'), findsOneWidget);
+        expect(find.text('Terang Bulan Toblerone Keju'), findsOneWidget);
         expect(find.text('Habis'), findsOneWidget);
 
         // Unavailable item cannot be tapped
         final unavailableCard = find.widgetWithText(
           MenuItemCard,
-          'Nasi Goreng Seafood',
+          'Terang Bulan Toblerone Keju',
         );
         await tester.tap(unavailableCard);
         await tester.pumpAndSettle();

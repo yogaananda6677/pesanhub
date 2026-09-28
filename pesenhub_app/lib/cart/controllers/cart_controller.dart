@@ -129,6 +129,7 @@ class CartController extends ChangeNotifier {
       menuItem: menuItem,
       modifierSummary: state.formattedModifierSummary,
       selectedOptionIds: state.selectedOptionIds,
+      selectedOptionQuantities: state.selectedOptionQuantities,
       quantity: state.quantity,
       unitPrice: state.unitPrice,
       notes: state.notes,

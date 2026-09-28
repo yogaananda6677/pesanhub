@@ -4,7 +4,7 @@ import 'package:pesenhub_app/cart/controllers/cart_controller.dart';
 import 'package:pesenhub_app/cart/widgets/order_review_dialog.dart';
 import 'package:pesenhub_app/cart/widgets/order_success_dialog.dart';
 import 'package:pesenhub_app/menu/controllers/modifier_selection_state.dart';
-import 'package:pesenhub_app/menu/models/sample_menu_data.dart';
+import 'fixtures/sample_menu_data.dart';
 import 'package:pesenhub_app/pos/pos_view.dart';
 import 'package:pesenhub_app/queue/models/queue_order.dart';
 import 'package:pesenhub_app/theme/app_theme.dart';
@@ -77,7 +77,7 @@ void main() {
         expect(find.text('Ibu Siti'), findsOneWidget);
         expect(find.text('Bungkus / Takeaway'), findsOneWidget);
         expect(find.text('Catatan Kemasan: Bungkus rapi'), findsOneWidget);
-        expect(find.text('1x Nasi Goreng Spesial'), findsOneWidget);
+        expect(find.text('1x Martabak Telur Spesial'), findsOneWidget);
         expect(find.text('Rp 25000'), findsAtLeastNWidgets(1));
         expect(find.text('Kirim & Buat Pesanan'), findsOneWidget);
       },

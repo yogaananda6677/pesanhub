@@ -333,7 +333,7 @@ class SessionController extends ChangeNotifier {
   }
 
   void _applyUserStatus(AuthUser user) {
-    if (user.role != 'OWNER') {
+    if (user.role != 'ADMIN' && user.role != 'CASHIER') {
       status = SessionStatus.webOnly;
       return;
     }

@@ -28,11 +28,22 @@ export MIDTRANS_SERVER_KEY=test MIDTRANS_MERCHANT_ID=test APP_STAFF_TOKEN=123456
 cd "$repo_dir"
 go run ./cmd/migrate up
 test "$(docker exec "$container" mysql -N -upesenhub_test -p"$password" pesenhub_test -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='pesenhub_test' AND table_name IN ('orders','payments','whatsapp_inbound_messages','app_users','system_traffic_samples');" 2>/dev/null)" = "5"
-test "$(docker exec "$container" mysql -N -upesenhub_test -p"$password" pesenhub_test -e "SELECT dirty FROM schema_migrations WHERE version=1;" 2>/dev/null)" = "0"
+test "$(docker exec "$container" mysql -N -upesenhub_test -p"$password" pesenhub_test -e "SELECT dirty FROM schema_migrations WHERE version=5;" 2>/dev/null)" = "0"
+test "$(docker exec "$container" mysql -N -upesenhub_test -p"$password" pesenhub_test -e "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='pesenhub_test' AND table_name='user_invitations' AND column_name IN ('role','accepted_user_id','accepted_at');" 2>/dev/null)" = "3"
+test "$(docker exec "$container" mysql -N -upesenhub_test -p"$password" pesenhub_test -e "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='pesenhub_test' AND table_name='menus' AND column_name='hpp_amount';" 2>/dev/null)" = "1"
+test "$(docker exec "$container" mysql -N -upesenhub_test -p"$password" pesenhub_test -e "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='pesenhub_test' AND table_name='menus' AND column_name IN ('product_type','image_url');" 2>/dev/null)" = "2"
+test "$(docker exec "$container" mysql -N -upesenhub_test -p"$password" pesenhub_test -e "SELECT COUNT(*) FROM menus WHERE id LIKE '20000000-0000-4000-8000-0000000000%';" 2>/dev/null)" = "13"
+test "$(docker exec "$container" mysql -N -upesenhub_test -p"$password" pesenhub_test -e "SELECT COUNT(*) FROM menu_channel_prices WHERE channel='OFFLINE' AND menu_id LIKE '20000000-0000-4000-8000-0000000000%';" 2>/dev/null)" = "13"
+export TEST_DATABASE_URL="mysql://pesenhub_test:${password}@tcp(127.0.0.1:${port})/pesenhub_test?parseTime=true&loc=UTC&multiStatements=true&tls=false&charset=utf8mb4&collation=utf8mb4_0900_ai_ci"
+go test ./internal/appauth -run Integration -count=1
 
+go run ./cmd/migrate down
+go run ./cmd/migrate down
+go run ./cmd/migrate down
+go run ./cmd/migrate down
 go run ./cmd/migrate down
 test "$(docker exec "$container" mysql -N -upesenhub_test -p"$password" pesenhub_test -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='pesenhub_test' AND table_name='orders';" 2>/dev/null)" = "0"
 go run ./cmd/migrate up
-test "$(docker exec "$container" mysql -N -upesenhub_test -p"$password" pesenhub_test -e "SELECT COUNT(*) FROM app_metadata WHERE \`key\`='schema_foundation' AND \`value\`='mysql-baseline-v1';" 2>/dev/null)" = "1"
+test "$(docker exec "$container" mysql -N -upesenhub_test -p"$password" pesenhub_test -e "SELECT COUNT(*) FROM app_metadata WHERE \`key\`='schema_foundation' AND \`value\`='mysql-admin-cashier-auth-v2';" 2>/dev/null)" = "1"
 
 echo "MySQL migration up/down/up contract passed."

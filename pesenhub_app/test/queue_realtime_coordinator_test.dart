@@ -28,7 +28,7 @@ QueueOrder _order(int version, String status) => QueueOrder(
   createdAt: DateTime.utc(2026, 9, 5, 8),
   version: version,
   items: const [
-    QueueOrderItem(name: 'Nasi Goreng', quantity: 1, unitPrice: 20000),
+    QueueOrderItem(name: 'Martabak Telur', quantity: 1, unitPrice: 20000),
   ],
 );
 

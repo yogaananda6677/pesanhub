@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pesenhub_app/navigation/app_destination.dart';
+import 'package:pesenhub_app/menu/controllers/menu_controller.dart' as mc;
+import 'package:pesenhub_app/menu/models/menu_category.dart';
+import 'package:pesenhub_app/menu/models/menu_item.dart';
 import 'package:pesenhub_app/shell/app_shell.dart';
 import 'package:pesenhub_app/shell/destination_views.dart';
-import 'package:pesenhub_app/showcase/design_system_showcase.dart';
 import 'package:pesenhub_app/theme/app_theme.dart';
 
 void main() {
@@ -31,7 +33,7 @@ void main() {
         final navigationBar = tester.widget<NavigationBar>(
           find.byKey(const Key('primary-bottom-navigation')),
         );
-        expect(navigationBar.destinations, hasLength(5));
+        expect(navigationBar.destinations, hasLength(4));
 
         // Verify no exceptions or overflows
         expect(tester.takeException(), isNull);
@@ -76,8 +78,8 @@ void main() {
           MaterialApp(theme: AppTheme.lightTheme, home: const AppShell()),
         );
 
-        // Navigate to 'Antrean' (index 2)
-        await tester.tap(find.text('Antrean'));
+        // Navigate to 'Transaksi' (index 2)
+        await tester.tap(find.text('Transaksi'));
         await tester.pumpAndSettle();
 
         expect(find.text('Antrean Dapur'), findsOneWidget);
@@ -106,28 +108,44 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             theme: AppTheme.lightTheme,
-            home: const AppShell(initialIndex: 1),
+            home: AppShell(
+              initialIndex: 1,
+              menuController: mc.MenuController(
+                initialCategories: const [
+                  MenuCategory(id: 'egg-martabak', name: 'Martabak Telur'),
+                ],
+                initialMenus: const [
+                  MenuItem(
+                    id: 'special-egg-martabak',
+                    categoryId: 'egg-martabak',
+                    sku: 'MT-SPESIAL',
+                    name: 'Martabak Telur Spesial',
+                    priceAmount: 30000,
+                  ),
+                ],
+              ),
+            ),
           ),
         );
 
         // Enter search text in POS mobile view
         final searchField = find.widgetWithText(
           TextField,
-          'Cari menu (Nasi Goreng, Es Teh, SKU)...',
+          'Cari menu (Martabak, Terang Bulan, SKU)...',
         );
         expect(searchField, findsOneWidget);
-        await tester.enterText(searchField, 'Nasi Goreng');
+        await tester.enterText(searchField, 'Martabak');
         await tester.pump(const Duration(milliseconds: 300));
         await tester.pumpAndSettle();
 
-        expect(find.text('Nasi Goreng'), findsOneWidget);
+        expect(find.text('Martabak'), findsOneWidget);
 
         // Expand to tablet size (900 x 700)
         tester.view.physicalSize = const Size(900, 700);
         await tester.pumpAndSettle();
 
         // Verify entered search query is retained
-        expect(find.text('Nasi Goreng'), findsOneWidget);
+        expect(find.text('Martabak'), findsOneWidget);
 
         // Enter customer name in tablet split view
         final nameField = find.widgetWithText(
@@ -145,7 +163,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Verify search query is still retained
-        expect(find.text('Nasi Goreng'), findsOneWidget);
+        expect(find.text('Martabak'), findsOneWidget);
 
         // Switch back to tablet size (900 x 700) and verify customer name retained
         tester.view.physicalSize = const Size(900, 700);
@@ -167,7 +185,23 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             theme: AppTheme.lightTheme,
-            home: const AppShell(initialIndex: 1),
+            home: AppShell(
+              initialIndex: 1,
+              menuController: mc.MenuController(
+                initialCategories: const [
+                  MenuCategory(id: 'egg-martabak', name: 'Martabak Telur'),
+                ],
+                initialMenus: const [
+                  MenuItem(
+                    id: 'special-egg-martabak',
+                    categoryId: 'egg-martabak',
+                    sku: 'MT-SPESIAL',
+                    name: 'Martabak Telur Spesial',
+                    priceAmount: 30000,
+                  ),
+                ],
+              ),
+            ),
           ),
         );
 
@@ -180,7 +214,7 @@ void main() {
         expect(tester.takeException(), isNull);
 
         // Verify content is in the tree and can be scrolled into view without overflow
-        final itemFinder = find.text('Nasi Goreng Spesial');
+        final itemFinder = find.text('Martabak Telur Spesial');
         expect(itemFinder, findsOneWidget);
 
         await tester.scrollUntilVisible(
@@ -214,28 +248,18 @@ void main() {
         expect(find.byType(PosDestinationView), findsOneWidget);
         expect(find.text('Kasir — Buat Pesanan'), findsOneWidget);
 
-        // 3. Switch to Antrean
-        await tester.tap(find.text('Antrean'));
+        // 3. Switch to Transaksi
+        await tester.tap(find.text('Transaksi'));
         await tester.pumpAndSettle();
         expect(find.text('Antrean Dapur'), findsOneWidget);
 
-        // 4. Switch to Menu directly
-        await tester.tap(find.text('Menu'));
-        await tester.pumpAndSettle();
-        expect(find.text('Kelola Ketersediaan Menu'), findsOneWidget);
-
-        // 5. Switch to Pengaturan directly
-        await tester.tap(find.text('Pengaturan'));
+        // 4. Switch to Akun directly
+        await tester.tap(find.text('Akun'));
         await tester.pumpAndSettle();
         expect(find.text('Pengaturan Outlet'), findsOneWidget);
 
-        // 6. Open Design System Catalog from Settings
-        final catalogFinder = find.text('Buka Katalog Design System');
-        await tester.ensureVisible(catalogFinder);
-        await tester.pumpAndSettle();
-        await tester.tap(catalogFinder);
-        await tester.pumpAndSettle();
-        expect(find.byType(DesignSystemShowcase), findsOneWidget);
+        // Development-only showcase data is not exposed in production settings.
+        expect(find.text('Buka Katalog Design System'), findsNothing);
       },
     );
   });

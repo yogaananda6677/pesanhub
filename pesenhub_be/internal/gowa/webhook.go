@@ -86,14 +86,30 @@ func WithOnMessage(fn func(context.Context, *InboundMessage)) WebhookOption {
 	}
 }
 
+// WithAsyncOnMessage acknowledges an authenticated, persisted webhook before
+// starting potentially slow agent processing. The synchronous default is kept
+// for callers that require inline processing.
+func WithAsyncOnMessage(timeout time.Duration) WebhookOption {
+	return func(h *WebhookHandler) {
+		h.asyncOnMessage = true
+		handlerTimeout := timeout
+		if handlerTimeout <= 0 {
+			handlerTimeout = time.Minute
+		}
+		h.onMessageTimeout = handlerTimeout
+	}
+}
+
 type WebhookHandler struct {
-	secret    []byte
-	logger    *slog.Logger
-	now       func() time.Time
-	replays   *replayGuard
-	counters  webhookCounters
-	store     InboundStore
-	onMessage func(context.Context, *InboundMessage)
+	secret           []byte
+	logger           *slog.Logger
+	now              func() time.Time
+	replays          *replayGuard
+	counters         webhookCounters
+	store            InboundStore
+	onMessage        func(context.Context, *InboundMessage)
+	asyncOnMessage   bool
+	onMessageTimeout time.Duration
 }
 
 func NewWebhookHandler(secret string, logger *slog.Logger, opts ...WebhookOption) *WebhookHandler {
@@ -195,7 +211,15 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			} else {
 				h.observe("accepted_message", requestID, started)
 				if h.onMessage != nil {
-					h.onMessage(r.Context(), stored)
+					if h.asyncOnMessage {
+						callbackCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), h.onMessageTimeout)
+						go func() {
+							defer cancel()
+							h.onMessage(callbackCtx, stored)
+						}()
+					} else {
+						h.onMessage(r.Context(), stored)
+					}
 				}
 			}
 

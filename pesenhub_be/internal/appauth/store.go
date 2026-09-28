@@ -73,6 +73,19 @@ func (s *Store) ProvisionSuperadmin(ctx context.Context, email, displayName, req
 	return user, created, nil
 }
 
+func (s *Store) EnsureSuperadmin(ctx context.Context, defaultEmail, defaultName string) (User, error) {
+	row := s.pool.QueryRow(ctx, `SELECT id::text, email_normalized, display_name, role, status, approved_at FROM app_users WHERE role = 'SUPERADMIN' AND status = 'APPROVED' ORDER BY created_at ASC LIMIT 1`)
+	user, err := scanUser(row)
+	if err == nil {
+		return user, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return User{}, err
+	}
+	user, _, err = s.ProvisionSuperadmin(ctx, defaultEmail, defaultName, "auto-provision")
+	return user, err
+}
+
 func (s *Store) UpsertGoogleIdentity(ctx context.Context, identity GoogleIdentity) (User, error) {
 	var last error
 	for attempt := 0; attempt < 3; attempt++ {
@@ -98,20 +111,43 @@ func (s *Store) upsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 	defer tx.Rollback(ctx)
 
 	email := strings.ToLower(strings.TrimSpace(identity.Email))
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, "identity-email:"+email); err != nil {
+		return User{}, err
+	}
 	var linkedUserID string
 	err = tx.QueryRow(ctx, `SELECT user_id::text FROM external_identities WHERE provider = 'GOOGLE' AND provider_subject = $1 FOR UPDATE`, identity.Subject).Scan(&linkedUserID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return User{}, err
 	}
 	if errors.Is(err, sql.ErrNoRows) {
+		var invitationID, invitedBy string
+		invitedCashier := false
+		invitationErr := tx.QueryRow(ctx, `
+			SELECT id, invited_by
+			FROM user_invitations
+			WHERE email_normalized = $1
+			  AND role = 'CASHIER'
+			  AND status = 'PENDING'
+			  AND expires_at > now()
+			FOR UPDATE`, email).Scan(&invitationID, &invitedBy)
+		if invitationErr == nil {
+			invitedCashier = true
+		} else if !errors.Is(invitationErr, sql.ErrNoRows) {
+			return User{}, invitationErr
+		}
+
 		userID, idErr := newUUID()
 		if idErr != nil {
 			return User{}, idErr
 		}
+		role, status := "ADMIN", "PENDING_APPROVAL"
+		if invitedCashier {
+			role, status = "CASHIER", "APPROVED"
+		}
 		_, err = tx.Exec(ctx, `
 			INSERT INTO app_users (id, email_normalized, display_name, role, status)
-			VALUES ($1::uuid, $2, $3, 'OWNER', 'PENDING_APPROVAL')
-			ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), updated_at = now()`, userID, email, strings.TrimSpace(identity.DisplayName))
+			VALUES ($1::uuid, $2, $3, $4, $5)
+			ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), updated_at = now()`, userID, email, strings.TrimSpace(identity.DisplayName), role, status)
 		if err != nil {
 			return User{}, err
 		}
@@ -148,6 +184,36 @@ func (s *Store) upsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 				err = ErrIdentityConflict
 			}
 			return User{}, err
+		}
+		if invitedCashier {
+			now := time.Now().UTC()
+			_, err = tx.Exec(ctx, `
+				UPDATE app_users
+				SET role='CASHIER', status='APPROVED', approved_by=$2::uuid,
+				    approved_at=$3, status_reason=NULL, updated_at=$3
+				WHERE id=$1::uuid`, linkedUserID, invitedBy, now)
+			if err != nil {
+				return User{}, err
+			}
+			_, err = tx.Exec(ctx, `
+				UPDATE user_invitations
+				SET status='ACCEPTED', accepted_user_id=$2::uuid, accepted_at=$3, updated_at=$3
+				WHERE id=$1::uuid AND status='PENDING'`, invitationID, linkedUserID, now)
+			if err != nil {
+				return User{}, err
+			}
+			auditID, idErr := newUUID()
+			if idErr != nil {
+				return User{}, idErr
+			}
+			_, err = tx.Exec(ctx, `
+				INSERT INTO user_status_audits
+				    (id, user_id, actor_user_id, from_status, to_status, reason_redacted, request_id)
+				VALUES ($1::uuid, $2::uuid, $3::uuid, NULL, 'APPROVED',
+				        'CASHIER_INVITATION_ACCEPTED', $4)`, auditID, linkedUserID, invitedBy, "invite:"+invitationID)
+			if err != nil {
+				return User{}, err
+			}
 		}
 	} else {
 		_, err = tx.Exec(ctx, `UPDATE external_identities SET email_at_login = $2, last_login_at = now() WHERE provider = 'GOOGLE' AND provider_subject = $1`, identity.Subject, email)

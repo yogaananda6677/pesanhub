@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pesenhub_app/menu/controllers/menu_controller.dart' as mc;
 import 'package:pesenhub_app/menu/controllers/modifier_selection_state.dart';
 import 'package:pesenhub_app/menu/menu_catalog_view.dart';
-import 'package:pesenhub_app/menu/models/sample_menu_data.dart';
+import 'fixtures/sample_menu_data.dart';
 import 'package:pesenhub_app/menu/widgets/menu_item_card.dart';
 import 'package:pesenhub_app/menu/widgets/modifier_config_dialog.dart';
 import 'package:pesenhub_app/theme/app_theme.dart';
@@ -18,6 +18,24 @@ void main() {
   }
 
   group('Issue #27: Menu Search, Category Filter, and Modifiers Tests', () {
+    test('extra yang sama dapat dipilih berulang seperti sapi x3', () {
+      final menu = SampleMenuData.sampleMenus.firstWhere(
+        (item) => item.id == 'm-nasgor-spesial',
+      );
+      final group = SampleMenuData.toppingGroup;
+      final sapi = group.options.firstWhere((option) => option.code == 'sosis');
+      final state = ModifierSelectionState(menuItem: menu);
+
+      state.incrementOption(group, sapi);
+      state.incrementOption(group, sapi);
+      state.incrementOption(group, sapi);
+      state.incrementOption(group, sapi);
+
+      expect(state.optionQuantity(group.id, sapi.id), 3);
+      expect(state.unitPrice, 34000);
+      expect(state.formattedModifierSummary, contains('×3'));
+    });
+
     testWidgets(
       'Criteria #1: Search with debounce and category filter work accurately',
       (tester) async {
@@ -30,7 +48,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // All menus displayed initially
-        expect(find.text('Nasi Goreng Spesial'), findsOneWidget);
+        expect(find.text('Martabak Telur Spesial'), findsOneWidget);
         expect(find.text('Es Teh Manis'), findsOneWidget);
 
         // Filter by category 'Minuman'
@@ -39,18 +57,18 @@ void main() {
 
         expect(find.text('Es Teh Manis'), findsOneWidget);
         expect(find.text('Es Jeruk Peras'), findsOneWidget);
-        expect(find.text('Nasi Goreng Spesial'), findsNothing);
+        expect(find.text('Martabak Telur Spesial'), findsNothing);
 
         // Return to 'Semua'
         await tester.tap(find.text('Semua (6)'));
         await tester.pumpAndSettle();
 
-        // Search by query 'Gila'
-        controller.onSearchChanged('Gila', immediate: true);
+        // Search by query 'Bebek'
+        controller.onSearchChanged('Bebek', immediate: true);
         await tester.pumpAndSettle();
 
-        expect(find.text('Nasi Goreng Gila'), findsOneWidget);
-        expect(find.text('Nasi Goreng Spesial'), findsNothing);
+        expect(find.text('Martabak Telur Bebek'), findsOneWidget);
+        expect(find.text('Martabak Telur Spesial'), findsNothing);
         expect(find.text('Es Teh Manis'), findsNothing);
       },
     );
@@ -66,14 +84,14 @@ void main() {
         await tester.pumpWidget(buildMenuTestApp(controller));
         await tester.pumpAndSettle();
 
-        // Find the unavailable item 'Nasi Goreng Seafood'
-        expect(find.text('Nasi Goreng Seafood'), findsOneWidget);
+        // Find the unavailable item 'Terang Bulan Toblerone Keju'
+        expect(find.text('Terang Bulan Toblerone Keju'), findsOneWidget);
         expect(find.text('Habis'), findsOneWidget);
 
         // Verify the button for unavailable item cannot be pressed
         final unavailableCard = find.widgetWithText(
           MenuItemCard,
-          'Nasi Goreng Seafood',
+          'Terang Bulan Toblerone Keju',
         );
         expect(unavailableCard, findsOneWidget);
 
@@ -280,46 +298,44 @@ void main() {
         await tester.pumpWidget(buildMenuTestApp(controller));
         await tester.pumpAndSettle();
 
-        // Nasi Goreng Spesial has spice_level modifier
+        // Martabak Telur Spesial has spice_level modifier
         expect(find.byIcon(Icons.local_fire_department_rounded), findsWidgets);
       },
     );
 
-    testWidgets(
-      'AppFeedback applies differentiated durations for success and error',
-      (tester) async {
-        late BuildContext capturedContext;
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: Builder(
-                builder: (context) {
-                  capturedContext = context;
-                  return const SizedBox.shrink();
-                },
-              ),
+    testWidgets('AppFeedback appears at the top and closes after one second', (
+      tester,
+    ) async {
+      late BuildContext capturedContext;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                capturedContext = context;
+                return const SizedBox.shrink();
+              },
             ),
           ),
-        );
+        ),
+      );
 
-        AppFeedback.show(
-          capturedContext,
-          message: 'Berhasil',
-          type: AppBannerType.success,
-        );
-        await tester.pump();
-        final successSnackBar = tester.widget<SnackBar>(find.byType(SnackBar));
-        expect(successSnackBar.duration, const Duration(milliseconds: 1200));
+      AppFeedback.show(
+        capturedContext,
+        message: 'Berhasil',
+        type: AppBannerType.success,
+      );
+      await tester.pump();
+      expect(find.byKey(const Key('app-feedback-success')), findsOneWidget);
+      final top = tester.getTopLeft(
+        find.byKey(const Key('app-feedback-success')),
+      );
+      expect(top.dy, lessThan(80));
 
-        AppFeedback.show(
-          capturedContext,
-          message: 'Gagal',
-          type: AppBannerType.error,
-        );
-        await tester.pump();
-        final errorSnackBar = tester.widget<SnackBar>(find.byType(SnackBar));
-        expect(errorSnackBar.duration, const Duration(seconds: 4));
-      },
-    );
+      await tester.pump(const Duration(milliseconds: 999));
+      expect(find.byKey(const Key('app-feedback-success')), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(find.byKey(const Key('app-feedback-success')), findsNothing);
+    });
   });
 }

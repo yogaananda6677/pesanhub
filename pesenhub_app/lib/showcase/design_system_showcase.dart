@@ -139,7 +139,7 @@ class _DesignSystemShowcaseState extends State<DesignSystemShowcase> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Display: Nasi Goreng Spesial',
+            'Display: Martabak Telur Spesial',
             style: AppTypography.display,
           ),
           const SizedBox(height: AppSpacing.sm),

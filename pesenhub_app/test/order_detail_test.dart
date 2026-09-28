@@ -35,10 +35,10 @@ void main() {
           takeawayNotes: takeawayNotes,
           items: const [
             QueueOrderItem(
-              name: 'Nasi Goreng Spesial',
+              name: 'Martabak Telur Spesial',
               quantity: 2,
               unitPrice: 28000,
-              notes: 'Pedas Level 2, Telur Ceplok',
+              notes: 'Pedas Level 2, Telur Bebek Ekstra',
               isDrink: false,
             ),
             QueueOrderItem(

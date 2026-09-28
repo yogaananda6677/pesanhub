@@ -75,8 +75,8 @@ void main() {
             const MenuItem(
               id: 'menu-1',
               categoryId: 'cat-1',
-              sku: 'NASGOR-01',
-              name: 'Nasi Goreng Spesial',
+              sku: 'MAR-01',
+              name: 'Martabak Telur Spesial',
               priceAmount: 25000,
             ),
           );

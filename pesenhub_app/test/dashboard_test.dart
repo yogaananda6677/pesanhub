@@ -145,6 +145,8 @@ void main() {
         expect(find.text('Ringkasan Operasional'), findsOneWidget);
 
         // 1-Tap to Queue: tap 'Menunggu Konfirmasi' metric card
+        await tester.ensureVisible(find.text('Menunggu Konfirmasi'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Menunggu Konfirmasi'));
         await tester.pumpAndSettle();
         expect(find.text('Antrean Dapur'), findsOneWidget);

@@ -6,7 +6,7 @@ Dokumen ini mendokumentasikan spesifikasi implementasi pencarian menu dengan deb
 
 ## 1. Latar Belakang & Kebutuhan Desain
 
-Kasir outlet nasi goreng merangkap berbagai tugas fisik (memasak, meracik minuman, membungkus pesanan).
+Kasir outlet martabak dan terang bulan merangkap berbagai tugas fisik (membuat adonan, menuang loyang terang bulan, menggoreng martabak telur, meracik minuman, dan membungkus pesanan).
 Katalog pemesanan POS/KDS membutuhkan:
 1. **Pencarian Cepat Tanpa Lag**: Kasir dapat mengetik nama menu atau SKU (misal *"Gila"*, *"Seafood"*, *"ESTEH"*) dan hasil terfilter seketika dengan debounce 250ms tanpa menurunkan performa UI.
 2. **Filter Kategori Terarah**: Tab filter kategori (*Semua*, *Makanan*, *Minuman*, *Tambahan*) dengan counter jumlah item untuk pemindaian instan.

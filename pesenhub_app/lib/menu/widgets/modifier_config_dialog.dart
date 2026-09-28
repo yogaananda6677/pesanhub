@@ -316,8 +316,63 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: group.options.map((option) {
-              return _buildOptionChip(group, option);
+              return group.code == 'extra_isian'
+                  ? _buildQuantityOption(group, option)
+                  : _buildOptionChip(group, option);
             }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuantityOption(MenuModifierGroup group, MenuOption option) {
+    final quantity = _state.optionQuantity(group.id, option.id);
+    return Container(
+      constraints: const BoxConstraints(minWidth: 210),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: quantity > 0 ? AppColors.primaryContainer : AppColors.surface,
+        borderRadius: AppSpacing.borderRadiusMd,
+        border: Border.all(
+          color: quantity > 0 ? AppColors.primary : AppColors.border,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Expanded(
+            child: Text(
+              option.isAvailable
+                  ? '${option.name} (+Rp ${option.priceDeltaAmount})'
+                  : '${option.name} (Habis)',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: option.isAvailable
+                    ? AppColors.textPrimary
+                    : AppColors.textMuted,
+              ),
+            ),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Kurangi ${option.name}',
+            onPressed: quantity > 0
+                ? () => _state.decrementOption(group, option)
+                : null,
+            icon: const Icon(Icons.remove_circle_outline_rounded),
+          ),
+          Text('$quantity', style: AppTypography.titleMedium),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Tambah ${option.name}',
+            onPressed: option.isAvailable
+                ? () => _state.incrementOption(group, option)
+                : null,
+            icon: const Icon(Icons.add_circle_outline_rounded),
           ),
         ],
       ),

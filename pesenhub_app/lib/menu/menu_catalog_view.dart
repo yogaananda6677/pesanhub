@@ -126,7 +126,7 @@ class _MenuCatalogViewState extends State<MenuCatalogView> {
                   Expanded(
                     child: AppTextField(
                       controller: _searchController,
-                      hintText: 'Cari menu (Nasi Goreng, Es Teh, SKU)...',
+                      hintText: 'Cari menu (Martabak, Terang Bulan, SKU)...',
                       prefixIcon: const Icon(Icons.search_rounded),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(

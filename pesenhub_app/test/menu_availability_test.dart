@@ -21,9 +21,9 @@ void main() {
     const MenuItem(
       id: 'menu-1',
       categoryId: 'cat-food',
-      sku: 'NGS-01',
-      name: 'Nasi Goreng Spesial',
-      description: 'Nasi goreng lezat dengan telur dan ayam suwir',
+      sku: 'MAR-01',
+      name: 'Martabak Telur Spesial',
+      description: 'Martabak telur gurih lezat dengan daging sapi cincang',
       priceAmount: 25000,
       isAvailable: true,
       version: 1,
@@ -44,9 +44,9 @@ void main() {
     const MenuItem(
       id: 'menu-3',
       categoryId: 'cat-food',
-      sku: 'MGS-01',
-      name: 'Mie Goreng Seafood',
-      description: 'Mie goreng dengan udang dan cumi',
+      sku: 'TER-01',
+      name: 'Terang Bulan Cokelat Keju',
+      description: 'Terang bulan bersarang dengan cokelat dan keju',
       priceAmount: 32000,
       isAvailable: false, // Initial Out of Stock
       version: 1,
@@ -242,15 +242,15 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // 1. Initially menu-1 (Nasi Goreng Spesial) is available and can be tapped/added
+        // 1. Initially menu-1 (Martabak Telur Spesial) is available and can be tapped/added
         expect(posMenuController.allMenus.first.isAvailable, isTrue);
-        expect(find.text('Nasi Goreng Spesial'), findsOneWidget);
+        expect(find.text('Martabak Telur Spesial'), findsOneWidget);
 
         // 2. Mark menu-1 as unavailable via availabilityController
         await availabilityController.toggleAvailability('menu-1');
         await tester.pumpAndSettle();
 
-        // 3. In POS view, Nasi Goreng Spesial now shows "Habis" badge
+        // 3. In POS view, Martabak Telur Spesial now shows "Habis" badge
         expect(find.text('Habis'), findsNWidgets(2)); // menu-3 and now menu-1
         expect(posMenuController.allMenus.first.isAvailable, isFalse);
 
@@ -297,9 +297,9 @@ void main() {
         await tester.tap(find.text('Habis (1)'));
         await tester.pumpAndSettle();
 
-        // Now only 1 card (Mie Goreng Seafood) is visible
+        // Now only 1 card (Terang Bulan Cokelat Keju) is visible
         expect(find.byType(MenuAvailabilityCard), findsOneWidget);
-        expect(find.text('Mie Goreng Seafood'), findsOneWidget);
+        expect(find.text('Terang Bulan Cokelat Keju'), findsOneWidget);
 
         // 4. Empty State: Search for non-existent item
         controller.setStatusFilter('ALL');

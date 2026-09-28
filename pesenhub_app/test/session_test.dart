@@ -15,8 +15,8 @@ import 'package:pesenhub_app/data/remote/pesenhub_api_client.dart';
 const approvedUser = AuthUser(
   id: 'user-1',
   email: 'ow***@example.test',
-  displayName: 'Owner',
-  role: 'OWNER',
+  displayName: 'Admin',
+  role: 'ADMIN',
   status: ApprovalStatus.approved,
 );
 
@@ -108,8 +108,8 @@ void main() {
       const pending = AuthUser(
         id: 'user-2',
         email: 'pe***@example.test',
-        displayName: 'Pending Owner',
-        role: 'OWNER',
+        displayName: 'Pending Admin',
+        role: 'ADMIN',
         status: ApprovalStatus.pending,
       );
       final store = MemorySessionStore();
@@ -257,8 +257,8 @@ void main() {
     const pending = AuthUser(
       id: 'user-2',
       email: 'pe***@example.test',
-      displayName: 'Pending Owner',
-      role: 'OWNER',
+      displayName: 'Pending Admin',
+      role: 'ADMIN',
       status: ApprovalStatus.pending,
     );
     final controller = SessionController(
@@ -278,7 +278,7 @@ void main() {
     controller.dispose();
   });
 
-  test('Superadmin account never unlocks the Owner mobile runtime', () async {
+  test('Superadmin account never unlocks the outlet mobile runtime', () async {
     const superadmin = AuthUser(
       id: 'admin-1',
       email: 'ad***@example.test',

@@ -37,7 +37,7 @@ void main() {
             paymentStatus: 'UNPAID',
             items: [
               QueueOrderItem(
-                name: 'Nasi Goreng',
+                name: 'Martabak Telur',
                 quantity: 1,
                 unitPrice: 20000,
               ),
@@ -56,7 +56,7 @@ void main() {
             paymentStatus: 'PAID',
             items: [
               QueueOrderItem(
-                name: 'Nasi Goreng',
+                name: 'Martabak Telur',
                 quantity: 1,
                 unitPrice: 20000,
               ),
@@ -98,7 +98,7 @@ void main() {
           orderStatus: 'ACCEPTED',
           paymentStatus: 'UNPAID',
           items: [
-            QueueOrderItem(name: 'Mie Goreng', quantity: 1, unitPrice: 18000),
+            QueueOrderItem(name: 'Terang Bulan', quantity: 1, unitPrice: 18000),
           ],
           createdAt: DateTime(2026),
           version: 1,
@@ -113,7 +113,7 @@ void main() {
           orderStatus: 'ACCEPTED',
           paymentStatus: 'PAID', // Server webhook confirmed payment
           items: [
-            QueueOrderItem(name: 'Mie Goreng', quantity: 1, unitPrice: 18000),
+            QueueOrderItem(name: 'Terang Bulan', quantity: 1, unitPrice: 18000),
           ],
           createdAt: DateTime(2026),
           version: 2,

@@ -130,6 +130,35 @@ void main() {
   });
 
   test(
+    'cashier invitation sends only normalized email and trusts backend role',
+    () async {
+      late http.Request captured;
+      final client = PesenHubApiClient(
+        config: config(),
+        accessToken: accessToken,
+        client: MockClient((request) async {
+          captured = request;
+          return http.Response(
+            jsonEncode({
+              'id': 'invite-1',
+              'email': 'ca***@example.com',
+              'role': 'CASHIER',
+              'status': 'PENDING',
+            }),
+            201,
+          );
+        }),
+      );
+
+      final masked = await client.inviteCashier('  Cashier@Example.com  ');
+      expect(masked, 'ca***@example.com');
+      expect(captured.url.path, '/api/v1/admin/cashiers/invitations');
+      expect(jsonDecode(captured.body), {'email': 'cashier@example.com'});
+      expect(captured.body, isNot(contains('role')));
+    },
+  );
+
+  test(
     'outbox mutation is reduced to backend allowlist and remains idempotent',
     () async {
       late http.Request captured;

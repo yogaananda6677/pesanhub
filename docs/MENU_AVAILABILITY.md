@@ -6,7 +6,7 @@ Dokumentasi arsitektur, kontrol otorisasi (*role guard*), alur pembaruan optimis
 
 ## 1. Latar Belakang dan Tujuan
 
-Dalam operasional harian outlet (seperti warung nasi goreng atau gerai F&B cepat saji), bahan baku tertentu (misal: telur, cumi, atau varian bumbu) dapat habis sewaktu-waktu di tengah jam sibuk. Staf kasir dan dapur memerlukan kemampuan untuk:
+Dalam operasional harian outlet martabak dan terang bulan, bahan baku tertentu (misal: telur bebek, keju, cokelat toblerone, atau daging sapi) dapat habis sewaktu-waktu di tengah jam sibuk. Staf kasir dan dapur memerlukan kemampuan untuk:
 1. Mengubah status ketersediaan item menu (*Tersedia* vs *Habis*) dalam hitungan detik.
 2. Memperoleh umpan balik langsung tanpa jeda (*optimistic UI*).
 3. Menjamin bahwa jika terjadi kegagalan jaringan atau konflik versi (*concurrent update conflict*), status UI dikembalikan (*rollback*) ke kondisi server aktual secara aman.
@@ -71,7 +71,7 @@ sequenceDiagram
     alt Sukses
         API-->>Ctrl: HTTP 200 OK (updated MenuItem with version + 1)
         Note over Ctrl: Perbarui item dengan version baru & hapus in-flight lock
-        Ctrl->>UI: Tampilkan banner sukses ("Nasi Goreng ditandai sebagai Habis")
+        Ctrl->>UI: Tampilkan banner sukses ("Martabak Telur ditandai sebagai Habis")
     else Kegagalan (Konflik Versi / Network Timeout)
         API-->>Ctrl: HTTP 409 VERSION_CONFLICT / Network Error
         Note over Ctrl: Rollback ke previousAvailable & previousVersion

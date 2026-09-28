@@ -55,7 +55,7 @@ func (m *SessionManager) IssuePersistent(subject, role string) (string, string, 
 		return "", "", time.Time{}, err
 	}
 	expires := now.Add(m.ttl)
-	if role != "STAFF" && role != "OWNER" && role != "SUPERADMIN" {
+	if !validSessionRole(role) {
 		return "", "", time.Time{}, errors.New("invalid session role")
 	}
 	sessionID := base64.RawURLEncoding.EncodeToString(random[:])
@@ -87,7 +87,7 @@ func (m *SessionManager) Verify(ctx context.Context, token string) (customer.Pri
 	}
 	var value claims
 	if json.Unmarshal(payload, &value) != nil || value.Subject == "" || value.Nonce == "" || value.Session == "" ||
-		(value.Role != "STAFF" && value.Role != "OWNER" && value.Role != "SUPERADMIN") {
+		!validSessionRole(value.Role) {
 		return customer.Principal{}, false
 	}
 	now := m.now().UTC().Unix()
@@ -107,6 +107,10 @@ func (m *SessionManager) Verify(ctx context.Context, token string) (customer.Pri
 		}
 	}
 	return customer.Principal{Subject: value.Subject, Role: role, SessionID: value.Session}, true
+}
+
+func validSessionRole(role string) bool {
+	return role == "STAFF" || role == "ADMIN" || role == "CASHIER" || role == "SUPERADMIN"
 }
 
 func (m *SessionManager) signature(payload string) string {

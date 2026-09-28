@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -167,74 +169,101 @@ enum AppBannerType { info, success, warning, error }
 /// Every variant combines icon, title, message, and semantic announcement so
 /// meaning never depends on color alone.
 abstract final class AppFeedback {
-  static Duration _defaultDurationFor(AppBannerType type) {
-    switch (type) {
-      case AppBannerType.success:
-        return const Duration(milliseconds: 1200);
-      case AppBannerType.error:
-        return const Duration(seconds: 4);
-      case AppBannerType.warning:
-        return const Duration(seconds: 3);
-      case AppBannerType.info:
-        return const Duration(seconds: 2);
-    }
-  }
+  static const Duration displayDuration = Duration(seconds: 1);
+  static OverlayEntry? _activeEntry;
 
   static void show(
     BuildContext context, {
     required String message,
     AppBannerType type = AppBannerType.info,
-    Duration? duration,
   }) {
-    final messenger = ScaffoldMessenger.of(context);
     final visual = _visualFor(type);
-    final effectiveDuration = duration ?? _defaultDurationFor(type);
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          key: Key('app-feedback-${type.name}'),
-          backgroundColor: visual.background,
-          duration: effectiveDuration,
-          content: Semantics(
-            key: const Key('app-feedback-live-region'),
-            liveRegion: true,
-            excludeSemantics: true,
-            label: '${visual.title}. $message',
-            child: Row(
-              children: [
-                Icon(visual.icon, color: visual.foreground),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        visual.title,
-                        style: AppTypography.labelLarge.copyWith(
-                          color: visual.foreground,
-                        ),
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) return;
+
+    ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+    _dismiss();
+    _activeEntry = OverlayEntry(
+      builder: (overlayContext) {
+        final topPadding = MediaQuery.paddingOf(overlayContext).top;
+        return _TimedFeedback(
+          duration: displayDuration,
+          onDismiss: _dismiss,
+          child: Positioned(
+            top: topPadding + AppSpacing.sm,
+            left: AppSpacing.md,
+            right: AppSpacing.md,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Material(
+                  key: Key('app-feedback-${type.name}'),
+                  color: visual.background,
+                  elevation: 8,
+                  borderRadius: AppSpacing.borderRadiusMd,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    child: Semantics(
+                      key: const Key('app-feedback-live-region'),
+                      liveRegion: true,
+                      excludeSemantics: true,
+                      label: '${visual.title}. $message',
+                      child: Row(
+                        children: [
+                          Icon(visual.icon, color: visual.foreground),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  visual.title,
+                                  style: AppTypography.labelLarge.copyWith(
+                                    color: visual.foreground,
+                                  ),
+                                ),
+                                Text(
+                                  message,
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: visual.foreground,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Tutup alert',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: _dismiss,
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: visual.foreground,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        message,
-                        style: AppTypography.bodySmall.copyWith(
-                          color: visual.foreground,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-          action: SnackBarAction(
-            label: 'Tutup',
-            textColor: visual.foreground,
-            onPressed: messenger.hideCurrentSnackBar,
-          ),
-        ),
-      );
+        );
+      },
+    );
+    overlay.insert(_activeEntry!);
+  }
+
+  static void _dismiss() {
+    final entry = _activeEntry;
+    _activeEntry = null;
+    if (entry?.mounted ?? false) entry!.remove();
   }
 
   static _FeedbackVisual _visualFor(AppBannerType type) {
@@ -265,6 +294,40 @@ abstract final class AppFeedback {
       ),
     };
   }
+}
+
+class _TimedFeedback extends StatefulWidget {
+  final Duration duration;
+  final VoidCallback onDismiss;
+  final Widget child;
+
+  const _TimedFeedback({
+    required this.duration,
+    required this.onDismiss,
+    required this.child,
+  });
+
+  @override
+  State<_TimedFeedback> createState() => _TimedFeedbackState();
+}
+
+class _TimedFeedbackState extends State<_TimedFeedback> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(widget.duration, widget.onDismiss);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _FeedbackVisual {

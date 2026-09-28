@@ -38,7 +38,7 @@ void main() {
             items ??
             const [
               QueueOrderItem(
-                name: 'Nasi Goreng Spesial',
+                name: 'Martabak Telur Spesial',
                 quantity: 1,
                 unitPrice: 28000,
                 notes: 'Pedas Level 2',
@@ -149,7 +149,7 @@ void main() {
           takeawayNotes: 'Pisah bumbu & kuah',
           items: const [
             QueueOrderItem(
-              name: 'Nasi Goreng Gila',
+              name: 'Martabak Telur Bebek',
               quantity: 2,
               unitPrice: 30000,
               notes: 'Pedas Level 3, Topping Sosis',
@@ -179,7 +179,7 @@ void main() {
         // Takeaway notes
         expect(find.text('Bungkus: Pisah bumbu & kuah'), findsOneWidget);
         // Food item & notes
-        expect(find.text('Nasi Goreng Gila'), findsOneWidget);
+        expect(find.text('Martabak Telur Bebek'), findsOneWidget);
         expect(find.text('Pedas Level 3, Topping Sosis'), findsOneWidget);
         // Barista drinks section
         expect(find.text('Minuman Barista (1)'), findsOneWidget);

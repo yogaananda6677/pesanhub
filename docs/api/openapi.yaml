@@ -17,8 +17,8 @@ paths:
         '201': {description: Challenge issued, content: {application/json: {schema: {$ref: '#/components/schemas/GoogleChallenge'}}}}
   /auth/google:
     post:
-      summary: Verify Google identity and issue an approval-aware Owner session
-      operationId: loginOwnerWithGoogle
+      summary: Verify Google identity and issue an approval-aware outlet session
+      operationId: loginWithGoogle
       security: []
       parameters:
         - $ref: '#/components/parameters/RequestID'
@@ -35,7 +35,7 @@ paths:
   /auth/me:
     get:
       summary: Revalidate current user role and approval status
-      operationId: getAuthenticatedOwner
+      operationId: getAuthenticatedUser
       security: [{bearerAuth: []}]
       responses:
         '200': {description: Current masked user, content: {application/json: {schema: {$ref: '#/components/schemas/AuthUser'}}}}
@@ -43,7 +43,7 @@ paths:
   /auth/logout:
     post:
       summary: Revoke the current application session
-      operationId: logoutOwner
+      operationId: logoutUser
       security: [{bearerAuth: []}]
       responses:
         '204': {description: Session revoked}
@@ -199,6 +199,32 @@ paths:
         content: {application/json: {schema: {$ref: '#/components/schemas/MenuMutation'}}}
       responses:
         '201': {description: Menu created, content: {application/json: {schema: {$ref: '#/components/schemas/CatalogMenu'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /admin/menu-images:
+    post:
+      summary: Upload a menu image (JPEG, PNG, or WebP; maximum 5 MB)
+      operationId: uploadMenuImage
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: {type: string, format: binary}
+      responses:
+        '201':
+          description: Image uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [image_url]
+                properties:
+                  image_url: {type: string, format: uri}
         '403': {$ref: '#/components/responses/Forbidden'}
         '422': {$ref: '#/components/responses/ValidationError'}
   /admin/menus/{id}:
@@ -478,6 +504,48 @@ paths:
                 $ref: '#/components/schemas/ExampleCollection'
         '400':
           $ref: '#/components/responses/InvalidQuery'
+  /superadmin/login:
+    post:
+      summary: Authenticate Superadmin using fixed credentials
+      operationId: loginSuperadmin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: {type: string}
+                password: {type: string}
+      responses:
+        '200':
+          description: Superadmin authenticated and session issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: {type: string}
+                  token_type: {type: string, example: Bearer}
+                  expires_at: {type: string, format: date-time}
+                  user:
+                    $ref: '#/components/schemas/SuperadminUserSummary'
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '401':
+          description: Invalid username or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /superadmin/health/snapshot:
     get:
       summary: Retrieve system health snapshot across all infrastructure components
@@ -524,9 +592,25 @@ paths:
       responses:
         '200': {description: User list, content: {application/json: {schema: {$ref: '#/components/schemas/SuperadminUserCollection'}}}}
         '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /admin/cashiers/invitations:
+    post:
+      summary: Invite a Cashier using a Google-verified email address
+      operationId: inviteCashier
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SuperadminInviteRequest'}
+      responses:
+        '201': {description: CASHIER invitation created and email delivery requested, content: {application/json: {schema: {$ref: '#/components/schemas/SuperadminInvitation'}}}}
+        '403': {description: Admin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '409': {description: User already exists, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '422': {description: Invalid email format, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '503': {description: Invitation saved but Gmail delivery failed, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
   /superadmin/users/invitations:
     get:
-      summary: List pending owner invitations
+      summary: List pending Cashier invitations
       operationId: listSuperadminInvitations
       security: [{bearerAuth: []}]
       parameters:
@@ -543,7 +627,7 @@ paths:
         '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
   /superadmin/users/invite:
     post:
-      summary: Create an invitation for an owner Google email
+      summary: Create a Cashier invitation for a Google email
       operationId: inviteSuperadminUser
       security: [{bearerAuth: []}]
       requestBody:
@@ -558,7 +642,7 @@ paths:
         '422': {description: Invalid email format, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
   /superadmin/users/invitations/{id}:
     delete:
-      summary: Revoke an active owner invitation
+      summary: Revoke an active Cashier invitation
       operationId: revokeSuperadminInvitation
       security: [{bearerAuth: []}]
       parameters:
@@ -664,6 +748,28 @@ paths:
         '200': {description: Sessions revoked}
         '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
         '404': {description: User not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/users/{id}/whatsapp:
+    get:
+      summary: Get WhatsApp gateway status and device configuration for an account
+      operationId: getSuperadminUserWhatsAppStatus
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200': {description: WhatsApp account status, content: {application/json: {schema: {$ref: '#/components/schemas/WhatsAppAccountStatus'}}}}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+        '404': {description: User not found, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+  /superadmin/whatsapp/status:
+    get:
+      summary: Get WhatsApp gateway overview status across all admin accounts
+      operationId: getSuperadminWhatsAppOverview
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: WhatsApp accounts overview, content: {application/json: {schema: {$ref: '#/components/schemas/WhatsAppAccountStatusOverview'}}}}
+        '403': {description: Superadmin authorization required, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
   /superadmin/audits:
     get:
       summary: List audit trail entries for user status changes
@@ -775,7 +881,7 @@ components:
         id: {type: string, format: uuid}
         email: {type: string, description: Masked email address}
         display_name: {type: string}
-        role: {type: string, enum: [OWNER, SUPERADMIN]}
+        role: {type: string, enum: [ADMIN, CASHIER, SUPERADMIN]}
         status: {type: string, enum: [PENDING_APPROVAL, APPROVED, REJECTED, SUSPENDED]}
         approved_at: {type: string, format: date-time}
     GoogleSessionResponse:
@@ -906,11 +1012,12 @@ components:
         payment: {$ref: '#/components/schemas/Payment'}
     ModifierSnapshot:
       type: object
-      required: [id, name, price_delta_amount]
+      required: [id, name, price_delta_amount, quantity]
       properties:
         id: {type: string, format: uuid}
         name: {type: string}
         price_delta_amount: {type: integer, format: int64}
+        quantity: {type: integer, minimum: 1}
     OrderItemDetail:
       type: object
       required: [id, menu_id, name, sku, unit_price_amount, quantity, line_total_amount]
@@ -1005,15 +1112,29 @@ components:
         is_active: {type: boolean}
         sort_order: {type: integer, minimum: 0}
         options: {type: array, items: {$ref: '#/components/schemas/ModifierOption'}}
+    ChannelPrice:
+      type: object
+      required: [channel, amount]
+      properties:
+        channel: {type: string, enum: [OFFLINE, GOFOOD, GRABFOOD, SHOPEEFOOD]}
+        amount: {type: integer, format: int64, minimum: 0}
     CatalogMenu:
       type: object
-      required: [id, category_id, sku, name, price_amount, is_available, version, sort_order, modifier_groups]
+      required: [id, category_id, sku, name, product_type, price_amount, channel_prices, is_available, version, sort_order, modifier_groups]
       properties:
         id: {type: string, format: uuid}
         category_id: {type: string, format: uuid}
         sku: {type: string}
         name: {type: string}
+        product_type: {type: string, enum: [MARTABAK_TELUR, TERANG_BULAN]}
+        image_url: {type: string, format: uri}
         price_amount: {type: integer, format: int64, minimum: 0}
+        hpp_amount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Administrator-only cost price; omitted from cashier/public responses.
+        channel_prices: {type: array, items: {$ref: '#/components/schemas/ChannelPrice'}}
         is_available: {type: boolean}
         version: {type: integer, minimum: 1}
         sort_order: {type: integer, minimum: 0}
@@ -1060,13 +1181,22 @@ components:
     MenuMutation:
       type: object
       additionalProperties: false
-      required: [category_id, sku, name, price_amount, sort_order, version, modifier_groups]
+      required: [category_id, sku, name, product_type, price_amount, hpp_amount, channel_prices, sort_order, version, modifier_groups]
       properties:
         category_id: {type: string, format: uuid}
         sku: {type: string, minLength: 1, maxLength: 64}
         name: {type: string, minLength: 1, maxLength: 160}
         description: {type: string}
+        product_type: {type: string, enum: [MARTABAK_TELUR, TERANG_BULAN]}
+        image_url: {type: string, format: uri, maxLength: 500}
         price_amount: {type: integer, format: int64, minimum: 0}
+        hpp_amount: {type: integer, format: int64, minimum: 0}
+        channel_prices:
+          type: array
+          minItems: 4
+          maxItems: 4
+          description: Exactly one price for each supported channel.
+          items: {$ref: '#/components/schemas/ChannelPrice'}
         sort_order: {type: integer, minimum: 0}
         version: {type: integer, minimum: 1}
         modifier_groups: {type: array, items: {$ref: '#/components/schemas/ModifierGroupMutation'}}
@@ -1255,7 +1385,7 @@ components:
         id: {type: string, format: uuid}
         email: {type: string}
         display_name: {type: string}
-        role: {type: string, enum: [OWNER, SUPERADMIN]}
+        role: {type: string, enum: [ADMIN, CASHIER, SUPERADMIN]}
         status: {type: string, enum: [PENDING_APPROVAL, APPROVED, REJECTED, SUSPENDED]}
         status_reason: {type: string}
         approved_at: {type: string, format: date-time, nullable: true}
@@ -1273,12 +1403,13 @@ components:
         offset: {type: integer}
     SuperadminInvitation:
       type: object
-      required: [id, email, outlet_name, status, invited_by, created_at, expires_at]
+      required: [id, email, outlet_name, role, status, invited_by, created_at, expires_at]
       properties:
         id: {type: string, format: uuid}
         email: {type: string}
         outlet_name: {type: string}
-        status: {type: string}
+        role: {type: string, const: CASHIER}
+        status: {type: string, enum: [PENDING, ACCEPTED, REVOKED]}
         invited_by: {type: string, format: uuid}
         created_at: {type: string, format: date-time}
         expires_at: {type: string, format: date-time}
@@ -1367,4 +1498,25 @@ components:
           type: array
           items:
             type: object
-
+    WhatsAppAccountStatus:
+      type: object
+      required: [user_id, display_name, email_masked, role, status, is_connected, gateway_state, device_id, phone_masked, message]
+      properties:
+        user_id: {type: string}
+        display_name: {type: string}
+        email_masked: {type: string}
+        role: {type: string}
+        status: {type: string, enum: [CONNECTED, DISCONNECTED, GATEWAY_DOWN]}
+        is_connected: {type: boolean}
+        gateway_state: {type: string, enum: [up, down]}
+        device_id: {type: string}
+        phone_masked: {type: string}
+        jid: {type: string}
+        message: {type: string}
+    WhatsAppAccountStatusOverview:
+      type: object
+      required: [accounts]
+      properties:
+        accounts:
+          type: array
+          items: {$ref: '#/components/schemas/WhatsAppAccountStatus'}
