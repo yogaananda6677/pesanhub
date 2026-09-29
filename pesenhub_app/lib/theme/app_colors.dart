@@ -3,26 +3,26 @@ import 'package:flutter/material.dart';
 /// AppColors defines the centralized color palette for PesenHub.
 /// Built for high visual contrast and fast scanning in kitchen and cashier environments.
 abstract final class AppColors {
-  // Brand Primary & Accent
-  static const Color primary = Color(0xFF176B4D);
-  static const Color primaryHover = Color(0xFF104C38);
-  static const Color primaryContainer = Color(0xFFEAF6F0);
+  // Brand Primary & Accent (Cocoa Brown & Butter Gold - Martabak & Terang Bulan)
+  static const Color primary = Color(0xFF7A321F);
+  static const Color primaryHover = Color(0xFF4B2118);
+  static const Color primaryContainer = Color(0xFFF7E8DF);
   static const Color onPrimary = Color(0xFFFFFFFF);
 
-  static const Color secondary = Color(0xFFE98A15);
-  static const Color secondaryContainer = Color(0xFFFFF5E7);
+  static const Color secondary = Color(0xFFF2A72B);
+  static const Color secondaryContainer = Color(0xFFFFF1D2);
   static const Color onSecondary = Color(0xFFFFFFFF);
 
   // Surfaces & Backgrounds
-  static const Color background = Color(0xFFF7F6F2);
+  static const Color background = Color(0xFFFFF8EE);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFFBFCFB);
-  static const Color border = Color(0xFFDCE4DF);
-  static const Color borderFocus = Color(0xFF176B4D);
+  static const Color surfaceVariant = Color(0xFFFFFCF7);
+  static const Color border = Color(0xFFE9DDD3);
+  static const Color borderFocus = Color(0xFF7A321F);
 
   // Typography Colors
-  static const Color textPrimary = Color(0xFF18251F);
-  static const Color textSecondary = Color(0xFF6C7972);
+  static const Color textPrimary = Color(0xFF2B1B16);
+  static const Color textSecondary = Color(0xFF75645D);
   static const Color textMuted = Color(0xFF8E9A93);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
 

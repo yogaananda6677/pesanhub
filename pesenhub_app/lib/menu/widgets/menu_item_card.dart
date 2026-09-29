@@ -5,6 +5,7 @@ import '../../theme/app_typography.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../models/menu_item.dart';
+import 'menu_image_view.dart';
 
 /// MenuItemCard renders a scannable menu item with price, description, and availability controls.
 /// Fulfills Issue #27 Acceptance Criteria #1 and #2.
@@ -34,8 +35,14 @@ class MenuItemCard extends StatelessWidget {
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  if (item.imageUrl != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: MenuImageView(item: item, width: 56, height: 56),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
                   Expanded(
                     child: Text(
                       item.name,

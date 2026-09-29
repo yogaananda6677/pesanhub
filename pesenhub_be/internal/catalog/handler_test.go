@@ -1,15 +1,51 @@
 package catalog
 
 import (
+	"bytes"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/httpserver"
 	"strings"
 	"testing"
 )
+
+func TestAdminCanUploadValidatedMenuImage(t *testing.T) {
+	dir := t.TempDir()
+	h := NewHandlerWithUploadDir(NewService(&fakeRepo{}, func() string {
+		return "10000000-0000-4000-8000-000000000001"
+	}), dir)
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("image", "menu.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// PNG magic plus enough bytes for net/http MIME detection.
+	if _, err = part.Write(append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 504)...)); err != nil {
+		t.Fatal(err)
+	}
+	if err = writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "http://api.test/api/v1/admin/menu-images", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req = req.WithContext(customer.WithPrincipal(req.Context(), customer.Principal{Subject: "admin-1", Role: "ADMIN"}))
+	rr := httptest.NewRecorder()
+	h.UploadImage(rr, req)
+
+	if rr.Code != http.StatusCreated || !strings.Contains(rr.Body.String(), `"image_url":"http://api.test/uploads/10000000000040008000000000000001.png"`) {
+		t.Fatalf("response=%d %s", rr.Code, rr.Body.String())
+	}
+	if _, err = os.Stat(filepath.Join(dir, "10000000000040008000000000000001.png")); err != nil {
+		t.Fatalf("uploaded file: %v", err)
+	}
+}
 
 func TestPublicCatalogSuccess(t *testing.T) {
 	repo := &fakeRepo{categories: []Category{{ID: "c1", Name: "Makanan", Active: true, Menus: []Menu{{ID: "m1", Name: "Nasi Goreng", PriceAmount: 15000, Available: true}}}}}

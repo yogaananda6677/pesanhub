@@ -3,18 +3,25 @@ package superadmin
 import (
 	"context"
 	"errors"
+	"net/mail"
 	"strings"
 	"time"
 
 	"pesenhub/backend/internal/gowa"
 )
 
+var ErrInvitationDelivery = errors.New("invitation was saved but email delivery failed")
+
+type InvitationSender interface {
+	SendCashierInvitation(context.Context, string, string, time.Time) error
+}
 type Database interface {
 	Ping(context.Context) error
 }
 
 type ServiceStore interface {
 	ListUsers(ctx context.Context, filterStatus Status, search string, limit, offset int) ([]UserSummary, error)
+	GetUser(ctx context.Context, userID string) (*UserSummary, error)
 	ListInvitations(ctx context.Context, limit, offset int) ([]Invitation, error)
 	CreateInvitation(ctx context.Context, actorID, email, outletName string, expiry time.Duration) (Invitation, error)
 	RevokeInvitation(ctx context.Context, invitationID string) error
@@ -24,16 +31,28 @@ type ServiceStore interface {
 	GetTrafficMetrics(ctx context.Context, timeRange string) (TrafficMetrics, error)
 }
 
+type WhatsAppGatewayInspector interface {
+	gowa.Checker
+	DeviceID() string
+	ListDevices(context.Context) ([]gowa.DeviceInfo, error)
+	ResolveActiveDevice(context.Context) (*gowa.DeviceInfo, error)
+}
+
 type ActiveConnectionCounter interface {
 	ClientCount() int
 }
 
 type Service struct {
-	store       ServiceStore
-	db          Database
-	gowaChecker gowa.Checker
-	wsCounter   ActiveConnectionCounter
-	now         func() time.Time
+	store            ServiceStore
+	db               Database
+	gowaChecker      gowa.Checker
+	wsCounter        ActiveConnectionCounter
+	now              func() time.Time
+	invitationSender InvitationSender
+}
+
+func (s *Service) SetInvitationSender(sender InvitationSender) {
+	s.invitationSender = sender
 }
 
 func NewService(store ServiceStore, db Database, gowaChecker gowa.Checker, wsCounter ActiveConnectionCounter) *Service {
@@ -183,10 +202,20 @@ func (s *Service) ListInvitations(ctx context.Context, limit, offset int) ([]Inv
 
 func (s *Service) InviteUser(ctx context.Context, actorID, email, outletName string) (Invitation, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
-	if email == "" || !strings.Contains(email, "@") || len(email) > 320 {
+	address, parseErr := mail.ParseAddress(email)
+	if parseErr != nil || address.Address != email || len(email) > 320 {
 		return Invitation{}, errors.New("invalid email address")
 	}
-	return s.store.CreateInvitation(ctx, actorID, email, outletName, 7*24*time.Hour)
+	invitation, err := s.store.CreateInvitation(ctx, actorID, email, outletName, 7*24*time.Hour)
+	if err != nil {
+		return Invitation{}, err
+	}
+	if s.invitationSender != nil {
+		if err := s.invitationSender.SendCashierInvitation(ctx, email, invitation.OutletName, invitation.ExpiresAt); err != nil {
+			return invitation, ErrInvitationDelivery
+		}
+	}
+	return invitation, nil
 }
 
 func (s *Service) RevokeInvitation(ctx context.Context, invitationID string) error {
@@ -246,4 +275,104 @@ func (s *Service) RevokeSessions(ctx context.Context, targetUserID string) error
 
 func (s *Service) ListAudits(ctx context.Context, targetUserID string, limit, offset int) ([]AuditEntry, error) {
 	return s.store.ListAudits(ctx, targetUserID, limit, offset)
+}
+
+func (s *Service) GetUserWhatsAppStatus(ctx context.Context, userID string) (WhatsAppAccountStatus, error) {
+	user, err := s.store.GetUser(ctx, userID)
+	if err != nil {
+		return WhatsAppAccountStatus{}, err
+	}
+
+	result := WhatsAppAccountStatus{
+		UserID:       user.ID,
+		DisplayName:  user.DisplayName,
+		EmailMasked:  user.EmailMasked,
+		Role:         user.Role,
+		Status:       "DISCONNECTED",
+		IsConnected:  false,
+		GatewayState: "down",
+		DeviceID:     "-",
+		PhoneMasked:  "-",
+		Message:      "WhatsApp belum terhubung.",
+	}
+
+	if s.gowaChecker == nil {
+		result.Status = "GATEWAY_DOWN"
+		result.Message = "WhatsApp Gateway checker belum dikonfigurasi."
+		return result, nil
+	}
+
+	readiness := s.gowaChecker.Readiness(ctx)
+	result.GatewayState = string(readiness.API)
+
+	if readiness.API != gowa.APIUp {
+		result.Status = "GATEWAY_DOWN"
+		result.Message = "Layanan WhatsApp Gateway (GOWA) sedang tidak aktif atau tidak dapat dihubungi."
+		return result, nil
+	}
+
+	inspector, ok := s.gowaChecker.(WhatsAppGatewayInspector)
+	if !ok {
+		if readiness.Device == gowa.DeviceReady {
+			result.IsConnected = true
+			result.Status = "CONNECTED"
+			result.Message = "Perangkat WhatsApp terhubung aktif."
+		} else {
+			result.Status = "DISCONNECTED"
+			result.Message = "Perangkat WhatsApp belum terhubung."
+		}
+		return result, nil
+	}
+
+	devID := inspector.DeviceID()
+	if devID != "" {
+		result.DeviceID = devID
+	}
+
+	activeDevice, err := inspector.ResolveActiveDevice(ctx)
+	if err != nil || activeDevice == nil {
+		result.Status = "DISCONNECTED"
+		result.Message = "Perangkat WhatsApp belum dipasangkan (pairing/scan QR)."
+		return result, nil
+	}
+
+	result.DeviceID = activeDevice.ID
+	isConnected := activeDevice.State == "logged_in" || activeDevice.State == "connected"
+	result.IsConnected = isConnected
+
+	if isConnected {
+		result.Status = "CONNECTED"
+		result.Message = "Perangkat WhatsApp terhubung dan siap menerima pesan."
+		if activeDevice.JID != "" {
+			result.JID = activeDevice.JID
+			phone := strings.Split(activeDevice.JID, "@")[0]
+			phone = strings.Split(phone, ":")[0]
+			if phone != "" {
+				result.PhoneMasked = gowa.MaskPhone("+" + phone)
+			}
+		}
+	} else {
+		result.Status = "DISCONNECTED"
+		result.Message = "Perangkat WhatsApp terdaftar namun sedang terputus."
+	}
+
+	return result, nil
+}
+
+func (s *Service) ListWhatsAppAccountStatuses(ctx context.Context) ([]WhatsAppAccountStatus, error) {
+	users, err := s.store.ListUsers(ctx, "ALL", "", 100, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []WhatsAppAccountStatus
+	for _, u := range users {
+		if u.Role == RoleAdmin || u.Role == RoleCashier {
+			status, err := s.GetUserWhatsAppStatus(ctx, u.ID)
+			if err == nil {
+				results = append(results, status)
+			}
+		}
+	}
+	return results, nil
 }

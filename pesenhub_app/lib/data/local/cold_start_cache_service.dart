@@ -1,4 +1,3 @@
-import '../../menu/models/sample_menu_data.dart';
 import '../../queue/models/queue_order.dart';
 import 'local_database.dart';
 import 'menu_local_repository.dart';
@@ -66,19 +65,6 @@ class ColdStartCacheService {
       catalog: catalogResult,
       queue: queueResult,
       isOffline: isOffline,
-    );
-  }
-
-  /// Seeds default sample data into SQLite if the database is brand new and empty.
-  Future<void> seedInitialSampleDataIfEmpty() async {
-    final existingCategories = await menuRepo.getCategories();
-    if (existingCategories.isNotEmpty) return;
-
-    // Seed sample menu catalog
-    await menuRepo.saveCatalog(
-      categories: SampleMenuData.sampleCategories,
-      items: SampleMenuData.sampleMenus,
-      cachedAt: DateTime.now(),
     );
   }
 }

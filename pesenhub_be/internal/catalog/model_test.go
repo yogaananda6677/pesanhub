@@ -11,10 +11,14 @@ func TestPriceValidatesAvailabilityAndModifiers(t *testing.T) {
 	if err != nil || price != 20000 {
 		t.Fatalf("price=%d err=%v", price, err)
 	}
-	for name, selections := range map[string][]Selection{"missing required": {}, "foreign option": {{GroupID: "spice", OptionIDs: []string{"egg"}}}, "duplicate": {{GroupID: "spice", OptionIDs: []string{"hot", "hot"}}}} {
+	for name, selections := range map[string][]Selection{"missing required": {}, "foreign option": {{GroupID: "spice", OptionIDs: []string{"egg"}}}, "over group limit": {{GroupID: "spice", OptionIDs: []string{"hot", "hot"}}}} {
 		if _, err := Price(menu, selections); !errors.Is(err, ErrInvalidModifier) {
 			t.Errorf("%s err=%v", name, err)
 		}
+	}
+	price, err = Price(menu, []Selection{{GroupID: "spice", OptionIDs: []string{"hot"}}, {GroupID: "topping", OptionIDs: []string{"egg", "egg"}}})
+	if err != nil || price != 25000 {
+		t.Fatalf("quantity price=%d err=%v", price, err)
 	}
 	if _, err := Price(menu, []Selection{{GroupID: "spice", OptionIDs: []string{"mild"}}}); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("unavailable option err=%v", err)

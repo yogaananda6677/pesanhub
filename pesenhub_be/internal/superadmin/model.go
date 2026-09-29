@@ -6,8 +6,10 @@ type Role string
 type Status string
 
 const (
-	RoleOwner      Role = "OWNER"
+	RoleAdmin      Role = "ADMIN"
+	RoleCashier    Role = "CASHIER"
 	RoleSuperadmin Role = "SUPERADMIN"
+	RoleOwner      Role = RoleAdmin
 
 	StatusPending   Status = "PENDING_APPROVAL"
 	StatusApproved  Status = "APPROVED"
@@ -32,11 +34,11 @@ type UserSummary struct {
 	UpdatedAt          time.Time  `json:"updated_at"`
 	ActiveSessionCount int        `json:"active_session_count"`
 }
-
 type Invitation struct {
 	ID          string    `json:"id"`
 	EmailMasked string    `json:"email"`
 	OutletName  string    `json:"outlet_name"`
+	Role        Role      `json:"role"`
 	Status      string    `json:"status"`
 	InvitedBy   string    `json:"invited_by"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -114,4 +116,18 @@ type TrafficMetrics struct {
 	SyncConflictCount int64           `json:"sync_conflict_count"`
 	LastSyncAt        *time.Time      `json:"last_sync_at,omitempty"`
 	Series            []TrafficSample `json:"series"`
+}
+
+type WhatsAppAccountStatus struct {
+	UserID       string `json:"user_id"`
+	DisplayName  string `json:"display_name"`
+	EmailMasked  string `json:"email_masked"`
+	Role         Role   `json:"role"`
+	Status       string `json:"status"` // CONNECTED, DISCONNECTED, GATEWAY_DOWN
+	IsConnected  bool   `json:"is_connected"`
+	GatewayState string `json:"gateway_state"` // up, down
+	DeviceID     string `json:"device_id"`
+	PhoneMasked  string `json:"phone_masked"`
+	JID          string `json:"jid,omitempty"`
+	Message      string `json:"message"`
 }

@@ -8,7 +8,7 @@ import '../models/menu_option.dart';
 class ModifierSelectionState extends ChangeNotifier {
   final MenuItem menuItem;
   int _quantity = 1;
-  final Map<String, Set<String>> _selectedOptionIds = {};
+  final Map<String, Map<String, int>> _selectedOptionQuantities = {};
   String _notes = '';
 
   ModifierSelectionState({required this.menuItem, int initialQuantity = 1}) {
@@ -19,7 +19,15 @@ class ModifierSelectionState extends ChangeNotifier {
   int get quantity => _quantity;
   String get notes => _notes;
   Map<String, Set<String>> get selectedOptionIds =>
-      Map.unmodifiable(_selectedOptionIds);
+      Map<String, Set<String>>.unmodifiable({
+        for (final entry in _selectedOptionQuantities.entries)
+          entry.key: Set<String>.unmodifiable(entry.value.keys),
+      });
+  Map<String, Map<String, int>> get selectedOptionQuantities =>
+      Map<String, Map<String, int>>.unmodifiable({
+        for (final entry in _selectedOptionQuantities.entries)
+          entry.key: Map<String, int>.unmodifiable(entry.value),
+      });
 
   void setNotes(String val) {
     _notes = val;
@@ -56,15 +64,18 @@ class ModifierSelectionState extends ChangeNotifier {
           orElse: () => group.options.first,
         );
         if (firstAvailable.isAvailable) {
-          _selectedOptionIds[group.id] = {firstAvailable.id};
+          _selectedOptionQuantities[group.id] = {firstAvailable.id: 1};
         }
       }
     }
   }
 
   bool isOptionSelected(String groupId, String optionId) {
-    return _selectedOptionIds[groupId]?.contains(optionId) ?? false;
+    return optionQuantity(groupId, optionId) > 0;
   }
+
+  int optionQuantity(String groupId, String optionId) =>
+      _selectedOptionQuantities[groupId]?[optionId] ?? 0;
 
   /// Toggles or sets an option. Rejects unavailable options (Criteria #2).
   void toggleOption(MenuModifierGroup group, MenuOption option) {
@@ -73,38 +84,69 @@ class ModifierSelectionState extends ChangeNotifier {
       return;
     }
 
-    final currentSet = _selectedOptionIds[group.id] ?? <String>{};
+    final current = _selectedOptionQuantities[group.id] ?? <String, int>{};
 
     if (group.isSingleSelect) {
       // Radio mode
       if (group.isRequired) {
-        _selectedOptionIds[group.id] = {option.id};
+        _selectedOptionQuantities[group.id] = {option.id: 1};
       } else {
-        if (currentSet.contains(option.id)) {
-          _selectedOptionIds[group.id] = {};
+        if (current.containsKey(option.id)) {
+          _selectedOptionQuantities[group.id] = {};
         } else {
-          _selectedOptionIds[group.id] = {option.id};
+          _selectedOptionQuantities[group.id] = {option.id: 1};
         }
       }
     } else {
       // Checkbox / Multi-select mode
-      final updatedSet = Set<String>.from(currentSet);
-      if (updatedSet.contains(option.id)) {
-        updatedSet.remove(option.id);
+      final updated = Map<String, int>.from(current);
+      if (updated.containsKey(option.id)) {
+        updated.remove(option.id);
       } else {
-        if (updatedSet.length < group.maxSelect) {
-          updatedSet.add(option.id);
+        if (_selectionCount(updated) < group.maxSelect) {
+          updated[option.id] = 1;
         }
       }
-      _selectedOptionIds[group.id] = updatedSet;
+      _selectedOptionQuantities[group.id] = updated;
     }
 
     notifyListeners();
   }
 
+  void incrementOption(MenuModifierGroup group, MenuOption option) {
+    if (!option.isAvailable || group.isSingleSelect) return;
+    final updated = Map<String, int>.from(
+      _selectedOptionQuantities[group.id] ?? const {},
+    );
+    if (_selectionCount(updated) >= group.maxSelect) return;
+    updated[option.id] = (updated[option.id] ?? 0) + 1;
+    _selectedOptionQuantities[group.id] = updated;
+    notifyListeners();
+  }
+
+  void decrementOption(MenuModifierGroup group, MenuOption option) {
+    final updated = Map<String, int>.from(
+      _selectedOptionQuantities[group.id] ?? const {},
+    );
+    final quantity = updated[option.id] ?? 0;
+    if (quantity <= 1) {
+      updated.remove(option.id);
+    } else {
+      updated[option.id] = quantity - 1;
+    }
+    _selectedOptionQuantities[group.id] = updated;
+    notifyListeners();
+  }
+
+  int _selectionCount(Map<String, int> values) =>
+      values.values.fold(0, (sum, quantity) => sum + quantity);
+
+  int _groupSelectionCount(String groupId) =>
+      _selectionCount(_selectedOptionQuantities[groupId] ?? const {});
+
   /// Validates a single modifier group.
   bool isGroupValid(MenuModifierGroup group) {
-    final count = _selectedOptionIds[group.id]?.length ?? 0;
+    final count = _groupSelectionCount(group.id);
     return count >= group.minSelect && count <= group.maxSelect;
   }
 
@@ -112,7 +154,7 @@ class ModifierSelectionState extends ChangeNotifier {
   Map<String, String> get validationErrors {
     final errors = <String, String>{};
     for (final group in menuItem.activeModifierGroups) {
-      final count = _selectedOptionIds[group.id]?.length ?? 0;
+      final count = _groupSelectionCount(group.id);
       if (count < group.minSelect) {
         if (group.minSelect == 1 && group.maxSelect == 1) {
           errors[group.id] = 'Wajib memilih 1 ${group.name}';
@@ -133,11 +175,12 @@ class ModifierSelectionState extends ChangeNotifier {
   int get unitPrice {
     int total = menuItem.priceAmount;
     for (final group in menuItem.activeModifierGroups) {
-      final selectedIds = _selectedOptionIds[group.id];
-      if (selectedIds != null) {
+      final quantities = _selectedOptionQuantities[group.id];
+      if (quantities != null) {
         for (final option in group.options) {
-          if (selectedIds.contains(option.id)) {
-            total += option.priceDeltaAmount;
+          final quantity = quantities[option.id] ?? 0;
+          if (quantity > 0) {
+            total += option.priceDeltaAmount * quantity;
           }
         }
       }
@@ -152,11 +195,14 @@ class ModifierSelectionState extends ChangeNotifier {
   List<String> get selectedOptionNames {
     final names = <String>[];
     for (final group in menuItem.activeModifierGroups) {
-      final selectedIds = _selectedOptionIds[group.id];
-      if (selectedIds != null) {
+      final quantities = _selectedOptionQuantities[group.id];
+      if (quantities != null) {
         for (final option in group.options) {
-          if (selectedIds.contains(option.id)) {
-            names.add(option.name);
+          final quantity = quantities[option.id] ?? 0;
+          if (quantity > 0) {
+            names.add(
+              quantity == 1 ? option.name : '${option.name} ×$quantity',
+            );
           }
         }
       }

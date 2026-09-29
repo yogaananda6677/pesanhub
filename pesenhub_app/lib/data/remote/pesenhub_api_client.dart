@@ -92,6 +92,28 @@ class PesenHubApiClient
     await _send('POST', config.resolve('auth/logout'));
   }
 
+  Future<String> inviteCashier(String email) async {
+    final response = await _send(
+      'POST',
+      config.resolve('admin/cashiers/invitations'),
+      body: jsonEncode({'email': email.trim().toLowerCase()}),
+    );
+    try {
+      final json = _decodeObject(response);
+      final maskedEmail = json['email'];
+      final role = json['role'];
+      final status = json['status'];
+      if (maskedEmail is! String || role != 'CASHIER' || status != 'PENDING') {
+        throw const FormatException('invalid invitation response');
+      }
+      return maskedEmail;
+    } on ApiFailure {
+      rethrow;
+    } catch (_) {
+      throw _invalidResponse(response);
+    }
+  }
+
   @override
   Future<List<QueueOrder>> fetchQueue() async {
     final response = await _send('GET', config.resolve('orders/queue'));
@@ -176,6 +198,32 @@ class PesenHubApiClient
       body: jsonEncode(encodeMenu(menu)),
     );
     return _decodeMenuResponse(response);
+  }
+
+  Future<String> uploadMenuImage(String filename, List<int> bytes) async {
+    final request = http.MultipartRequest(
+      'POST',
+      config.resolve('admin/menu-images'),
+    );
+    final token = await accessToken();
+    if (token != null && token.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+    final requestId = _nextRequestId();
+    request.headers['X-Request-ID'] = requestId;
+    request.files.add(
+      http.MultipartFile.fromBytes('image', bytes, filename: filename),
+    );
+    final streamed = await _client.send(request);
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _failureForStatus(response, requestId);
+    }
+    final imageUrl = _decodeObject(response)['image_url'];
+    if (imageUrl is! String || imageUrl.isEmpty) {
+      throw _invalidResponse(response);
+    }
+    return imageUrl;
   }
 
   @override

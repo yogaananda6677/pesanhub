@@ -5,6 +5,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_card.dart';
+import '../widgets/brand_logo.dart';
 import 'session.dart';
 
 class LoginView extends StatefulWidget {
@@ -59,11 +60,7 @@ class _LoginViewState extends State<LoginView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Icon(
-                        Icons.storefront_rounded,
-                        size: 56,
-                        color: AppColors.primary,
-                      ),
+                      const Center(child: BrandLogo(size: 80)),
                       const SizedBox(height: AppSpacing.md),
                       Text(
                         'Masuk ke PesenHub',
@@ -72,7 +69,7 @@ class _LoginViewState extends State<LoginView> {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Gunakan akun Google Owner yang telah disetujui Superadmin.',
+                        'Masuk sebagai Admin, atau gunakan akun Google yang diundang sebagai Kasir.',
                         textAlign: TextAlign.center,
                         style: AppTypography.bodyMedium.copyWith(
                           color: AppColors.textSecondary,
@@ -103,7 +100,7 @@ class _LoginViewState extends State<LoginView> {
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
-                        'Login Google hanya memverifikasi identitas. Akses aplikasi diberikan setelah persetujuan Superadmin.',
+                        'Google memverifikasi kepemilikan email. Role dan hak akses tetap ditentukan oleh backend PesenHub.',
                         textAlign: TextAlign.center,
                         style: AppTypography.bodySmall.copyWith(
                           color: AppColors.textMuted,

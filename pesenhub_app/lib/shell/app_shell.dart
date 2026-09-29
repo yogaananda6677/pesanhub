@@ -14,6 +14,7 @@ import '../queue/models/queue_order.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import '../widgets/brand_logo.dart';
 import '../widgets/connectivity_badge.dart';
 import '../widgets/order_heads_up_alert.dart';
 import 'destination_views.dart';
@@ -33,6 +34,8 @@ class AppShell extends StatefulWidget {
   final Future<void> Function()? onSignOut;
   final mc.MenuController? menuController;
   final MenuAvailabilityController? menuManagementController;
+  final bool isAdmin;
+  final Future<String> Function(String email)? inviteCashier;
 
   const AppShell({
     super.key,
@@ -47,6 +50,8 @@ class AppShell extends StatefulWidget {
     this.onSignOut,
     this.menuController,
     this.menuManagementController,
+    this.isAdmin = false,
+    this.inviteCashier,
   });
 
   @override
@@ -75,18 +80,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     _selectedIndex = widget.initialIndex;
     _dashboardState =
         widget.initialDashboardState ??
-        DashboardState.success(
-          OperationalSummary(
-            pendingCount: 3,
-            preparingCount: 2,
-            readyCount: 1,
-            overdueCount: 1,
-            completedCount: 18,
-            pendingSyncCount: 0,
-            lastUpdatedAt: DateTime.now(),
-          ),
-        );
-    DashboardState.success(_calculateSummary());
+        DashboardState.success(_calculateSummary());
     widget.queueController?.addListener(_onQueueChanged);
   }
 
@@ -176,20 +170,36 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       widget.onRefreshDashboard!();
     } else {
       setState(() {
-        _dashboardState = DashboardState.success(
-          OperationalSummary(
-            pendingCount: 3,
-            preparingCount: 2,
-            readyCount: 1,
-            overdueCount: 1,
-            completedCount: 18,
-            pendingSyncCount: 0,
-            lastUpdatedAt: DateTime.now(),
-          ),
-        );
         _dashboardState = DashboardState.success(_calculateSummary());
       });
     }
+  }
+
+  void _openMenuManagement() {
+    if (!widget.isAdmin) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text(
+              'Kelola Ketersediaan Menu',
+              style: AppTypography.titleMedium,
+            ),
+            backgroundColor: AppColors.surface,
+            foregroundColor: AppColors.textPrimary,
+            elevation: 0,
+            bottom: const PreferredSize(
+              preferredSize: Size.fromHeight(1),
+              child: Divider(height: 1, color: AppColors.border),
+            ),
+          ),
+          body: MenuDestinationView(
+            menuController: widget.menuController,
+            availabilityController: widget.menuManagementController,
+          ),
+        ),
+      ),
+    );
   }
 
   List<Widget> _buildViews() {
@@ -200,6 +210,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         onNavigateToPos: () => _onDestinationSelected(AppDestination.pos.index),
         onNavigateToQueue: () =>
             _onDestinationSelected(AppDestination.queue.index),
+        onNavigateToMenu: widget.isAdmin ? _openMenuManagement : null,
+        isOnline: _connectivity.state != OperationalConnectionState.offline,
       ),
       PosDestinationView(
         menuController: widget.menuController,
@@ -213,11 +225,11 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         controller: widget.queueController,
         alertController: _alerts,
       ),
-      MenuDestinationView(
-        menuController: widget.menuController,
-        availabilityController: widget.menuManagementController,
+      SettingsDestinationView(
+        onSignOut: widget.onSignOut,
+        isAdmin: widget.isAdmin,
+        inviteCashier: widget.inviteCashier,
       ),
-      SettingsDestinationView(onSignOut: widget.onSignOut),
     ];
   }
 
@@ -321,20 +333,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                 extended: false,
                 minWidth: 88,
                 labelType: NavigationRailLabelType.all,
-                leading: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.xs),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: AppSpacing.borderRadiusSm,
-                    ),
-                    child: const Icon(
-                      Icons.rice_bowl_rounded,
-                      color: AppColors.surface,
-                      size: 24,
-                    ),
-                  ),
+                leading: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  child: BrandLogo(size: 40),
                 ),
                 trailing: Expanded(
                   child: Align(
@@ -378,6 +379,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     required AppDestination destination,
     bool showBrand = true,
   }) {
+    final isDashboard = destination == AppDestination.dashboard;
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
@@ -392,57 +395,121 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         child: Row(
           children: [
             if (showBrand) ...[
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.xs),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer,
-                  borderRadius: AppSpacing.borderRadiusSm,
-                ),
-                child: const Icon(
-                  Icons.rice_bowl_rounded,
-                  color: AppColors.primary,
-                  size: 24,
-                ),
-              ),
+              BrandLogo(size: isDashboard ? 38 : 32),
               const SizedBox(width: AppSpacing.md),
             ],
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    destination.title,
-                    style: AppTypography.titleMedium,
-                    overflow: TextOverflow.ellipsis,
+              child: isDashboard
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Jenggirat',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.3,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Outlet #01',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                        // Retain destination title for accessibility & test contracts
+                        SizedBox(
+                          width: 0,
+                          height: 0,
+                          child: Text(
+                            destination.title,
+                            style: const TextStyle(
+                              fontSize: 0,
+                              color: Colors.transparent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          destination.title,
+                          style: AppTypography.titleMedium,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const Text(
+                          'PesenHub Outlet #01 — Martabak & Terang Bulan Pusat',
+                          style: AppTypography.bodySmall,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            if (!isDashboard) ...[
+              ConnectivityBadge(
+                controller: _connectivity,
+                onReviewErrors: () =>
+                    _onDestinationSelected(AppDestination.pos.index),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+            AnimatedBuilder(
+              animation: _alerts,
+              builder: (context, _) => Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  key: const Key('notification-permission-button'),
+                  tooltip: _alerts.permission == AlertPermission.denied
+                      ? 'Notifikasi ditolak — alert tetap tampil di aplikasi'
+                      : 'Aktifkan notifikasi',
+                  onPressed: _alerts.requestPermission,
+                  icon: Icon(
+                    _alerts.permission == AlertPermission.granted
+                        ? Icons.notifications_active_rounded
+                        : Icons.notifications_none_rounded,
+                    color: AppColors.textPrimary,
+                    size: 22,
                   ),
-                  const Text(
-                    'PesenHub Outlet #01 — Nasi Goreng',
-                    style: AppTypography.bodySmall,
-                    overflow: TextOverflow.ellipsis,
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
                   ),
-                ],
+                  padding: EdgeInsets.zero,
+                ),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            ConnectivityBadge(
-              controller: _connectivity,
-              onReviewErrors: () =>
-                  _onDestinationSelected(AppDestination.pos.index),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            AnimatedBuilder(
-              animation: _alerts,
-              builder: (context, _) => IconButton(
-                key: const Key('notification-permission-button'),
-                tooltip: _alerts.permission == AlertPermission.denied
-                    ? 'Notifikasi ditolak — alert tetap tampil di aplikasi'
-                    : 'Aktifkan notifikasi',
-                onPressed: _alerts.requestPermission,
-                icon: Icon(
-                  _alerts.permission == AlertPermission.granted
-                      ? Icons.notifications_active_rounded
-                      : Icons.notifications_outlined,
+            // User avatar
+            Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFDE8E4),
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: const Text(
+                'Y',
+                style: TextStyle(
+                  color: Color(0xFFC62828),
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),

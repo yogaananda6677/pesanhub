@@ -92,6 +92,33 @@ func (s *Store) ListUsers(ctx context.Context, filterStatus Status, search strin
 	return users, rows.Err()
 }
 
+func (s *Store) GetUser(ctx context.Context, userID string) (*UserSummary, error) {
+	query := `
+		SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status,
+		       COALESCE(u.status_reason, ''), u.approved_at, u.created_at, u.updated_at,
+		       COALESCE((
+		           SELECT count(*)
+		           FROM app_sessions s
+		           WHERE s.user_id = u.id AND s.expires_at > now() AND s.revoked_at IS NULL
+		       ), 0) AS active_sessions
+		FROM app_users u
+		WHERE u.id = $1::uuid`
+	var u UserSummary
+	var rawEmail string
+	if err := s.pool.QueryRow(ctx, query, userID).Scan(
+		&u.ID, &rawEmail, &u.DisplayName, &u.Role, &u.Status,
+		&u.StatusReason, &u.ApprovedAt, &u.CreatedAt, &u.UpdatedAt,
+		&u.ActiveSessionCount,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	u.EmailMasked = MaskEmail(rawEmail)
+	return &u, nil
+}
+
 func (s *Store) ListInvitations(ctx context.Context, limit, offset int) ([]Invitation, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
@@ -101,7 +128,7 @@ func (s *Store) ListInvitations(ctx context.Context, limit, offset int) ([]Invit
 	}
 
 	query := `
-		SELECT i.id::text, i.email_normalized, i.outlet_name, i.status, i.invited_by::text,
+		SELECT i.id::text, i.email_normalized, i.outlet_name, i.role, i.status, i.invited_by::text,
 		       i.created_at, i.expires_at
 		FROM user_invitations i
 		WHERE i.status = 'PENDING' AND i.expires_at > now()
@@ -120,7 +147,7 @@ func (s *Store) ListInvitations(ctx context.Context, limit, offset int) ([]Invit
 		var inv Invitation
 		var rawEmail string
 		if err := rows.Scan(
-			&inv.ID, &rawEmail, &inv.OutletName, &inv.Status, &inv.InvitedBy,
+			&inv.ID, &rawEmail, &inv.OutletName, &inv.Role, &inv.Status, &inv.InvitedBy,
 			&inv.CreatedAt, &inv.ExpiresAt,
 		); err != nil {
 			return nil, err
@@ -140,10 +167,18 @@ func (s *Store) CreateInvitation(ctx context.Context, actorID, email, outletName
 	if expiry <= 0 {
 		expiry = 7 * 24 * time.Hour
 	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Invitation{}, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, "identity-email:"+email); err != nil {
+		return Invitation{}, err
+	}
 
 	// Check if already registered in app_users
 	var exists bool
-	err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM app_users WHERE email_normalized = $1)`, email).Scan(&exists)
+	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM app_users WHERE email_normalized = $1)`, email).Scan(&exists)
 	if err != nil {
 		return Invitation{}, err
 	}
@@ -160,31 +195,41 @@ func (s *Store) CreateInvitation(ctx context.Context, actorID, email, outletName
 	expiresAt := now.Add(expiry)
 
 	query := `
-		INSERT INTO user_invitations (id, email_normalized, invited_by, outlet_name, status, expires_at, created_at, updated_at)
-		VALUES ($1::uuid, $2, $3::uuid, $4, 'PENDING', $5, $6, $6)
+		INSERT INTO user_invitations (id, email_normalized, invited_by, outlet_name, role, status, expires_at, created_at, updated_at)
+		VALUES ($1::uuid, $2, $3::uuid, $4, 'CASHIER', 'PENDING', $5, $6, $6)
 		ON DUPLICATE KEY UPDATE
 		    invited_by = VALUES(invited_by),
 		    outlet_name = VALUES(outlet_name),
+		    role = 'CASHIER',
 		    status = 'PENDING',
 		    expires_at = VALUES(expires_at),
+		    accepted_user_id = NULL,
+		    accepted_at = NULL,
 		    updated_at = VALUES(updated_at)
 	`
 
 	var inv Invitation
 	inv.ID = invID
 	inv.OutletName = outletName
+	inv.Role = RoleCashier
 	inv.Status = "PENDING"
 	inv.InvitedBy = actorID
 	inv.EmailMasked = MaskEmail(email)
 
-	_, err = s.pool.Exec(ctx, query, invID, email, actorID, outletName, expiresAt, now)
+	_, err = tx.Exec(ctx, query, invID, email, actorID, outletName, expiresAt, now)
 	if err != nil {
 		return Invitation{}, err
 	}
-	err = s.pool.QueryRow(ctx, `SELECT id, created_at, expires_at FROM user_invitations WHERE email_normalized=$1`, email).Scan(
+	err = tx.QueryRow(ctx, `SELECT id, created_at, expires_at FROM user_invitations WHERE email_normalized=$1`, email).Scan(
 		&inv.ID, &inv.CreatedAt, &inv.ExpiresAt,
 	)
-	return inv, err
+	if err != nil {
+		return Invitation{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Invitation{}, err
+	}
+	return inv, nil
 }
 
 func (s *Store) RevokeInvitation(ctx context.Context, invitationID string) error {

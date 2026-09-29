@@ -6,8 +6,12 @@ type Role string
 type Status string
 
 const (
-	RoleOwner      Role = "OWNER"
+	RoleAdmin      Role = "ADMIN"
+	RoleCashier    Role = "CASHIER"
 	RoleSuperadmin Role = "SUPERADMIN"
+	// RoleOwner is retained as a source-compatibility alias; persisted users are
+	// migrated to ADMIN and new sessions never issue OWNER.
+	RoleOwner Role = RoleAdmin
 
 	StatusPending   Status = "PENDING_APPROVAL"
 	StatusApproved  Status = "APPROVED"

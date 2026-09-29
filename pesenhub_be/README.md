@@ -17,19 +17,29 @@ cd pesenhub_be
 
 Panduan lengkap dan aturan operasional tersedia di [ATURAN.md](ATURAN.md).
 
-Owner masuk melalui Google dan backend menukar identity token tervalidasi di
-`POST /api/v1/auth/google`. Login pertama menghasilkan akun
-`PENDING_APPROVAL`; fitur operasional tetap terkunci sampai Superadmin menyetujui
-akun. Sesi bertanda tangan dan tercatat di MySQL dipakai untuk REST serta WebSocket.
+Admin dan Kasir masuk melalui Google; backend menukar identity token tervalidasi
+di `POST /api/v1/auth/google`. Login Admin pertama menghasilkan akun
+`PENDING_APPROVAL` sampai Superadmin menyetujuinya. Kasir diundang oleh Admin
+melalui `POST /api/v1/admin/cashiers/invitations` dan langsung aktif hanya bila
+email Google terverifikasi sama dengan email undangan. Sesi bertanda tangan dan
+tercatat di MySQL dipakai untuk REST serta WebSocket.
 Token `APP_STAFF_TOKEN`/`APP_KDS_TOKEN` masih diterima untuk integrasi layanan
 lama, tidak ditanam pada artifact mobile. Jangan mencatat URL handshake WebSocket
 yang memuat query token. Detail keamanan ada di
-[GOOGLE_OWNER_APPROVAL_AUTH.md](../docs/GOOGLE_OWNER_APPROVAL_AUTH.md), dan panduan client di
+[AUTH_ADMIN_CASHIER.md](../docs/AUTH_ADMIN_CASHIER.md), dan panduan client di
 [FLUTTER_BACKEND_INTEGRATION.md](../docs/FLUTTER_BACKEND_INTEGRATION.md).
 
 Readiness gagal dengan HTTP 503 bila MySQL turun. GOWA yang belum memiliki device terhubung menghasilkan HTTP 200 berstatus `degraded`; field `gowa_api`, `gowa_device`, dan `gowa_reason` membedakan API gagal, device tidak ada, device terputus, dan timeout tanpa melakukan pairing otomatis.
 
 Webhook GOWA diterima pada `POST /webhooks/gowa` dan wajib memakai header HMAC-SHA256 `X-Hub-Signature-256`. Lihat [GOWA_HEALTH_WEBHOOK_SECURITY.md](../docs/GOWA_HEALTH_WEBHOOK_SECURITY.md) sebelum memasangkan device development.
+
+## Hermes Agent dan 9Router
+
+Alur pesan otomatis adalah `WhatsApp → GOWA → backend policy → Hermes Agent → backend catalog validation → GOWA`. Backend memeriksa prompt injection, keluhan, permintaan staf, dan batas domain sebelum pesan dikirim ke Hermes. Hasil Hermes hanya dianggap ekstraksi sementara; menu, modifier, ketersediaan, harga, confidence, konfirmasi, dan pembuatan order tetap divalidasi oleh backend.
+
+Backend terhubung ke API Server Hermes Agent melalui `HERMES_AGENT_BASE_URL` dan `HERMES_AGENT_API_KEY`. 9Router tidak dipanggil oleh backend: konfigurasikan 9Router sebagai custom provider di Hermes Agent menggunakan contoh [`hermes/config.yaml.example`](hermes/config.yaml.example). Aktifkan API Server Hermes dengan variabel pada [`hermes/.env.example`](hermes/.env.example).
+
+Skill [`pesenhub-order`](.hermes/skills/pesenhub-order/SKILL.md) memakai plugin project-local [`pesenhub_catalog`](.hermes/plugins/pesenhub/tools.py) untuk mengambil katalog aktif melalui endpoint read-only `GET /api/v1/hermes/tools/catalog`. Endpoint ini hanya menerima bearer `HERMES_TOOL_API_KEY`, yang wajib berbeda dari API key server Hermes. Jalankan `hermes skills trust` sekali dari root backend, set `HERMES_ENABLE_PROJECT_PLUGINS=true`, lalu jalankan Hermes Agent dari direktori yang sama pada port `8642`; container API menjangkaunya melalui `host.docker.internal`.
 
 ## Midtrans sandbox QRIS
 

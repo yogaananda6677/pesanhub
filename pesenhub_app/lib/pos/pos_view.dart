@@ -8,7 +8,6 @@ import '../connectivity/connectivity_controller.dart';
 import '../menu/controllers/menu_controller.dart' as mc;
 import '../menu/controllers/modifier_selection_state.dart';
 import '../menu/menu_catalog_view.dart';
-import '../menu/models/sample_menu_data.dart';
 import '../queue/models/queue_order.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -57,10 +56,7 @@ class _PosViewState extends State<PosView> {
     super.initState();
     _menuController =
         widget.menuController ??
-        mc.MenuController(
-          initialCategories: SampleMenuData.sampleCategories,
-          initialMenus: SampleMenuData.sampleMenus,
-        );
+        mc.MenuController(initialCategories: const [], initialMenus: const []);
     _cartController = widget.cartController ?? CartController();
 
     _nameController.text = _cartController.customerName;
@@ -92,7 +88,6 @@ class _PosViewState extends State<PosView> {
       context,
       message: '${modifierState.menuItem.name} ditambahkan ke keranjang.',
       type: AppBannerType.success,
-      duration: const Duration(seconds: 2),
     );
   }
 

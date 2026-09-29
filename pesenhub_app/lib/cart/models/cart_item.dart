@@ -6,6 +6,7 @@ class CartItem {
   final MenuItem menuItem;
   final String modifierSummary;
   final Map<String, Set<String>> selectedOptionIds;
+  final Map<String, Map<String, int>> selectedOptionQuantities;
   final int quantity;
   final int unitPrice;
   final String notes;
@@ -15,6 +16,7 @@ class CartItem {
     required this.menuItem,
     required this.modifierSummary,
     required this.selectedOptionIds,
+    this.selectedOptionQuantities = const {},
     required this.quantity,
     required this.unitPrice,
     this.notes = '',
@@ -28,6 +30,7 @@ class CartItem {
     MenuItem? menuItem,
     String? modifierSummary,
     Map<String, Set<String>>? selectedOptionIds,
+    Map<String, Map<String, int>>? selectedOptionQuantities,
     int? quantity,
     int? unitPrice,
     String? notes,
@@ -37,6 +40,8 @@ class CartItem {
       menuItem: menuItem ?? this.menuItem,
       modifierSummary: modifierSummary ?? this.modifierSummary,
       selectedOptionIds: selectedOptionIds ?? this.selectedOptionIds,
+      selectedOptionQuantities:
+          selectedOptionQuantities ?? this.selectedOptionQuantities,
       quantity: quantity ?? this.quantity,
       unitPrice: unitPrice ?? this.unitPrice,
       notes: notes ?? this.notes,

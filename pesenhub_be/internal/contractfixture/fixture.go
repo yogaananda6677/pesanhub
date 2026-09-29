@@ -55,6 +55,7 @@ func Canonical() Fixture {
 	paidAt := createdAt.Add(2 * time.Minute)
 	expiresAt := createdAt.Add(15 * time.Minute)
 	phone := "0812****7890"
+	hpp := int64(15000)
 	nextCursor := "MjAyNi0wOS0wNVQwODowMDowMFosYjEwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAx"
 
 	detail := order.OrderDetail{
@@ -81,7 +82,7 @@ func Canonical() Fixture {
 			LineTotalAmount: 25000,
 			Notes:           "Pedas sedang",
 			Modifiers: []order.ModifierSnapshot{{
-				ID: "f1000000-0000-4000-8000-000000000001", Name: "Pedas sedang", PriceDeltaAmount: 0,
+				ID: "f1000000-0000-4000-8000-000000000001", Name: "Pedas sedang", PriceDeltaAmount: 0, Quantity: 1,
 			}},
 		}},
 		History: []order.OrderStatusHistoryEntry{{
@@ -107,8 +108,8 @@ func Canonical() Fixture {
 			User: appauth.User{
 				ID:          "a1000000-0000-4000-8000-000000000001",
 				EmailMasked: "ow***@example.test",
-				DisplayName: "Owner Kontrak",
-				Role:        appauth.RoleOwner,
+				DisplayName: "Admin Kontrak",
+				Role:        appauth.RoleAdmin,
 				Status:      appauth.StatusApproved,
 				ApprovedAt:  &createdAt,
 			},
@@ -152,7 +153,9 @@ func Canonical() Fixture {
 			ID: "91000000-0000-4000-8000-000000000001", Name: "Makanan", SortOrder: 0, Active: true, Version: 2,
 			Menus: []catalog.Menu{{
 				ID: "92000000-0000-4000-8000-000000000001", CategoryID: "91000000-0000-4000-8000-000000000001",
-				SKU: "CONTRACT-MENU", Name: "Menu Kontrak", PriceAmount: 25000, Available: true, Version: 3, SortOrder: 0,
+				SKU: "CONTRACT-MENU", Name: "Menu Kontrak", ProductType: "MARTABAK_TELUR", PriceAmount: 25000, HPPAmount: &hpp,
+				ChannelPrices: []catalog.ChannelPrice{{Channel: "OFFLINE", Amount: 25000}, {Channel: "GOFOOD", Amount: 30000}, {Channel: "GRABFOOD", Amount: 30000}, {Channel: "SHOPEEFOOD", Amount: 30000}},
+				Available:     true, Version: 3, SortOrder: 0,
 				Groups: []catalog.Group{{
 					ID: "93000000-0000-4000-8000-000000000001", Code: "size", Name: "Ukuran", MinSelect: 1, MaxSelect: 1, Active: true,
 					Options: []catalog.Option{{ID: "94000000-0000-4000-8000-000000000001", Code: "regular", Name: "Reguler", Available: true}},

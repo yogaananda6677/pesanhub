@@ -20,6 +20,7 @@ import (
 	"pesenhub/backend/internal/health"
 	"pesenhub/backend/internal/hermes"
 	"pesenhub/backend/internal/httpserver"
+	"pesenhub/backend/internal/inviteemail"
 	"pesenhub/backend/internal/notification"
 	orderapi "pesenhub/backend/internal/order"
 	"pesenhub/backend/internal/payment"
@@ -155,11 +156,33 @@ func main() {
 			}
 		}
 	}
-	gowaWebhook := gowa.NewWebhookHandler(cfg.GOWA.WebhookSecret, logger, gowa.WithStore(gowaStore), gowa.WithOnMessage(onWhatsAppMessage))
+	gowaWebhook := gowa.NewWebhookHandler(
+		cfg.GOWA.WebhookSecret,
+		logger,
+		gowa.WithStore(gowaStore),
+		gowa.WithOnMessage(onWhatsAppMessage),
+		gowa.WithAsyncOnMessage(cfg.Hermes.Timeout+cfg.GOWA.Timeout+5*time.Second),
+	)
 
 	superadminStore := superadmin.NewStore(pool)
 	superadminService := superadmin.NewService(superadminStore, pool, wc, orderHub)
+	if cfg.InviteEmail.Enabled {
+		inviteSender, senderErr := inviteemail.NewGmailSender(cfg.InviteEmail.Username, cfg.InviteEmail.AppPassword, cfg.InviteEmail.FromName, cfg.InviteEmail.LoginURL)
+		if senderErr != nil {
+			logger.Error("invitation email configuration failed", "error", "invalid configuration")
+			os.Exit(1)
+		}
+		superadminService.SetInvitationSender(inviteSender)
+	}
 	superadminHandler := superadmin.NewHandler(superadminService)
+	superadminHandler.SetAuth(
+		superadmin.AuthConfig{
+			Username: cfg.Auth.SuperadminUsername,
+			Password: cfg.Auth.SuperadminPassword,
+		},
+		identityStore,
+		sessions,
+	)
 	gowaSettings := gowa.NewSettingsHandler(wc)
 
 	mux := http.NewServeMux()
@@ -197,6 +220,8 @@ func main() {
 	mux.HandleFunc("POST /api/v1/admin/menus", catalogHandler.CreateMenu)
 	mux.HandleFunc("PATCH /api/v1/admin/menus/{id}", catalogHandler.UpdateMenu)
 	mux.HandleFunc("PATCH /api/v1/admin/menus/{id}/availability", catalogHandler.Availability)
+	mux.HandleFunc("POST /api/v1/admin/menu-images", catalogHandler.UploadImage)
+	mux.HandleFunc("POST /api/v1/admin/cashiers/invitations", superadminHandler.InviteCashier)
 	mux.HandleFunc("GET /api/v1/orders", orders.List)
 	mux.HandleFunc("GET /api/v1/orders/queue", orders.Queue)
 	mux.HandleFunc("GET /api/v1/orders/{id}", orders.GetByID)
@@ -207,9 +232,12 @@ func main() {
 	mux.HandleFunc("POST /api/v1/orders/{id}/payments/cash", payments.RecordCash)
 	mux.HandleFunc("POST /api/v1/orders/{id}/payments/qris", payments.CreateQRIS)
 	mux.HandleFunc("POST /api/v1/payments/{id}/reconcile", payments.Reconcile)
+	mux.HandleFunc("POST /api/v1/superadmin/login", superadminHandler.Login)
 	mux.HandleFunc("GET /api/v1/superadmin/health/snapshot", superadminHandler.HealthSnapshot)
 	mux.HandleFunc("GET /api/v1/superadmin/telemetry/traffic", superadminHandler.TrafficTelemetry)
 	mux.HandleFunc("GET /api/v1/superadmin/users", superadminHandler.ListUsers)
+	mux.HandleFunc("GET /api/v1/superadmin/users/{id}/whatsapp", superadminHandler.UserWhatsAppStatus)
+	mux.HandleFunc("GET /api/v1/superadmin/whatsapp/status", superadminHandler.WhatsAppOverview)
 	mux.HandleFunc("GET /api/v1/superadmin/users/invitations", superadminHandler.ListInvitations)
 	mux.HandleFunc("POST /api/v1/superadmin/users/invite", superadminHandler.Invite)
 	mux.HandleFunc("DELETE /api/v1/superadmin/users/invitations/{id}", superadminHandler.RevokeInvitation)

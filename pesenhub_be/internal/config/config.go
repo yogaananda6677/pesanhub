@@ -12,12 +12,13 @@ import (
 )
 
 type Config struct {
-	App      App
-	Database Database
-	GOWA     GOWA
-	Midtrans Midtrans
-	Auth     Auth
-	Hermes   Hermes
+	App         App
+	Database    Database
+	GOWA        GOWA
+	Midtrans    Midtrans
+	Auth        Auth
+	InviteEmail InviteEmail
+	Hermes      Hermes
 }
 
 type App struct{ Name, Env, Host, Port, Timezone string }
@@ -35,11 +36,21 @@ type Auth struct {
 	GoogleClientID       string
 	SessionSecret        string
 	SessionTTL           time.Duration
+	SuperadminUsername   string
+	SuperadminPassword   string
+}
+type InviteEmail struct {
+	Enabled     bool
+	Username    string
+	AppPassword string
+	FromName    string
+	LoginURL    string
 }
 type Hermes struct {
 	BaseURL             string
 	Model               string
 	APIKey              string
+	ToolAPIKey          string
 	Timeout             time.Duration
 	ConfidenceThreshold float64
 	MaxAttempts         int
@@ -53,18 +64,29 @@ func Load() (Config, error) {
 		Midtrans: Midtrans{BaseURL: get("MIDTRANS_BASE_URL", "https://api.sandbox.midtrans.com"), ServerKey: os.Getenv("MIDTRANS_SERVER_KEY"), MerchantID: os.Getenv("MIDTRANS_MERCHANT_ID")},
 		Auth: Auth{
 			StaffToken: os.Getenv("APP_STAFF_TOKEN"), KDSToken: os.Getenv("APP_KDS_TOKEN"),
-			GoogleClientID: os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
-			SessionSecret:  os.Getenv("APP_SESSION_SECRET"),
+			GoogleClientID:     os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+			SessionSecret:      os.Getenv("APP_SESSION_SECRET"),
+			SuperadminUsername: get("SUPERADMIN_USERNAME", "superadmin"),
+			SuperadminPassword: get("SUPERADMIN_PASSWORD", "superadmin"),
+		},
+		InviteEmail: InviteEmail{
+			Username: os.Getenv("GMAIL_SMTP_USERNAME"), AppPassword: os.Getenv("GMAIL_SMTP_APP_PASSWORD"),
+			FromName: get("INVITE_EMAIL_FROM_NAME", "PesenHub"), LoginURL: os.Getenv("INVITE_LOGIN_URL"),
 		},
 		Hermes: Hermes{
-			BaseURL:             get("HERMES_LLM_BASE_URL", "http://localhost:11434"),
-			Model:               get("HERMES_LLM_MODEL", "hermes-3-llama-3.1-8b"),
-			APIKey:              os.Getenv("HERMES_LLM_API_KEY"),
+			BaseURL:             get("HERMES_AGENT_BASE_URL", "http://host.docker.internal:8642/v1"),
+			Model:               get("HERMES_AGENT_MODEL", "hermes-agent"),
+			APIKey:              os.Getenv("HERMES_AGENT_API_KEY"),
+			ToolAPIKey:          os.Getenv("HERMES_TOOL_API_KEY"),
 			ConfidenceThreshold: 0.75,
 			MaxAttempts:         3,
 		},
 	}
 	var err error
+	c.InviteEmail.Enabled, err = strconv.ParseBool(get("INVITE_EMAIL_ENABLED", "false"))
+	if err != nil {
+		return Config{}, errors.New("INVITE_EMAIL_ENABLED must be true or false")
+	}
 	c.GOWA.Timeout, err = time.ParseDuration(get("GOWA_REQUEST_TIMEOUT", "3s"))
 	if err != nil || c.GOWA.Timeout <= 0 {
 		return Config{}, errors.New("GOWA_REQUEST_TIMEOUT must be a positive duration")
@@ -77,9 +99,9 @@ func Load() (Config, error) {
 	if err != nil || c.Auth.SessionTTL <= 0 || c.Auth.SessionTTL > 24*time.Hour {
 		return Config{}, errors.New("APP_SESSION_TTL must be a positive duration no longer than 24h")
 	}
-	c.Hermes.Timeout, err = time.ParseDuration(get("HERMES_LLM_TIMEOUT", "30s"))
+	c.Hermes.Timeout, err = time.ParseDuration(get("HERMES_AGENT_TIMEOUT", "60s"))
 	if err != nil || c.Hermes.Timeout <= 0 {
-		return Config{}, errors.New("HERMES_LLM_TIMEOUT must be a positive duration")
+		return Config{}, errors.New("HERMES_AGENT_TIMEOUT must be a positive duration")
 	}
 	if v := os.Getenv("HERMES_CONFIDENCE_THRESHOLD"); v != "" {
 		if threshold, err := strconv.ParseFloat(v, 64); err == nil && threshold > 0 && threshold <= 1.0 {
@@ -100,6 +122,12 @@ func Load() (Config, error) {
 	if len(missing) > 0 {
 		return Config{}, fmt.Errorf("missing required environment configuration: %s", strings.Join(missing, ", "))
 	}
+	if c.App.Env != "test" && (strings.TrimSpace(c.Hermes.APIKey) == "" || strings.TrimSpace(c.Hermes.ToolAPIKey) == "") {
+		return Config{}, errors.New("HERMES_AGENT_API_KEY and HERMES_TOOL_API_KEY are required")
+	}
+	if c.App.Env != "test" && (len(c.Hermes.APIKey) < 32 || len(c.Hermes.ToolAPIKey) < 32 || c.Hermes.APIKey == c.Hermes.ToolAPIKey) {
+		return Config{}, errors.New("Hermes agent and tool API keys must be distinct and contain at least 32 characters")
+	}
 	if len(c.GOWA.WebhookSecret) < 32 {
 		return Config{}, errors.New("GOWA_WEBHOOK_SECRET must contain at least 32 characters")
 	}
@@ -109,11 +137,26 @@ func Load() (Config, error) {
 	if len(c.Auth.SessionSecret) < 32 {
 		return Config{}, errors.New("APP_SESSION_SECRET must contain at least 32 characters")
 	}
+	if c.InviteEmail.Enabled {
+		if strings.TrimSpace(c.InviteEmail.Username) == "" || strings.TrimSpace(c.InviteEmail.AppPassword) == "" || strings.TrimSpace(c.InviteEmail.LoginURL) == "" {
+			return Config{}, errors.New("GMAIL_SMTP_USERNAME, GMAIL_SMTP_APP_PASSWORD, and INVITE_LOGIN_URL are required when invitation email is enabled")
+		}
+		if strings.ContainsAny(c.InviteEmail.Username+c.InviteEmail.FromName, "\r\n") {
+			return Config{}, errors.New("invitation email sender configuration is invalid")
+		}
+		loginURL, parseErr := url.ParseRequestURI(c.InviteEmail.LoginURL)
+		if parseErr != nil || loginURL.Host == "" || (c.App.Env != "development" && c.App.Env != "test" && loginURL.Scheme != "https") {
+			return Config{}, errors.New("INVITE_LOGIN_URL must be a valid HTTPS URL outside development")
+		}
+	}
 	if _, err := url.ParseRequestURI(c.GOWA.BaseURL); err != nil {
 		return Config{}, errors.New("GOWA_BASE_URL must be a valid URL")
 	}
 	if parsed, err := url.ParseRequestURI(c.Midtrans.BaseURL); err != nil || parsed.Host == "" || (c.App.Env != "test" && (parsed.Scheme != "https" || parsed.Hostname() != "api.sandbox.midtrans.com")) {
 		return Config{}, errors.New("MIDTRANS_BASE_URL must be the sandbox HTTPS URL")
+	}
+	if parsed, err := url.ParseRequestURI(c.Hermes.BaseURL); err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return Config{}, errors.New("HERMES_AGENT_BASE_URL must be a valid HTTP URL")
 	}
 	if _, err := time.LoadLocation(c.App.Timezone); err != nil {
 		return Config{}, errors.New("APP_TIMEZONE must be a valid timezone")

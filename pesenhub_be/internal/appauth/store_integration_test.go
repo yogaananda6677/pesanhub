@@ -24,15 +24,18 @@ func TestGoogleIdentityApprovalAndBootstrapIntegration(t *testing.T) {
 	}
 	defer pool.Close()
 	store := NewStore(pool)
-	ownerEmail := "owner-139@example.test"
+	ownerEmail := "admin-139@example.test"
+	cashierEmail := "cashier-139@example.test"
 	superadminEmail := "superadmin-139@example.test"
 	cleanup := func() {
-		_, _ = pool.Exec(context.Background(), `DELETE FROM app_users WHERE email_normalized = ANY($1::text[])`, []string{ownerEmail, superadminEmail})
+		_, _ = pool.Exec(context.Background(), `DELETE FROM user_status_audits WHERE user_id IN (SELECT id FROM app_users WHERE email_normalized = ANY($1::text[])) OR actor_user_id IN (SELECT id FROM app_users WHERE email_normalized = ANY($1::text[]))`, []string{ownerEmail, cashierEmail, superadminEmail})
+		_, _ = pool.Exec(context.Background(), `DELETE FROM user_invitations WHERE email_normalized=$1`, cashierEmail)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM app_users WHERE email_normalized = ANY($1::text[])`, []string{ownerEmail, cashierEmail, superadminEmail})
 	}
 	cleanup()
 	defer cleanup()
 
-	identity := GoogleIdentity{Subject: "google-owner-139", Email: ownerEmail, DisplayName: "Owner 139", EmailVerified: true}
+	identity := GoogleIdentity{Subject: "google-admin-139", Email: ownerEmail, DisplayName: "Admin 139", EmailVerified: true}
 	const workers = 8
 	ids := make(chan string, workers)
 	errs := make(chan error, workers)
@@ -64,7 +67,7 @@ func TestGoogleIdentityApprovalAndBootstrapIntegration(t *testing.T) {
 		}
 	}
 	owner, err := store.UserByID(ctx, ownerID)
-	if err != nil || owner.Status != StatusPending || owner.Role != RoleOwner || owner.EmailMasked != "ow***@example.test" {
+	if err != nil || owner.Status != StatusPending || owner.Role != RoleAdmin || owner.EmailMasked != "ad***@example.test" {
 		t.Fatalf("owner=%#v err=%v", owner, err)
 	}
 	if _, err := store.UpsertGoogleIdentity(ctx, GoogleIdentity{Subject: "different-google-subject", Email: ownerEmail, DisplayName: "Attacker", EmailVerified: true}); !errors.Is(err, ErrIdentityConflict) {
@@ -76,15 +79,34 @@ func TestGoogleIdentityApprovalAndBootstrapIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	role, status, ok := store.ValidateSession(ctx, "session-owner-139-abcdefghijkl", ownerID)
-	if !ok || role != "OWNER" || status != "PENDING_APPROVAL" {
+	if !ok || role != "ADMIN" || status != "PENDING_APPROVAL" {
 		t.Fatalf("pending validation role=%q status=%q ok=%v", role, status, ok)
 	}
 	if _, err := pool.Exec(ctx, `UPDATE app_users SET status='APPROVED', approved_at=now() WHERE id=$1::uuid`, ownerID); err != nil {
 		t.Fatal(err)
 	}
 	role, status, ok = store.ValidateSession(ctx, "session-owner-139-abcdefghijkl", ownerID)
-	if !ok || role != "OWNER" || status != "APPROVED" {
+	if !ok || role != "ADMIN" || status != "APPROVED" {
 		t.Fatalf("approved validation role=%q status=%q ok=%v", role, status, ok)
+	}
+
+	invitationID := "a1390000-0000-4000-8000-000000000001"
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO user_invitations
+		    (id,email_normalized,invited_by,outlet_name,role,status,expires_at)
+		VALUES ($1::uuid,$2,$3::uuid,'Outlet Test','CASHIER','PENDING',$4)`, invitationID, cashierEmail, ownerID, time.Now().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	cashier, err := store.UpsertGoogleIdentity(ctx, GoogleIdentity{Subject: "google-cashier-139", Email: cashierEmail, DisplayName: "Cashier 139", EmailVerified: true})
+	if err != nil || cashier.Role != RoleCashier || cashier.Status != StatusApproved {
+		t.Fatalf("cashier=%#v err=%v", cashier, err)
+	}
+	var invitationStatus, acceptedUserID string
+	if err := pool.QueryRow(ctx, `SELECT status, accepted_user_id FROM user_invitations WHERE id=$1::uuid`, invitationID).Scan(&invitationStatus, &acceptedUserID); err != nil {
+		t.Fatal(err)
+	}
+	if invitationStatus != "ACCEPTED" || acceptedUserID != cashier.ID {
+		t.Fatalf("invitation status=%q accepted_user_id=%q", invitationStatus, acceptedUserID)
 	}
 
 	superadmin, created, err := store.ProvisionSuperadmin(ctx, superadminEmail, "Root Admin", "bootstrap-test")

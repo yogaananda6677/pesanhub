@@ -39,8 +39,8 @@
     "user": {
       "id": "a1000000-0000-4000-8000-000000000001",
       "email": "ow***@example.test",
-      "display_name": "Owner Kontrak",
-      "role": "OWNER",
+      "display_name": "Admin Kontrak",
+      "role": "ADMIN",
       "status": "APPROVED",
       "approved_at": "2026-09-05T08:00:00Z"
     }
@@ -75,7 +75,8 @@
               {
                 "id": "f1000000-0000-4000-8000-000000000001",
                 "name": "Pedas sedang",
-                "price_delta_amount": 0
+                "price_delta_amount": 0,
+                "quantity": 1
               }
             ]
           }
@@ -123,7 +124,8 @@
               {
                 "id": "f1000000-0000-4000-8000-000000000001",
                 "name": "Pedas sedang",
-                "price_delta_amount": 0
+                "price_delta_amount": 0,
+                "quantity": 1
               }
             ]
           }
@@ -283,7 +285,27 @@
             "category_id": "91000000-0000-4000-8000-000000000001",
             "sku": "CONTRACT-MENU",
             "name": "Menu Kontrak",
+            "product_type": "MARTABAK_TELUR",
             "price_amount": 25000,
+            "hpp_amount": 15000,
+            "channel_prices": [
+              {
+                "channel": "OFFLINE",
+                "amount": 25000
+              },
+              {
+                "channel": "GOFOOD",
+                "amount": 30000
+              },
+              {
+                "channel": "GRABFOOD",
+                "amount": 30000
+              },
+              {
+                "channel": "SHOPEEFOOD",
+                "amount": 30000
+              }
+            ],
             "is_available": true,
             "version": 3,
             "sort_order": 0,

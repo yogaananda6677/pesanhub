@@ -5,7 +5,6 @@ enum AppDestination {
   dashboard,
   pos,
   queue,
-  menu,
   settings;
 
   String get label {
@@ -15,11 +14,9 @@ enum AppDestination {
       case AppDestination.pos:
         return 'Kasir';
       case AppDestination.queue:
-        return 'Antrean';
-      case AppDestination.menu:
-        return 'Menu';
+        return 'Transaksi';
       case AppDestination.settings:
-        return 'Pengaturan';
+        return 'Akun';
     }
   }
 
@@ -31,8 +28,6 @@ enum AppDestination {
         return 'Kasir — Buat Pesanan';
       case AppDestination.queue:
         return 'Antrean Dapur';
-      case AppDestination.menu:
-        return 'Kelola Ketersediaan Menu';
       case AppDestination.settings:
         return 'Pengaturan Outlet';
     }
@@ -41,30 +36,26 @@ enum AppDestination {
   IconData get icon {
     switch (this) {
       case AppDestination.dashboard:
-        return Icons.dashboard_outlined;
+        return Icons.home_outlined;
       case AppDestination.pos:
         return Icons.point_of_sale_outlined;
       case AppDestination.queue:
         return Icons.receipt_long_outlined;
-      case AppDestination.menu:
-        return Icons.restaurant_menu_outlined;
       case AppDestination.settings:
-        return Icons.settings_outlined;
+        return Icons.person_outline_rounded;
     }
   }
 
   IconData get selectedIcon {
     switch (this) {
       case AppDestination.dashboard:
-        return Icons.dashboard_rounded;
+        return Icons.home_rounded;
       case AppDestination.pos:
         return Icons.point_of_sale_rounded;
       case AppDestination.queue:
         return Icons.receipt_long_rounded;
-      case AppDestination.menu:
-        return Icons.restaurant_menu_rounded;
       case AppDestination.settings:
-        return Icons.settings_rounded;
+        return Icons.person_rounded;
     }
   }
 

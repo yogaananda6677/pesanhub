@@ -267,14 +267,17 @@ void main() {
           MaterialApp(
             theme: AppTheme.lightTheme,
             home: Scaffold(
-              body: SettingsDestinationView(whatsAppController: controller),
+              body: SettingsDestinationView(
+                whatsAppController: controller,
+                isAdmin: true,
+              ),
             ),
           ),
         );
 
         expect(find.text('Integrasi WhatsApp (GOWA)'), findsOneWidget);
         expect(find.text('Informasi Outlet'), findsOneWidget);
-        expect(find.text('Buka Katalog Design System'), findsOneWidget);
+        expect(find.text('Buka Katalog Design System'), findsNothing);
 
         controller.dispose();
       },

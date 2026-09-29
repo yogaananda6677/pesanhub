@@ -114,7 +114,7 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
       builder: (context, constraints) {
         final bool isTablet = constraints.maxWidth >= 600;
         final textScale = MediaQuery.textScalerOf(context).scale(1);
-        final cardExtent = (196 + ((textScale - 1).clamp(0, 1) * 104))
+        final cardExtent = (430 + ((textScale - 1).clamp(0, 1) * 120))
             .toDouble();
 
         return SingleChildScrollView(
@@ -158,6 +158,16 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                         controller.mutationEnabled &&
                             controller.categories.any((item) => item.isActive)
                         ? () => showMenuEditor(context, controller: controller)
+                        : null,
+                  ),
+                  AppButton.outlined(
+                    label: 'Kelola topping global',
+                    icon: Icons.add_circle_outline_rounded,
+                    onPressed: controller.mutationEnabled
+                        ? () => showGlobalExtraEditor(
+                            context,
+                            controller: controller,
+                          )
                         : null,
                   ),
                   AppButton.outlined(
@@ -247,6 +257,11 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                         controller: controller,
                         menu: item,
                       ),
+                      onEditPrice: () => showPriceEditor(
+                        context,
+                        controller: controller,
+                        menu: item,
+                      ),
                     );
                   },
                 )
@@ -268,6 +283,11 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                       onToggle: (newVal) =>
                           _toggleAvailability(item.id, item.name, newVal),
                       onEdit: () => showMenuEditor(
+                        context,
+                        controller: controller,
+                        menu: item,
+                      ),
+                      onEditPrice: () => showPriceEditor(
                         context,
                         controller: controller,
                         menu: item,

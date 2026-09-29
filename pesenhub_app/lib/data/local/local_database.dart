@@ -6,7 +6,7 @@ import '../../core/utils/pii_sanitizer.dart';
 /// and relational storage for PesenHub POS and KDS.
 /// Fulfills Issue #32 Acceptance Criteria #1, #3, and #4.
 class LocalDatabase {
-  static const int currentVersion = 5;
+  static const int currentVersion = 8;
   static const String defaultDbName = 'pesenhub.db';
 
   final String? customPath;
@@ -58,6 +58,15 @@ class LocalDatabase {
           if (version >= 5) {
             await _migrateToV5(db);
           }
+          if (version >= 6) {
+            await _migrateToV6(db);
+          }
+          if (version >= 7) {
+            await _migrateToV7(db);
+          }
+          if (version >= 8) {
+            await _migrateToV8(db);
+          }
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2 && newVersion >= 2) {
@@ -71,6 +80,15 @@ class LocalDatabase {
           }
           if (oldVersion < 5 && newVersion >= 5) {
             await _migrateToV5(db);
+          }
+          if (oldVersion < 6 && newVersion >= 6) {
+            await _migrateToV6(db);
+          }
+          if (oldVersion < 7 && newVersion >= 7) {
+            await _migrateToV7(db);
+          }
+          if (oldVersion < 8 && newVersion >= 8) {
+            await _migrateToV8(db);
           }
         },
       ),
@@ -161,6 +179,68 @@ class LocalDatabase {
         masked_phone TEXT NOT NULL,
         last_order_at TEXT NOT NULL
       );
+    ''');
+  }
+
+  static Future<void> _migrateToV6(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(menus)');
+    final names = columns.map((row) => row['name'] as String).toSet();
+    if (!names.contains('hpp_amount')) {
+      await db.execute('ALTER TABLE menus ADD COLUMN hpp_amount INTEGER;');
+    }
+    if (!names.contains('channel_prices_json')) {
+      await db.execute(
+        "ALTER TABLE menus ADD COLUMN channel_prices_json TEXT NOT NULL DEFAULT '[]';",
+      );
+    }
+
+    // Remove the old showcase catalog that was previously written into the
+    // operational cache. Real catalog data is always hydrated from Backend.
+    await db.delete(
+      'menus',
+      where: 'id IN (?, ?, ?, ?, ?, ?)',
+      whereArgs: const [
+        'm-nasgor-spesial',
+        'm-nasgor-gila',
+        'm-nasgor-seafood',
+        'm-es-teh',
+        'm-es-jeruk',
+        'm-kerupuk',
+      ],
+    );
+    await db.delete(
+      'categories',
+      where: 'id IN (?, ?, ?)',
+      whereArgs: const ['cat-makanan', 'cat-minuman', 'cat-tambahan'],
+    );
+  }
+
+  static Future<void> _migrateToV7(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(menus)');
+    final names = columns.map((row) => row['name'] as String).toSet();
+    if (!names.contains('product_type')) {
+      await db.execute(
+        "ALTER TABLE menus ADD COLUMN product_type TEXT NOT NULL DEFAULT 'MARTABAK_TELUR';",
+      );
+    }
+    if (!names.contains('image_url')) {
+      await db.execute('ALTER TABLE menus ADD COLUMN image_url TEXT;');
+    }
+  }
+
+  static Future<void> _migrateToV8(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS menu_image_cache (
+        menu_id TEXT PRIMARY KEY,
+        source_url TEXT NOT NULL,
+        local_path TEXT NOT NULL,
+        byte_size INTEGER NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_menu_image_cache_source_url
+      ON menu_image_cache (source_url);
     ''');
   }
 

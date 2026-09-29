@@ -1,9 +1,9 @@
-import 'menu_category.dart';
-import 'menu_item.dart';
-import 'menu_modifier_group.dart';
-import 'menu_option.dart';
+import 'package:pesenhub_app/menu/models/menu_category.dart';
+import 'package:pesenhub_app/menu/models/menu_item.dart';
+import 'package:pesenhub_app/menu/models/menu_modifier_group.dart';
+import 'package:pesenhub_app/menu/models/menu_option.dart';
 
-/// SampleMenuData provides realistic sample menu catalog for PesenHub cashier.
+/// Test-only menu fixture. It is never loaded by the application runtime.
 abstract final class SampleMenuData {
   static const List<MenuCategory> sampleCategories = [
     MenuCategory(id: 'cat-makanan', name: 'Makanan', sortOrder: 0),
@@ -67,15 +67,15 @@ abstract final class SampleMenuData {
     sortOrder: 1,
     options: [
       MenuOption(
-        id: 'opt-telur-ceplok',
+        id: 'opt-telur-bebek',
         code: 'ceplok',
-        name: 'Telur Ceplok',
+        name: 'Telur Bebek Ekstra',
         priceDeltaAmount: 4000,
       ),
       MenuOption(
-        id: 'opt-telur-dadar',
+        id: 'opt-daging-sapi',
         code: 'dadar',
-        name: 'Telur Dadar',
+        name: 'Daging Sapi Ekstra',
         priceDeltaAmount: 4000,
       ),
       MenuOption(
@@ -85,15 +85,15 @@ abstract final class SampleMenuData {
         priceDeltaAmount: 3000,
       ),
       MenuOption(
-        id: 'opt-bakso',
+        id: 'opt-keju',
         code: 'bakso',
-        name: 'Bakso Sapi',
+        name: 'Keju Mozzarella',
         priceDeltaAmount: 3000,
       ),
       MenuOption(
-        id: 'opt-teri',
+        id: 'opt-acar-ekstra',
         code: 'teri',
-        name: 'Teri Medan',
+        name: 'Acar Ekstra (Habis)',
         priceDeltaAmount: 4000,
         isAvailable: false,
       ),
@@ -133,10 +133,10 @@ abstract final class SampleMenuData {
     const MenuItem(
       id: 'm-nasgor-spesial',
       categoryId: 'cat-makanan',
-      sku: 'NASGOR-SPESIAL',
-      name: 'Nasi Goreng Spesial',
+      sku: 'MAR-SPESIAL',
+      name: 'Martabak Telur Spesial',
       description:
-          'Nasi goreng racikan khas dengan suwiran ayam, bakso, dan bumbu rempah pilihan.',
+          'Martabak telur gurih renyah dengan isian daging sapi cincang, daun bawang segar, dan kuah cuka mantap.',
       priceAmount: 25000,
       isAvailable: true,
       modifierGroups: [spiceLevelGroup, toppingGroup],
@@ -144,10 +144,10 @@ abstract final class SampleMenuData {
     const MenuItem(
       id: 'm-nasgor-gila',
       categoryId: 'cat-makanan',
-      sku: 'NASGOR-GILA',
-      name: 'Nasi Goreng Gila',
+      sku: 'MAR-BEBEK',
+      name: 'Martabak Telur Bebek',
       description:
-          'Nasi goreng dengan tumisan sosis, bakso, dan telur berlimpah di atasnya.',
+          'Martabak gurih spesial menggunakan telur bebek premium dengan kulit ekstra renyah.',
       priceAmount: 28000,
       isAvailable: true,
       modifierGroups: [spiceLevelGroup, toppingGroup],
@@ -155,9 +155,10 @@ abstract final class SampleMenuData {
     const MenuItem(
       id: 'm-nasgor-seafood',
       categoryId: 'cat-makanan',
-      sku: 'NASGOR-SEAFOOD',
-      name: 'Nasi Goreng Seafood',
-      description: 'Nasi goreng udang dan cumi segar gurih mantap.',
+      sku: 'TER-TOBLERONE',
+      name: 'Terang Bulan Toblerone Keju',
+      description:
+          'Terang bulan lembut bersarang dengan cokelat Toblerone premium dan taburan keju melimpah.',
       priceAmount: 32000,
       isAvailable: false, // Criteria #2: unavailable item
       modifierGroups: [spiceLevelGroup],
@@ -186,9 +187,9 @@ abstract final class SampleMenuData {
     const MenuItem(
       id: 'm-kerupuk',
       categoryId: 'cat-tambahan',
-      sku: 'TAMB-KRUPUK',
-      name: 'Kerupuk Kaleng',
-      description: 'Kerupuk putih gurih renyah pendamping nasi goreng.',
+      sku: 'TAMB-ACAR',
+      name: 'Acar & Kuah Cuka Ekstra',
+      description: 'Acar mentimun segar dan kuah cuka asam manis gurih.',
       priceAmount: 2000,
       isAvailable: true,
     ),

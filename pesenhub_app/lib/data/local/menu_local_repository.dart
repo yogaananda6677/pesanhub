@@ -5,6 +5,7 @@ import '../../menu/models/menu_item.dart';
 import '../../menu/models/menu_modifier_group.dart';
 import '../../menu/models/menu_option.dart';
 import 'local_database.dart';
+import 'menu_image_cache_repository.dart';
 import 'models/cached_result.dart';
 
 /// Data class holding both categories and menu items snapshot.
@@ -86,7 +87,15 @@ class MenuLocalRepository {
           'sku': item.sku,
           'name': item.name,
           'description': item.description,
+          'product_type': item.productType,
+          'image_url': item.imageUrl,
           'price_amount': item.priceAmount,
+          'hpp_amount': item.hppAmount,
+          'channel_prices_json': jsonEncode(
+            item.channelPrices.entries
+                .map((entry) => {'channel': entry.key, 'amount': entry.value})
+                .toList(),
+          ),
           'is_available': item.isAvailable ? 1 : 0,
           'version': item.version,
           'sort_order': item.sortOrder,
@@ -125,6 +134,7 @@ class MenuLocalRepository {
   /// Retrieves cached menu items, optionally filtered by categoryId.
   Future<List<MenuItem>> getMenuItems({String? categoryId}) async {
     final db = await _localDb.database;
+    final imageCache = await MenuImageCacheRepository(_localDb).getAll();
     final List<Map<String, dynamic>> rows;
     if (categoryId != null) {
       rows = await db.query(
@@ -139,6 +149,23 @@ class MenuLocalRepository {
 
     return rows.map((row) {
       List<MenuModifierGroup> modifierGroups = [];
+      final channelPrices = <String, int>{};
+      final rawChannelPrices = row['channel_prices_json'] as String?;
+      if (rawChannelPrices != null && rawChannelPrices.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(rawChannelPrices) as List<dynamic>;
+          for (final entry in decoded) {
+            if (entry is Map<String, dynamic> &&
+                entry['channel'] is String &&
+                entry['amount'] is int) {
+              channelPrices[entry['channel'] as String] =
+                  entry['amount'] as int;
+            }
+          }
+        } catch (_) {
+          channelPrices.clear();
+        }
+      }
       final rawGroups = row['modifier_groups_json'] as String?;
       if (rawGroups != null && rawGroups.isNotEmpty) {
         try {
@@ -175,13 +202,22 @@ class MenuLocalRepository {
         }
       }
 
+      final imageUrl = row['image_url'] as String?;
+      final cachedImage = imageCache[row['id'] as String];
       return MenuItem(
         id: row['id'] as String,
         categoryId: row['category_id'] as String,
         sku: row['sku'] as String,
         name: row['name'] as String,
         description: row['description'] as String?,
+        productType: row['product_type'] as String? ?? 'MARTABAK_TELUR',
+        imageUrl: imageUrl,
+        localImagePath: cachedImage?.sourceUrl == imageUrl
+            ? cachedImage?.localPath
+            : null,
         priceAmount: row['price_amount'] as int,
+        hppAmount: row['hpp_amount'] as int?,
+        channelPrices: channelPrices,
         isAvailable: (row['is_available'] as int) == 1,
         version: row['version'] as int? ?? 1,
         sortOrder: row['sort_order'] as int? ?? 0,

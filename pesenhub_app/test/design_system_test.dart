@@ -183,7 +183,9 @@ void main() {
                       const SizedBox(height: 16),
                       AppStatusBadge.order('PREPARING'),
                       const SizedBox(height: 16),
-                      const AppCard(child: Text('Nasi Goreng Spesial Pedas')),
+                      const AppCard(
+                        child: Text('Martabak Telur Spesial Pedas'),
+                      ),
                     ],
                   ),
                 ),
@@ -258,7 +260,7 @@ void main() {
                 body: TextButton(
                   onPressed: () => AppFeedback.show(
                     context,
-                    message: 'Ketersediaan Nasi Goreng menjadi Habis.',
+                    message: 'Ketersediaan Martabak Telur menjadi Habis.',
                     type: AppBannerType.success,
                   ),
                   child: const Text('Ubah status'),
@@ -274,7 +276,7 @@ void main() {
         expect(find.byKey(const Key('app-feedback-success')), findsOneWidget);
         expect(find.text('Berhasil diperbarui'), findsOneWidget);
         expect(
-          find.text('Ketersediaan Nasi Goreng menjadi Habis.'),
+          find.text('Ketersediaan Martabak Telur menjadi Habis.'),
           findsOneWidget,
         );
         expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
@@ -283,7 +285,7 @@ void main() {
         );
         expect(
           semantics.properties.label,
-          contains('Ketersediaan Nasi Goreng menjadi Habis.'),
+          contains('Ketersediaan Martabak Telur menjadi Habis.'),
         );
         expect(semantics.properties.liveRegion, isTrue);
       },

@@ -66,12 +66,41 @@ func (s *Service) UpdateMenu(ctx context.Context, id string, m Menu, expectedVer
 
 func (s *Service) prepareMenu(m *Menu, create bool) error {
 	m.Name, m.SKU = strings.TrimSpace(m.Name), strings.TrimSpace(m.SKU)
-	if m.CategoryID == "" || m.Name == "" || len(m.Name) > 160 || m.SKU == "" || len(m.SKU) > 64 || m.PriceAmount < 0 || m.SortOrder < 0 {
+	m.ProductType = strings.ToUpper(strings.TrimSpace(m.ProductType))
+	if m.ProductType == "" {
+		m.ProductType = "MARTABAK_TELUR"
+	}
+	m.ImageURL = strings.TrimSpace(m.ImageURL)
+	if m.ProductType != "MARTABAK_TELUR" && m.ProductType != "TERANG_BULAN" {
 		return ErrInvalidCatalog
+	}
+	if len(m.ImageURL) > 500 || (m.ImageURL != "" && !strings.HasPrefix(m.ImageURL, "/uploads/") && !strings.HasPrefix(m.ImageURL, "http://") && !strings.HasPrefix(m.ImageURL, "https://")) {
+		return ErrInvalidCatalog
+	}
+	if m.CategoryID == "" || m.Name == "" || len(m.Name) > 160 || m.SKU == "" || len(m.SKU) > 64 || m.HPPAmount == nil || *m.HPPAmount < 0 || m.SortOrder < 0 {
+		return ErrInvalidCatalog
+	}
+	wantedChannels := map[string]bool{"OFFLINE": false, "GOFOOD": false, "GRABFOOD": false, "SHOPEEFOOD": false}
+	for i := range m.ChannelPrices {
+		price := &m.ChannelPrices[i]
+		price.Channel = strings.ToUpper(strings.TrimSpace(price.Channel))
+		if _, supported := wantedChannels[price.Channel]; !supported || wantedChannels[price.Channel] || price.Amount < 0 {
+			return ErrInvalidCatalog
+		}
+		wantedChannels[price.Channel] = true
+		if price.Channel == "OFFLINE" {
+			m.PriceAmount = price.Amount
+		}
+	}
+	for _, present := range wantedChannels {
+		if !present {
+			return ErrInvalidCatalog
+		}
 	}
 	if create {
 		m.ID = s.newID()
-		m.Available = true
+		// Newly created menus remain drafts until Admin explicitly enables stock.
+		m.Available = false
 		m.Version = 1
 	}
 	groupCodes := map[string]struct{}{}

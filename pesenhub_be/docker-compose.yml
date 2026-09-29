@@ -3,6 +3,9 @@ name: pesenhub
 services:
   api:
     image: pesenhub-api:dev
+    # Match the host workspace owner so the bind-mounted upload directory is
+    # writable without granting world-write permission.
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     build:
       context: .
       dockerfile: Dockerfile
@@ -14,6 +17,10 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./uploads:/app/web/uploads
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/live"]
       interval: 10s
@@ -66,19 +73,9 @@ services:
       start_period: 20s
     networks: [pesenhub]
 
-  ollama:
-    image: ollama/ollama:latest
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_storage:/root/.ollama
-    networks: [pesenhub]
-
 volumes:
   mysql_data:
   gowa_storage:
-  ollama_storage:
 
 networks:
   pesenhub:

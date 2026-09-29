@@ -89,8 +89,8 @@ void main() {
           const MenuItem(
             id: 'menu-1',
             categoryId: 'cat-1',
-            sku: 'NASGOR-01',
-            name: 'Nasi Goreng Spesial',
+            sku: 'MAR-01',
+            name: 'Martabak Telur Spesial',
             priceAmount: 25000,
             modifierGroups: [
               MenuModifierGroup(
@@ -118,7 +118,7 @@ void main() {
             createdAt: now,
             items: const [
               QueueOrderItem(
-                name: 'Nasi Goreng Spesial',
+                name: 'Martabak Telur Spesial',
                 quantity: 1,
                 unitPrice: 25000,
               ),
@@ -151,8 +151,8 @@ void main() {
           const MenuItem(
             id: 'menu-1',
             categoryId: 'cat-1',
-            sku: 'NASGOR-01',
-            name: 'Nasi Goreng',
+            sku: 'MAR-01',
+            name: 'Martabak Telur',
             priceAmount: 20000,
           ),
         ],
@@ -171,17 +171,12 @@ void main() {
       expect(snapshot.catalog.formattedCachedAt, isNotEmpty);
     });
 
-    test(
-      'Seeding sample data populates initial catalog and leaves queue empty without dummy orders',
-      () async {
-        await coldStartService.seedInitialSampleDataIfEmpty();
-
-        final snapshot = await coldStartService.hydrate();
-        expect(snapshot.hasCachedData, isTrue);
-        expect(snapshot.catalog.data.items.length, greaterThanOrEqualTo(6));
-        expect(snapshot.queue.data.isEmpty, isTrue);
-      },
-    );
+    test('A new database stays empty until backend data is cached', () async {
+      final snapshot = await coldStartService.hydrate();
+      expect(snapshot.hasCachedData, isFalse);
+      expect(snapshot.catalog.data.items, isEmpty);
+      expect(snapshot.queue.data, isEmpty);
+    });
   });
 
   group('Acceptance Criteria #3: Local Migration v1 to v2 Without Record Loss', () {
@@ -209,8 +204,8 @@ void main() {
       await dbV1.insert('menus', {
         'id': 'menu-fixture-1',
         'category_id': 'cat-fixture-1',
-        'sku': 'NASGOR-FIX-01',
-        'name': 'Nasi Goreng Fixture',
+        'sku': 'MAR-FIX-01',
+        'name': 'Martabak Telur Fixture',
         'description': 'Resep legendaris',
         'price_amount': 28000,
         'is_available': 1,
@@ -236,7 +231,7 @@ void main() {
 
       await dbV1.insert('queue_order_items', {
         'order_id': 'ord-fixture-1',
-        'name': 'Nasi Goreng Fixture',
+        'name': 'Martabak Telur Fixture',
         'quantity': 2,
         'unit_price': 28000,
         'notes': 'Pedas level 1',
@@ -303,7 +298,7 @@ void main() {
         where: 'id = ?',
         whereArgs: ['menu-fixture-1'],
       )).first;
-      expect(menuRow['name'], equals('Nasi Goreng Fixture'));
+      expect(menuRow['name'], equals('Martabak Telur Fixture'));
       expect(menuRow['price_amount'], equals(28000));
 
       final orderRow = (await dbV2.query(

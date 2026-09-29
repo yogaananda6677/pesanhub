@@ -96,6 +96,7 @@ type ModifierSnapshot struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
 	PriceDeltaAmount int64  `json:"price_delta_amount"`
+	Quantity         int    `json:"quantity"`
 }
 
 type OrderItemDetail struct {

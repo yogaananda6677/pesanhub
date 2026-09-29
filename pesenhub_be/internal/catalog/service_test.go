@@ -42,10 +42,21 @@ func (f *fakeRepo) SetMenuAvailability(_ context.Context, _ string, a bool, v in
 func (f *fakeRepo) ListPublic(context.Context, string) ([]Category, error) { return f.categories, nil }
 func (f *fakeRepo) ListAdmin(context.Context) ([]Category, error)          { return f.categories, nil }
 
+func financials(offline int64) (*int64, []ChannelPrice) {
+	hpp := offline / 2
+	return &hpp, []ChannelPrice{
+		{Channel: "OFFLINE", Amount: offline},
+		{Channel: "GOFOOD", Amount: offline},
+		{Channel: "GRABFOOD", Amount: offline},
+		{Channel: "SHOPEEFOOD", Amount: offline},
+	}
+}
+
 func TestCreateMenuValidatesIntegerCatalog(t *testing.T) {
 	n := 0
 	s := NewService(&fakeRepo{}, func() string { n++; return string(rune('a' + n)) })
-	m, err := s.CreateMenu(context.Background(), Menu{CategoryID: "c", SKU: "NASGOR", Name: "Nasi Goreng", PriceAmount: 15000, Groups: []Group{{Code: "spice", Name: "Pedas", MinSelect: 1, MaxSelect: 1, Options: []Option{{Code: "hot", Name: "Pedas"}}}}}, "staff", "request")
+	hpp, prices := financials(15000)
+	m, err := s.CreateMenu(context.Background(), Menu{CategoryID: "c", SKU: "NASGOR", Name: "Nasi Goreng", HPPAmount: hpp, ChannelPrices: prices, Groups: []Group{{Code: "spice", Name: "Pedas", MinSelect: 1, MaxSelect: 1, Options: []Option{{Code: "hot", Name: "Pedas"}}}}}, "staff", "request")
 	if err != nil || m.PriceAmount != 15000 || m.Groups[0].Options[0].ID == "" {
 		t.Fatalf("menu=%#v err=%v", m, err)
 	}
@@ -75,7 +86,7 @@ func TestCatalogMutationsCarryVersionAndAuditMetadata(t *testing.T) {
 	}
 
 	menu, err := s.UpdateMenu(context.Background(), "menu-1", Menu{
-		CategoryID: category.ID, SKU: "TEH", Name: "Teh", PriceAmount: 8000,
+		CategoryID: category.ID, SKU: "TEH", Name: "Teh", HPPAmount: func() *int64 { h, _ := financials(8000); return h }(), ChannelPrices: func() []ChannelPrice { _, p := financials(8000); return p }(),
 		Groups: []Group{{Code: "sugar", Name: "Gula", MaxSelect: 1, Options: []Option{{Code: "normal", Name: "Normal"}}}},
 	}, 4, "outlet-user", "req-update")
 	if err != nil || menu.Version != 5 || menu.ID != "menu-1" || menu.Groups[0].ID == "" || menu.Groups[0].Options[0].ID == "" {

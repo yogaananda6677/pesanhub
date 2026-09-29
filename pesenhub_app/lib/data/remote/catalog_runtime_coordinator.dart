@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import '../../menu/controllers/menu_availability_controller.dart';
 import '../../menu/controllers/menu_controller.dart';
+import '../../menu/models/menu_item.dart';
 import '../local/menu_local_repository.dart';
+import '../sync/menu_image_cache_worker.dart';
 import 'api_failure.dart';
 import 'catalog_gateway.dart';
 
@@ -9,16 +13,21 @@ class CatalogRuntimeCoordinator {
   final MenuLocalRepository localRepository;
   final MenuController menuController;
   final MenuAvailabilityController managementController;
+  final MenuImageCacheWorker? imageCacheWorker;
+  final Duration pollingInterval;
 
   bool _refreshing = false;
   bool _disposed = false;
   bool _hasCatalog = false;
+  Timer? _pollingTimer;
 
   CatalogRuntimeCoordinator({
     required this.gateway,
     required this.localRepository,
     required this.menuController,
     required this.managementController,
+    this.imageCacheWorker,
+    this.pollingInterval = const Duration(minutes: 1),
   });
 
   Future<void> start() async {
@@ -32,6 +41,12 @@ class CatalogRuntimeCoordinator {
       // A damaged/unavailable cache must not prevent recovery from Backend.
     }
     await refresh();
+    if (!_disposed && pollingInterval > Duration.zero) {
+      _pollingTimer = Timer.periodic(
+        pollingInterval,
+        (_) => unawaited(refresh()),
+      );
+    }
   }
 
   Future<void> refresh() async {
@@ -45,8 +60,20 @@ class CatalogRuntimeCoordinator {
       final remote = await gateway.fetchAdminCatalog();
       if (_disposed) return;
       final refreshedAt = DateTime.now();
+      var resolvedMenus = remote.menus;
+      try {
+        if (imageCacheWorker != null) {
+          resolvedMenus = await imageCacheWorker!.resolveCached(remote.menus);
+        }
+      } catch (_) {
+        // Catalog data remains usable even if the optional image cache fails.
+      }
+      if (_disposed) return;
       _apply(
-        MenuCatalogSnapshot(categories: remote.categories, items: remote.menus),
+        MenuCatalogSnapshot(
+          categories: remote.categories,
+          items: resolvedMenus,
+        ),
         isOffline: false,
         cachedAt: refreshedAt,
       );
@@ -64,6 +91,13 @@ class CatalogRuntimeCoordinator {
           );
         }
       }
+      unawaited(
+        imageCacheWorker?.synchronize(
+              remote.menus,
+              onImageCached: _applyDownloadedImage,
+            ) ??
+            Future<void>.value(),
+      );
     } on ApiFailure catch (failure) {
       if (_disposed) return;
       _handleFailure(failure.presentationMessage);
@@ -73,6 +107,17 @@ class CatalogRuntimeCoordinator {
     } finally {
       _refreshing = false;
     }
+  }
+
+  void _applyDownloadedImage(MenuItem downloaded) {
+    if (_disposed) return;
+    final current = menuController.allMenus
+        .where((menu) => menu.id == downloaded.id)
+        .firstOrNull;
+    if (current == null || current.imageUrl != downloaded.imageUrl) return;
+    final updated = current.copyWith(localImagePath: downloaded.localImagePath);
+    menuController.upsertMenu(updated);
+    managementController.applyCachedImage(updated);
   }
 
   void _handleFailure(String message) {
@@ -115,5 +160,9 @@ class CatalogRuntimeCoordinator {
     );
   }
 
-  void dispose() => _disposed = true;
+  void dispose() {
+    _disposed = true;
+    _pollingTimer?.cancel();
+    imageCacheWorker?.dispose();
+  }
 }

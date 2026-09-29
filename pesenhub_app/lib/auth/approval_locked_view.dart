@@ -36,7 +36,7 @@ class ApprovalLockedView extends StatelessWidget {
       ),
       SessionStatus.webOnly => (
         'Superadmin hanya tersedia di web',
-        'Akun ini tidak dapat membuka aplikasi operasional Owner. Gunakan portal web Superadmin.',
+        'Akun ini tidak dapat membuka aplikasi operasional outlet. Gunakan portal web Superadmin.',
         Icons.language_rounded,
         AppColors.info,
       ),

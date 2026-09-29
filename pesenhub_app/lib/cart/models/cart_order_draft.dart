@@ -68,7 +68,7 @@ class CartOrderDraft {
                   .map(
                     (entry) => {
                       'group_id': entry.key,
-                      'option_ids': entry.value.toList(growable: false)..sort(),
+                      'option_ids': _expandedOptionIds(i, entry.key),
                     },
                   )
                   .toList(growable: false),
@@ -76,5 +76,18 @@ class CartOrderDraft {
           )
           .toList(),
     };
+  }
+
+  static List<String> _expandedOptionIds(CartItem item, String groupId) {
+    final quantities = item.selectedOptionQuantities[groupId];
+    if (quantities == null || quantities.isEmpty) {
+      return item.selectedOptionIds[groupId]!.toList(growable: false)..sort();
+    }
+    final ids = <String>[];
+    for (final entry in quantities.entries) {
+      ids.addAll(List.filled(entry.value, entry.key));
+    }
+    ids.sort();
+    return ids;
   }
 }

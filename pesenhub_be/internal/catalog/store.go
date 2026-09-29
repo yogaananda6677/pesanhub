@@ -53,7 +53,10 @@ func (s *Store) CreateMenu(ctx context.Context, m Menu, meta MutationMeta) (Menu
 		return Menu{}, err
 	}
 	defer tx.Rollback(ctx)
-	if _, err = tx.Exec(ctx, `INSERT INTO menus(id,category_id,sku,name,description,price_amount,is_available,version,sort_order) VALUES($1,$2,$3,$4,$5,$6,$7,1,$8)`, m.ID, m.CategoryID, m.SKU, m.Name, m.Description, m.PriceAmount, m.Available, m.SortOrder); err != nil {
+	if _, err = tx.Exec(ctx, `INSERT INTO menus(id,category_id,sku,name,description,product_type,image_url,price_amount,hpp_amount,is_available,version,sort_order) VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,''),$8,$9,$10,1,$11)`, m.ID, m.CategoryID, m.SKU, m.Name, m.Description, m.ProductType, m.ImageURL, m.PriceAmount, m.HPPAmount, m.Available, m.SortOrder); err != nil {
+		return Menu{}, err
+	}
+	if err = replaceChannelPrices(ctx, tx, m); err != nil {
 		return Menu{}, err
 	}
 	if err = insertGroups(ctx, tx, m); err != nil {
@@ -71,11 +74,14 @@ func (s *Store) UpdateMenu(ctx context.Context, m Menu, expectedVersion int64, m
 		return Menu{}, err
 	}
 	defer tx.Rollback(ctx)
-	err = tx.QueryRow(ctx, `UPDATE menus SET category_id=$2,sku=$3,name=$4,description=$5,price_amount=$6,sort_order=$7,version=version+1,updated_at=now() WHERE id=$1 AND version=$8 RETURNING is_available,version`, m.ID, m.CategoryID, m.SKU, m.Name, m.Description, m.PriceAmount, m.SortOrder, expectedVersion).Scan(&m.Available, &m.Version)
+	err = tx.QueryRow(ctx, `UPDATE menus SET category_id=$2,sku=$3,name=$4,description=$5,product_type=$6,image_url=NULLIF($7,''),price_amount=$8,hpp_amount=$9,sort_order=$10,version=version+1,updated_at=now() WHERE id=$1 AND version=$11 RETURNING is_available,version`, m.ID, m.CategoryID, m.SKU, m.Name, m.Description, m.ProductType, m.ImageURL, m.PriceAmount, m.HPPAmount, m.SortOrder, expectedVersion).Scan(&m.Available, &m.Version)
 	if err == sql.ErrNoRows {
 		return Menu{}, fmt.Errorf("%w", ErrVersionConflict)
 	}
 	if err != nil {
+		return Menu{}, err
+	}
+	if err = replaceChannelPrices(ctx, tx, m); err != nil {
 		return Menu{}, err
 	}
 	if _, err = tx.Exec(ctx, `DELETE FROM modifier_groups WHERE menu_id=$1`, m.ID); err != nil {
@@ -97,11 +103,14 @@ func (s *Store) SetMenuAvailability(ctx context.Context, id string, available bo
 	}
 	defer tx.Rollback(ctx)
 	var m Menu
-	err = tx.QueryRow(ctx, `UPDATE menus SET is_available=$2,version=version+1,updated_at=now() WHERE id=$1 AND version=$3 RETURNING id::text,category_id::text,sku,name,COALESCE(description,''),price_amount,is_available,version,sort_order`, id, available, version).Scan(&m.ID, &m.CategoryID, &m.SKU, &m.Name, &m.Description, &m.PriceAmount, &m.Available, &m.Version, &m.SortOrder)
+	err = tx.QueryRow(ctx, `UPDATE menus SET is_available=$2,version=version+1,updated_at=now() WHERE id=$1 AND version=$3 RETURNING id::text,category_id::text,sku,name,COALESCE(description,''),product_type,COALESCE(image_url,''),price_amount,hpp_amount,is_available,version,sort_order`, id, available, version).Scan(&m.ID, &m.CategoryID, &m.SKU, &m.Name, &m.Description, &m.ProductType, &m.ImageURL, &m.PriceAmount, &m.HPPAmount, &m.Available, &m.Version, &m.SortOrder)
 	if err == sql.ErrNoRows {
 		return Menu{}, fmt.Errorf("%w", ErrVersionConflict)
 	}
 	if err != nil {
+		return Menu{}, err
+	}
+	if m.ChannelPrices, err = loadChannelPricesTx(ctx, tx, m.ID); err != nil {
 		return Menu{}, err
 	}
 	if err = audit(ctx, tx, meta, "CATALOG_MENU", m.ID, "MENU_AVAILABILITY_UPDATED"); err != nil {
@@ -122,6 +131,35 @@ func insertGroups(ctx context.Context, tx *dbx.Tx, m Menu) error {
 		}
 	}
 	return nil
+}
+
+func replaceChannelPrices(ctx context.Context, tx *dbx.Tx, m Menu) error {
+	if _, err := tx.Exec(ctx, `DELETE FROM menu_channel_prices WHERE menu_id=$1`, m.ID); err != nil {
+		return err
+	}
+	for _, price := range m.ChannelPrices {
+		if _, err := tx.Exec(ctx, `INSERT INTO menu_channel_prices(menu_id,channel,amount) VALUES($1,$2,$3)`, m.ID, price.Channel, price.Amount); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func loadChannelPricesTx(ctx context.Context, tx *dbx.Tx, menuID string) ([]ChannelPrice, error) {
+	rows, err := tx.Query(ctx, `SELECT channel,amount FROM menu_channel_prices WHERE menu_id=$1 ORDER BY FIELD(channel,'OFFLINE','GOFOOD','GRABFOOD','SHOPEEFOOD')`, menuID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	prices := []ChannelPrice{}
+	for rows.Next() {
+		var price ChannelPrice
+		if err := rows.Scan(&price.Channel, &price.Amount); err != nil {
+			return nil, err
+		}
+		prices = append(prices, price)
+	}
+	return prices, rows.Err()
 }
 
 func audit(ctx context.Context, tx *dbx.Tx, meta MutationMeta, aggregateType, aggregateID, action string) error {
@@ -160,7 +198,7 @@ func (s *Store) list(ctx context.Context, categoryID string, admin bool) ([]Cate
 		return nil, err
 	}
 	for ci := range categories {
-		menuSQL := `SELECT id::text,category_id::text,sku,name,COALESCE(description,''),price_amount,is_available,version,sort_order FROM menus WHERE category_id=$1`
+		menuSQL := `SELECT id::text,category_id::text,sku,name,COALESCE(description,''),product_type,COALESCE(image_url,''),price_amount,hpp_amount,is_available,version,sort_order FROM menus WHERE category_id=$1`
 		if !admin {
 			menuSQL += ` AND is_available`
 		}
@@ -171,7 +209,7 @@ func (s *Store) list(ctx context.Context, categoryID string, admin bool) ([]Cate
 		}
 		for menuRows.Next() {
 			var m Menu
-			if err := menuRows.Scan(&m.ID, &m.CategoryID, &m.SKU, &m.Name, &m.Description, &m.PriceAmount, &m.Available, &m.Version, &m.SortOrder); err != nil {
+			if err := menuRows.Scan(&m.ID, &m.CategoryID, &m.SKU, &m.Name, &m.Description, &m.ProductType, &m.ImageURL, &m.PriceAmount, &m.HPPAmount, &m.Available, &m.Version, &m.SortOrder); err != nil {
 				menuRows.Close()
 				return nil, err
 			}
@@ -184,6 +222,28 @@ func (s *Store) list(ctx context.Context, categoryID string, admin bool) ([]Cate
 			return nil, err
 		}
 		for mi := range categories[ci].Menus {
+			priceRows, priceErr := s.db.Query(ctx, `SELECT channel,amount FROM menu_channel_prices WHERE menu_id=$1 ORDER BY FIELD(channel,'OFFLINE','GOFOOD','GRABFOOD','SHOPEEFOOD')`, categories[ci].Menus[mi].ID)
+			if priceErr != nil {
+				return nil, priceErr
+			}
+			prices := []ChannelPrice{}
+			for priceRows.Next() {
+				var price ChannelPrice
+				if err := priceRows.Scan(&price.Channel, &price.Amount); err != nil {
+					priceRows.Close()
+					return nil, err
+				}
+				prices = append(prices, price)
+			}
+			priceErr = priceRows.Err()
+			priceRows.Close()
+			if priceErr != nil {
+				return nil, priceErr
+			}
+			categories[ci].Menus[mi].ChannelPrices = prices
+			if !admin {
+				categories[ci].Menus[mi].HPPAmount = nil
+			}
 			if err := s.loadGroups(ctx, &categories[ci].Menus[mi], admin); err != nil {
 				return nil, err
 			}

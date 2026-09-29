@@ -12,6 +12,7 @@ import '../cart/models/cart_order_draft.dart';
 import '../connectivity/connectivity_controller.dart';
 import '../data/local/local_database.dart';
 import '../data/local/menu_local_repository.dart';
+import '../data/local/menu_image_cache_repository.dart';
 import '../data/local/outbox_repository.dart';
 import '../data/local/queue_local_repository.dart';
 import '../data/remote/api_config.dart';
@@ -19,6 +20,7 @@ import '../data/remote/catalog_runtime_coordinator.dart';
 import '../data/remote/pesenhub_api_client.dart';
 import '../data/remote/queue_realtime_coordinator.dart';
 import '../data/sync/sync_service.dart';
+import '../data/sync/menu_image_cache_worker.dart';
 import '../menu/controllers/menu_availability_controller.dart';
 import '../menu/controllers/menu_controller.dart' as mc;
 import '../menu/models/menu_category.dart';
@@ -36,7 +38,8 @@ class PesenHubRuntime extends StatefulWidget {
   State<PesenHubRuntime> createState() => _PesenHubRuntimeState();
 }
 
-class _PesenHubRuntimeState extends State<PesenHubRuntime> {
+class _PesenHubRuntimeState extends State<PesenHubRuntime>
+    with WidgetsBindingObserver {
   LocalDatabase? _database;
   PesenHubApiClient? _api;
   SyncService? _sync;
@@ -58,6 +61,7 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final config = ApiConfig.fromEnvironment();
     if (config == null) return;
 
@@ -78,6 +82,13 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
     _api = api;
     _session = session;
     unawaited(session.restore());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_catalogCoordinator?.refresh());
+    }
   }
 
   void _onSessionChanged() {
@@ -101,6 +112,9 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
     final database = LocalDatabase();
     final queueRepository = QueueLocalRepository(database);
     final menuRepository = MenuLocalRepository(database);
+    final menuImageWorker = MenuImageCacheWorker(
+      repository: MenuImageCacheRepository(database),
+    );
     final outboxRepository = OutboxRepository(database);
     final alerts = OrderAlertController();
     final queueController = QueueController(alertController: alerts);
@@ -150,12 +164,15 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
     }
 
     menuManagementController = MenuAvailabilityController(
+      role: session.user?.role ?? '',
       availabilityUpdateFn: api.updateMenuAvailability,
       createCategoryFn: api.createCategory,
       updateCategoryFn: api.updateCategory,
       createMenuFn: api.createMenu,
       updateMenuFn: api.updateMenu,
-      canMutate: () => connectivity.backendReachable,
+      uploadMenuImageFn: api.uploadMenuImage,
+      canMutate: () =>
+          connectivity.backendReachable && session.user?.role == 'ADMIN',
       onRefresh: () => catalogCoordinator.refresh(),
       onAvailabilityChanged: menuController.upsertMenu,
       onCatalogChanged: publishCatalog,
@@ -165,6 +182,7 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
       localRepository: menuRepository,
       menuController: menuController,
       managementController: menuManagementController,
+      imageCacheWorker: menuImageWorker,
     );
     void catalogConnectivityListener() =>
         menuManagementController.connectivityChanged();
@@ -254,6 +272,7 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _session?.removeListener(_onSessionChanged);
     _session?.dispose();
     _stopServices();
@@ -298,6 +317,8 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime> {
       onSignOut: session?.signOut,
       menuController: _menuController,
       menuManagementController: _menuManagementController,
+      isAdmin: session?.user?.role == 'ADMIN',
+      inviteCashier: _api?.inviteCashier,
     );
   }
 

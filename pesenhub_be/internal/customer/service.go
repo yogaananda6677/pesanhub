@@ -38,10 +38,15 @@ type OrderSummary struct {
 }
 type Principal struct{ Subject, Role, CustomerID, SessionID string }
 
-// CanOperateOutlet keeps service credentials compatible while making OWNER the
-// user-facing role issued by the Google identity flow.
+// CanOperateOutlet permits day-to-day outlet work. STAFF remains supported for
+// service credentials; interactive users receive ADMIN or CASHIER.
 func CanOperateOutlet(p Principal) bool {
-	return p.Subject != "" && (p.Role == "STAFF" || p.Role == "OWNER")
+	return p.Subject != "" && (p.Role == "STAFF" || p.Role == "ADMIN" || p.Role == "CASHIER")
+}
+
+// CanManageOutlet restricts configuration and catalog mutations to admins.
+func CanManageOutlet(p Principal) bool {
+	return p.Subject != "" && (p.Role == "STAFF" || p.Role == "ADMIN")
 }
 
 type Repository interface {
