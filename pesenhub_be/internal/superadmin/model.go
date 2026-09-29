@@ -123,7 +123,7 @@ type WhatsAppAccountStatus struct {
 	DisplayName  string `json:"display_name"`
 	EmailMasked  string `json:"email_masked"`
 	Role         Role   `json:"role"`
-	Status       string `json:"status"`        // CONNECTED, DISCONNECTED, GATEWAY_DOWN
+	Status       string `json:"status"` // CONNECTED, DISCONNECTED, GATEWAY_DOWN
 	IsConnected  bool   `json:"is_connected"`
 	GatewayState string `json:"gateway_state"` // up, down
 	DeviceID     string `json:"device_id"`

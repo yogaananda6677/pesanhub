@@ -27,6 +27,7 @@ type mockStore struct {
 	getUserErr      error
 	user            *UserSummary
 }
+
 func (m *mockStore) GetUser(ctx context.Context, userID string) (*UserSummary, error) {
 	if m.getUserErr != nil {
 		return nil, m.getUserErr

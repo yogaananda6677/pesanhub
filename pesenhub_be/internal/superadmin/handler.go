@@ -103,7 +103,6 @@ func clientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-
 func (h *Handler) requireSuperadmin(w http.ResponseWriter, r *http.Request) (customer.Principal, bool) {
 	p := customer.PrincipalFromRequest(r)
 	if p.Subject == "" || p.Role != "SUPERADMIN" {
@@ -246,7 +245,6 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 }
-
 
 func parsePagination(r *http.Request) (limit, offset int) {
 	limit = 50
