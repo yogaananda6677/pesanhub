@@ -39,7 +39,7 @@ func TestOrderAuditLogIntegration(t *testing.T) {
 	// 1. Create a cashier manual order
 	idempotencyKey := "audit-key-" + time.Now().Format("20060102150405.000000")
 	createIn := CreateInput{
-		ClientOrderID: "d3000000-0000-4000-8000-000000000001",
+		ClientOrderID: customer.NewID(),
 		CustomerName:  "Audit Tester",
 		CustomerPhone: "+6281234567890",
 		Items: []ItemInput{

@@ -1,0 +1,13 @@
+name: pesenhub
+version: 1.0.0
+description: Read-only access to the active PesenHub ordering catalog
+author: PesenHub
+provides_tools:
+  - pesenhub_catalog
+requires_env:
+  - name: PESENHUB_API_BASE_URL
+    description: Base URL of the PesenHub backend
+    secret: false
+  - name: HERMES_TOOL_API_KEY
+    description: Bearer key for protected PesenHub Hermes tool endpoints
+    secret: true

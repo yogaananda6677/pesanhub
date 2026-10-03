@@ -15,6 +15,11 @@ abstract final class AppTheme {
       secondary: AppColors.secondary,
       onSecondary: AppColors.onSecondary,
       surface: AppColors.surface,
+      surfaceContainerLowest: Colors.white,
+      surfaceContainerLow: Colors.white,
+      surfaceContainer: Colors.white,
+      surfaceContainerHigh: const Color(0xFFF8F9FA),
+      surfaceContainerHighest: const Color(0xFFF1F5F9),
       error: AppColors.error,
       outline: AppColors.border,
     );
@@ -45,14 +50,14 @@ abstract final class AppTheme {
         titleTextStyle: AppTypography.titleLarge,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        height: 72,
+        height: 68,
         backgroundColor: AppColors.surface,
-        indicatorColor: AppColors.primaryContainer,
-        elevation: 3,
+        indicatorColor: Colors.transparent,
+        elevation: 1,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           return AppTypography.labelSmall.copyWith(
             color: states.contains(WidgetState.selected)
-                ? AppColors.primary
+                ? const Color(0xFFE5573F)
                 : AppColors.textSecondary,
             fontWeight: states.contains(WidgetState.selected)
                 ? FontWeight.w800
@@ -78,12 +83,17 @@ abstract final class AppTheme {
       ),
       cardTheme: CardThemeData(
         color: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: AppSpacing.borderRadiusMd,
           side: const BorderSide(color: AppColors.border, width: 1),
         ),
         margin: EdgeInsets.zero,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -193,6 +203,7 @@ abstract final class AppTheme {
       ),
       dialogTheme: const DialogThemeData(
         backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: AppSpacing.borderRadiusLg),
       ),
     );

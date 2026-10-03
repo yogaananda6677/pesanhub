@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/gowa"
 )
 
@@ -23,9 +24,10 @@ type ServiceStore interface {
 	ListUsers(ctx context.Context, filterStatus Status, search string, limit, offset int) ([]UserSummary, error)
 	GetUser(ctx context.Context, userID string) (*UserSummary, error)
 	ListInvitations(ctx context.Context, limit, offset int) ([]Invitation, error)
-	CreateInvitation(ctx context.Context, actorID, email, outletName string, expiry time.Duration) (Invitation, error)
+	CreateInvitation(ctx context.Context, actorID, email, outletName, branchID string, expiry time.Duration) (Invitation, error)
 	RevokeInvitation(ctx context.Context, invitationID string) error
 	UpdateUserStatus(ctx context.Context, actorID, targetUserID string, targetStatus Status, reason, requestID string) error
+	UpdateUserBranch(ctx context.Context, actorID, targetUserID, branchID, reason, requestID string) error
 	RevokeUserSessions(ctx context.Context, targetUserID string) error
 	ListAudits(ctx context.Context, targetUserID string, limit, offset int) ([]AuditEntry, error)
 	GetTrafficMetrics(ctx context.Context, timeRange string) (TrafficMetrics, error)
@@ -200,13 +202,13 @@ func (s *Service) ListInvitations(ctx context.Context, limit, offset int) ([]Inv
 	return s.store.ListInvitations(ctx, limit, offset)
 }
 
-func (s *Service) InviteUser(ctx context.Context, actorID, email, outletName string) (Invitation, error) {
+func (s *Service) InviteUser(ctx context.Context, actorID, email, outletName, branchID string) (Invitation, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	address, parseErr := mail.ParseAddress(email)
 	if parseErr != nil || address.Address != email || len(email) > 320 {
 		return Invitation{}, errors.New("invalid email address")
 	}
-	invitation, err := s.store.CreateInvitation(ctx, actorID, email, outletName, 7*24*time.Hour)
+	invitation, err := s.store.CreateInvitation(ctx, actorID, email, outletName, branchID, 7*24*time.Hour)
 	if err != nil {
 		return Invitation{}, err
 	}
@@ -375,4 +377,22 @@ func (s *Service) ListWhatsAppAccountStatuses(ctx context.Context) ([]WhatsAppAc
 		}
 	}
 	return results, nil
+}
+
+func (s *Service) UpdateCashierBranch(ctx context.Context, actorPrincipal customer.Principal, targetUserID, newBranchID, reason, requestID string) error {
+	if actorPrincipal.Role != "ADMIN" && actorPrincipal.Role != "SUPERADMIN" {
+		return customer.ErrUnauthorized
+	}
+	if actorPrincipal.Subject == targetUserID {
+		return errors.New("cannot transfer own branch")
+	}
+	targetUserID = strings.TrimSpace(targetUserID)
+	newBranchID = strings.TrimSpace(newBranchID)
+	if targetUserID == "" || newBranchID == "" {
+		return errors.New("user ID and branch ID required")
+	}
+	if reason == "" {
+		reason = "ADMIN_TRANSFER"
+	}
+	return s.store.UpdateUserBranch(ctx, actorPrincipal.Subject, targetUserID, newBranchID, reason, requestID)
 }

@@ -26,6 +26,8 @@ type User struct {
 	Role        Role       `json:"role"`
 	Status      Status     `json:"status"`
 	ApprovedAt  *time.Time `json:"approved_at,omitempty"`
+	BranchID    *string    `json:"branch_id,omitempty"`
+	BranchName  string     `json:"branch_name,omitempty"`
 }
 
 type GoogleIdentity struct {

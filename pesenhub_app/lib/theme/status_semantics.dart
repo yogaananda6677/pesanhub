@@ -174,6 +174,30 @@ class StatusSemantics {
           foregroundColor: AppColors.sourceWhatsApp,
           backgroundColor: AppColors.sourceWhatsAppBg,
         );
+      case 'GRABFOOD':
+        return const StatusSemantics(
+          code: 'GRABFOOD',
+          label: 'GrabFood',
+          icon: Icons.delivery_dining_rounded,
+          foregroundColor: AppColors.sourceGrabFood,
+          backgroundColor: AppColors.sourceGrabFoodBg,
+        );
+      case 'GOFOOD':
+        return const StatusSemantics(
+          code: 'GOFOOD',
+          label: 'GoFood',
+          icon: Icons.delivery_dining_rounded,
+          foregroundColor: AppColors.sourceGoFood,
+          backgroundColor: AppColors.sourceGoFoodBg,
+        );
+      case 'SHOPEEFOOD':
+        return const StatusSemantics(
+          code: 'SHOPEEFOOD',
+          label: 'ShopeeFood',
+          icon: Icons.fastfood_rounded,
+          foregroundColor: AppColors.sourceShopeeFood,
+          backgroundColor: AppColors.sourceShopeeFoodBg,
+        );
       default:
         return StatusSemantics(
           code: source,

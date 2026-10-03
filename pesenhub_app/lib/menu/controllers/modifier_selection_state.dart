@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../cart/models/cart_item.dart';
 import '../models/menu_item.dart';
 import '../models/menu_modifier_group.dart';
 import '../models/menu_option.dart';
@@ -11,9 +12,44 @@ class ModifierSelectionState extends ChangeNotifier {
   final Map<String, Map<String, int>> _selectedOptionQuantities = {};
   String _notes = '';
 
-  ModifierSelectionState({required this.menuItem, int initialQuantity = 1}) {
+  ModifierSelectionState({
+    required this.menuItem,
+    int initialQuantity = 1,
+    Map<String, Map<String, int>>? initialSelectedOptions,
+    String? initialNotes,
+  }) {
     _quantity = initialQuantity < 1 ? 1 : initialQuantity;
-    _initializeDefaults();
+    if (initialNotes != null) {
+      _notes = initialNotes;
+    }
+    if (initialSelectedOptions != null && initialSelectedOptions.isNotEmpty) {
+      for (final entry in initialSelectedOptions.entries) {
+        _selectedOptionQuantities[entry.key] =
+            Map<String, int>.from(entry.value);
+      }
+    } else {
+      _initializeDefaults();
+    }
+  }
+
+  factory ModifierSelectionState.fromCartItem(CartItem item) {
+    final Map<String, Map<String, int>> initialOptions = {};
+    if (item.selectedOptionQuantities.isNotEmpty) {
+      for (final entry in item.selectedOptionQuantities.entries) {
+        initialOptions[entry.key] = Map<String, int>.from(entry.value);
+      }
+    } else if (item.selectedOptionIds.isNotEmpty) {
+      for (final entry in item.selectedOptionIds.entries) {
+        initialOptions[entry.key] = {for (final optId in entry.value) optId: 1};
+      }
+    }
+
+    return ModifierSelectionState(
+      menuItem: item.menuItem,
+      initialQuantity: item.quantity,
+      initialSelectedOptions: initialOptions.isNotEmpty ? initialOptions : null,
+      initialNotes: item.notes,
+    );
   }
 
   int get quantity => _quantity;

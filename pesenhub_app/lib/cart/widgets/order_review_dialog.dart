@@ -10,9 +10,11 @@ import '../../widgets/app_status_badge.dart';
 import '../controllers/cart_controller.dart';
 import '../models/cart_order_draft.dart';
 
+import 'package:flutter/services.dart';
+
 /// OrderReviewDialog provides an explicit pre-submission review of the cashier's order.
 /// Fulfills Issue #28 Criteria #1, #2, #3, and #4.
-class OrderReviewDialog extends StatelessWidget {
+class OrderReviewDialog extends StatefulWidget {
   final CartController controller;
   final Future<QueueOrder> Function(CartOrderDraft draft)? submitFn;
   final ValueChanged<QueueOrder>? onOrderCreated;
@@ -78,14 +80,91 @@ class OrderReviewDialog extends StatelessWidget {
   }
 
   @override
+  State<OrderReviewDialog> createState() => _OrderReviewDialogState();
+}
+
+class _OrderReviewDialogState extends State<OrderReviewDialog> {
+  bool _payNow = true;
+  int _paymentMethodIndex = 0; // 0: Tunai, 1: Non-Tunai
+  final TextEditingController _cashInputController = TextEditingController();
+  int _receivedAmount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _receivedAmount = widget.controller.totalAmount;
+    _cashInputController.text = _receivedAmount.toString();
+  }
+
+  @override
+  void dispose() {
+    _cashInputController.dispose();
+    super.dispose();
+  }
+
+  void _onCashInputChanged(String val) {
+    final clean = val.replaceAll(RegExp(r'[^0-9]'), '');
+    final num = int.tryParse(clean) ?? 0;
+    setState(() {
+      _receivedAmount = num;
+    });
+  }
+
+  void _selectCashPreset(int amount) {
+    setState(() {
+      _receivedAmount = amount;
+      _cashInputController.text = amount.toString();
+    });
+  }
+
+  String _formatRupiah(int amount) {
+    final digits = amount.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(digits[i]);
+    }
+    return 'Rp ${buffer.toString()}';
+  }
+
+  Widget _buildPresetChip(String label, int amount) {
+    final isSelected = _receivedAmount == amount;
+    return InkWell(
+      onTap: () => _selectCashPreset(amount),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: isSelected ? Colors.white : const Color(0xFF334155),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: controller,
+      listenable: widget.controller,
       builder: (context, _) {
-        final draft = controller.currentDraft;
-        final bool isSubmitting = controller.isSubmitting;
-        final String? errorMsg = controller.errorMessage;
-        final String? discrepancyMsg = controller.discrepancyMessage;
+        final draft = widget.controller.currentDraft;
+        final bool isSubmitting = widget.controller.isSubmitting;
+        final String? errorMsg = widget.controller.errorMessage;
+        final String? discrepancyMsg = widget.controller.discrepancyMessage;
+        final isCash = _paymentMethodIndex == 0;
+        final isCashValid = _receivedAmount >= draft.totalAmount;
+        final change = _receivedAmount - draft.totalAmount;
 
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -198,6 +277,96 @@ class OrderReviewDialog extends StatelessWidget {
                               ],
                             ),
                           ],
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Sumber Transaksi:',
+                                style: AppTypography.labelSmall,
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Flexible(
+                                child: AppStatusBadge.source(draft.source),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              ChoiceChip(
+                                label: const Text('Kasir'),
+                                avatar: const Icon(Icons.point_of_sale_rounded, size: 14),
+                                selected: draft.source == 'CASHIER_MANUAL',
+                                onSelected: isSubmitting
+                                    ? null
+                                    : (selected) {
+                                        if (selected) {
+                                          setState(() {
+                                            widget.controller.setOrderSource('CASHIER_MANUAL');
+                                          });
+                                        }
+                                      },
+                              ),
+                              ChoiceChip(
+                                label: const Text('WhatsApp'),
+                                avatar: const Icon(Icons.chat_bubble_outline_rounded, size: 14),
+                                selected: draft.source == 'WHATSAPP',
+                                onSelected: isSubmitting
+                                    ? null
+                                    : (selected) {
+                                        if (selected) {
+                                          setState(() {
+                                            widget.controller.setOrderSource('WHATSAPP');
+                                          });
+                                        }
+                                      },
+                              ),
+                              ChoiceChip(
+                                label: const Text('GoFood'),
+                                avatar: const Icon(Icons.delivery_dining_rounded, size: 14),
+                                selected: draft.source == 'GOFOOD',
+                                onSelected: isSubmitting
+                                    ? null
+                                    : (selected) {
+                                        if (selected) {
+                                          setState(() {
+                                            widget.controller.setOrderSource('GOFOOD');
+                                          });
+                                        }
+                                      },
+                              ),
+                              ChoiceChip(
+                                label: const Text('GrabFood'),
+                                avatar: const Icon(Icons.delivery_dining_rounded, size: 14),
+                                selected: draft.source == 'GRABFOOD',
+                                onSelected: isSubmitting
+                                    ? null
+                                    : (selected) {
+                                        if (selected) {
+                                          setState(() {
+                                            widget.controller.setOrderSource('GRABFOOD');
+                                          });
+                                        }
+                                      },
+                              ),
+                              ChoiceChip(
+                                label: const Text('ShopeeFood'),
+                                avatar: const Icon(Icons.fastfood_rounded, size: 14),
+                                selected: draft.source == 'SHOPEEFOOD',
+                                onSelected: isSubmitting
+                                    ? null
+                                    : (selected) {
+                                        if (selected) {
+                                          setState(() {
+                                            widget.controller.setOrderSource('SHOPEEFOOD');
+                                          });
+                                        }
+                                      },
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: AppSpacing.sm),
                           const Divider(),
                           const SizedBox(height: AppSpacing.xs),
@@ -319,6 +488,322 @@ class OrderReviewDialog extends StatelessWidget {
                         ),
                       );
                     }),
+                    const SizedBox(height: AppSpacing.md),
+
+                    // 4. Payment Selection Card
+                    AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Status Pembayaran:',
+                                style: AppTypography.labelSmall,
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _payNow
+                                      ? const Color(0xFFE8F5E9)
+                                      : const Color(0xFFFFEBEE),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  _payNow ? 'LUNAS' : 'BELUM BAYAR',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: _payNow
+                                        ? const Color(0xFF2E7D32)
+                                        : const Color(0xFFC62828),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () => setState(() => _payNow = true),
+                                  icon: Icon(
+                                    _payNow
+                                        ? Icons.radio_button_checked_rounded
+                                        : Icons.radio_button_off_rounded,
+                                    size: 16,
+                                    color: _payNow
+                                        ? AppColors.primary
+                                        : AppColors.textMuted,
+                                  ),
+                                  label: const Text('Bayar Langsung'),
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: _payNow
+                                        ? const Color(0xFFFFF7ED)
+                                        : Colors.white,
+                                    side: BorderSide(
+                                      color: _payNow
+                                          ? AppColors.primary
+                                          : AppColors.border,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () => setState(() => _payNow = false),
+                                  icon: Icon(
+                                    !_payNow
+                                        ? Icons.radio_button_checked_rounded
+                                        : Icons.radio_button_off_rounded,
+                                    size: 16,
+                                    color: !_payNow
+                                        ? AppColors.primary
+                                        : AppColors.textMuted,
+                                  ),
+                                  label: const Text('Bayar Nanti'),
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: !_payNow
+                                        ? const Color(0xFFFFF7ED)
+                                        : Colors.white,
+                                    side: BorderSide(
+                                      color: !_payNow
+                                          ? AppColors.primary
+                                          : AppColors.border,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_payNow) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            const Divider(),
+                            const SizedBox(height: AppSpacing.xs),
+                            // Metode Pembayaran
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => setState(() => _paymentMethodIndex = 0),
+                                    icon: Icon(
+                                      Icons.payments_rounded,
+                                      size: 16,
+                                      color: _paymentMethodIndex == 0
+                                          ? Colors.white
+                                          : AppColors.primary,
+                                    ),
+                                    label: const Text(
+                                      'Tunai (Cash)',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: _paymentMethodIndex == 0
+                                          ? AppColors.primary
+                                          : Colors.white,
+                                      foregroundColor: _paymentMethodIndex == 0
+                                          ? Colors.white
+                                          : AppColors.textPrimary,
+                                      side: BorderSide(
+                                        color: _paymentMethodIndex == 0
+                                            ? AppColors.primary
+                                            : AppColors.border,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => setState(() => _paymentMethodIndex = 1),
+                                    icon: Icon(
+                                      Icons.qr_code_scanner_rounded,
+                                      size: 16,
+                                      color: _paymentMethodIndex == 1
+                                          ? Colors.white
+                                          : AppColors.primary,
+                                    ),
+                                    label: const Text(
+                                      'Non-Tunai (QRIS)',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: _paymentMethodIndex == 1
+                                          ? AppColors.primary
+                                          : Colors.white,
+                                      foregroundColor: _paymentMethodIndex == 1
+                                          ? Colors.white
+                                          : AppColors.textPrimary,
+                                      side: BorderSide(
+                                        color: _paymentMethodIndex == 1
+                                            ? AppColors.primary
+                                            : AppColors.border,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (isCash) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  _buildPresetChip('Uang Pas', draft.totalAmount),
+                                  _buildPresetChip('Rp 20.000', 20000),
+                                  _buildPresetChip('Rp 50.000', 50000),
+                                  _buildPresetChip('Rp 100.000', 100000),
+                                ],
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              TextField(
+                                controller: _cashInputController,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
+                                decoration: InputDecoration(
+                                  labelText: 'Uang Tunai Diterima',
+                                  prefixText: 'Rp ',
+                                  prefixStyle:
+                                      const TextStyle(fontWeight: FontWeight.bold),
+                                  filled: true,
+                                  fillColor: const Color(0xFFFAFAFA),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(
+                                      color: AppColors.border,
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                onChanged: _onCashInputChanged,
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isCashValid
+                                      ? const Color(0xFFE8F5E9)
+                                      : const Color(0xFFFFEBEE),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      isCashValid
+                                          ? 'Uang Kembalian:'
+                                          : 'Uang Kurang:',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: isCashValid
+                                            ? const Color(0xFF2E7D32)
+                                            : const Color(0xFFC62828),
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatRupiah(
+                                        change >= 0 ? change : -change,
+                                      ),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w900,
+                                        color: isCashValid
+                                            ? const Color(0xFF2E7D32)
+                                            : const Color(0xFFC62828),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ] else ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              Container(
+                                padding: const EdgeInsets.all(AppSpacing.md),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.qr_code_2_rounded,
+                                      size: 32,
+                                      color: AppColors.primary,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'QRIS / Transfer Gerai',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Nominal pas ${_formatRupiah(draft.totalAmount)}',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -360,15 +845,22 @@ class OrderReviewDialog extends StatelessWidget {
                     icon: isSubmitting ? null : Icons.check_circle_rounded,
                     isFullWidth: true,
                     // Criteria #2 & #4: Double-tap locked and disabled during submission
-                    onPressed: isSubmitting
+                    onPressed: (isSubmitting ||
+                            (_payNow && isCash && !isCashValid))
                         ? null
                         : () async {
-                            final order = await controller.submitOrder(
-                              submitFn: submitFn,
+                            widget.controller.setPaymentInfo(
+                              paymentStatus: _payNow ? 'PAID' : 'UNPAID',
+                              paymentMethod: _payNow
+                                  ? (isCash ? 'CASH' : 'QRIS')
+                                  : null,
+                            );
+                            final order = await widget.controller.submitOrder(
+                              submitFn: widget.submitFn,
                             );
                             if (order != null && context.mounted) {
-                              if (onOrderCreated != null) {
-                                onOrderCreated!(order);
+                              if (widget.onOrderCreated != null) {
+                                widget.onOrderCreated!(order);
                               } else {
                                 Navigator.of(context).pop(order);
                               }

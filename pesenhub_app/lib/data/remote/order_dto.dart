@@ -62,6 +62,9 @@ class QueueOrderDto {
         .toList(growable: false);
 
     final phone = json['customer_phone'];
+    final branchId = json['branch_id'] as String?;
+    final branchCode = json['branch_code'] as String?;
+    final branchName = json['branch_name'] as String?;
     return QueueOrderDto(
       QueueOrder(
         id: id,
@@ -81,6 +84,9 @@ class QueueOrderDto {
         items: items,
         createdAt: createdAt.toUtc(),
         version: version,
+        branchId: branchId,
+        branchCode: branchCode,
+        branchName: branchName,
       ),
     );
   }

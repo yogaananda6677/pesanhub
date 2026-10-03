@@ -373,5 +373,58 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
+
+    testWidgets(
+      'Criteria #8: Pending WhatsApp orders display Terima Pesanan & Tolak actions and transition correctly',
+      (tester) async {
+        QueueOrder? updatedOrder;
+        String? nextStatus;
+
+        final waOrder = buildOrder(
+          id: 'ord-wa-1',
+          orderNumber: '#ORD-WA1',
+          customerName: 'Pelanggan WA',
+          source: 'WHATSAPP',
+          orderStatus: 'PENDING',
+          paymentStatus: 'UNPAID',
+        );
+
+        final controller = QueueController(
+          initialOrders: [waOrder],
+          timeOverride: fixedNow,
+        );
+
+        await tester.pumpWidget(
+          buildQueueTestApp(
+            controller,
+            onStatusChanged: (o, s) {
+              updatedOrder = o;
+              nextStatus = s;
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Must display both "Terima Pesanan" and "Tolak"
+        expect(find.text('Terima Pesanan'), findsOneWidget);
+        expect(find.text('Tolak'), findsOneWidget);
+
+        // Tap "Terima Pesanan"
+        await tester.tap(find.text('Terima Pesanan'));
+        await tester.pumpAndSettle();
+
+        expect(updatedOrder?.id, equals('ord-wa-1'));
+        expect(nextStatus, equals('ACCEPTED'));
+
+        // Reset and test "Tolak"
+        updatedOrder = null;
+        nextStatus = null;
+        await tester.tap(find.text('Tolak'));
+        await tester.pumpAndSettle();
+
+        expect(updatedOrder?.id, equals('ord-wa-1'));
+        expect(nextStatus, equals('REJECTED'));
+      },
+    );
   });
 }

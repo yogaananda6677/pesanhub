@@ -57,7 +57,19 @@ class CatalogRuntimeCoordinator {
       managementController.setLoading();
     }
     try {
-      final remote = await gateway.fetchAdminCatalog();
+      RemoteCatalog remote;
+      try {
+        remote = await gateway.fetchAdminCatalog();
+      } on ApiFailure catch (failure) {
+        if (failure.kind == ApiFailureKind.unauthenticated ||
+            failure.kind == ApiFailureKind.forbidden) {
+          remote = await gateway.fetchPublicCatalog();
+        } else {
+          rethrow;
+        }
+      } catch (_) {
+        rethrow;
+      }
       if (_disposed) return;
       final refreshedAt = DateTime.now();
       var resolvedMenus = remote.menus;

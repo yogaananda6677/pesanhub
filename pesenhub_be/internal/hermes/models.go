@@ -57,7 +57,7 @@ const (
 // Prompt and Model constants.
 const (
 	DefaultPromptVersion = "v1.0.0"
-	DefaultModelName     = "hermes-3-llama-3.1-8b"
+	DefaultModelName     = "hermes-agent"
 )
 
 // ExtractionRequest carries the input data to extract an order draft candidate.

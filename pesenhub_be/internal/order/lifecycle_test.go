@@ -19,7 +19,7 @@ func TestValidTransition(t *testing.T) {
 		from, to domain.OrderStatus
 		want     bool
 	}{
-		{domain.OrderStatusPending, domain.OrderStatusAccepted, true}, {domain.OrderStatusPending, domain.OrderStatusRejected, true}, {domain.OrderStatusPending, domain.OrderStatusCancelled, true},
+		{domain.OrderStatusPending, domain.OrderStatusAccepted, true}, {domain.OrderStatusPending, domain.OrderStatusPreparing, true}, {domain.OrderStatusPending, domain.OrderStatusRejected, true}, {domain.OrderStatusPending, domain.OrderStatusCancelled, true},
 		{domain.OrderStatusAccepted, domain.OrderStatusPreparing, true}, {domain.OrderStatusAccepted, domain.OrderStatusCancelled, true},
 		{domain.OrderStatusPreparing, domain.OrderStatusReady, true}, {domain.OrderStatusReady, domain.OrderStatusCompleted, true},
 		{domain.OrderStatusPending, domain.OrderStatusCompleted, false}, {domain.OrderStatusPreparing, domain.OrderStatusCancelled, false}, {domain.OrderStatusCompleted, domain.OrderStatusPending, false}, {domain.OrderStatusRejected, domain.OrderStatusAccepted, false}, {domain.OrderStatusCancelled, domain.OrderStatusPending, false},

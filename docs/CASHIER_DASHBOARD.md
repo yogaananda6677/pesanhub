@@ -6,7 +6,7 @@ Dokumen ini mendokumentasikan spesifikasi implementasi dashboard kasir dan ringk
 
 ## 1. Latar Belakang & Kebutuhan Desain
 
-Kasir outlet nasi goreng merangkap berbagai tugas fisik (memasak, membungkus pesanan, melayani pelanggan, dan menerima pembayaran). 
+Kasir outlet martabak dan terang bulan merangkap berbagai tugas fisik (memanggang terang bulan, menggoreng martabak telur, membungkus pesanan, melayani pelanggan, dan menerima pembayaran). 
 Dashboard kasir dirancang dengan prinsip:
 1. **Scannable**: Memberikan informasi volume pesanan dalam hitungan detik tanpa membuka banyak layar.
 2. **Actionable dalam 1 Tap**: Seluruh aksi utama operasional dapat dijangkau dalam maksimal satu ketukan dari dashboard.

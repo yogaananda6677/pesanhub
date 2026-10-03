@@ -10,6 +10,7 @@ class RemoteCatalog {
 
 abstract class CatalogRemoteGateway {
   Future<RemoteCatalog> fetchAdminCatalog();
+  Future<RemoteCatalog> fetchPublicCatalog() => fetchAdminCatalog();
   Future<MenuCategory> createCategory(MenuCategory category);
   Future<MenuCategory> updateCategory(MenuCategory category);
   Future<MenuItem> createMenu(MenuItem menu);

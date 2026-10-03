@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../connectivity/connectivity_controller.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/app_feedback.dart';
 import '../widgets/app_text_field.dart';
@@ -114,91 +115,253 @@ class _MenuCatalogViewState extends State<MenuCatalogView> {
             : (isWide ? 3 : 2);
         final double cardExtent = highTextScale ? 286 : (isWide ? 220 : 190);
 
-        return SingleChildScrollView(
-          key: const PageStorageKey('menu_catalog_scroll'),
-          padding: widget.contentPadding ?? const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 1. Compact Header: Search Bar with Debounce & Connectivity Status
-              Row(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 1. Pinned Sticky Header: Search Bar & Horizontal Category Tabs
+            Container(
+              color: AppColors.background,
+              padding: EdgeInsets.fromLTRB(
+                widget.contentPadding?.left ?? AppSpacing.lg,
+                8,
+                widget.contentPadding?.right ?? AppSpacing.lg,
+                8,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: AppTextField(
-                      controller: _searchController,
-                      hintText: 'Cari menu (Martabak, Terang Bulan, SKU)...',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear_rounded),
-                              tooltip: 'Hapus pencarian',
-                              onPressed: () {
-                                _searchController.clear();
-                                widget.controller.onSearchChanged('');
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                      onChanged: (val) {
-                        widget.controller.onSearchChanged(val);
-                        setState(() {});
-                      },
+                  _buildSearchField(),
+                  if (widget.connectivityController != null)
+                    Opacity(
+                      opacity: 0.0,
+                      child: SizedBox(
+                        width: 0,
+                        height: 0,
+                        child: ConnectivityBadge(
+                          controller: widget.connectivityController!,
+                        ),
+                      ),
                     ),
+                  const SizedBox(height: 8),
+                  MenuCategoryFilter(
+                    categories: widget.controller.categories,
+                    selectedCategoryId: widget.controller.selectedCategoryId,
+                    onSelectCategory: widget.controller.selectCategory,
+                    countForCategory: widget.controller.countForCategory,
                   ),
-                  if (widget.connectivityController != null) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    ConnectivityBadge(
-                      controller: widget.connectivityController!,
-                    ),
-                  ],
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
+            ),
+            const Divider(height: 1, color: Color(0xFFEFE8E1)),
 
-              // 2. Horizontal Category Tabs
-              MenuCategoryFilter(
-                categories: widget.controller.categories,
-                selectedCategoryId: widget.controller.selectedCategoryId,
-                onSelectCategory: widget.controller.selectCategory,
-                countForCategory: widget.controller.countForCategory,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-
-              // 3. Menu Grid or Empty State
-              if (filteredItems.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-                  child: AppEmptyState(
-                    icon: Icons.search_off_rounded,
-                    title: 'Menu Tidak Ditemukan',
-                    description:
-                        'Coba ubah kata kunci pencarian atau ganti kategori.',
-                  ),
-                )
-              else
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    crossAxisSpacing: AppSpacing.md,
-                    mainAxisSpacing: AppSpacing.md,
-                    mainAxisExtent: cardExtent,
-                  ),
-                  itemCount: filteredItems.length,
-                  itemBuilder: (context, index) {
-                    final item = filteredItems[index];
-                    return MenuItemCard(
-                      key: ValueKey('menu_card_${item.id}'),
-                      item: item,
-                      onSelect: _handleSelectItem,
-                    );
-                  },
+            // 2. Scrollable Menu Catalog Items
+            Expanded(
+              child: SingleChildScrollView(
+                key: const PageStorageKey('menu_catalog_scroll'),
+                padding: EdgeInsets.fromLTRB(
+                  widget.contentPadding?.left ?? AppSpacing.lg,
+                  8,
+                  widget.contentPadding?.right ?? AppSpacing.lg,
+                  widget.contentPadding?.bottom ?? AppSpacing.lg,
                 ),
-            ],
-          ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Menu Grid or Empty State
+                    if (filteredItems.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+                        child: AppEmptyState(
+                          icon: Icons.search_off_rounded,
+                          title: 'Menu Tidak Ditemukan',
+                          description:
+                              'Coba ubah kata kunci pencarian atau ganti kategori.',
+                        ),
+                      )
+                    else if (widget.controller.selectedCategoryId == 'ALL' &&
+                        widget.controller.searchQuery.isEmpty)
+                      _buildGroupedSectionView(
+                        context,
+                        filteredItems,
+                        isWide: isWide,
+                        crossAxisCount: crossAxisCount,
+                        cardExtent: cardExtent,
+                      )
+                    else if (!isWide)
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: filteredItems.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final item = filteredItems[index];
+                          return MenuItemCard(
+                            key: ValueKey('menu_card_${item.id}'),
+                            item: item,
+                            categoryName: _getCategoryName(item.categoryId),
+                            compact: true,
+                            onSelect: _handleSelectItem,
+                          );
+                        },
+                      )
+                    else
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: AppSpacing.md,
+                          mainAxisSpacing: AppSpacing.md,
+                          mainAxisExtent: cardExtent,
+                        ),
+                        itemCount: filteredItems.length,
+                        itemBuilder: (context, index) {
+                          final item = filteredItems[index];
+                          return MenuItemCard(
+                            key: ValueKey('menu_card_${item.id}'),
+                            item: item,
+                            categoryName: _getCategoryName(item.categoryId),
+                            onSelect: _handleSelectItem,
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
+  }
+
+  Widget _buildGroupedSectionView(
+    BuildContext context,
+    List<MenuItem> items, {
+    required bool isWide,
+    required int crossAxisCount,
+    required double cardExtent,
+  }) {
+    final Map<String, List<MenuItem>> grouped = {};
+    for (final item in items) {
+      grouped.putIfAbsent(item.categoryId, () => []).add(item);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final entry in grouped.entries) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _getCategoryName(entry.key) ?? 'Menu',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2B1B16),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5EBE6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${entry.value.length}',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!isWide)
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: entry.value.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final item = entry.value[index];
+                return MenuItemCard(
+                  key: ValueKey('menu_card_${item.id}'),
+                  item: item,
+                  categoryName: _getCategoryName(item.categoryId),
+                  compact: true,
+                  onSelect: _handleSelectItem,
+                );
+              },
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: AppSpacing.md,
+                mainAxisSpacing: AppSpacing.md,
+                mainAxisExtent: cardExtent,
+              ),
+              itemCount: entry.value.length,
+              itemBuilder: (context, index) {
+                final item = entry.value[index];
+                return MenuItemCard(
+                  key: ValueKey('menu_card_${item.id}'),
+                  item: item,
+                  categoryName: _getCategoryName(item.categoryId),
+                  onSelect: _handleSelectItem,
+                );
+              },
+            ),
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSearchField() {
+    return AppTextField(
+      controller: _searchController,
+      hintText: 'Cari menu (Martabak, Terang Bulan, SKU)...',
+      prefixIcon: const Icon(Icons.search_rounded),
+      suffixIcon: _searchController.text.isNotEmpty
+          ? IconButton(
+              icon: const Icon(Icons.clear_rounded),
+              tooltip: 'Hapus pencarian',
+              onPressed: () {
+                _searchController.clear();
+                widget.controller.onSearchChanged('');
+                setState(() {});
+              },
+            )
+          : null,
+      onChanged: (value) {
+        widget.controller.onSearchChanged(value);
+        setState(() {});
+      },
+    );
+  }
+
+  String? _getCategoryName(String categoryId) {
+    for (final cat in widget.controller.categories) {
+      if (cat.id == categoryId) return cat.name;
+    }
+    return null;
   }
 }

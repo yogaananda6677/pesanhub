@@ -11,6 +11,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	dbx "pesenhub/backend/internal/database"
 
+	"pesenhub/backend/internal/branch"
 	"pesenhub/backend/internal/catalog"
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/domain"
@@ -36,6 +37,22 @@ func (s *Store) notifyOutbox() {
 	if s.notifier != nil {
 		s.notifier.Notify()
 	}
+}
+
+func resolveBranchForOrder(ctx context.Context, tx *dbx.Tx, branchID string) (id string, code string, name string, err error) {
+	branchID = strings.TrimSpace(branchID)
+	var bID, bCode, bName string
+	if branchID != "" {
+		err = tx.QueryRow(ctx, `SELECT id::text, code, name FROM branches WHERE id = $1::uuid`, branchID).Scan(&bID, &bCode, &bName)
+		if err == nil {
+			return bID, bCode, bName, nil
+		}
+	}
+	err = tx.QueryRow(ctx, `SELECT id::text, code, name FROM branches WHERE is_default = TRUE LIMIT 1`).Scan(&bID, &bCode, &bName)
+	if err == nil {
+		return bID, bCode, bName, nil
+	}
+	return "b0000000-0000-0000-0000-000000000001", "BWX", "Cabang Utama Banyuwangi", nil
 }
 
 func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInput, key, hash, actorID, roleRequest string) (StatusResult, bool, error) {
@@ -69,12 +86,17 @@ func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInp
 	}
 	var current string
 	var version int64
-	err = tx.QueryRow(ctx, `SELECT status,version FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&current, &version)
+	var orderBranchID string
+	err = tx.QueryRow(ctx, `SELECT status,version,branch_id::text FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&current, &version, &orderBranchID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return StatusResult{}, false, ErrNotFound
 	}
 	if err != nil {
 		return StatusResult{}, false, err
+	}
+	scope := branch.ScopeFromContext(ctx)
+	if !scope.All && scope.BranchID != "" && orderBranchID != scope.BranchID {
+		return StatusResult{}, false, ErrNotFound
 	}
 	if version != in.ExpectedVersion {
 		return StatusResult{}, false, ErrVersionConflict
@@ -86,9 +108,10 @@ func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInp
 	if _, err = tx.Exec(ctx, `UPDATE orders SET status=$2,version=$3,updated_at=now() WHERE id=$1`, orderID, result.Status, result.Version); err != nil {
 		return StatusResult{}, false, err
 	}
-	metadata, _ := json.Marshal(map[string]any{"from_status": current, "to_status": result.Status, "version": result.Version})
+	metadata, _ := json.Marshal(map[string]any{"from_status": current, "to_status": result.Status, "version": result.Version, "branch_id": orderBranchID})
 	auditMeta := SanitizeAuditMetadata(map[string]any{
 		"order_id":    orderID,
+		"branch_id":   orderBranchID,
 		"from_status": current,
 		"to_status":   result.Status,
 		"version":     result.Version,
@@ -116,17 +139,29 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 		return Order{}, false, err
 	}
 	defer tx.Rollback(ctx)
-	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "CASHIER_MANUAL:"+key); err != nil {
+
+	orderSource := strings.TrimSpace(in.Source)
+	if orderSource == "" {
+		orderSource = "CASHIER_MANUAL"
+	}
+
+	priceChannel := "OFFLINE"
+	switch orderSource {
+	case "GRABFOOD", "GOFOOD", "SHOPEEFOOD":
+		priceChannel = orderSource
+	}
+
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, orderSource+":"+key); err != nil {
 		return Order{}, false, err
 	}
-	if existing, found, err := loadExisting(ctx, tx, key, hash); found || err != nil {
+	if existing, found, err := loadExisting(ctx, tx, orderSource, key, hash); found || err != nil {
 		return existing, false, err
 	}
 
 	items := make([]Item, 0, len(in.Items))
 	var total int64
 	for _, requested := range in.Items {
-		menu, err := loadMenu(ctx, tx, requested.MenuID)
+		menu, err := loadMenuForChannel(ctx, tx, requested.MenuID, priceChannel)
 		if err != nil {
 			return Order{}, false, err
 		}
@@ -149,12 +184,26 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 	if len(parts) == 2 && parts[1] != "" {
 		requestID = parts[1]
 	}
-	o := Order{ID: customer.NewID(), OrderNumber: "ORD-" + strings.ToUpper(strings.ReplaceAll(customer.NewID(), "-", "")[:16]), ClientOrderID: in.ClientOrderID, Source: "CASHIER_MANUAL", Status: "PENDING", TotalAmount: total, Version: 1, Items: items}
+	bID, bCode, bName, _ := resolveBranchForOrder(ctx, tx, in.BranchID)
+	orderNum := fmt.Sprintf("%s-%s", bCode, strings.ToUpper(strings.ReplaceAll(customer.NewID(), "-", "")[:16]))
+	o := Order{
+		ID:            customer.NewID(),
+		OrderNumber:   orderNum,
+		ClientOrderID: in.ClientOrderID,
+		BranchID:      bID,
+		BranchCode:    bCode,
+		BranchName:    bName,
+		Source:        orderSource,
+		Status:        "PENDING",
+		TotalAmount:   total,
+		Version:       1,
+		Items:         items,
+	}
 	var customerRef any
 	if in.CustomerID != "" {
 		customerRef = in.CustomerID
 	}
-	err = tx.QueryRow(ctx, `INSERT INTO orders (id,order_number,customer_id,source,status,customer_name_snapshot,customer_phone_snapshot,notes,subtotal_amount,total_amount,idempotency_key,client_order_id,request_hash) VALUES ($1,$2,$3,'CASHIER_MANUAL','PENDING',$4,NULLIF($5,''),NULLIF($6,''),$7,$7,$8,$9,$10) RETURNING created_at`, o.ID, o.OrderNumber, customerRef, in.CustomerName, in.CustomerPhone, in.Notes, total, key, in.ClientOrderID, hash).Scan(&o.CreatedAt)
+	err = tx.QueryRow(ctx, `INSERT INTO orders (id,order_number,customer_id,branch_id,source,status,customer_name_snapshot,customer_phone_snapshot,notes,subtotal_amount,total_amount,idempotency_key,client_order_id,request_hash) VALUES ($1,$2,$3,$4::uuid,$5,'PENDING',$6,NULLIF($7,''),NULLIF($8,''),$9,$9,$10,$11,$12) RETURNING created_at`, o.ID, o.OrderNumber, customerRef, bID, orderSource, in.CustomerName, in.CustomerPhone, in.Notes, total, key, in.ClientOrderID, hash).Scan(&o.CreatedAt)
 	if err != nil {
 		var dbErr *mysql.MySQLError
 		if errors.As(err, &dbErr) && dbErr.Number == 1062 {
@@ -176,7 +225,8 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 	metadata, _ := json.Marshal(map[string]any{
 		"order_id":     o.ID,
 		"order_number": o.OrderNumber,
-		"source":       "CASHIER_MANUAL",
+		"branch_id":    bID,
+		"source":       orderSource,
 		"status":       "PENDING",
 		"total_amount": total,
 		"version":      1,
@@ -184,7 +234,8 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 	auditMeta := SanitizeAuditMetadata(map[string]any{
 		"order_id":       o.ID,
 		"order_number":   o.OrderNumber,
-		"source":         "CASHIER_MANUAL",
+		"branch_id":      bID,
+		"source":         orderSource,
 		"status":         "PENDING",
 		"total_amount":   total,
 		"customer_name":  in.CustomerName,
@@ -211,10 +262,10 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 	return o, true, nil
 }
 
-func loadExisting(ctx context.Context, tx *dbx.Tx, key, hash string) (Order, bool, error) {
+func loadExisting(ctx context.Context, tx *dbx.Tx, source, key, hash string) (Order, bool, error) {
 	var o Order
 	var stored string
-	err := tx.QueryRow(ctx, `SELECT id::text,order_number,client_order_id::text,source,status,total_amount,version,created_at,request_hash FROM orders WHERE source='CASHIER_MANUAL' AND idempotency_key=$1`, key).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.Source, &o.Status, &o.TotalAmount, &o.Version, &o.CreatedAt, &stored)
+	err := tx.QueryRow(ctx, `SELECT o.id::text,o.order_number,COALESCE(o.client_order_id::text, ''),o.branch_id::text,COALESCE(b.code, ''),COALESCE(b.name, ''),o.source,o.status,o.total_amount,o.version,o.created_at,o.request_hash FROM orders o LEFT JOIN branches b ON b.id = o.branch_id WHERE o.source=$1 AND o.idempotency_key=$2`, source, key).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.BranchID, &o.BranchCode, &o.BranchName, &o.Source, &o.Status, &o.TotalAmount, &o.Version, &o.CreatedAt, &stored)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Order{}, false, nil
 	}
@@ -270,6 +321,10 @@ func insertOrderItemModifiers(ctx context.Context, tx *dbx.Tx, itemID string, me
 }
 
 func loadMenu(ctx context.Context, tx *dbx.Tx, id string) (catalog.Menu, error) {
+	return loadMenuForChannel(ctx, tx, id, "OFFLINE")
+}
+
+func loadMenuForChannel(ctx context.Context, tx *dbx.Tx, id string, channel string) (catalog.Menu, error) {
 	var m catalog.Menu
 	err := tx.QueryRow(ctx, `SELECT id::text,category_id::text,sku,name,price_amount,is_available,version,sort_order FROM menus WHERE id=$1 FOR SHARE`, id).Scan(&m.ID, &m.CategoryID, &m.SKU, &m.Name, &m.PriceAmount, &m.Available, &m.Version, &m.SortOrder)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -277,6 +332,13 @@ func loadMenu(ctx context.Context, tx *dbx.Tx, id string) (catalog.Menu, error) 
 	}
 	if err != nil {
 		return m, err
+	}
+	if channel != "" && channel != "OFFLINE" {
+		var channelPrice int64
+		err := tx.QueryRow(ctx, `SELECT amount FROM menu_channel_prices WHERE menu_id=$1 AND channel=$2`, id, channel).Scan(&channelPrice)
+		if err == nil && channelPrice >= 0 {
+			m.PriceAmount = channelPrice
+		}
 	}
 	rows, err := tx.Query(ctx, `SELECT g.id::text,g.code,g.name,g.min_select,g.max_select,g.sort_order,g.is_active,o.id::text,o.code,o.name,o.price_delta_amount,o.is_available,o.sort_order FROM modifier_groups g LEFT JOIN modifier_options o ON o.group_id=g.id WHERE g.menu_id=$1 ORDER BY g.sort_order,g.id,o.sort_order,o.id FOR SHARE`, id)
 	if err != nil {
@@ -329,6 +391,10 @@ func (s *Store) List(ctx context.Context, filter OrderFilter) ([]OrderDetail, st
 		args = append(args, *filter.CreatedTo)
 		where = append(where, fmt.Sprintf("o.created_at <= $%d", len(args)))
 	}
+	if filter.BranchID != "" {
+		args = append(args, filter.BranchID)
+		where = append(where, fmt.Sprintf("o.branch_id = $%d::uuid", len(args)))
+	}
 
 	orderDir := "ASC"
 	if strings.ToLower(filter.Pagination.Order) == "desc" {
@@ -365,9 +431,12 @@ func (s *Store) List(ctx context.Context, filter OrderFilter) ([]OrderDetail, st
 	orderClause := fmt.Sprintf("ORDER BY o.created_at %s, o.id %s", orderDir, orderDir)
 
 	query := fmt.Sprintf(`SELECT o.id::text, o.order_number, COALESCE(o.client_order_id::text, ''), COALESCE(o.customer_id::text, ''),
+		o.branch_id::text, COALESCE(b.code, ''), COALESCE(b.name, ''),
 		o.source, o.status, o.customer_name_snapshot, o.customer_phone_snapshot,
 		COALESCE(o.notes, ''), o.total_amount, o.version, o.created_at, o.updated_at
-		FROM orders o %s %s %s`, whereClause, orderClause, limitClause)
+		FROM orders o
+		LEFT JOIN branches b ON b.id = o.branch_id
+		%s %s %s`, whereClause, orderClause, limitClause)
 
 	rows, err := s.db.Query(ctx, query, args...)
 	if err != nil {
@@ -379,7 +448,7 @@ func (s *Store) List(ctx context.Context, filter OrderFilter) ([]OrderDetail, st
 	for rows.Next() {
 		var o OrderDetail
 		var phone *string
-		if err = rows.Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt); err != nil {
+		if err = rows.Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.BranchID, &o.BranchCode, &o.BranchName, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt); err != nil {
 			return nil, "", err
 		}
 		o.CustomerPhone = phone
@@ -406,10 +475,13 @@ func (s *Store) GetByID(ctx context.Context, orderID string) (OrderDetail, error
 	var o OrderDetail
 	var phone *string
 	err := s.db.QueryRow(ctx, `SELECT o.id::text, o.order_number, COALESCE(o.client_order_id::text, ''), COALESCE(o.customer_id::text, ''),
+		o.branch_id::text, COALESCE(b.code, ''), COALESCE(b.name, ''),
 		o.source, o.status, o.customer_name_snapshot, o.customer_phone_snapshot,
 		COALESCE(o.notes, ''), o.total_amount, o.version, o.created_at, o.updated_at,
 		COALESCE(o.public_tracking_token, '')
-		FROM orders o WHERE o.id = $1`, orderID).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt, &o.PublicTrackingToken)
+		FROM orders o
+		LEFT JOIN branches b ON b.id = o.branch_id
+		WHERE o.id = $1`, orderID).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.BranchID, &o.BranchCode, &o.BranchName, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt, &o.PublicTrackingToken)
 	if errors.Is(err, sql.ErrNoRows) {
 		return OrderDetail{}, ErrNotFound
 	}
@@ -585,8 +657,9 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 		return PublicOrderResponse{}, false, err
 	}
 
+	bID, bCode, _, _ := resolveBranchForOrder(ctx, tx, in.BranchID)
 	orderID := customer.NewID()
-	orderNumber := "ORD-" + strings.ToUpper(strings.ReplaceAll(customer.NewID(), "-", "")[:16])
+	orderNumber := fmt.Sprintf("%s-%s", bCode, strings.ToUpper(strings.ReplaceAll(customer.NewID(), "-", "")[:16]))
 	trackingToken := "trk_" + strings.ToLower(strings.ReplaceAll(customer.NewID(), "-", "")+strings.ReplaceAll(customer.NewID(), "-", "")[:8])
 
 	res := PublicOrderResponse{
@@ -596,9 +669,9 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 		TotalAmount:         total,
 	}
 
-	err = tx.QueryRow(ctx, `INSERT INTO orders (id, order_number, customer_id, source, fulfillment, status, customer_name_snapshot, customer_phone_snapshot, notes, subtotal_amount, total_amount, idempotency_key, version, request_hash, public_tracking_token)
-		VALUES ($1, $2, $3, 'CUSTOMER_WEB', 'PICKUP', 'PENDING', $4, $5, NULLIF($6, ''), $7, $7, $8, 1, $9, $10)
-		RETURNING created_at`, orderID, orderNumber, customerID, in.CustomerName, in.CustomerPhone, in.Notes, total, key, hash, trackingToken).Scan(&res.CreatedAt)
+	err = tx.QueryRow(ctx, `INSERT INTO orders (id, order_number, customer_id, branch_id, source, fulfillment, status, customer_name_snapshot, customer_phone_snapshot, notes, subtotal_amount, total_amount, idempotency_key, version, request_hash, public_tracking_token)
+		VALUES ($1, $2, $3, $4::uuid, 'CUSTOMER_WEB', 'PICKUP', 'PENDING', $5, $6, NULLIF($7, ''), $8, $8, $9, 1, $10, $11)
+		RETURNING created_at`, orderID, orderNumber, customerID, bID, in.CustomerName, in.CustomerPhone, in.Notes, total, key, hash, trackingToken).Scan(&res.CreatedAt)
 	if err != nil {
 		var dbErr *mysql.MySQLError
 		if errors.As(err, &dbErr) && dbErr.Number == 1062 {
@@ -625,6 +698,7 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 	metadata, _ := json.Marshal(map[string]any{
 		"order_id":       orderID,
 		"order_number":   orderNumber,
+		"branch_id":      bID,
 		"source":         "CUSTOMER_WEB",
 		"status":         "PENDING",
 		"customer_name":  in.CustomerName,
@@ -635,6 +709,7 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 	auditMeta := SanitizeAuditMetadata(map[string]any{
 		"order_id":       orderID,
 		"order_number":   orderNumber,
+		"branch_id":      bID,
 		"source":         "CUSTOMER_WEB",
 		"status":         "PENDING",
 		"customer_name":  in.CustomerName,
@@ -737,8 +812,9 @@ func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput,
 		return WhatsAppOrderResponse{}, false, err
 	}
 
+	bID, bCode, _, _ := resolveBranchForOrder(ctx, tx, in.BranchID)
 	orderID := customer.NewID()
-	orderNumber := "ORD-" + strings.ToUpper(strings.ReplaceAll(customer.NewID(), "-", "")[:16])
+	orderNumber := fmt.Sprintf("%s-%s", bCode, strings.ToUpper(strings.ReplaceAll(customer.NewID(), "-", "")[:16]))
 	trackingToken := "trk_" + strings.ToLower(strings.ReplaceAll(customer.NewID(), "-", "")+strings.ReplaceAll(customer.NewID(), "-", "")[:8])
 
 	res := WhatsAppOrderResponse{
@@ -749,9 +825,9 @@ func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput,
 		TotalAmount:         total,
 	}
 
-	err = tx.QueryRow(ctx, `INSERT INTO orders (id, order_number, customer_id, source, fulfillment, status, customer_name_snapshot, customer_phone_snapshot, notes, subtotal_amount, total_amount, idempotency_key, version, request_hash, public_tracking_token)
-		VALUES ($1, $2, $3, 'WHATSAPP', 'PICKUP', 'PENDING', $4, $5, NULLIF($6, ''), $7, $7, $8, 1, $9, $10)
-		RETURNING created_at`, orderID, orderNumber, customerID, custName, in.CustomerPhone, in.Notes, total, key, hash, trackingToken).Scan(&res.CreatedAt)
+	err = tx.QueryRow(ctx, `INSERT INTO orders (id, order_number, customer_id, branch_id, source, fulfillment, status, customer_name_snapshot, customer_phone_snapshot, notes, subtotal_amount, total_amount, idempotency_key, version, request_hash, public_tracking_token)
+		VALUES ($1, $2, $3, $4::uuid, 'WHATSAPP', 'PICKUP', 'PENDING', $5, $6, NULLIF($7, ''), $8, $8, $9, 1, $10, $11)
+		RETURNING created_at`, orderID, orderNumber, customerID, bID, custName, in.CustomerPhone, in.Notes, total, key, hash, trackingToken).Scan(&res.CreatedAt)
 	if err != nil {
 		var dbErr *mysql.MySQLError
 		if errors.As(err, &dbErr) && dbErr.Number == 1062 {
@@ -778,6 +854,7 @@ func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput,
 	metadata, _ := json.Marshal(map[string]any{
 		"order_id":       orderID,
 		"order_number":   orderNumber,
+		"branch_id":      bID,
 		"source":         "WHATSAPP",
 		"status":         "PENDING",
 		"customer_name":  custName,
@@ -788,6 +865,7 @@ func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput,
 	auditMeta := SanitizeAuditMetadata(map[string]any{
 		"order_id":       orderID,
 		"order_number":   orderNumber,
+		"branch_id":      bID,
 		"source":         "WHATSAPP",
 		"status":         "PENDING",
 		"customer_name":  custName,

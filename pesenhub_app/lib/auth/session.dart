@@ -15,6 +15,11 @@ class AuthUser {
   final String displayName;
   final String role;
   final ApprovalStatus status;
+  final String? branchId;
+  final String? branchName;
+
+  bool get canAccessAllBranches =>
+      role == 'ADMIN' || role == 'OWNER' || role == 'SUPERADMIN';
 
   const AuthUser({
     required this.id,
@@ -22,6 +27,8 @@ class AuthUser {
     required this.displayName,
     required this.role,
     required this.status,
+    this.branchId,
+    this.branchName,
   });
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
@@ -30,6 +37,8 @@ class AuthUser {
     final displayName = json['display_name'];
     final role = json['role'];
     final rawStatus = json['status'];
+    final branchId = json['branch_id'] as String?;
+    final branchName = json['branch_name'] as String?;
     if (id is! String ||
         id.isEmpty ||
         email is! String ||
@@ -51,6 +60,8 @@ class AuthUser {
       displayName: displayName,
       role: role,
       status: status,
+      branchId: branchId,
+      branchName: branchName,
     );
   }
 
@@ -65,6 +76,8 @@ class AuthUser {
       ApprovalStatus.rejected => 'REJECTED',
       ApprovalStatus.suspended => 'SUSPENDED',
     },
+    if (branchId != null) 'branch_id': branchId,
+    if (branchName != null) 'branch_name': branchName,
   };
 }
 
@@ -179,6 +192,7 @@ class MemorySessionStore implements SessionStore {
 abstract class AuthGateway {
   Future<String> createGoogleChallenge();
   Future<SessionCredential> loginWithGoogle(String idToken, String nonce);
+  Future<SessionCredential> loginWithPassword(String username, String password);
   Future<AuthUser> currentUser();
   Future<void> logout();
 }
@@ -203,6 +217,8 @@ class SessionController extends ChangeNotifier {
   SessionCredential? _credential;
   Timer? _expiryTimer;
   String? errorMessage;
+  String? _activeBranchId;
+  String? _activeBranchName;
 
   SessionController({
     required this.store,
@@ -211,6 +227,34 @@ class SessionController extends ChangeNotifier {
   });
 
   AuthUser? get user => _credential?.user;
+
+  String? get activeBranchId {
+    if (user?.canAccessAllBranches == true) {
+      return _activeBranchId;
+    }
+    return user?.branchId;
+  }
+
+  String? get activeBranchName {
+    if (user?.canAccessAllBranches == true) {
+      return _activeBranchName ?? 'Semua Cabang';
+    }
+    return user?.branchName;
+  }
+
+  bool get isAllBranches =>
+      user?.canAccessAllBranches == true && _activeBranchId == null;
+
+  bool get canAccessAllBranches => user?.canAccessAllBranches == true;
+
+  void setActiveBranch({String? branchId, String? branchName}) {
+    if (user?.canAccessAllBranches != true) {
+      return;
+    }
+    _activeBranchId = branchId;
+    _activeBranchName = branchName;
+    notifyListeners();
+  }
 
   Future<void> restore() async {
     try {
@@ -302,6 +346,39 @@ class SessionController extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> signInWithPassword(String username, String password) async {
+    status = SessionStatus.signingIn;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      final credential = await gateway.loginWithPassword(username, password);
+      if (credential.isExpired) throw const FormatException('expired session');
+      await store.write(credential);
+      _credential = credential;
+      _applyUserStatus(credential.user);
+      _scheduleExpiry();
+      notifyListeners();
+      return true;
+    } on ApiFailure catch (failure) {
+      if (failure.kind == ApiFailureKind.unauthenticated) {
+        errorMessage =
+            'Username atau kata sandi salah. Silakan periksa kembali.';
+      } else if (failure.kind == ApiFailureKind.network) {
+        errorMessage =
+            'Koneksi ke server backend gagal. Pastikan perangkat terhubung ke server.';
+      } else {
+        errorMessage = failure.presentationMessage;
+      }
+    } on FormatException catch (e) {
+      errorMessage = e.message;
+    } catch (_) {
+      errorMessage = 'Gagal masuk. Periksa username dan kata sandi Anda.';
+    }
+    status = SessionStatus.signedOut;
+    notifyListeners();
+    return false;
+  }
+
   Future<void> refreshApproval() async {
     if (_credential == null) return;
     errorMessage = null;
@@ -357,6 +434,8 @@ class SessionController extends ChangeNotifier {
       await identityClient.signOut();
     } catch (_) {}
     _credential = null;
+    _activeBranchId = null;
+    _activeBranchName = null;
     try {
       await store.clear();
     } finally {

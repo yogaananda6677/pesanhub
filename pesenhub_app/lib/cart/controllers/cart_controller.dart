@@ -19,7 +19,8 @@ class CartController extends ChangeNotifier {
   final List<CartItem> _items = [];
   String _customerName = '';
   String _customerPhone = '';
-  bool _isTakeaway = false;
+  String _orderSource = 'CASHIER_MANUAL';
+  bool _isTakeaway = true;
   String _takeawayNotes = '';
 
   late String _idempotencyKey;
@@ -29,6 +30,8 @@ class CartController extends ChangeNotifier {
   String? _errorMessage;
   String? _discrepancyMessage;
   QueueOrder? _lastCreatedOrder;
+  String _paymentStatus = 'UNPAID';
+  String? _paymentMethod;
 
   CartController() {
     _generateFreshKeys();
@@ -49,6 +52,7 @@ class CartController extends ChangeNotifier {
   List<CartItem> get items => List.unmodifiable(_items);
   String get customerName => _customerName;
   String get customerPhone => _customerPhone;
+  String get orderSource => _orderSource;
   bool get isTakeaway => _isTakeaway;
   String get takeawayNotes => _takeawayNotes;
   String get idempotencyKey => _idempotencyKey;
@@ -57,6 +61,8 @@ class CartController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get discrepancyMessage => _discrepancyMessage;
   QueueOrder? get lastCreatedOrder => _lastCreatedOrder;
+  String get paymentStatus => _paymentStatus;
+  String? get paymentMethod => _paymentMethod;
 
   int get totalItemCount => _items.fold(0, (sum, i) => sum + i.quantity);
   int get subtotalAmount => _items.fold(0, (sum, i) => sum + i.lineTotal);
@@ -68,12 +74,26 @@ class CartController extends ChangeNotifier {
     clientOrderId: _clientOrderId,
     customerName: _customerName,
     customerPhone: _customerPhone.isEmpty ? null : _customerPhone,
+    source: _orderSource,
     isTakeaway: _isTakeaway,
     takeawayNotes: _takeawayNotes.isEmpty ? null : _takeawayNotes,
+    paymentStatus: _paymentStatus,
+    paymentMethod: _paymentMethod,
     items: List.unmodifiable(_items),
   );
 
   // Mutations
+  void setPaymentInfo({required String paymentStatus, String? paymentMethod}) {
+    _paymentStatus = paymentStatus;
+    _paymentMethod = paymentMethod;
+    notifyListeners();
+  }
+
+  void setOrderSource(String source) {
+    _orderSource = source;
+    notifyListeners();
+  }
+
   void setCustomerName(String name) {
     _customerName = name;
     notifyListeners();
@@ -151,6 +171,27 @@ class CartController extends ChangeNotifier {
     }
   }
 
+  /// Updates an existing cart item configured from ModifierSelectionState.
+  void updateItemFromModifierState({
+    required String cartItemId,
+    required MenuItem menuItem,
+    required ModifierSelectionState state,
+  }) {
+    final index = _items.indexWhere((i) => i.id == cartItemId);
+    if (index != -1) {
+      _items[index] = _items[index].copyWith(
+        menuItem: menuItem,
+        modifierSummary: state.formattedModifierSummary,
+        selectedOptionIds: state.selectedOptionIds,
+        selectedOptionQuantities: state.selectedOptionQuantities,
+        quantity: state.quantity,
+        unitPrice: state.unitPrice,
+        notes: state.notes,
+      );
+      notifyListeners();
+    }
+  }
+
   /// Removes an item from the cart.
   void removeItem(String cartItemId) {
     _items.removeWhere((i) => i.id == cartItemId);
@@ -162,7 +203,7 @@ class CartController extends ChangeNotifier {
     _items.clear();
     _customerName = '';
     _customerPhone = '';
-    _isTakeaway = false;
+    _isTakeaway = true;
     _takeawayNotes = '';
     _errorMessage = null;
     _discrepancyMessage = null;
@@ -208,9 +249,9 @@ class CartController extends ChangeNotifier {
           orderNumber: orderNumber,
           customerName: draft.customerName,
           customerPhone: draft.customerPhone ?? '',
-          source: 'CASHIER_MANUAL',
+          source: draft.source,
           orderStatus: 'PENDING',
-          paymentStatus: 'UNPAID',
+          paymentStatus: draft.paymentStatus,
           isTakeaway: draft.isTakeaway,
           takeawayNotes: draft.takeawayNotes,
           items: draft.items.map((i) {
@@ -232,8 +273,11 @@ class CartController extends ChangeNotifier {
       _items.clear();
       _customerName = '';
       _customerPhone = '';
-      _isTakeaway = false;
+      _orderSource = 'CASHIER_MANUAL';
+      _isTakeaway = true;
       _takeawayNotes = '';
+      _paymentStatus = 'UNPAID';
+      _paymentMethod = null;
       _generateFreshKeys();
       _isSubmitting = false;
       notifyListeners();
@@ -288,9 +332,9 @@ class CartController extends ChangeNotifier {
       orderNumber: orderNumber,
       customerName: draft.customerName,
       customerPhone: maskedPhone,
-      source: 'CASHIER_MANUAL',
+      source: draft.source,
       orderStatus: 'PENDING',
-      paymentStatus: 'UNPAID',
+      paymentStatus: draft.paymentStatus,
       isTakeaway: draft.isTakeaway,
       takeawayNotes: draft.takeawayNotes,
       items: draft.items.map((i) {

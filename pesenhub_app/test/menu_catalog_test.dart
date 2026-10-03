@@ -60,7 +60,7 @@ void main() {
         expect(find.text('Martabak Telur Spesial'), findsNothing);
 
         // Return to 'Semua'
-        await tester.tap(find.text('Semua (6)'));
+        await tester.tap(find.text('Semua (13)'));
         await tester.pumpAndSettle();
 
         // Search by query 'Bebek'

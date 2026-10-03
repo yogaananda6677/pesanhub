@@ -12,7 +12,7 @@ type mockCatalogProvider struct {
 	err        error
 }
 
-func (m *mockCatalogProvider) ListPublic(ctx context.Context, categoryID string) ([]catalog.Category, error) {
+func (m *mockCatalogProvider) ListPublic(ctx context.Context, categoryID string, branchID ...string) ([]catalog.Category, error) {
 	if m.err != nil {
 		return nil, m.err
 	}

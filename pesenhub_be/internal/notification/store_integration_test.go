@@ -36,8 +36,8 @@ func TestNotificationStoreIntegration(t *testing.T) {
 	testPhone := fmt.Sprintf("+62812%08d", time.Now().UnixNano()%100000000)
 
 	_, err = db.Exec(ctx, `
-		INSERT INTO orders (id, order_number, source, customer_name_snapshot, subtotal_amount, total_amount, idempotency_key)
-		VALUES ($1, $2, 'CASHIER_MANUAL', 'Integration Customer', 25000, 25000, $3)
+		INSERT INTO orders (id, order_number, source, customer_name_snapshot, subtotal_amount, total_amount, idempotency_key, branch_id)
+		VALUES ($1, $2, 'CASHIER_MANUAL', 'Integration Customer', 25000, 25000, $3, 'b0000000-0000-0000-0000-000000000001')
 	`, orderID, orderNum, idempotencyKey)
 	if err != nil {
 		t.Fatalf("failed to insert test order: %v", err)

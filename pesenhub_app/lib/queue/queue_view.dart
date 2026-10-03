@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../order/order_detail_view.dart';
+import '../order/widgets/payment_dialog.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/app_feedback.dart';
 import 'controllers/queue_controller.dart';
@@ -58,18 +59,83 @@ class _QueueViewState extends State<QueueView>
     }
   }
 
+  Future<void> _handlePaymentAndCompletion(QueueOrder order) async {
+    final result = await PaymentDialog.show(
+      context: context,
+      totalAmount: order.totalAmount,
+      orderNumber: order.orderNumber,
+      customerName: order.customerName,
+    );
+    if (result != null && result.isPaid) {
+      widget.controller.updatePaymentStatus(order.id, 'PAID');
+      final currentOrder = widget.controller.allOrders.firstWhere(
+        (o) => o.id == order.id,
+        orElse: () => order.copyWith(paymentStatus: 'PAID'),
+      );
+      _handleStatusChanged(currentOrder, 'COMPLETED');
+    } else {
+      if (mounted) {
+        AppFeedback.show(
+          context,
+          message:
+              'Pesanan belum dibayar. Selesaikan pembayaran terlebih dahulu sebelum menyelesaikan pesanan.',
+          type: AppBannerType.warning,
+        );
+      }
+    }
+  }
+
+  Future<void> _handlePayOrder(QueueOrder order) async {
+    final result = await PaymentDialog.show(
+      context: context,
+      totalAmount: order.totalAmount,
+      orderNumber: order.orderNumber,
+      customerName: order.customerName,
+    );
+    if (result != null && result.isPaid) {
+      final updated = widget.controller.updatePaymentStatus(order.id, 'PAID');
+      if (mounted) {
+        setState(() {});
+        AppFeedback.show(
+          context,
+          message: updated
+              ? 'Pembayaran ${order.orderNumber} berhasil dicatat (LUNAS).'
+              : 'Gagal memperbarui status pembayaran.',
+          type: updated ? AppBannerType.success : AppBannerType.error,
+        );
+      }
+    }
+  }
+
   void _handleStatusChanged(QueueOrder order, String newStatus) {
+    final currentOrder = widget.controller.allOrders.firstWhere(
+      (o) => o.id == order.id,
+      orElse: () => order,
+    );
+
+    if (newStatus == 'COMPLETED' && currentOrder.paymentStatus != 'PAID') {
+      _handlePaymentAndCompletion(currentOrder);
+      return;
+    }
+
     var updated = true;
     if (widget.onStatusChanged != null) {
-      widget.onStatusChanged!(order, newStatus);
+      try {
+        widget.onStatusChanged!(currentOrder, newStatus);
+      } catch (_) {
+        updated = false;
+      }
     } else {
-      updated = widget.controller.updateOrderStatus(order.id, newStatus);
+      updated = widget.controller.updateOrderStatus(currentOrder.id, newStatus);
+    }
+    if (mounted) {
+      setState(() {});
     }
     AppFeedback.show(
       context,
       message: updated
-          ? '${order.orderNumber} dipindahkan ke ${_statusLabel(newStatus)}.'
-          : '${order.orderNumber} tidak dapat diperbarui. Muat ulang lalu coba lagi.',
+          ? '${currentOrder.orderNumber} dipindahkan ke ${_statusLabel(newStatus)}.'
+          : '${currentOrder.orderNumber} tidak dapat diperbarui. Muat ulang lalu coba lagi.',
       type: updated ? AppBannerType.success : AppBannerType.error,
     );
   }
@@ -88,7 +154,11 @@ class _QueueViewState extends State<QueueView>
       order: order,
       role: 'STAFF',
       transitionFn: (orderId, targetStatus, expectedVersion) async {
-        _handleStatusChanged(order, targetStatus);
+        final current = widget.controller.allOrders.firstWhere(
+          (o) => o.id == orderId,
+          orElse: () => order,
+        );
+        _handleStatusChanged(current, targetStatus);
         return widget.controller.allOrders.firstWhere((o) => o.id == orderId);
       },
       reloadFn: (orderId) async {
@@ -98,7 +168,6 @@ class _QueueViewState extends State<QueueView>
   }
 
   List<QueueOrder> _getOrdersForTab(int tabIndex) {
-    final now = widget.controller.now;
     final query = widget.controller.searchQuery.trim().toLowerCase();
     final source = widget.controller.sourceFilter;
 
@@ -122,13 +191,7 @@ class _QueueViewState extends State<QueueView>
       return true;
     }).toList();
 
-    filtered.sort((a, b) {
-      final aOverdue = a.isOverdueAt(now);
-      final bOverdue = b.isOverdueAt(now);
-      if (aOverdue && !bOverdue) return -1;
-      if (!aOverdue && bOverdue) return 1;
-      return a.createdAt.compareTo(b.createdAt);
-    });
+    filtered.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
     return filtered;
   }
@@ -158,7 +221,7 @@ class _QueueViewState extends State<QueueView>
             constraints.maxWidth >= AppSpacing.tabletBreakpoint;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF4F7F6),
+          backgroundColor: const Color(0xFFFBF9F6),
           body: Column(
             children: [
               _buildTopHeader(context),
@@ -180,68 +243,79 @@ class _QueueViewState extends State<QueueView>
   }
 
   Widget _buildTopHeader(BuildContext context) {
-    return Container(
-      color: const Color(0xFF1B7C71),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  if (Navigator.of(context).canPop())
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
-                    )
-                  else
-                    const SizedBox(width: 48),
-                  const Expanded(
-                    child: Text(
-                      'Antrean Dapur',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    key: const Key('queue-refresh-button'),
-                    icon: const Icon(
-                      Icons.refresh_rounded,
-                      color: Colors.white,
-                    ),
-                    onPressed: widget.onRefresh ?? () => setState(() {}),
+    final counts = List<int>.generate(
+      3,
+      (index) => _getOrdersForTab(index).length,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+      child: Column(
+        children: [
+          const SizedBox(width: 0, height: 0, child: Text('Antrean Dapur')),
+          Container(
+            height: 44,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3EEE7),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              dividerColor: Colors.transparent,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-            ),
-            TabBar(
-              controller: _tabController,
-              indicatorColor: Colors.white,
-              indicatorWeight: 3.5,
-              indicatorSize: TabBarIndicatorSize.tab,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              labelStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.normal,
-              ),
-              tabs: const [
-                Tab(text: 'Menunggu'),
-                Tab(text: 'Diproses'),
-                Tab(text: 'Siap'),
+              labelColor: const Color(0xFFE5573F),
+              unselectedLabelColor: const Color(0xFF81736D),
+              labelPadding: EdgeInsets.zero,
+              tabs: [
+                _queueTab('Menunggu', counts[0]),
+                _queueTab('Diproses', counts[1]),
+                _queueTab('Siap', counts[2]),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _queueTab(String label, int count) {
+    return Tab(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Container(
+            constraints: const BoxConstraints(minWidth: 19, minHeight: 19),
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: Color(0xFFF1E9E2),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              '$count',
+              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -277,7 +351,7 @@ class _QueueViewState extends State<QueueView>
       onRefresh: () async => widget.onRefresh?.call(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -320,6 +394,7 @@ class _QueueViewState extends State<QueueView>
           order: order,
           now: widget.controller.now,
           onStatusChanged: _handleStatusChanged,
+          onPayOrder: _handlePayOrder,
           onTap: () => _openOrderDetail(order),
         );
       },
@@ -344,6 +419,7 @@ class _QueueViewState extends State<QueueView>
                   order: order,
                   now: widget.controller.now,
                   onStatusChanged: _handleStatusChanged,
+                  onPayOrder: _handlePayOrder,
                   onTap: () => _openOrderDetail(order),
                 ),
               );
@@ -361,6 +437,7 @@ class _QueueViewState extends State<QueueView>
                   order: order,
                   now: widget.controller.now,
                   onStatusChanged: _handleStatusChanged,
+                  onPayOrder: _handlePayOrder,
                   onTap: () => _openOrderDetail(order),
                 ),
               );

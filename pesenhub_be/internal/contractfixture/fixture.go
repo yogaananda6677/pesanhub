@@ -58,10 +58,17 @@ func Canonical() Fixture {
 	hpp := int64(15000)
 	nextCursor := "MjAyNi0wOS0wNVQwODowMDowMFosYjEwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAx"
 
+	branchID := "b0000000-0000-0000-0000-000000000001"
+	branchCode := "BWX"
+	branchName := "Cabang Utama Banyuwangi"
+
 	detail := order.OrderDetail{
 		ID:            "b1000000-0000-4000-8000-000000000001",
 		OrderNumber:   "ORD-CONTRACT-001",
 		ClientOrderID: "c1000000-0000-4000-8000-000000000001",
+		BranchID:      branchID,
+		BranchCode:    branchCode,
+		BranchName:    branchName,
 		Source:        string(domain.OrderSourceCashierManual),
 		Status:        string(domain.OrderStatusPreparing),
 		CustomerName:  "Pelanggan Kontrak",
@@ -112,6 +119,8 @@ func Canonical() Fixture {
 				Role:        appauth.RoleAdmin,
 				Status:      appauth.StatusApproved,
 				ApprovedAt:  &createdAt,
+				BranchID:    &branchID,
+				BranchName:  branchName,
 			},
 		},
 		Enums: Enums{

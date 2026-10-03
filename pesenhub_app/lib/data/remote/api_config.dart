@@ -50,11 +50,18 @@ class ApiConfig {
 
   Uri resolve(String relativePath) => baseUri.resolve(relativePath);
 
-  Uri websocketUri(String token) {
+  Uri websocketUri(String token, {String? branchId}) {
     final httpUri = resolve('ws/orders');
+    final query = <String, String>{
+      ...httpUri.queryParameters,
+      'token': token,
+    };
+    if (branchId != null && branchId.isNotEmpty) {
+      query['branch_id'] = branchId;
+    }
     return httpUri.replace(
       scheme: httpUri.scheme == 'https' ? 'wss' : 'ws',
-      queryParameters: {...httpUri.queryParameters, 'token': token},
+      queryParameters: query,
     );
   }
 

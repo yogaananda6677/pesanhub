@@ -12,24 +12,50 @@ const (
 )
 
 type Client struct {
-	hub     *Hub
-	conn    *Conn
-	Role    string
-	Subject string
-	send    chan []byte
-	done    chan struct{}
-	once    sync.Once
+	hub         *Hub
+	conn        *Conn
+	Role        string
+	Subject     string
+	BranchID    string
+	AllBranches bool
+	send        chan []byte
+	done        chan struct{}
+	once        sync.Once
 }
 
-func NewClient(hub *Hub, conn *Conn, role, subject string) *Client {
-	return &Client{
-		hub:     hub,
-		conn:    conn,
-		Role:    role,
-		Subject: subject,
-		send:    make(chan []byte, clientSendBufferSize),
-		done:    make(chan struct{}),
+type ClientOption func(*Client)
+
+func WithBranch(branchID string) ClientOption {
+	return func(c *Client) {
+		c.BranchID = branchID
+		c.AllBranches = false
 	}
+}
+
+func WithAllBranches(all bool) ClientOption {
+	return func(c *Client) {
+		c.AllBranches = all
+	}
+}
+
+func NewClient(hub *Hub, conn *Conn, role, subject string, opts ...ClientOption) *Client {
+	c := &Client{
+		hub:         hub,
+		conn:        conn,
+		Role:        role,
+		Subject:     subject,
+		AllBranches: role == "ADMIN" || role == "STAFF" || role == "KDS",
+		send:        make(chan []byte, clientSendBufferSize),
+		done:        make(chan struct{}),
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
+}
+
+func (c *Client) SendChan() <-chan []byte {
+	return c.send
 }
 
 func (c *Client) Close() {
@@ -123,14 +149,25 @@ func (h *Hub) ClientCount() int {
 	return len(h.clients)
 }
 
-func (h *Hub) Broadcast(staffPayload, kdsPayload []byte) {
+func (h *Hub) Broadcast(staffPayload, kdsPayload []byte, branchID ...string) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	if h.closed {
 		return
 	}
 
+	targetBranchID := ""
+	if len(branchID) > 0 {
+		targetBranchID = branchID[0]
+	}
+
 	for client := range h.clients {
+		if targetBranchID != "" {
+			if !client.AllBranches && client.BranchID != targetBranchID {
+				continue
+			}
+		}
+
 		var payload []byte
 		if client.Role == "KDS" {
 			payload = kdsPayload

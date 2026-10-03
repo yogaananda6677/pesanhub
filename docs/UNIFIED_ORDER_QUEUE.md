@@ -6,7 +6,7 @@ Dokumen ini mendokumentasikan spesifikasi implementasi antrean order terpadu (*U
 
 ## 1. Latar Belakang & Kebutuhan Desain
 
-Kasir outlet nasi goreng merangkap berbagai peran fisik (memasak, meracik minuman, membungkus pesanan, dan menerima pembayaran).
+Kasir outlet martabak dan terang bulan merangkap berbagai peran fisik (membuat adonan, menggoreng martabak, meracik minuman, membungkus pesanan, dan menerima pembayaran).
 Untuk mencegah pesanan terlewat atau terjadi salah olah:
 1. **Satu Antrean Terpadu**: Menggabungkan pesanan dari seluruh kanal (WhatsApp, Web Customer, dan Kasir Manual) ke dalam satu daftar kronologis yang stabil.
 2. **Identifikasi Kanal Cepat**: Setiap kartu memiliki badge visual yang membedakan sumber pesanan secara instan.

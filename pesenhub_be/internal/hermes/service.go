@@ -151,7 +151,8 @@ func (s *Service) ExtractOrder(ctx context.Context, req ExtractionRequest) (*Dra
 
 	// 3. Invoke LLM
 	llmStart := time.Now()
-	rawOrder, err := s.client.ExtractOrder(ctx, sysPrompt, userPrompt)
+	agentCtx := WithAgentSession(ctx, session, req.SenderPhone)
+	rawOrder, err := s.client.ExtractOrder(agentCtx, sysPrompt, userPrompt)
 	llmDurationMs := int(time.Since(llmStart).Milliseconds())
 
 	llmAudit := ToolCallAudit{

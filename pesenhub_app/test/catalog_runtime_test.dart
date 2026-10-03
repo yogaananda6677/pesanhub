@@ -18,6 +18,7 @@ import 'package:pesenhub_app/menu/models/menu_category.dart';
 import 'package:pesenhub_app/menu/models/menu_item.dart';
 import 'package:pesenhub_app/menu/models/menu_modifier_group.dart';
 import 'package:pesenhub_app/menu/models/menu_option.dart';
+import 'package:pesenhub_app/menu/models/menu_state.dart';
 import 'package:pesenhub_app/theme/app_theme.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -46,6 +47,9 @@ class _CatalogGateway implements CatalogRemoteGateway {
   }
 
   @override
+  Future<RemoteCatalog> fetchPublicCatalog() => fetchAdminCatalog();
+
+  @override
   Future<MenuCategory> createCategory(MenuCategory category) async =>
       category.copyWith(id: 'created-category', version: 1);
   @override
@@ -64,6 +68,37 @@ class _CatalogGateway implements CatalogRemoteGateway {
     int expectedVersion,
   ) async =>
       _menu.copyWith(isAvailable: available, version: expectedVersion + 1);
+}
+
+class _FallbackCatalogGateway implements CatalogRemoteGateway {
+  final Future<RemoteCatalog> Function() onFetchAdmin;
+  final Future<RemoteCatalog> Function() onFetchPublic;
+
+  _FallbackCatalogGateway({
+    required this.onFetchAdmin,
+    required this.onFetchPublic,
+  });
+
+  @override
+  Future<RemoteCatalog> fetchAdminCatalog() => onFetchAdmin();
+
+  @override
+  Future<RemoteCatalog> fetchPublicCatalog() => onFetchPublic();
+
+  @override
+  Future<MenuCategory> createCategory(MenuCategory category) async => category;
+  @override
+  Future<MenuItem> createMenu(MenuItem menu) async => menu;
+  @override
+  Future<MenuCategory> updateCategory(MenuCategory category) async => category;
+  @override
+  Future<MenuItem> updateMenu(MenuItem menu) async => menu;
+  @override
+  Future<MenuItem> updateMenuAvailability(
+    String id,
+    bool available,
+    int expectedVersion,
+  ) async => _menu;
 }
 
 void main() {
@@ -122,6 +157,51 @@ void main() {
       expect(management.state.isOffline, isFalse);
       expect(posCatalog.allMenus.single.priceAmount, 23000);
       expect(management.allMenus.single.version, 4);
+    },
+  );
+
+  test(
+    'fetchAdminCatalog 403 Forbidden falls back to fetchPublicCatalog seamlessly',
+    () async {
+      final database = LocalDatabase(
+        customPath: inMemoryDatabasePath,
+        customFactory: databaseFactoryFfi,
+      );
+      addTearDown(database.close);
+      final local = MenuLocalRepository(database);
+      final posCatalog = mc.MenuController();
+      final management = MenuAvailabilityController();
+
+      var adminCalled = false;
+      var publicCalled = false;
+
+      final gateway = _FallbackCatalogGateway(
+        onFetchAdmin: () async {
+          adminCalled = true;
+          throw const ApiFailure(ApiFailureKind.forbidden, statusCode: 403);
+        },
+        onFetchPublic: () async {
+          publicCalled = true;
+          return const RemoteCatalog(
+            categories: [_category],
+            menus: [_menu],
+          );
+        },
+      );
+
+      final coordinator = CatalogRuntimeCoordinator(
+        gateway: gateway,
+        localRepository: local,
+        menuController: posCatalog,
+        managementController: management,
+      );
+
+      await coordinator.refresh();
+      expect(adminCalled, isTrue);
+      expect(publicCalled, isTrue);
+      expect(posCatalog.state.status, MenuStatus.success);
+      expect(management.state.status, MenuStatus.success);
+      expect(posCatalog.allMenus.single.name, 'Martabak Telur');
     },
   );
 

@@ -7,8 +7,11 @@ class CartOrderDraft {
   final String clientOrderId;
   final String customerName;
   final String? customerPhone;
+  final String source; // CASHIER_MANUAL, WHATSAPP, GRABFOOD, GOFOOD, SHOPEEFOOD
   final bool isTakeaway;
   final String? takeawayNotes;
+  final String paymentStatus;
+  final String? paymentMethod;
   final List<CartItem> items;
 
   const CartOrderDraft({
@@ -16,8 +19,11 @@ class CartOrderDraft {
     required this.clientOrderId,
     required this.customerName,
     this.customerPhone,
+    this.source = 'CASHIER_MANUAL',
     this.isTakeaway = false,
     this.takeawayNotes,
+    this.paymentStatus = 'UNPAID',
+    this.paymentMethod,
     this.items = const [],
   });
 
@@ -32,8 +38,11 @@ class CartOrderDraft {
     String? clientOrderId,
     String? customerName,
     String? customerPhone,
+    String? source,
     bool? isTakeaway,
     String? takeawayNotes,
+    String? paymentStatus,
+    String? paymentMethod,
     List<CartItem>? items,
   }) {
     return CartOrderDraft(
@@ -41,8 +50,11 @@ class CartOrderDraft {
       clientOrderId: clientOrderId ?? this.clientOrderId,
       customerName: customerName ?? this.customerName,
       customerPhone: customerPhone ?? this.customerPhone,
+      source: source ?? this.source,
       isTakeaway: isTakeaway ?? this.isTakeaway,
       takeawayNotes: takeawayNotes ?? this.takeawayNotes,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       items: items ?? this.items,
     );
   }
@@ -53,8 +65,11 @@ class CartOrderDraft {
       'client_order_id': clientOrderId,
       'customer_name': customerName,
       'customer_phone': customerPhone,
+      'source': source,
       'is_takeaway': isTakeaway,
       'takeaway_notes': takeawayNotes,
+      'payment_status': paymentStatus,
+      'payment_method': paymentMethod,
       'items': items
           .map(
             (i) => {

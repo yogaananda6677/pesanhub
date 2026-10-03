@@ -9,8 +9,10 @@ import (
 type fakeRepo struct {
 	categories        []Category
 	menu              Menu
+	option            Option
 	availabilityCalls int
 	lastMeta          MutationMeta
+	lastBranchID      string
 }
 
 func (f *fakeRepo) CreateCategory(_ context.Context, c Category, meta MutationMeta) (Category, error) {
@@ -34,13 +36,29 @@ func (f *fakeRepo) UpdateMenu(_ context.Context, m Menu, version int64, meta Mut
 	f.menu = m
 	return m, nil
 }
-func (f *fakeRepo) SetMenuAvailability(_ context.Context, _ string, a bool, v int64, meta MutationMeta) (Menu, error) {
+func (f *fakeRepo) SetMenuAvailability(_ context.Context, branchID, _ string, a bool, v int64, meta MutationMeta) (Menu, error) {
+	f.lastBranchID = branchID
 	f.lastMeta = meta
 	f.availabilityCalls++
 	return Menu{Available: a, Version: v + 1}, nil
 }
-func (f *fakeRepo) ListPublic(context.Context, string) ([]Category, error) { return f.categories, nil }
-func (f *fakeRepo) ListAdmin(context.Context) ([]Category, error)          { return f.categories, nil }
+func (f *fakeRepo) SetModifierOptionAvailability(_ context.Context, branchID, _ string, a bool, v int64, meta MutationMeta) (Option, error) {
+	f.lastBranchID = branchID
+	f.lastMeta = meta
+	return Option{Available: a}, nil
+}
+func (f *fakeRepo) ListPublic(_ context.Context, _ string, branchID ...string) ([]Category, error) {
+	if len(branchID) > 0 {
+		f.lastBranchID = branchID[0]
+	}
+	return f.categories, nil
+}
+func (f *fakeRepo) ListAdmin(_ context.Context, branchID ...string) ([]Category, error) {
+	if len(branchID) > 0 {
+		f.lastBranchID = branchID[0]
+	}
+	return f.categories, nil
+}
 
 func financials(offline int64) (*int64, []ChannelPrice) {
 	hpp := offline / 2

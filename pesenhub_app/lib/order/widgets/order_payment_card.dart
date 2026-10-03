@@ -10,11 +10,18 @@ import '../../widgets/app_status_badge.dart';
 /// Fulfills Issue #29 Criteria #3 (Payment status is separate from order status).
 class OrderPaymentCard extends StatelessWidget {
   final QueueOrder order;
+  final VoidCallback? onAcceptPayment;
 
-  const OrderPaymentCard({super.key, required this.order});
+  const OrderPaymentCard({
+    super.key,
+    required this.order,
+    this.onAcceptPayment,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isUnpaid = order.paymentStatus != 'PAID';
+
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -54,12 +61,31 @@ class OrderPaymentCard extends StatelessWidget {
               ),
             ],
           ),
+          if (isUnpaid && onAcceptPayment != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            ElevatedButton.icon(
+              onPressed: onAcceptPayment,
+              icon: const Icon(Icons.payments_rounded, size: 16),
+              label: const Text('Terima Pembayaran'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Catatan: Status pembayaran tercatat secara independen dan tidak menggantikan tahapan dapur.',
+            isUnpaid
+                ? 'Perhatian: Pesanan wajib dibayar lunas sebelum diselesaikan.'
+                : 'Catatan: Status pembayaran tercatat secara independen dan tidak menggantikan tahapan dapur.',
             style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondary,
-              fontStyle: FontStyle.italic,
+              color: isUnpaid ? AppColors.error : AppColors.textSecondary,
+              fontStyle: isUnpaid ? FontStyle.normal : FontStyle.italic,
+              fontWeight: isUnpaid ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
         ],

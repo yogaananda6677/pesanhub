@@ -100,8 +100,8 @@ func TestWhatsAppOrderIntegration(t *testing.T) {
 	if !isNew {
 		t.Fatal("expected order to be newly created")
 	}
-	if !strings.HasPrefix(resp.OrderNumber, "ORD-") {
-		t.Fatalf("expected order number prefix ORD-, got %s", resp.OrderNumber)
+	if !strings.HasPrefix(resp.OrderNumber, "BWX-") && !strings.HasPrefix(resp.OrderNumber, "ORD-") {
+		t.Fatalf("expected order number prefix BWX- or ORD-, got %s", resp.OrderNumber)
 	}
 	if !strings.HasPrefix(resp.PublicTrackingToken, "trk_") {
 		t.Fatalf("expected tracking token prefix trk_, got %s", resp.PublicTrackingToken)

@@ -54,7 +54,7 @@ func (m *mockStore) ListInvitations(ctx context.Context, limit, offset int) ([]I
 	return m.invitations, nil
 }
 
-func (m *mockStore) CreateInvitation(ctx context.Context, actorID, email, outletName string, expiry time.Duration) (Invitation, error) {
+func (m *mockStore) CreateInvitation(ctx context.Context, actorID, email, outletName, branchID string, expiry time.Duration) (Invitation, error) {
 	if m.createInvErr != nil {
 		return Invitation{}, m.createInvErr
 	}
@@ -81,7 +81,16 @@ func TestAdminCanInviteCashierButOtherRolesCannot(t *testing.T) {
 			t.Fatalf("role %q: expected 403, got %d", role, rec.Code)
 		}
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/cashiers/invitations", bytes.NewBufferString(`{"email":"cashier@example.com"}`))
+	// Admin without branch_id is rejected with 400
+	reqMissingBranch := httptest.NewRequest(http.MethodPost, "/api/v1/admin/cashiers/invitations", bytes.NewBufferString(`{"email":"cashier@example.com"}`))
+	reqMissingBranch = withPrincipal(reqMissingBranch, "ADMIN")
+	recMissingBranch := httptest.NewRecorder()
+	handler.InviteCashier(recMissingBranch, reqMissingBranch)
+	if recMissingBranch.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invitation without branch, got %d", recMissingBranch.Code)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/cashiers/invitations", bytes.NewBufferString(`{"email":"cashier@example.com","branch_id":"b0000000-0000-0000-0000-000000000001"}`))
 	req = withPrincipal(req, "ADMIN")
 	rec := httptest.NewRecorder()
 	handler.InviteCashier(rec, req)
@@ -94,12 +103,59 @@ func TestAdminCanInviteCashierButOtherRolesCannot(t *testing.T) {
 	}
 }
 
+func TestUpdateCashierBranchAuthorization(t *testing.T) {
+	handler := NewHandler(NewService(&mockStore{}, nil, nil, nil))
+	targetUserID := "user-cashier-1"
+	newBranchID := "b0000000-0000-0000-0000-000000000002"
+
+	// 1. Unauthenticated or non-admin roles are rejected with 403
+	for _, role := range []string{"", "CASHIER", "STAFF"} {
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/cashiers/"+targetUserID+"/branch", bytes.NewBufferString(`{"branch_id":"`+newBranchID+`"}`))
+		req.SetPathValue("id", targetUserID)
+		req = withPrincipal(req, role)
+		rec := httptest.NewRecorder()
+		handler.UpdateCashierBranch(rec, req)
+		if role == "" && rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 for unauthenticated, got %d", rec.Code)
+		} else if role != "" && rec.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 for role %s, got %d", role, rec.Code)
+		}
+	}
+
+	// 2. Cashier cannot transfer themselves even if trying to act
+	reqSelf := httptest.NewRequest(http.MethodPut, "/api/v1/admin/cashiers/"+targetUserID+"/branch", bytes.NewBufferString(`{"branch_id":"`+newBranchID+`"}`))
+	reqSelf.SetPathValue("id", targetUserID)
+	reqSelf = reqSelf.WithContext(customer.WithPrincipal(reqSelf.Context(), customer.Principal{
+		Subject: targetUserID,
+		Role:    "CASHIER",
+	}))
+	recSelf := httptest.NewRecorder()
+	handler.UpdateCashierBranch(recSelf, reqSelf)
+	if recSelf.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 when cashier tries to move themselves, got %d", recSelf.Code)
+	}
+
+	// 3. Admin can transfer cashier
+	reqAdmin := httptest.NewRequest(http.MethodPut, "/api/v1/admin/cashiers/"+targetUserID+"/branch", bytes.NewBufferString(`{"branch_id":"`+newBranchID+`"}`))
+	reqAdmin.SetPathValue("id", targetUserID)
+	reqAdmin = withPrincipal(reqAdmin, "ADMIN")
+	recAdmin := httptest.NewRecorder()
+	handler.UpdateCashierBranch(recAdmin, reqAdmin)
+	if recAdmin.Code != http.StatusOK {
+		t.Fatalf("expected 200 for admin, got %d: %s", recAdmin.Code, recAdmin.Body.String())
+	}
+}
+
 func (m *mockStore) RevokeInvitation(ctx context.Context, invitationID string) error {
 	return m.revokeInvErr
 }
 
 func (m *mockStore) UpdateUserStatus(ctx context.Context, actorID, targetUserID string, targetStatus Status, reason, requestID string) error {
 	return m.updateStatusErr
+}
+
+func (m *mockStore) UpdateUserBranch(ctx context.Context, actorID, targetUserID, branchID, reason, requestID string) error {
+	return nil
 }
 
 func (m *mockStore) RevokeUserSessions(ctx context.Context, targetUserID string) error {

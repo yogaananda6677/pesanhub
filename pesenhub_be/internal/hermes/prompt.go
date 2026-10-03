@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 const (
-	PromptVersionV1 = "v1.0.0"
+	PromptVersionV1 = "v1.1.0"
 
 	SystemPromptTemplate = `You are Hermes, the AI order extraction agent for PesenHub outlet.
 Your task is to extract structured food/drink order entities from customer messages into strict JSON format.
@@ -33,6 +35,9 @@ RULES:
   "confidence": 0.90
 }
 5. If the message does not contain a food/drink order or is conversational/chitchat, return "items": [] with confidence <= 0.5.`
+
+	HermesOrderSkill        = "/pesenhub-order"
+	MaxCustomerMessageRunes = 4000
 )
 
 var injectionPatterns = []*regexp.Regexp{
@@ -55,9 +60,26 @@ func DetectPromptInjection(message string) (bool, string) {
 	if trimmed == "" {
 		return false, ""
 	}
+	if utf8.RuneCountInString(trimmed) > MaxCustomerMessageRunes {
+		return true, "message_exceeds_safe_length"
+	}
+	for _, r := range trimmed {
+		if unicode.IsControl(r) && r != '\n' && r != '\r' && r != '\t' {
+			return true, "unsafe_control_character"
+		}
+	}
+
+	// Remove invisible formatting characters before pattern matching so simple
+	// zero-width-character obfuscation cannot bypass backend policy.
+	normalized := strings.Map(func(r rune) rune {
+		if unicode.In(r, unicode.Cf) {
+			return -1
+		}
+		return r
+	}, trimmed)
 
 	for _, pattern := range injectionPatterns {
-		if pattern.MatchString(trimmed) {
+		if pattern.MatchString(normalized) {
 			return true, fmt.Sprintf("detected suspicious prompt injection pattern: %s", pattern.String())
 		}
 	}
@@ -76,6 +98,6 @@ func WrapUntrustedMessage(message string) string {
 // BuildExtractionPrompt builds the system prompt and user prompt pair for the LLM.
 func BuildExtractionPrompt(rawMessage string) (systemPrompt string, userPrompt string) {
 	systemPrompt = SystemPromptTemplate
-	userPrompt = fmt.Sprintf("Extract the order entities from the following customer message:\n\n%s", WrapUntrustedMessage(rawMessage))
+	userPrompt = fmt.Sprintf("%s\nExtract the order entities from the following customer message:\n\n%s", HermesOrderSkill, WrapUntrustedMessage(rawMessage))
 	return systemPrompt, userPrompt
 }

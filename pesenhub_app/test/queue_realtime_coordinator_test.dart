@@ -47,6 +47,14 @@ class _Gateway implements QueueRemoteGateway {
 
   @override
   Future<QueueOrder> fetchOrder(String id) async => snapshots.last.single;
+
+  @override
+  Future<QueueOrder> transitionOrderStatus(
+    String orderId,
+    String targetStatus,
+    int expectedVersion, {
+    String? reasonCode,
+  }) async => snapshots.last.single;
 }
 
 class _FlappingGateway implements QueueRemoteGateway {
@@ -77,6 +85,14 @@ class _FlappingGateway implements QueueRemoteGateway {
 
   @override
   Future<QueueOrder> fetchOrder(String id) async => _order(1, 'PENDING');
+
+  @override
+  Future<QueueOrder> transitionOrderStatus(
+    String orderId,
+    String targetStatus,
+    int expectedVersion, {
+    String? reasonCode,
+  }) async => _order(1, targetStatus);
 }
 
 class _Connection implements RealtimeConnection {

@@ -14,18 +14,21 @@ import (
 )
 
 type EventBroadcaster interface {
-	Broadcast(staffPayload, kdsPayload []byte)
+	Broadcast(staffPayload, kdsPayload []byte, branchID ...string)
 }
 
 type OrderEventEnvelope struct {
-	EventID   string          `json:"event_id"`
-	EventType string          `json:"event_type"`
-	OrderID   string          `json:"order_id"`
-	Version   int64           `json:"version"`
-	Source    string          `json:"source,omitempty"`
-	Status    string          `json:"status"`
-	Timestamp time.Time       `json:"timestamp"`
-	Payload   json.RawMessage `json:"payload"`
+	EventID    string          `json:"event_id"`
+	EventType  string          `json:"event_type"`
+	OrderID    string          `json:"order_id"`
+	BranchID   string          `json:"branch_id,omitempty"`
+	BranchCode string          `json:"branch_code,omitempty"`
+	BranchName string          `json:"branch_name,omitempty"`
+	Version    int64           `json:"version"`
+	Source     string          `json:"source,omitempty"`
+	Status     string          `json:"status"`
+	Timestamp  time.Time       `json:"timestamp"`
+	Payload    json.RawMessage `json:"payload"`
 }
 
 type OutboxPublisher struct {
@@ -168,15 +171,31 @@ func (p *OutboxPublisher) ProcessBatch(ctx context.Context) (int, error) {
 			source = s
 		}
 
+		branchID := ""
+		if b, ok := rawMap["branch_id"].(string); ok {
+			branchID = b
+		}
+		branchCode := ""
+		if b, ok := rawMap["branch_code"].(string); ok {
+			branchCode = b
+		}
+		branchName := ""
+		if b, ok := rawMap["branch_name"].(string); ok {
+			branchName = b
+		}
+
 		staffEnv := OrderEventEnvelope{
-			EventID:   e.id,
-			EventType: e.eventType,
-			OrderID:   e.orderID,
-			Version:   version,
-			Source:    source,
-			Status:    status,
-			Timestamp: e.createdAt,
-			Payload:   e.payload,
+			EventID:    e.id,
+			EventType:  e.eventType,
+			OrderID:    e.orderID,
+			BranchID:   branchID,
+			BranchCode: branchCode,
+			BranchName: branchName,
+			Version:    version,
+			Source:     source,
+			Status:     status,
+			Timestamp:  e.createdAt,
+			Payload:    e.payload,
 		}
 
 		// KDS Payload: redact sensitive customer PII if present
@@ -190,20 +209,23 @@ func (p *OutboxPublisher) ProcessBatch(ctx context.Context) (int, error) {
 		kdsPayloadBytes, _ := json.Marshal(kdsMap)
 
 		kdsEnv := OrderEventEnvelope{
-			EventID:   e.id,
-			EventType: e.eventType,
-			OrderID:   e.orderID,
-			Version:   version,
-			Source:    source,
-			Status:    status,
-			Timestamp: e.createdAt,
-			Payload:   kdsPayloadBytes,
+			EventID:    e.id,
+			EventType:  e.eventType,
+			OrderID:    e.orderID,
+			BranchID:   branchID,
+			BranchCode: branchCode,
+			BranchName: branchName,
+			Version:    version,
+			Source:     source,
+			Status:     status,
+			Timestamp:  e.createdAt,
+			Payload:    kdsPayloadBytes,
 		}
 
 		staffBytes, err1 := json.Marshal(staffEnv)
 		kdsBytes, err2 := json.Marshal(kdsEnv)
 		if err1 == nil && err2 == nil && p.hub != nil {
-			p.hub.Broadcast(staffBytes, kdsBytes)
+			p.hub.Broadcast(staffBytes, kdsBytes, branchID)
 		}
 
 		publishedIDs = append(publishedIDs, e.id)
@@ -232,9 +254,9 @@ func NewHubBroadcasterAdapter(hub *ws.Hub) *HubBroadcasterAdapter {
 	return &HubBroadcasterAdapter{hub: hub}
 }
 
-func (a *HubBroadcasterAdapter) Broadcast(staffPayload, kdsPayload []byte) {
+func (a *HubBroadcasterAdapter) Broadcast(staffPayload, kdsPayload []byte, branchID ...string) {
 	if a.hub != nil {
-		a.hub.Broadcast(staffPayload, kdsPayload)
+		a.hub.Broadcast(staffPayload, kdsPayload, branchID...)
 	}
 }
 

@@ -28,9 +28,12 @@ func TestGoogleIdentityApprovalAndBootstrapIntegration(t *testing.T) {
 	cashierEmail := "cashier-139@example.test"
 	superadminEmail := "superadmin-139@example.test"
 	cleanup := func() {
-		_, _ = pool.Exec(context.Background(), `DELETE FROM user_status_audits WHERE user_id IN (SELECT id FROM app_users WHERE email_normalized = ANY($1::text[])) OR actor_user_id IN (SELECT id FROM app_users WHERE email_normalized = ANY($1::text[]))`, []string{ownerEmail, cashierEmail, superadminEmail})
-		_, _ = pool.Exec(context.Background(), `DELETE FROM user_invitations WHERE email_normalized=$1`, cashierEmail)
-		_, _ = pool.Exec(context.Background(), `DELETE FROM app_users WHERE email_normalized = ANY($1::text[])`, []string{ownerEmail, cashierEmail, superadminEmail})
+		_, _ = pool.Exec(context.Background(), `UPDATE app_users SET approved_by = NULL WHERE email_normalized IN ($1, $2, $3)`, ownerEmail, cashierEmail, superadminEmail)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM app_sessions WHERE user_id IN (SELECT id FROM app_users WHERE email_normalized IN ($1, $2, $3))`, ownerEmail, cashierEmail, superadminEmail)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM external_identities WHERE user_id IN (SELECT id FROM app_users WHERE email_normalized IN ($1, $2, $3))`, ownerEmail, cashierEmail, superadminEmail)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM user_status_audits WHERE user_id IN (SELECT id FROM app_users WHERE email_normalized IN ($1, $2, $3)) OR actor_user_id IN (SELECT id FROM app_users WHERE email_normalized IN ($1, $2, $3))`, ownerEmail, cashierEmail, superadminEmail)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM user_invitations WHERE email_normalized IN ($1, $2, $3) OR invited_by IN (SELECT id FROM app_users WHERE email_normalized IN ($1, $2, $3))`, ownerEmail, cashierEmail, superadminEmail)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM app_users WHERE email_normalized IN ($1, $2, $3)`, ownerEmail, cashierEmail, superadminEmail)
 	}
 	cleanup()
 	defer cleanup()
@@ -78,14 +81,14 @@ func TestGoogleIdentityApprovalAndBootstrapIntegration(t *testing.T) {
 	if err := store.CreateSession(ctx, "session-owner-139-abcdefghijkl", ownerID, expires); err != nil {
 		t.Fatal(err)
 	}
-	role, status, ok := store.ValidateSession(ctx, "session-owner-139-abcdefghijkl", ownerID)
+	role, status, _, ok := store.ValidateSession(ctx, "session-owner-139-abcdefghijkl", ownerID)
 	if !ok || role != "ADMIN" || status != "PENDING_APPROVAL" {
 		t.Fatalf("pending validation role=%q status=%q ok=%v", role, status, ok)
 	}
 	if _, err := pool.Exec(ctx, `UPDATE app_users SET status='APPROVED', approved_at=now() WHERE id=$1::uuid`, ownerID); err != nil {
 		t.Fatal(err)
 	}
-	role, status, ok = store.ValidateSession(ctx, "session-owner-139-abcdefghijkl", ownerID)
+	role, status, _, ok = store.ValidateSession(ctx, "session-owner-139-abcdefghijkl", ownerID)
 	if !ok || role != "ADMIN" || status != "APPROVED" {
 		t.Fatalf("approved validation role=%q status=%q ok=%v", role, status, ok)
 	}

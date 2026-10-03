@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -154,7 +155,15 @@ func (h *Handler) InviteCashier(w http.ResponseWriter, r *http.Request) {
 		httpapi.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "Invalid JSON request body.", httpserver.RequestID(r.Context()), nil)
 		return
 	}
-	invitation, err := h.service.InviteUser(r.Context(), actor.Subject, body.Email, body.OutletName)
+	targetBranch := strings.TrimSpace(body.BranchID)
+	if targetBranch == "" && actor.BranchID != "" {
+		targetBranch = actor.BranchID
+	}
+	if targetBranch == "" {
+		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_REQUIRED", "Cabang wajib dipilih untuk mengundang kasir.", httpserver.RequestID(r.Context()), nil)
+		return
+	}
+	invitation, err := h.service.InviteUser(r.Context(), actor.Subject, body.Email, body.OutletName, targetBranch)
 	if err != nil {
 		if errors.Is(err, ErrInvitationDelivery) || errors.Is(err, ErrUserAlreadyExists) || errors.Is(err, ErrInvitationExists) {
 			h.writeError(w, r, err)
@@ -164,6 +173,61 @@ func (h *Handler) InviteCashier(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpapi.WriteJSON(w, http.StatusCreated, invitation)
+}
+
+type UpdateBranchRequest struct {
+	BranchID string `json:"branch_id"`
+	Reason   string `json:"reason,omitempty"`
+}
+
+// PUT /api/v1/admin/cashiers/{id}/branch
+func (h *Handler) UpdateCashierBranch(w http.ResponseWriter, r *http.Request) {
+	principal := customer.PrincipalFromRequest(r)
+	requestID := httpserver.RequestID(r.Context())
+	if principal.Subject == "" {
+		httpapi.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required.", requestID, nil)
+		return
+	}
+	if principal.Role != "ADMIN" && principal.Role != "SUPERADMIN" {
+		httpapi.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Hanya admin yang dapat memindahkan cabang kasir.", requestID, nil)
+		return
+	}
+	targetUserID := strings.TrimSpace(r.PathValue("id"))
+	if targetUserID == "" {
+		httpapi.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "Target user ID is required.", requestID, nil)
+		return
+	}
+	if principal.Subject == targetUserID {
+		httpapi.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Kasir tidak dapat memindahkan cabangnya sendiri.", requestID, nil)
+		return
+	}
+
+	var body UpdateBranchRequest
+	if err := decode(r, &body); err != nil {
+		httpapi.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "Invalid JSON request body.", requestID, nil)
+		return
+	}
+	targetBranch := strings.TrimSpace(body.BranchID)
+	if targetBranch == "" {
+		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_REQUIRED", "Cabang tujuan wajib diisi.", requestID, nil)
+		return
+	}
+
+	err := h.service.UpdateCashierBranch(r.Context(), principal, targetUserID, targetBranch, body.Reason, requestID)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			httpapi.WriteError(w, http.StatusNotFound, "USER_NOT_FOUND", "Pengguna tidak ditemukan.", requestID, nil)
+			return
+		}
+		httpapi.WriteError(w, http.StatusBadRequest, "UPDATE_FAILED", err.Error(), requestID, nil)
+		return
+	}
+
+	httpapi.WriteJSON(w, http.StatusOK, map[string]any{
+		"message":   "Cabang kasir berhasil dipindahkan.",
+		"user_id":   targetUserID,
+		"branch_id": targetBranch,
+	})
 }
 
 func decode(r *http.Request, v any) error {
@@ -379,7 +443,11 @@ func (h *Handler) Invite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	invitation, err := h.service.InviteUser(r.Context(), actor.Subject, body.Email, body.OutletName)
+	targetBranch := body.BranchID
+	if targetBranch == "" && actor.BranchID != "" {
+		targetBranch = actor.BranchID
+	}
+	invitation, err := h.service.InviteUser(r.Context(), actor.Subject, body.Email, body.OutletName, targetBranch)
 	if err != nil {
 		if errors.Is(err, ErrUserAlreadyExists) || errors.Is(err, ErrInvitationExists) {
 			h.writeError(w, r, err)

@@ -74,15 +74,28 @@ func TestCatalogCRUDVersionAndAuditIntegration(t *testing.T) {
 	if err != nil || menu.Version != 2 || menu.PriceAmount != 19000 {
 		t.Fatalf("update menu=%#v err=%v", menu, err)
 	}
-	updated, err := svc.SetMenuAvailability(ctx, menu.ID, false, menu.Version, "staff-132", "req-availability")
-	if err != nil || updated.Available || updated.Version != 3 {
+	defaultBranchID := "b0000000-0000-0000-0000-000000000001"
+	adminCatalog, err := svc.ListAdmin(ctx, defaultBranchID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var branchMenuVersion int64
+	for _, cat := range adminCatalog {
+		for _, m := range cat.Menus {
+			if m.ID == menu.ID {
+				branchMenuVersion = m.Version
+			}
+		}
+	}
+	updated, err := svc.SetMenuAvailability(ctx, defaultBranchID, menu.ID, false, branchMenuVersion, "staff-132", "req-availability")
+	if err != nil || updated.Available || updated.Version != branchMenuVersion+1 {
 		t.Fatalf("availability=%#v err=%v", updated, err)
 	}
-	if _, err = svc.SetMenuAvailability(ctx, menu.ID, true, menu.Version, "staff-132", "req-stale"); !errors.Is(err, ErrVersionConflict) {
+	if _, err = svc.SetMenuAvailability(ctx, defaultBranchID, menu.ID, true, branchMenuVersion, "staff-132", "req-stale"); !errors.Is(err, ErrVersionConflict) {
 		t.Fatalf("expected version conflict, got %v", err)
 	}
 
-	admin, err := svc.ListAdmin(ctx)
+	admin, err := svc.ListAdmin(ctx, defaultBranchID)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -46,49 +46,11 @@ class KdsTicketCard extends StatelessWidget {
         : Icons.done_all_rounded;
 
     return AppCard(
-      borderSide: isOverdue
-          ? const BorderSide(color: AppColors.error, width: 2)
-          : BorderSide(color: AppColors.border.withValues(alpha: 0.8)),
+      borderSide: BorderSide(color: AppColors.border.withValues(alpha: 0.8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 1. Overdue Banner (Criteria #2)
-          if (isOverdue) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: 3,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.error,
-                borderRadius: AppSpacing.borderRadiusSm,
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    color: Colors.white,
-                    size: 14,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: Text(
-                      'TERLAMBAT (> 15 mnt) • $elapsedText',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-
           // 2. Ticket Header
           Wrap(
             alignment: WrapAlignment.spaceBetween,

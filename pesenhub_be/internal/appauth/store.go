@@ -19,6 +19,7 @@ type IdentityStore interface {
 	UserByID(context.Context, string) (User, error)
 	CreateSession(context.Context, string, string, time.Time) error
 	RevokeSession(context.Context, string, string) error
+	EnsureUser(ctx context.Context, email, displayName, role string) (User, error)
 }
 
 type Store struct{ pool *dbx.Pool }
@@ -48,7 +49,11 @@ func (s *Store) ProvisionSuperadmin(ctx context.Context, email, displayName, req
 		return User{}, false, err
 	}
 	created := result.RowsAffected() == 1
-	user, err := scanUser(tx.QueryRow(ctx, `SELECT id::text, email_normalized, display_name, role, status, approved_at FROM app_users WHERE email_normalized = $1 FOR UPDATE`, email))
+	user, err := scanUser(tx.QueryRow(ctx, `
+		SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '')
+		FROM app_users u
+		LEFT JOIN branches b ON b.id = u.branch_id
+		WHERE u.email_normalized = $1 FOR UPDATE`, email))
 	if err != nil {
 		return User{}, false, err
 	}
@@ -74,7 +79,12 @@ func (s *Store) ProvisionSuperadmin(ctx context.Context, email, displayName, req
 }
 
 func (s *Store) EnsureSuperadmin(ctx context.Context, defaultEmail, defaultName string) (User, error) {
-	row := s.pool.QueryRow(ctx, `SELECT id::text, email_normalized, display_name, role, status, approved_at FROM app_users WHERE role = 'SUPERADMIN' AND status = 'APPROVED' ORDER BY created_at ASC LIMIT 1`)
+	row := s.pool.QueryRow(ctx, `
+		SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '')
+		FROM app_users u
+		LEFT JOIN branches b ON b.id = u.branch_id
+		WHERE u.role = 'SUPERADMIN' AND u.status = 'APPROVED'
+		ORDER BY u.created_at ASC LIMIT 1`)
 	user, err := scanUser(row)
 	if err == nil {
 		return user, nil
@@ -121,15 +131,16 @@ func (s *Store) upsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 	}
 	if errors.Is(err, sql.ErrNoRows) {
 		var invitationID, invitedBy string
+		var invitedBranchID sql.NullString
 		invitedCashier := false
 		invitationErr := tx.QueryRow(ctx, `
-			SELECT id, invited_by
+			SELECT id, invited_by, branch_id::text
 			FROM user_invitations
 			WHERE email_normalized = $1
 			  AND role = 'CASHIER'
 			  AND status = 'PENDING'
 			  AND expires_at > now()
-			FOR UPDATE`, email).Scan(&invitationID, &invitedBy)
+			FOR UPDATE`, email).Scan(&invitationID, &invitedBy, &invitedBranchID)
 		if invitationErr == nil {
 			invitedCashier = true
 		} else if !errors.Is(invitationErr, sql.ErrNoRows) {
@@ -141,13 +152,19 @@ func (s *Store) upsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 			return User{}, idErr
 		}
 		role, status := "ADMIN", "PENDING_APPROVAL"
+		var branchIDToInsert any
 		if invitedCashier {
 			role, status = "CASHIER", "APPROVED"
+			if invitedBranchID.Valid && invitedBranchID.String != "" {
+				branchIDToInsert = invitedBranchID.String
+			} else {
+				branchIDToInsert = "b0000000-0000-0000-0000-000000000001"
+			}
 		}
 		_, err = tx.Exec(ctx, `
-			INSERT INTO app_users (id, email_normalized, display_name, role, status)
-			VALUES ($1::uuid, $2, $3, $4, $5)
-			ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), updated_at = now()`, userID, email, strings.TrimSpace(identity.DisplayName), role, status)
+			INSERT INTO app_users (id, email_normalized, display_name, role, branch_id, status)
+			VALUES ($1::uuid, $2, $3, $4, $5::uuid, $6)
+			ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), branch_id = COALESCE(app_users.branch_id, VALUES(branch_id)), updated_at = now()`, userID, email, strings.TrimSpace(identity.DisplayName), role, branchIDToInsert, status)
 		if err != nil {
 			return User{}, err
 		}
@@ -187,11 +204,17 @@ func (s *Store) upsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 		}
 		if invitedCashier {
 			now := time.Now().UTC()
+			var targetBranch any
+			if invitedBranchID.Valid && invitedBranchID.String != "" {
+				targetBranch = invitedBranchID.String
+			} else {
+				targetBranch = "b0000000-0000-0000-0000-000000000001"
+			}
 			_, err = tx.Exec(ctx, `
 				UPDATE app_users
-				SET role='CASHIER', status='APPROVED', approved_by=$2::uuid,
+				SET role='CASHIER', branch_id=$4::uuid, status='APPROVED', approved_by=$2::uuid,
 				    approved_at=$3, status_reason=NULL, updated_at=$3
-				WHERE id=$1::uuid`, linkedUserID, invitedBy, now)
+				WHERE id=$1::uuid`, linkedUserID, invitedBy, now, targetBranch)
 			if err != nil {
 				return User{}, err
 			}
@@ -221,7 +244,11 @@ func (s *Store) upsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 			return User{}, err
 		}
 	}
-	user, err := scanUser(tx.QueryRow(ctx, `SELECT id::text, email_normalized, display_name, role, status, approved_at FROM app_users WHERE id = $1::uuid`, linkedUserID))
+	user, err := scanUser(tx.QueryRow(ctx, `
+		SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '')
+		FROM app_users u
+		LEFT JOIN branches b ON b.id = u.branch_id
+		WHERE u.id = $1::uuid`, linkedUserID))
 	if err != nil {
 		return User{}, err
 	}
@@ -232,7 +259,36 @@ func (s *Store) upsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 }
 
 func (s *Store) UserByID(ctx context.Context, id string) (User, error) {
-	return scanUser(s.pool.QueryRow(ctx, `SELECT id::text, email_normalized, display_name, role, status, approved_at FROM app_users WHERE id = $1::uuid`, id))
+	return scanUser(s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.id = $1::uuid`, id))
+}
+
+func (s *Store) EnsureUser(ctx context.Context, email, displayName, role string) (User, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	displayName = strings.TrimSpace(displayName)
+	row := s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.email_normalized = $1`, email)
+	user, err := scanUser(row)
+	if err == nil {
+		return user, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return User{}, err
+	}
+	userID, err := newUUID()
+	if err != nil {
+		return User{}, err
+	}
+	var branchID any
+	if role == "CASHIER" {
+		branchID = "b0000000-0000-0000-0000-000000000001"
+	}
+	_, err = s.pool.Exec(ctx, `
+		INSERT INTO app_users (id, email_normalized, display_name, role, branch_id, status, approved_at)
+		VALUES ($1::uuid, $2, $3, $4, $5::uuid, 'APPROVED', now())
+		ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), branch_id = COALESCE(app_users.branch_id, VALUES(branch_id)), updated_at = now()`, userID, email, displayName, role, branchID)
+	if err != nil {
+		return User{}, err
+	}
+	return scanUser(s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.email_normalized = $1`, email))
 }
 
 func (s *Store) CreateSession(ctx context.Context, id, userID string, expiresAt time.Time) error {
@@ -245,12 +301,16 @@ func (s *Store) RevokeSession(ctx context.Context, id, userID string) error {
 	return err
 }
 
-func (s *Store) ValidateSession(ctx context.Context, id, userID string) (role, status string, ok bool) {
+func (s *Store) ValidateSession(ctx context.Context, id, userID string) (role, status, branchID string, ok bool) {
+	var bID sql.NullString
 	err := s.pool.QueryRow(ctx, `
-		SELECT u.role, u.status
+		SELECT u.role, u.status, u.branch_id::text
 		FROM app_sessions s JOIN app_users u ON u.id = s.user_id
-		WHERE s.id = $1 AND s.user_id = $2::uuid AND s.revoked_at IS NULL AND s.expires_at > now()`, id, userID).Scan(&role, &status)
-	return role, status, err == nil
+		WHERE s.id = $1 AND s.user_id = $2::uuid AND s.revoked_at IS NULL AND s.expires_at > now()`, id, userID).Scan(&role, &status, &bID)
+	if bID.Valid {
+		branchID = bID.String
+	}
+	return role, status, branchID, err == nil
 }
 
 type rowScanner interface{ Scan(...any) error }
@@ -258,11 +318,20 @@ type rowScanner interface{ Scan(...any) error }
 func scanUser(row rowScanner) (User, error) {
 	var user User
 	var email string
-	err := row.Scan(&user.ID, &email, &user.DisplayName, &user.Role, &user.Status, &user.ApprovedAt)
+	var branchID sql.NullString
+	var branchName sql.NullString
+	err := row.Scan(&user.ID, &email, &user.DisplayName, &user.Role, &user.Status, &user.ApprovedAt, &branchID, &branchName)
 	if err != nil {
 		return User{}, err
 	}
 	user.EmailMasked = maskEmail(email)
+	if branchID.Valid && branchID.String != "" {
+		bID := branchID.String
+		user.BranchID = &bID
+	}
+	if branchName.Valid {
+		user.BranchName = branchName.String
+	}
 	return user, nil
 }
 

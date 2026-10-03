@@ -38,6 +38,10 @@ type Auth struct {
 	SessionTTL           time.Duration
 	SuperadminUsername   string
 	SuperadminPassword   string
+	AdminUsername        string
+	AdminPassword        string
+	CashierUsername      string
+	CashierPassword      string
 }
 type InviteEmail struct {
 	Enabled     bool
@@ -68,6 +72,10 @@ func Load() (Config, error) {
 			SessionSecret:      os.Getenv("APP_SESSION_SECRET"),
 			SuperadminUsername: get("SUPERADMIN_USERNAME", "superadmin"),
 			SuperadminPassword: get("SUPERADMIN_PASSWORD", "superadmin"),
+			AdminUsername:      get("ADMIN_USERNAME", "admin"),
+			AdminPassword:      get("ADMIN_PASSWORD", "admin123"),
+			CashierUsername:    get("CASHIER_USERNAME", "kasir"),
+			CashierPassword:    get("CASHIER_PASSWORD", "kasir123"),
 		},
 		InviteEmail: InviteEmail{
 			Username: os.Getenv("GMAIL_SMTP_USERNAME"), AppPassword: os.Getenv("GMAIL_SMTP_APP_PASSWORD"),

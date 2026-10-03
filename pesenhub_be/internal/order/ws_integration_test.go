@@ -41,6 +41,16 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 	store := NewStore(db)
 	store.SetNotifier(publisher)
 
+	cleanupTestOrder := func() {
+		_, _ = db.Exec(context.Background(), `DELETE FROM outbox_events WHERE aggregate_id = 'f1000000-0000-4000-8000-000000000001'`)
+		_, _ = db.Exec(context.Background(), `DELETE FROM order_items WHERE order_id = 'f1000000-0000-4000-8000-000000000001'`)
+		_, _ = db.Exec(context.Background(), `DELETE FROM order_status_history WHERE order_id = 'f1000000-0000-4000-8000-000000000001'`)
+		_, _ = db.Exec(context.Background(), `DELETE FROM audit_logs WHERE aggregate_id = 'f1000000-0000-4000-8000-000000000001'`)
+		_, _ = db.Exec(context.Background(), `DELETE FROM orders WHERE id = 'f1000000-0000-4000-8000-000000000001' OR idempotency_key = 'ws-key-1'`)
+	}
+	cleanupTestOrder()
+	defer cleanupTestOrder()
+
 	// Drain any leftover outbox events from earlier tests
 	for {
 		c, err := publisher.ProcessBatch(ctx)
@@ -143,8 +153,12 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	orderID := customer.NewID()
+	key := fmt.Sprintf("ws-key-%d", time.Now().UnixNano())
+	transKey := fmt.Sprintf("ws-trans-key-%d", time.Now().UnixNano())
+
 	createIn := CreateInput{
-		ClientOrderID: "f1000000-0000-4000-8000-000000000001",
+		ClientOrderID: orderID,
 		CustomerName:  "Test Realtime",
 		CustomerPhone: "+62899999999",
 		Notes:         "pedas level 3",
@@ -153,7 +167,7 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 		},
 	}
 
-	order, _, err := svc.CreateManual(ctx, createIn, "ws-key-1", "staff-1", "req-1")
+	order, _, err := svc.CreateManual(ctx, createIn, key, "staff-1", "req-1")
 	if err != nil {
 		t.Fatalf("create order error: %v", err)
 	}
@@ -201,7 +215,7 @@ func TestWebSocketOrderEventsIntegration(t *testing.T) {
 	}
 
 	// 6. Transition order status and verify ORDER_STATUS_CHANGED event
-	transRes, _, err := svc.Transition(ctx, order.ID, TransitionInput{TargetStatus: "ACCEPTED", ExpectedVersion: 1}, "ws-trans-key-1", "staff-1", "STAFF", "req-2")
+	transRes, _, err := svc.Transition(ctx, order.ID, TransitionInput{TargetStatus: "ACCEPTED", ExpectedVersion: 1}, transKey, "staff-1", "STAFF", "req-2")
 	if err != nil {
 		t.Fatalf("transition error: %v", err)
 	}

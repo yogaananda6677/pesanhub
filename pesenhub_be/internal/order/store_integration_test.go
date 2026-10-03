@@ -27,22 +27,33 @@ func TestStoreCreateConcurrentIdempotencyIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	_, err = db.Exec(ctx, `INSERT INTO menu_categories(id,name) VALUES ('a1000000-0000-4000-8000-000000000001','Integration') ON CONFLICT DO NOTHING;
-		INSERT INTO menus(id,category_id,sku,name,price_amount,is_available) VALUES ('a2000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001','INTEGRATION-RICE','Integration Rice',15000,true) ON CONFLICT DO NOTHING;
-		INSERT INTO modifier_groups(id,menu_id,code,name,min_select,max_select) VALUES ('a3000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','size','Size',1,1) ON CONFLICT DO NOTHING;
-		INSERT INTO modifier_options(id,group_id,code,name,price_delta_amount,is_available) VALUES ('a4000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001','large','Large',5000,true) ON CONFLICT DO NOTHING`)
-	if err != nil {
+	catID := customer.NewID()
+	menuID := customer.NewID()
+	modGroupID := customer.NewID()
+	modOptID := customer.NewID()
+	if _, err = db.Exec(ctx, `INSERT INTO menu_categories(id,name) VALUES ($1,$2)`, catID, "Integration "+catID[:8]); err != nil {
 		t.Fatal(err)
 	}
+	if _, err = db.Exec(ctx, `INSERT INTO menus(id,category_id,sku,name,price_amount,is_available) VALUES ($1,$2,$3,'Integration Rice',15000,true)`, menuID, catID, "INTEGRATION-RICE-"+menuID[:8]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(ctx, `INSERT INTO modifier_groups(id,menu_id,code,name,min_select,max_select) VALUES ($1,$2,'size','Size',1,1)`, modGroupID, menuID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(ctx, `INSERT INTO modifier_options(id,group_id,code,name,price_delta_amount,is_available) VALUES ($1,$2,'large','Large',5000,true)`, modOptID, modGroupID); err != nil {
+		t.Fatal(err)
+	}
+	clientOrderID := customer.NewID()
+	retryKey := "integration-retry-" + customer.NewID()
 	in := CreateInput{
-		ClientOrderID: "a5000000-0000-4000-8000-000000000001",
+		ClientOrderID: clientOrderID,
 		CustomerName:  "Integration",
 		Items: []ItemInput{{
-			MenuID:   "a2000000-0000-4000-8000-000000000001",
+			MenuID:   menuID,
 			Quantity: 2,
 			Selections: []catalog.Selection{{
-				GroupID:   "a3000000-0000-4000-8000-000000000001",
-				OptionIDs: []string{"a4000000-0000-4000-8000-000000000001"},
+				GroupID:   modGroupID,
+				OptionIDs: []string{modOptID},
 			}},
 		}},
 	}
@@ -54,7 +65,7 @@ func TestStoreCreateConcurrentIdempotencyIntegration(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			o, _, err := s.CreateManual(ctx, in, "integration-retry", "staff", "request")
+			o, _, err := s.CreateManual(ctx, in, retryKey, "staff", "request")
 			if err != nil {
 				errs <- err
 				return
@@ -77,7 +88,7 @@ func TestStoreCreateConcurrentIdempotencyIntegration(t *testing.T) {
 		}
 	}
 	var orders, history, audits, outbox int
-	if err = db.QueryRow(ctx, `SELECT (SELECT count(*) FROM orders WHERE idempotency_key='integration-retry'),(SELECT count(*) FROM order_status_history h JOIN orders o ON o.id=h.order_id WHERE o.idempotency_key='integration-retry'),(SELECT count(*) FROM audit_logs a JOIN orders o ON o.id=a.aggregate_id WHERE o.idempotency_key='integration-retry'),(SELECT count(*) FROM outbox_events e JOIN orders o ON o.id=e.aggregate_id WHERE o.idempotency_key='integration-retry')`).Scan(&orders, &history, &audits, &outbox); err != nil {
+	if err = db.QueryRow(ctx, `SELECT (SELECT count(*) FROM orders WHERE idempotency_key=$1),(SELECT count(*) FROM order_status_history h JOIN orders o ON o.id=h.order_id WHERE o.idempotency_key=$1),(SELECT count(*) FROM audit_logs a JOIN orders o ON o.id=a.aggregate_id WHERE o.idempotency_key=$1),(SELECT count(*) FROM outbox_events e JOIN orders o ON o.id=e.aggregate_id WHERE o.idempotency_key=$1)`, retryKey).Scan(&orders, &history, &audits, &outbox); err != nil {
 		t.Fatal(err)
 	}
 	if orders != 1 || history != 1 || audits != 1 || outbox != 1 {
@@ -86,15 +97,15 @@ func TestStoreCreateConcurrentIdempotencyIntegration(t *testing.T) {
 	changed := in
 	changed.Items = append([]ItemInput(nil), in.Items...)
 	changed.Items[0].Quantity = 3
-	if _, _, err = s.CreateManual(ctx, changed, "integration-retry", "staff", "request"); !errors.Is(err, ErrIdempotencyConflict) {
+	if _, _, err = s.CreateManual(ctx, changed, retryKey, "staff", "request"); !errors.Is(err, ErrIdempotencyConflict) {
 		t.Fatalf("expected conflict, got %v", err)
 	}
-	_, err = db.Exec(ctx, `UPDATE menus SET is_available=false WHERE id='a2000000-0000-4000-8000-000000000001'`)
+	_, err = db.Exec(ctx, `UPDATE menus SET is_available=false WHERE id=$1`, menuID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	in.ClientOrderID = "a5000000-0000-4000-8000-000000000002"
-	if _, _, err = s.CreateManual(ctx, in, "integration-unavailable", "staff", "request"); !errors.Is(err, catalog.ErrUnavailable) {
+	in.ClientOrderID = customer.NewID()
+	if _, _, err = s.CreateManual(ctx, in, "integration-unavailable-"+customer.NewID(), "staff", "request"); !errors.Is(err, catalog.ErrUnavailable) {
 		t.Fatalf("expected unavailable, got %v", err)
 	}
 
@@ -194,8 +205,8 @@ func TestStoreOrderQueryAndQueueIntegration(t *testing.T) {
 	}
 
 	for _, od := range ordersData {
-		_, err = db.Exec(ctx, `INSERT INTO orders(id,order_number,source,status,customer_name_snapshot,customer_phone_snapshot,notes,subtotal_amount,total_amount,idempotency_key,created_at,updated_at)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,CONCAT('key-', $2),$9,$9) ON CONFLICT (id) DO NOTHING`,
+		_, err = db.Exec(ctx, `INSERT INTO orders(id,order_number,branch_id,source,status,customer_name_snapshot,customer_phone_snapshot,notes,subtotal_amount,total_amount,idempotency_key,created_at,updated_at)
+			VALUES ($1,$2,'b0000000-0000-0000-0000-000000000001',$3,$4,$5,$6,$7,$8,$8,CONCAT('key-', $2),$9,$9) ON CONFLICT (id) DO NOTHING`,
 			od.id, od.orderNum, od.source, od.status, od.name, od.phone, od.notes, od.total, od.createdAt)
 		if err != nil {
 			t.Fatal(err)

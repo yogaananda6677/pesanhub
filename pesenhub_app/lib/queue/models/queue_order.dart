@@ -16,6 +16,9 @@ class QueueOrder {
   final List<QueueOrderItem> items;
   final DateTime createdAt;
   final int version;
+  final String? branchId;
+  final String? branchCode;
+  final String? branchName;
 
   const QueueOrder({
     required this.id,
@@ -30,6 +33,9 @@ class QueueOrder {
     this.items = const [],
     required this.createdAt,
     this.version = 1,
+    this.branchId,
+    this.branchCode,
+    this.branchName,
   });
 
   /// Total sum of items in the order.
@@ -105,6 +111,9 @@ class QueueOrder {
     List<QueueOrderItem>? items,
     DateTime? createdAt,
     int? version,
+    String? branchId,
+    String? branchCode,
+    String? branchName,
   }) {
     return QueueOrder(
       id: id ?? this.id,
@@ -119,6 +128,9 @@ class QueueOrder {
       items: items ?? this.items,
       createdAt: createdAt ?? this.createdAt,
       version: version ?? this.version,
+      branchId: branchId ?? this.branchId,
+      branchCode: branchCode ?? this.branchCode,
+      branchName: branchName ?? this.branchName,
     );
   }
 }

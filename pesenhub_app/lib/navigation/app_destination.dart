@@ -10,7 +10,7 @@ enum AppDestination {
   String get label {
     switch (this) {
       case AppDestination.dashboard:
-        return 'Ringkasan';
+        return 'Beranda';
       case AppDestination.pos:
         return 'Kasir';
       case AppDestination.queue:

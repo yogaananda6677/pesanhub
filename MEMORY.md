@@ -21,7 +21,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 
 ## 2. Product Intent
 
-Membangun sistem antrean order tunggal bernama PesenHub untuk outlet nasi goreng. Aplikasi Flutter dipakai sebagai POS/KDS, backend Golang mengatur proses bisnis sekaligus menyajikan Web Customer sederhana, GOWA menghubungkan WhatsApp, Hermes membantu menerima dan mengklarifikasi order pelanggan, dan Midtrans menangani pembayaran digital. Pelanggan Web Customer dapat memesan tanpa akun dengan memasukkan nama dan nomor HP.
+Membangun sistem antrean order tunggal bernama PesenHub untuk outlet martabak telur dan terang bulan. Aplikasi Flutter dipakai sebagai POS/KDS, backend Golang mengatur proses bisnis sekaligus menyajikan Web Customer sederhana, GOWA menghubungkan WhatsApp, Hermes membantu menerima dan mengklarifikasi order pelanggan, dan Midtrans menangani pembayaran digital. Pelanggan Web Customer dapat memesan tanpa akun dengan memasukkan nama dan nomor HP.
 
 ## 3. Invariants — Jangan Dilanggar
 
@@ -262,6 +262,81 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 ## 13. Work Log
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
+
+### 28 September 2026 — Web Profil Landing Page Martabak Jenggirat Kediri & Pemindahan Web Order ke /order/
+
+**Goal**
+
+- Mengubah halaman web utama (`/`) yang sebelumnya berupa formulir pemesanan online langsung (*Web Ordering*) menjadi **Web Profil & Landing Page** resmi untuk **Martabak Jenggirat Kediri** berdasarkan 2 gambar poster menu resmi yang diunggah pengguna.
+- Memindahkan form pemesanan pelanggan ke subdirektori `/order/` agar pengunjung tetap dapat melakukan pemesanan web katalog dan pelacakan order secara penuh.
+
+**Changed**
+
+- `pesenhub_be/web/assets/menu-martabak-telur.jpg`: Poster menu Martabak Telur resolusi tinggi disalin dari upload pengguna.
+- `pesenhub_be/web/assets/menu-terang-bulan.png`: Poster menu Terang Bulan resolusi tinggi disalin dari upload pengguna.
+- `pesenhub_be/web/order/index.html`: Memindahkan sistem pemesanan online pelanggan (`view-order` dan `view-tracking`) ke `/order/` dengan penyesuaian path aset ke `../app.js`, `../style.css`, dan tautan navigasi kembali ke profil beranda.
+- `pesenhub_be/web/landing.css`: Lembar gaya landing page modern (palet warna hangat khas makanan, header sticky blur, bento grid kartu keunggulan, kartu harga menu interaktif, badges mitra delivery, lightbox flyer, dan floating WhatsApp button).
+- `pesenhub_be/web/landing.js`: Skrip interaktif landing page untuk filter kategori menu, modal lightbox zoom poster menu asli, menu hamburger mobile, dan efek scroll.
+- `pesenhub_be/web/index.html`: Dirombak menjadi Web Profil Landing Page resmi untuk Martabak Jenggirat Kediri lengkap dengan informasi halal, alamat outlet di Timur Gg. Ketoprak Katang Kediri, jam operasional 16.00-23.00, hotline WhatsApp 0822-4350-9775, rincian harga menu martabak telur dan terang bulan, base cake, dan topping.
+
+**Validation**
+
+- `go test -v ./internal/order/...`: PASS
+- `go test ./...`: PASS (100% lulus)
+- `go build ./cmd/api`: PASS
+- Docker build image & restart: Kontainer `pesenhub-api:dev` berjalan dan melayani `/` (landing page), `/order/` (web ordering), serta aset poster gambar.
+
+### 28 September 2026 — Superadmin UI Polish, Dark/Light Mode & WhatsApp Gateway Status Monitoring
+
+**Goal**
+
+- Memperbaiki tampilan UI web portal Superadmin agar lebih bersih, modern, dan responsif.
+- Menambahkan dukungan Mode Terang dan Mode Gelap (*Light & Dark Mode*) dengan toggle switch, persistensi di `localStorage`, dan skrip anti-FOUC (*Flash of Unstyled Content*).
+- Menambahkan endpoint dan tampilan untuk memeriksa status & konfigurasi WhatsApp Gateway (GOWA) masing-masing akun admin (misal apakah sudah terhubung, belum terkoneksi, atau gateway offline) sebagai informasi umum.
+
+**Changed**
+
+- `pesenhub_be/internal/superadmin/model.go`: Menambahkan struct `WhatsAppAccountStatus` untuk menyajikan informasi status koneksi, masking nomor HP, device ID, dan pesan status gateway.
+- `pesenhub_be/internal/superadmin/store.go`: Menambahkan metode `GetUser(ctx, userID)` pada store superadmin.
+- `pesenhub_be/internal/superadmin/service.go`: Menambahkan interface `WhatsAppGatewayInspector`, mengimplementasikan `GetUserWhatsAppStatus` dan `ListWhatsAppAccountStatuses`.
+- `pesenhub_be/internal/superadmin/handler.go`: Menambahkan HTTP endpoint `GET /api/v1/superadmin/users/{id}/whatsapp` dan `GET /api/v1/superadmin/whatsapp/status`.
+- `pesenhub_be/internal/superadmin/handler_test.go`: Menambahkan mock inspector dan pengujian unit `TestUserWhatsAppStatusEndpoint` serta `TestWhatsAppOverviewEndpoint`.
+- `pesenhub_be/cmd/api/main.go`: Menghubungkan client GOWA sebagai `WhatsAppGatewayInspector` ke service superadmin dan mendaftarkan kedua endpoint WhatsApp di multiplexer.
+- `pesenhub_be/web/superadmin/style.css`: Mendefinisikan token CSS variables untuk tema gelap & terang, kartu modern, tombol toggle tema, badge status WhatsApp terhubung/belum/down, dan dialog status.
+- `pesenhub_be/web/superadmin/index.html`: Menambahkan skrip anti-FOUC di `<head>`, tombol toggle tema di header, kolom WA Gateway pada tabel pengguna, dan modal dialog `#dialog-wa-info`.
+- `pesenhub_be/web/superadmin/app.js`: Mengimplementasikan alur toggle tema light/dark, pengambilan status WA secara paralel saat memuat daftar pengguna, indikator badge baris, dan dialog inspeksi WA detail dengan tombol cek ulang.
+- `docs/SUPERADMIN_PORTAL.md` & `docs/api/openapi.yaml`: Mendokumentasikan spesifikasi OpenAPI dan runbook operasional untuk fitur baru.
+
+**Validation**
+
+- `go test -v ./internal/superadmin/...`: PASS
+- `go test ./...`: PASS
+- `go build ./cmd/api`: PASS
+
+### 28 September 2026 — Superadmin Fixed Username & Password Login
+
+**Goal**
+
+- Mengubah mekanisme login Superadmin web portal dari kewajiban menyalin/memasukkan sesi token manual menjadi form login berbasis username dan password tetap (`SUPERADMIN_USERNAME` dan `SUPERADMIN_PASSWORD`, default: `superadmin` / `superadmin`).
+
+**Changed**
+
+- `pesenhub_be/internal/config/config.go` & `config_test.go`: Menambahkan konfigurasi `SuperadminUsername` dan `SuperadminPassword` dengan fallback default `superadmin` / `superadmin`.
+- `pesenhub_be/.env.example`: Menambahkan variabel lingkungan `SUPERADMIN_USERNAME` dan `SUPERADMIN_PASSWORD`.
+- `pesenhub_be/internal/appauth/store.go`: Menambahkan metode `EnsureSuperadmin` untuk auto-provision akun Superadmin di `app_users` jika belum ada.
+- `pesenhub_be/internal/superadmin/handler.go`: Menambahkan endpoint `POST /api/v1/superadmin/login` dengan rate limiting (5 req/min per IP), constant-time credential comparison, penerbitan sesi opaque bertanda tangan, dan penyimpanan sesi di `app_sessions`.
+- `pesenhub_be/internal/superadmin/handler_test.go`: Unit test login sukses, penolakan password/username salah, rate limit 429, dan invalid request.
+- `pesenhub_be/cmd/api/main.go`: Menghubungkan `superadminHandler.SetAuth` dan mendaftarkan rute `POST /api/v1/superadmin/login`.
+- `pesenhub_be/web/superadmin/index.html`: Memperbarui form autentikasi menjadi input username dan password yang rapi.
+- `pesenhub_be/web/superadmin/app.js`: Memperbarui alur login untuk melakukan POST ke `/api/v1/superadmin/login`, menyimpan sesi token di `sessionStorage`, dan menangani pesan error/expired dengan ramah.
+- `docs/SUPERADMIN_PORTAL.md` & `docs/api/openapi.yaml`: Mendokumentasikan kredensial tetap, runbook baru tanpa penyalinan token CLI, dan spesifikasi API OpenAPI untuk `/superadmin/login`.
+
+**Validation**
+
+- `go test ./internal/config/...`: PASS
+- `go test -v ./internal/superadmin/...`: PASS
+- `go test ./...`: PASS
+- `go build ./cmd/api`: PASS
 
 ### 8 September 2026 — Superadmin Web Portal & Health Telemetry (Issue #140)
 

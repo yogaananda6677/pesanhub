@@ -11,7 +11,7 @@ import (
 
 // CatalogProvider represents the interface needed to fetch active catalog items.
 type CatalogProvider interface {
-	ListPublic(ctx context.Context, categoryID string) ([]catalog.Category, error)
+	ListPublic(ctx context.Context, categoryID string, branchID ...string) ([]catalog.Category, error)
 }
 
 // CatalogResolver resolves extracted items against the active catalog.
@@ -38,6 +38,10 @@ func normalizeText(s string) string {
 		return "nasi goreng"
 	case "miegor":
 		return "mie goreng"
+	case "terbul", "terang bulan":
+		return "terang bulan"
+	case "martabak", "martabak telor", "marteg":
+		return "martabak telur"
 	case "esteh", "es teh manis":
 		return "es teh"
 	}

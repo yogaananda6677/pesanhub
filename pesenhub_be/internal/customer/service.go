@@ -36,7 +36,10 @@ type OrderSummary struct {
 	ID, OrderNumber, Status string
 	TotalAmount             int64
 }
-type Principal struct{ Subject, Role, CustomerID, SessionID string }
+type Principal struct {
+	Subject, Role, CustomerID, SessionID, BranchID string
+	AllBranches                                     bool
+}
 
 // CanOperateOutlet permits day-to-day outlet work. STAFF remains supported for
 // service credentials; interactive users receive ADMIN or CASHIER.

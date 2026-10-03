@@ -9,7 +9,6 @@ import 'models/menu_state.dart';
 import 'widgets/menu_availability_card.dart';
 import 'widgets/menu_category_filter.dart';
 import 'widgets/catalog_editor_dialog.dart';
-import '../widgets/app_button.dart';
 
 /// MenuAvailabilityView provides an operational screen for managing menu availability
 /// with role guards, optimistic toggles, rollback feedback, and responsive layout.
@@ -147,40 +146,110 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                 const SizedBox(height: AppSpacing.md),
               ],
 
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
+              // 2. Action Buttons: Add Menu (Hero), Quick Actions Row
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  AppButton(
-                    label: 'Tambah menu',
-                    icon: Icons.add_rounded,
+                  ElevatedButton.icon(
                     onPressed:
                         controller.mutationEnabled &&
                             controller.categories.any((item) => item.isActive)
                         ? () => showMenuEditor(context, controller: controller)
                         : null,
+                    icon: const Icon(Icons.add_rounded, size: 20),
+                    label: const Text(
+                      'Tambah menu',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                   ),
-                  AppButton.outlined(
-                    label: 'Kelola topping global',
-                    icon: Icons.add_circle_outline_rounded,
-                    onPressed: controller.mutationEnabled
-                        ? () => showGlobalExtraEditor(
-                            context,
-                            controller: controller,
-                          )
-                        : null,
-                  ),
-                  AppButton.outlined(
-                    label: 'Kelola kategori',
-                    icon: Icons.category_outlined,
-                    onPressed: controller.mutationEnabled
-                        ? () => _showCategoryManager(context, controller)
-                        : null,
-                  ),
-                  AppButton.outlined(
-                    label: 'Muat ulang',
-                    icon: Icons.refresh_rounded,
-                    onPressed: widget.onRefresh ?? controller.onRefresh,
+                  const SizedBox(height: AppSpacing.xs),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: controller.mutationEnabled
+                              ? () => showGlobalExtraEditor(
+                                  context,
+                                  controller: controller,
+                                )
+                              : null,
+                          icon: const Icon(Icons.tune_rounded, size: 16),
+                          label: const Text(
+                            'Kelola topping global',
+                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.textPrimary,
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: controller.mutationEnabled
+                              ? () => _showCategoryManager(context, controller)
+                              : null,
+                          icon: const Icon(Icons.category_outlined, size: 16),
+                          label: const Text(
+                            'Kelola kategori',
+                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.textPrimary,
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      OutlinedButton.icon(
+                        onPressed: widget.onRefresh ?? controller.onRefresh,
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: const Text(
+                          'Muat ulang',
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textSecondary,
+                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -375,16 +444,34 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
     final freshness = cachedAt == null
         ? 'Belum pernah tersinkron'
         : 'Diperbarui ${cachedAt.hour.toString().padLeft(2, "0")}:${cachedAt.minute.toString().padLeft(2, "0")}';
+
     final role = Row(
       children: [
-        Icon(
-          controller.isStaff
-              ? Icons.admin_panel_settings_rounded
-              : Icons.visibility_rounded,
-          size: 20,
-          color: controller.isStaff ? AppColors.primary : AppColors.textMuted,
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: controller.isStaff
+                ? const Color(0xFFF1F5F9)
+                : AppColors.surfaceVariant,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: controller.isStaff
+                  ? const Color(0xFFE2E8F0)
+                  : AppColors.border,
+            ),
+          ),
+          child: Icon(
+            controller.isStaff
+                ? Icons.admin_panel_settings_rounded
+                : Icons.visibility_rounded,
+            size: 22,
+            color: controller.isStaff
+                ? AppColors.primary
+                : AppColors.textMuted,
+          ),
         ),
-        const SizedBox(width: AppSpacing.xs),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,68 +481,128 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                     ? 'Pengelolaan Menu'
                     : 'Mode Pantau (${controller.role})',
                 style: AppTypography.titleMedium.copyWith(
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
                   color: controller.isStaff
                       ? AppColors.textPrimary
                       : AppColors.textMuted,
                 ),
               ),
-              Text(freshness, style: AppTypography.bodySmall),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.access_time_rounded,
+                    size: 13,
+                    color: AppColors.textMuted,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    freshness,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textMuted,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
       ],
     );
+
     final access = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: controller.isStaff
-            ? AppColors.primary.withValues(alpha: 0.1)
+        color: controller.mutationEnabled
+            ? const Color(0xFFEBF7EE)
+            : controller.isOffline
+            ? const Color(0xFFFFF4E5)
             : AppColors.surfaceVariant,
-        borderRadius: AppSpacing.borderRadiusSm,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: controller.isStaff
-              ? AppColors.primary.withValues(alpha: 0.3)
+          color: controller.mutationEnabled
+              ? const Color(0xFFBCE3C5)
+              : controller.isOffline
+              ? const Color(0xFFFFD8A8)
               : AppColors.border,
         ),
       ),
-      child: Text(
-        controller.mutationEnabled
-            ? 'Siap diubah'
-            : controller.isOffline
-            ? 'Offline • Hanya Baca'
-            : 'Hanya Baca',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: controller.isStaff ? AppColors.primary : AppColors.textMuted,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: controller.mutationEnabled
+                  ? const Color(0xFF2E7D32)
+                  : controller.isOffline
+                  ? const Color(0xFFB25E09)
+                  : AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            controller.mutationEnabled
+                ? 'Siap diubah'
+                : controller.isOffline
+                ? 'Offline • Hanya Baca'
+                : 'Hanya Baca',
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: controller.mutationEnabled
+                  ? const Color(0xFF2E7D32)
+                  : controller.isOffline
+                  ? const Color(0xFFB25E09)
+                  : AppColors.textMuted,
+            ),
+          ),
+        ],
       ),
     );
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final stacked =
-            constraints.maxWidth < 420 ||
-            MediaQuery.textScalerOf(context).scale(1) > 1.3;
-        if (stacked) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFEFE8E4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked =
+              constraints.maxWidth < 420 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3;
+          if (stacked) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                role,
+                const SizedBox(height: AppSpacing.sm),
+                access,
+              ],
+            );
+          }
+          return Row(
             children: [
-              role,
-              const SizedBox(height: AppSpacing.sm),
+              Expanded(child: role),
+              const SizedBox(width: AppSpacing.sm),
               access,
             ],
           );
-        }
-        return Row(
-          children: [
-            Expanded(child: role),
-            const SizedBox(width: AppSpacing.sm),
-            access,
-          ],
-        );
-      },
+        },
+      ),
     );
   }
 
@@ -475,7 +622,7 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
             label: 'Tersedia',
             count: controller.availableCount,
             isSelected: controller.statusFilter == 'AVAILABLE',
-            selectedColor: AppColors.success,
+            selectedColor: const Color(0xFF2E7D32),
             onTap: () => controller.setStatusFilter('AVAILABLE'),
           ),
           const SizedBox(width: AppSpacing.xs),
@@ -483,7 +630,7 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
             label: 'Habis',
             count: controller.unavailableCount,
             isSelected: controller.statusFilter == 'UNAVAILABLE',
-            selectedColor: AppColors.error,
+            selectedColor: const Color(0xFFD32F2F),
             onTap: () => controller.setStatusFilter('UNAVAILABLE'),
           ),
         ],
@@ -498,22 +645,29 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
     Color? selectedColor,
     required VoidCallback onTap,
   }) {
-    final activeColor = selectedColor ?? AppColors.primary;
+    final isSemua = label == 'Semua';
+    final activeColor = selectedColor ?? (isSemua ? const Color(0xFF2B1B16) : AppColors.primary);
 
     return FilterChip(
       label: Text('$label ($count)'),
       selected: isSelected,
+      showCheckmark: false,
       onSelected: (_) => onTap(),
-      selectedColor: activeColor.withValues(alpha: 0.15),
-      checkmarkColor: activeColor,
+      selectedColor: isSemua ? const Color(0xFF2B1B16) : activeColor.withValues(alpha: 0.12),
+      backgroundColor: Colors.white,
       labelStyle: TextStyle(
         fontSize: 12,
-        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-        color: isSelected ? activeColor : AppColors.textSecondary,
+        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+        color: isSelected
+            ? (isSemua ? Colors.white : activeColor)
+            : AppColors.textSecondary,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: AppSpacing.borderRadiusSm,
-        side: BorderSide(color: isSelected ? activeColor : AppColors.border),
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isSelected ? activeColor : const Color(0xFFE2E8F0),
+          width: isSelected ? 1.4 : 1,
+        ),
       ),
     );
   }

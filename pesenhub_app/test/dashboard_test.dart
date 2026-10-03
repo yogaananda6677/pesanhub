@@ -44,8 +44,9 @@ void main() {
         expect(find.text('3'), findsOneWidget);
         expect(find.text('Siap Diambil'), findsOneWidget);
 
-        expect(find.text('2'), findsOneWidget);
-        expect(find.text('Pesanan Terlambat'), findsOneWidget);
+        expect(find.text('Pesanan Terlambat'), findsNothing);
+        expect(find.text('12'), findsOneWidget);
+        expect(find.text('Pesanan Aktif'), findsOneWidget);
 
         expect(find.text('25'), findsOneWidget);
         expect(find.text('Selesai Hari Ini'), findsOneWidget);
@@ -130,7 +131,7 @@ void main() {
         expect(find.text('Kasir — Buat Pesanan'), findsOneWidget);
 
         // Return to Ringkasan tab
-        await tester.tap(find.text('Ringkasan'));
+        await tester.tap(find.text('Beranda'));
         await tester.pumpAndSettle();
         expect(find.text('Ringkasan Operasional'), findsOneWidget);
 
@@ -140,7 +141,7 @@ void main() {
         expect(find.text('Antrean Dapur'), findsOneWidget);
 
         // Return to Ringkasan tab
-        await tester.tap(find.text('Ringkasan'));
+        await tester.tap(find.text('Beranda'));
         await tester.pumpAndSettle();
         expect(find.text('Ringkasan Operasional'), findsOneWidget);
 

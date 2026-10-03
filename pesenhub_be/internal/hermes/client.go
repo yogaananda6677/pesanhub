@@ -3,6 +3,7 @@ package hermes
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,10 +13,35 @@ import (
 	"time"
 )
 
+type agentSessionContextKey struct{}
+
+type agentSession struct {
+	ID  string
+	Key string
+}
+
+// WithAgentSession scopes Hermes memory to one opaque WhatsApp conversation.
+// Raw phone numbers are deliberately not forwarded to the agent server.
+func WithAgentSession(ctx context.Context, session, customerPhone string) context.Context {
+	digest := sha256.Sum256([]byte(strings.TrimSpace(session) + "\x00" + strings.TrimSpace(customerPhone)))
+	opaqueID := fmt.Sprintf("pesenhub-wa-%x", digest[:16])
+	return context.WithValue(ctx, agentSessionContextKey{}, agentSession{
+		ID:  opaqueID,
+		Key: "agent:pesenhub:whatsapp:" + opaqueID,
+	})
+}
+
+func agentSessionFromContext(ctx context.Context) (agentSession, bool) {
+	session, ok := ctx.Value(agentSessionContextKey{}).(agentSession)
+	return session, ok && session.ID != "" && session.Key != ""
+}
+
 var (
 	ErrLLMInvalidResponse = errors.New("invalid or unparseable response from LLM")
 	ErrLLMUnavailable     = errors.New("LLM service unavailable")
 )
+
+const maxAgentResponseBytes = 2 * 1024 * 1024
 
 // LLMClient defines the interface to interact with an LLM backend for order extraction.
 type LLMClient interface {
@@ -71,23 +97,25 @@ func CleanJSONOutput(raw string) string {
 	return strings.TrimSpace(trimmed)
 }
 
-// HTTPLLMClient is an OpenAI/Ollama compatible chat completion client.
-type HTTPLLMClient struct {
+// AgentClient calls the OpenAI-compatible API exposed by Hermes Agent.
+// The model provider (for example 9Router) is configured inside Hermes Agent,
+// never in this backend.
+type AgentClient struct {
 	baseURL    string
 	apiKey     string
 	model      string
 	httpClient *http.Client
 }
 
-// NewHTTPLLMClient creates a new HTTPLLMClient.
-func NewHTTPLLMClient(baseURL, apiKey, model string, timeout time.Duration) *HTTPLLMClient {
+// NewAgentClient creates a Hermes Agent API client.
+func NewAgentClient(baseURL, apiKey, model string, timeout time.Duration) *AgentClient {
 	if timeout <= 0 {
 		timeout = 15 * time.Second
 	}
 	if model == "" {
 		model = DefaultModelName
 	}
-	return &HTTPLLMClient{
+	return &AgentClient{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		apiKey:  apiKey,
 		model:   model,
@@ -120,7 +148,7 @@ type chatCompletionResponse struct {
 }
 
 // ExtractOrder calls the chat completion endpoint and decodes the JSON order.
-func (c *HTTPLLMClient) ExtractOrder(ctx context.Context, systemPrompt, userPrompt string) (*RawExtractedOrder, error) {
+func (c *AgentClient) ExtractOrder(ctx context.Context, systemPrompt, userPrompt string) (*RawExtractedOrder, error) {
 	reqBody := chatCompletionRequest{
 		Model: c.model,
 		Messages: []chatMessage{
@@ -135,7 +163,11 @@ func (c *HTTPLLMClient) ExtractOrder(ctx context.Context, systemPrompt, userProm
 		return nil, fmt.Errorf("failed to marshal LLM request: %w", err)
 	}
 
-	endpoint := fmt.Sprintf("%s/v1/chat/completions", c.baseURL)
+	baseURL := c.baseURL
+	if !strings.HasSuffix(baseURL, "/v1") {
+		baseURL += "/v1"
+	}
+	endpoint := baseURL + "/chat/completions"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create LLM HTTP request: %w", err)
@@ -145,6 +177,10 @@ func (c *HTTPLLMClient) ExtractOrder(ctx context.Context, systemPrompt, userProm
 	if c.apiKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
+	if session, ok := agentSessionFromContext(ctx); ok {
+		req.Header.Set("X-Hermes-Session-Id", session.ID)
+		req.Header.Set("X-Hermes-Session-Key", session.Key)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -152,13 +188,16 @@ func (c *HTTPLLMClient) ExtractOrder(ctx context.Context, systemPrompt, userProm
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxAgentResponseBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read LLM response body: %w", err)
 	}
+	if len(bodyBytes) > maxAgentResponseBytes {
+		return nil, fmt.Errorf("%w: response exceeded safe size limit", ErrLLMInvalidResponse)
+	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: status %d body %s", ErrLLMUnavailable, resp.StatusCode, string(bodyBytes))
+		return nil, fmt.Errorf("%w: status %d", ErrLLMUnavailable, resp.StatusCode)
 	}
 
 	var completionResp chatCompletionResponse

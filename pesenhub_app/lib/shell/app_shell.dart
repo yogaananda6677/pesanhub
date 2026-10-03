@@ -15,9 +15,10 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../widgets/brand_logo.dart';
-import '../widgets/connectivity_badge.dart';
 import '../widgets/order_heads_up_alert.dart';
 import 'destination_views.dart';
+import 'widgets/notification_sheet.dart';
+import 'widgets/profile_sheet.dart';
 
 /// AppShell provides an adaptive, state-preserving navigation framework.
 /// Fulfills Issue #24 and Issue #25 Acceptance Criteria.
@@ -36,6 +37,15 @@ class AppShell extends StatefulWidget {
   final MenuAvailabilityController? menuManagementController;
   final bool isAdmin;
   final Future<String> Function(String email)? inviteCashier;
+  final String? userName;
+  final String? userEmail;
+  final String? userRole;
+  final String? branchName;
+  final String? branchId;
+  final List<Map<String, dynamic>>? availableBranches;
+  final Future<void> Function(String? branchId)? onSwitchBranch;
+  final void Function(QueueOrder order, String newStatus)? onStatusChanged;
+  final Future<void> Function()? onRefreshQueue;
 
   const AppShell({
     super.key,
@@ -52,6 +62,15 @@ class AppShell extends StatefulWidget {
     this.menuManagementController,
     this.isAdmin = false,
     this.inviteCashier,
+    this.userName,
+    this.userEmail,
+    this.userRole,
+    this.branchName,
+    this.branchId,
+    this.availableBranches,
+    this.onSwitchBranch,
+    this.onStatusChanged,
+    this.onRefreshQueue,
   });
 
   @override
@@ -94,8 +113,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     int ready = 0;
     int overdue = 0;
     int completed = 0;
+    int totalRev = 0;
     final now = DateTime.now();
     for (final order in queue.allOrders) {
+      if (order.orderStatus == 'COMPLETED' || order.paymentStatus == 'PAID') {
+        totalRev += order.totalAmount;
+      }
       switch (order.orderStatus) {
         case 'PENDING':
         case 'ACCEPTED':
@@ -125,6 +148,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       readyCount: ready,
       overdueCount: overdue,
       completedCount: completed,
+      totalRevenue: totalRev,
       lastUpdatedAt: now,
     );
   }
@@ -196,6 +220,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           body: MenuDestinationView(
             menuController: widget.menuController,
             availabilityController: widget.menuManagementController,
+            onRefresh: () => widget.menuManagementController?.onRefresh?.call(),
           ),
         ),
       ),
@@ -212,6 +237,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             _onDestinationSelected(AppDestination.queue.index),
         onNavigateToMenu: widget.isAdmin ? _openMenuManagement : null,
         isOnline: _connectivity.state != OperationalConnectionState.offline,
+        userName: widget.userName,
+        queueController: widget.queueController,
       ),
       PosDestinationView(
         menuController: widget.menuController,
@@ -224,11 +251,18 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       QueueDestinationView(
         controller: widget.queueController,
         alertController: _alerts,
+        onStatusChanged: widget.onStatusChanged,
+        onRefresh: widget.onRefreshQueue,
       ),
       SettingsDestinationView(
         onSignOut: widget.onSignOut,
         isAdmin: widget.isAdmin,
         inviteCashier: widget.inviteCashier,
+        userName: widget.userName,
+        userEmail: widget.userEmail,
+        userRole: widget.userRole,
+        branchName: widget.branchName,
+        connectivityController: _connectivity,
       ),
     ];
   }
@@ -260,11 +294,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                   Expanded(
                     child: Column(
                       children: [
-                        if (destination != AppDestination.queue)
-                          _buildHeader(
-                            destination: destination,
-                            showBrand: !isTablet,
-                          ),
+                        _buildHeader(
+                          destination: destination,
+                          showBrand: !isTablet,
+                        ),
                         Expanded(
                           child: IndexedStack(
                             key: _contentStackKey,
@@ -309,7 +342,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                       icon: Icon(d.icon, color: AppColors.textSecondary),
                       selectedIcon: Icon(
                         d.selectedIcon,
-                        color: AppColors.primary,
+                        color: const Color(0xFFE5573F),
                       ),
                       label: d.label,
                     );
@@ -379,13 +412,23 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     required AppDestination destination,
     bool showBrand = true,
   }) {
-    final isDashboard = destination == AppDestination.dashboard;
+    final subtitle = switch (destination) {
+      AppDestination.dashboard => 'Ringkasan Operasional',
+      AppDestination.pos => 'Sistem Pemesanan POS',
+      AppDestination.queue => 'Manajemen Antrean',
+      AppDestination.settings => 'Pengaturan Outlet',
+    };
+    final effectiveOnline =
+        _connectivity.state != OperationalConnectionState.offline;
+    final displayName = widget.userName?.trim().isNotEmpty == true
+        ? widget.userName!.trim()
+        : 'Yoga Ananda';
+    final initial =
+        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'Y';
+    final hasUnreadAlert = _alerts.activeAlert != null;
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
@@ -395,127 +438,328 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         child: Row(
           children: [
             if (showBrand) ...[
-              BrandLogo(size: isDashboard ? 38 : 32),
-              const SizedBox(width: AppSpacing.md),
+              const BrandLogo(size: 34),
+              const SizedBox(width: 10),
             ],
             Expanded(
-              child: isDashboard
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: const Text(
                           'Jenggirat',
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            height: 1.1,
+                            fontWeight: FontWeight.w900,
                             color: AppColors.textPrimary,
                             letterSpacing: -0.3,
                           ),
                           overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
                         ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Outlet #01',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
+                      ),
+                      const SizedBox(width: 8),
+                      // Modern Navbar Online Status Pill
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: effectiveOnline
+                              ? const Color(0xFFE8F5E9)
+                              : const Color(0xFFFFEBEE),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: effectiveOnline
+                                ? const Color(0xFFC8E6C9)
+                                : const Color(0xFFFFCDD2),
                           ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
                         ),
-                        // Retain destination title for accessibility & test contracts
-                        SizedBox(
-                          width: 0,
-                          height: 0,
-                          child: Text(
-                            destination.title,
-                            style: const TextStyle(
-                              fontSize: 0,
-                              color: Colors.transparent,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              effectiveOnline
+                                  ? Icons.cloud_done_rounded
+                                  : Icons.cloud_off_rounded,
+                              size: 13,
+                              color: effectiveOnline
+                                  ? const Color(0xFF2E7D32)
+                                  : const Color(0xFFC62828),
                             ),
-                          ),
+                            const SizedBox(width: 4),
+                            Text(
+                              effectiveOnline ? 'Online' : 'Offline',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: effectiveOnline
+                                    ? const Color(0xFF2E7D32)
+                                    : const Color(0xFFC62828),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  if (widget.isAdmin && widget.onSwitchBranch != null)
+                    InkWell(
+                      key: const Key('admin-branch-switcher-button'),
+                      onTap: () => _showBranchSwitcherBottomSheet(context),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Text(
+                        '$subtitle • ${widget.branchName ?? "Semua Cabang"} ▾',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          destination.title,
-                          style: AppTypography.titleMedium,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const Text(
-                          'PesenHub Outlet #01 — Martabak & Terang Bulan Pusat',
-                          style: AppTypography.bodySmall,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                  else
+                    Text(
+                      '$subtitle • ${widget.branchName ?? "Cabang"}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                  if (destination != AppDestination.queue)
+                    SizedBox(
+                      width: 0,
+                      height: 0,
+                      child: Text(
+                        destination.title,
+                        style: const TextStyle(
+                          fontSize: 0,
+                          color: Colors.transparent,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            if (!isDashboard) ...[
-              ConnectivityBadge(
-                controller: _connectivity,
-                onReviewErrors: () =>
-                    _onDestinationSelected(AppDestination.pos.index),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-            ],
             AnimatedBuilder(
               animation: _alerts,
-              builder: (context, _) => Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant.withValues(alpha: 0.5),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  key: const Key('notification-permission-button'),
-                  tooltip: _alerts.permission == AlertPermission.denied
-                      ? 'Notifikasi ditolak — alert tetap tampil di aplikasi'
-                      : 'Aktifkan notifikasi',
-                  onPressed: _alerts.requestPermission,
-                  icon: Icon(
-                    _alerts.permission == AlertPermission.granted
-                        ? Icons.notifications_active_rounded
-                        : Icons.notifications_none_rounded,
-                    color: AppColors.textPrimary,
-                    size: 22,
+              builder: (context, _) => Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF1F5F9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      key: const Key('notification-permission-button'),
+                      tooltip: 'Pusat Notifikasi & Alert Operasional',
+                      onPressed: () {
+                        if (_alerts.permission != AlertPermission.granted) {
+                          _alerts.requestPermission();
+                        }
+                        NotificationSheet.show(
+                          context,
+                          alertController: _alerts,
+                          activeOrders: widget.queueController?.allOrders,
+                        );
+                      },
+                      icon: Icon(
+                        _alerts.permission == AlertPermission.granted ||
+                                hasUnreadAlert
+                            ? Icons.notifications_active_rounded
+                            : Icons.notifications_none_rounded,
+                        color: hasUnreadAlert
+                            ? AppColors.primary
+                            : AppColors.textPrimary,
+                        size: 19,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
+                      padding: EdgeInsets.zero,
+                    ),
                   ),
-                  constraints: const BoxConstraints(
-                    minWidth: 40,
-                    minHeight: 40,
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
+                  if (hasUnreadAlert)
+                    Positioned(
+                      top: 1,
+                      right: 1,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFC62828),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            // User avatar
-            Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFDE8E4),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: const Text(
-                'Y',
-                style: TextStyle(
-                  color: Color(0xFFC62828),
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
+            const SizedBox(width: 8),
+            // User avatar (interactive)
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  ProfileSheet.show(
+                    context,
+                    displayName: widget.userName,
+                    email: widget.userEmail,
+                    role: widget.isAdmin
+                        ? 'Superadmin'
+                        : (widget.userRole ?? 'Kasir Utama'),
+                    branchName: widget.branchName,
+                    onSignOut: widget.onSignOut,
+                  );
+                },
+                borderRadius: BorderRadius.circular(18),
+                child: Tooltip(
+                  message: 'Profil Kasir & Informasi Gerai',
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFFF0DCD3),
+                        width: 1.5,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      initial,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+
+
+  void _showBranchSwitcherBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        final branches = widget.availableBranches ?? [];
+        final currentId = widget.branchId;
+
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Pilih Cabang Operasional',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Pilih cabang untuk memfilter antrean pesanan dan katalog ketersediaan.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    key: const Key('branch-option-all'),
+                    leading: const Icon(Icons.dashboard_customize_outlined, color: AppColors.primary),
+                    title: const Text(
+                      'Semua Cabang',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: const Text('Tampilkan data gabungan seluruh cabang'),
+                    trailing: currentId == null || currentId.isEmpty
+                        ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                        : null,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    selected: currentId == null || currentId.isEmpty,
+                    selectedTileColor: AppColors.primaryContainer.withValues(alpha: 0.3),
+                    onTap: () {
+                      Navigator.pop(bottomSheetContext);
+                      widget.onSwitchBranch?.call(null);
+                    },
+                  ),
+                  const Divider(),
+                  ...branches.map((b) {
+                    final id = b['id']?.toString() ?? '';
+                    final name = b['name']?.toString() ?? 'Cabang';
+                    final code = b['code']?.toString() ?? '';
+                    final isSelected = currentId == id;
+
+                    return ListTile(
+                      key: Key('branch-option-$id'),
+                      leading: const Icon(Icons.storefront_rounded, color: AppColors.primary),
+                      title: Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text('Kode: $code'),
+                      trailing: isSelected
+                          ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                          : null,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      selected: isSelected,
+                      selectedTileColor: AppColors.primaryContainer.withValues(alpha: 0.3),
+                      onTap: () {
+                        Navigator.pop(bottomSheetContext);
+                        widget.onSwitchBranch?.call(id);
+                      },
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

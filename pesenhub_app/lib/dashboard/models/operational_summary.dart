@@ -7,6 +7,10 @@ class OperationalSummary {
   final int overdueCount;
   final int completedCount;
   final int pendingSyncCount;
+  final int totalRevenue;
+  final int qrisRevenue;
+  final int cashRevenue;
+  final int averageOrderValue;
   final DateTime lastUpdatedAt;
   final bool isStale;
   final bool isOffline;
@@ -18,6 +22,10 @@ class OperationalSummary {
     this.overdueCount = 0,
     this.completedCount = 0,
     this.pendingSyncCount = 0,
+    this.totalRevenue = 0,
+    this.qrisRevenue = 0,
+    this.cashRevenue = 0,
+    this.averageOrderValue = 0,
     required this.lastUpdatedAt,
     this.isStale = false,
     this.isOffline = false,
@@ -43,6 +51,10 @@ class OperationalSummary {
     int overdueCount = 0,
     int? completedCount,
     int? pendingSyncCount,
+    int? totalRevenue,
+    int? qrisRevenue,
+    int? cashRevenue,
+    int? averageOrderValue,
     DateTime? lastUpdatedAt,
     bool? isStale,
     bool? isOffline,
@@ -54,6 +66,10 @@ class OperationalSummary {
       overdueCount: overdueCount != 0 ? overdueCount : this.overdueCount,
       completedCount: completedCount ?? this.completedCount,
       pendingSyncCount: pendingSyncCount ?? this.pendingSyncCount,
+      totalRevenue: totalRevenue ?? this.totalRevenue,
+      qrisRevenue: qrisRevenue ?? this.qrisRevenue,
+      cashRevenue: cashRevenue ?? this.cashRevenue,
+      averageOrderValue: averageOrderValue ?? this.averageOrderValue,
       lastUpdatedAt: lastUpdatedAt ?? this.lastUpdatedAt,
       isStale: isStale ?? this.isStale,
       isOffline: isOffline ?? this.isOffline,

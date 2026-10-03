@@ -20,10 +20,10 @@ Kasir dan koki di outlet PesenHub bekerja di lingkungan yang serba cepat, sering
 
 | Token | Nilai Hex | Penggunaan |
 |---|---|---|
-| `primary` | `#C0392B` | Brand utama (Warm Red/Amber nasi goreng), tombol utama, aksen |
-| `primaryContainer` | `#FDEDEC` | Latar belakang chip atau kontainer aksen terpilih |
-| `secondary` | `#D97706` | Aksi sekunder, badge peringatan |
-| `background` | `#FDFBF7` | Latar belakang layar aplikasi (warm light) |
+| `primary` | `#7A321F` | Brand utama (Warm Cocoa Brown martabak), tombol utama, aksen |
+| `primaryContainer` | `#F7E8DF` | Latar belakang chip atau kontainer aksen terpilih (Soft Cocoa) |
+| `secondary` | `#F2A72B` | Butter Gold aksen sekunder, badge peringatan |
+| `background` | `#FFF8EE` | Latar belakang layar aplikasi (Warm Cream) |
 | `surface` | `#FFFFFF` | Latar belakang kartu, form input, modal |
 | `surfaceVariant` | `#F8FAFC` | Kontainer latar sekunder, badge netral |
 | `border` | `#E2E8F0` | Garis tepi kartu, field input, divider |

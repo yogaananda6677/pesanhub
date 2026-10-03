@@ -3,10 +3,11 @@ package catalog
 import "errors"
 
 var (
-	ErrInvalidCatalog  = errors.New("invalid catalog data")
-	ErrUnavailable     = errors.New("menu or modifier unavailable")
-	ErrInvalidModifier = errors.New("invalid modifier selection")
-	ErrVersionConflict = errors.New("catalog version conflict")
+	ErrInvalidCatalog      = errors.New("invalid catalog data")
+	ErrUnavailable         = errors.New("menu or modifier unavailable")
+	ErrInvalidModifier     = errors.New("invalid modifier selection")
+	ErrVersionConflict     = errors.New("catalog version conflict")
+	ErrBranchScopeRequired = errors.New("branch scope required")
 )
 
 type ValidationError struct {

@@ -25,7 +25,7 @@ func TestRecordCashIntegration(t *testing.T) {
 	defer db.Close()
 
 	orderID, key := customer.NewID(), "cash-integration-"+customer.NewID()
-	_, err = db.Exec(ctx, `INSERT INTO orders (id,order_number,source,status,customer_name_snapshot,subtotal_amount,total_amount,idempotency_key) VALUES ($1,$2,'CASHIER_MANUAL','PENDING','Cash Test',25000,25000,$3)`, orderID, "ORD-CASH-"+orderID[:8], "order-"+key)
+	_, err = db.Exec(ctx, `INSERT INTO orders (id,order_number,branch_id,source,status,customer_name_snapshot,subtotal_amount,total_amount,idempotency_key) VALUES ($1,$2,'b0000000-0000-0000-0000-000000000001','CASHIER_MANUAL','PENDING','Cash Test',25000,25000,$3)`, orderID, "ORD-CASH-"+orderID[:8], "order-"+key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,13 +75,13 @@ func TestMidtransReconciliationIntegrationExpiryAndBoundedAlert(t *testing.T) {
 		t.Helper()
 		orderID, paymentID := customer.NewID(), customer.NewID()
 		providerOrderID := "PH-" + paymentID
-		_, insertErr := db.Exec(ctx, `INSERT INTO orders (id,order_number,source,status,customer_name_snapshot,subtotal_amount,total_amount,idempotency_key)
-			VALUES ($1,$2,'CASHIER_MANUAL','PENDING','Reconciliation Test',27500,27500,$3)`, orderID, "ORD-RECON-"+paymentID[:8], "order-recon-"+paymentID)
+		_, insertErr := db.Exec(ctx, `INSERT INTO orders (id,order_number,branch_id,source,status,customer_name_snapshot,subtotal_amount,total_amount,idempotency_key)
+			VALUES ($1,$2,'b0000000-0000-0000-0000-000000000001','CASHIER_MANUAL','PENDING','Reconciliation Test',27500,27500,$3)`, orderID, "ORD-RECON-"+paymentID[:8], "order-recon-"+paymentID)
 		if insertErr != nil {
 			t.Fatal(insertErr)
 		}
 		_, insertErr = db.Exec(ctx, `INSERT INTO payments (id,order_id,method,status,amount,idempotency_key,provider_order_id,provider_reference,provider_attempt_state,request_hash,actor_id,request_id,expires_at,reconciliation_state,reconciliation_next_at,reconciliation_attempt_count,reconciliation_failure_count)
-			VALUES ($1,$2,'MIDTRANS_QRIS','PENDING_PAYMENT',27500,$3,$4,$5,'SUCCEEDED','hash','staff-recon','req-create',$6,'DUE',$7,$8,$8)`, paymentID, orderID, "payment-recon-"+paymentID, providerOrderID, "tx-"+label, now.Add(-time.Minute), now.Add(-time.Second), attempts)
+			VALUES ($1,$2,'MIDTRANS_QRIS','PENDING_PAYMENT',27500,$3,$4,$5,'SUCCEEDED','hash','staff-recon','req-create',$6,'DUE',$7,$8,$8)`, paymentID, orderID, "payment-recon-"+paymentID, providerOrderID, "tx-"+label+"-"+paymentID, now.Add(-time.Minute), now.Add(-time.Second), attempts)
 		if insertErr != nil {
 			t.Fatal(insertErr)
 		}
@@ -89,7 +89,7 @@ func TestMidtransReconciliationIntegrationExpiryAndBoundedAlert(t *testing.T) {
 	}
 
 	orderID, paymentID, providerOrderID := insertPayment("expiry", 0)
-	pending := MidtransNotification{OrderID: providerOrderID, TransactionID: "tx-expiry", TransactionStatus: "pending", StatusCode: "201", GrossAmount: "27500.00", PaymentType: "qris", Currency: "IDR"}
+	pending := MidtransNotification{OrderID: providerOrderID, TransactionID: "tx-expiry-" + paymentID, TransactionStatus: "pending", StatusCode: "201", GrossAmount: "27500.00", PaymentType: "qris", Currency: "IDR"}
 	store := NewStore(db)
 	gateway := &reconciliationGatewayStub{notification: pending}
 	reconciler := NewReconciler(ReconcilerConfig{Store: store, Gateway: gateway, MaxAttempts: 3, BaseDelay: time.Second, Now: func() time.Time { return now }})
@@ -155,7 +155,7 @@ func (f *retryMidtrans) CreateQRIS(_ context.Context, orderID string, _ int64) (
 	if f.calls == 1 {
 		return QRISCharge{}, &ProviderError{Kind: "timeout"}
 	}
-	return QRISCharge{ProviderOrderID: orderID, ProviderReference: "dummy-midtrans-tx", Status: "pending", QRCodeURL: "https://api.sandbox.midtrans.com/v2/qris/dummy-midtrans-tx/qr-code"}, nil
+	return QRISCharge{ProviderOrderID: orderID, ProviderReference: "dummy-midtrans-tx-" + customer.NewID(), Status: "pending", QRCodeURL: "https://api.sandbox.midtrans.com/v2/qris/dummy-midtrans-tx/qr-code"}, nil
 }
 
 func TestCreateQRISIntegrationRetryUsesOnePaymentAndStableProviderOrderID(t *testing.T) {
@@ -171,7 +171,7 @@ func TestCreateQRISIntegrationRetryUsesOnePaymentAndStableProviderOrderID(t *tes
 	defer db.Close()
 
 	orderID, key := customer.NewID(), "qris-integration-"+customer.NewID()
-	_, err = db.Exec(ctx, `INSERT INTO orders (id,order_number,source,status,customer_name_snapshot,subtotal_amount,total_amount,idempotency_key) VALUES ($1,$2,'CASHIER_MANUAL','PENDING','QRIS Test',27500,27500,$3)`, orderID, "ORD-QRIS-"+orderID[:8], "order-"+key)
+	_, err = db.Exec(ctx, `INSERT INTO orders (id,order_number,branch_id,source,status,customer_name_snapshot,subtotal_amount,total_amount,idempotency_key) VALUES ($1,$2,'b0000000-0000-0000-0000-000000000001','CASHIER_MANUAL','PENDING','QRIS Test',27500,27500,$3)`, orderID, "ORD-QRIS-"+orderID[:8], "order-"+key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +216,7 @@ func TestApplyMidtransWebhookIntegrationIsIdempotentAndMonotonic(t *testing.T) {
 
 	orderID, paymentID := customer.NewID(), customer.NewID()
 	providerOrderID, transactionID := "PH-"+paymentID, "tx-webhook-"+paymentID
-	_, err = db.Exec(ctx, `INSERT INTO orders (id,order_number,source,status,customer_name_snapshot,subtotal_amount,total_amount,idempotency_key) VALUES ($1,$2,'CASHIER_MANUAL','PENDING','Webhook Test',27500,27500,$3)`, orderID, "ORD-WEBHOOK-"+orderID[:8], "order-webhook-"+orderID)
+	_, err = db.Exec(ctx, `INSERT INTO orders (id,order_number,branch_id,source,status,customer_name_snapshot,subtotal_amount,total_amount,idempotency_key) VALUES ($1,$2,'b0000000-0000-0000-0000-000000000001','CASHIER_MANUAL','PENDING','Webhook Test',27500,27500,$3)`, orderID, "ORD-WEBHOOK-"+orderID[:8], "order-webhook-"+orderID)
 	if err != nil {
 		t.Fatal(err)
 	}

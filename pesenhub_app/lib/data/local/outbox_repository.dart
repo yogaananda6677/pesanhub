@@ -22,16 +22,27 @@ class OutboxRepository {
   }
 
   /// Retrieves mutations ready for synchronization in strict FIFO order.
-  Future<List<OutboxMutation>> getPendingMutations({DateTime? asOf}) async {
+  Future<List<OutboxMutation>> getPendingMutations({
+    DateTime? asOf,
+    String? branchId,
+  }) async {
     final db = await _localDb.database;
     final nowIso = (asOf ?? DateTime.now()).toIso8601String();
 
+    String where =
+        "(sync_status = 'PENDING' OR sync_status = 'FAILED_TRANSIENT') "
+        "AND (next_retry_at IS NULL OR next_retry_at <= ?)";
+    List<Object?> whereArgs = [nowIso];
+
+    if (branchId != null && branchId.isNotEmpty) {
+      where += " AND (branch_id = ? OR branch_id IS NULL)";
+      whereArgs.add(branchId);
+    }
+
     final rows = await db.query(
       'outbox_mutations',
-      where:
-          "(sync_status = 'PENDING' OR sync_status = 'FAILED_TRANSIENT') "
-          "AND (next_retry_at IS NULL OR next_retry_at <= ?)",
-      whereArgs: [nowIso],
+      where: where,
+      whereArgs: whereArgs,
       orderBy: 'created_at ASC',
     );
 
@@ -39,9 +50,23 @@ class OutboxRepository {
   }
 
   /// Retrieves all recorded mutations regardless of status.
-  Future<List<OutboxMutation>> getAllMutations() async {
+  Future<List<OutboxMutation>> getAllMutations({String? branchId}) async {
     final db = await _localDb.database;
-    final rows = await db.query('outbox_mutations', orderBy: 'created_at ASC');
+    final String? where;
+    final List<Object?>? whereArgs;
+    if (branchId != null && branchId.isNotEmpty) {
+      where = 'branch_id = ? OR branch_id IS NULL';
+      whereArgs = [branchId];
+    } else {
+      where = null;
+      whereArgs = null;
+    }
+    final rows = await db.query(
+      'outbox_mutations',
+      where: where,
+      whereArgs: whereArgs,
+      orderBy: 'created_at ASC',
+    );
     return rows.map((r) => OutboxMutation.fromMap(r)).toList();
   }
 

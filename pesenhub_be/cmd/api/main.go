@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"pesenhub/backend/internal/appauth"
+	"pesenhub/backend/internal/branch"
 	"pesenhub/backend/internal/catalog"
 	"pesenhub/backend/internal/config"
 	"pesenhub/backend/internal/customer"
@@ -24,6 +25,7 @@ import (
 	"pesenhub/backend/internal/notification"
 	orderapi "pesenhub/backend/internal/order"
 	"pesenhub/backend/internal/payment"
+	"pesenhub/backend/internal/report"
 	"pesenhub/backend/internal/superadmin"
 	"pesenhub/backend/internal/ws"
 )
@@ -44,7 +46,7 @@ func main() {
 	defer stop()
 	pool, err := database.Open(ctx, cfg.Database.DSN())
 	if err != nil {
-		logger.Error("database connection failed", "error", "database unavailable")
+		logger.Error("database connection failed", "error", "database unavailable", "detail", err.Error())
 		os.Exit(1)
 	}
 	defer pool.Close()
@@ -60,6 +62,14 @@ func main() {
 		logger.Error("authentication handler configuration failed", "error", "invalid configuration")
 		os.Exit(1)
 	}
+	googleAuth.SetPasswordAuth(appauth.PasswordAuthConfig{
+		AdminUsername:   cfg.Auth.AdminUsername,
+		AdminPassword:   cfg.Auth.AdminPassword,
+		CashierUsername: cfg.Auth.CashierUsername,
+		CashierPassword: cfg.Auth.CashierPassword,
+		SuperadminUser:  cfg.Auth.SuperadminUsername,
+		SuperadminPass:  cfg.Auth.SuperadminPassword,
+	})
 	wc := gowa.New(cfg.GOWA.BaseURL, cfg.GOWA.Username, cfg.GOWA.Password, cfg.GOWA.DeviceID, cfg.GOWA.Timeout)
 	gowaStore := gowa.NewStore(pool)
 	h := health.New("pesenhub-api", pool, wc)
@@ -100,7 +110,7 @@ func main() {
 
 	var llmClient hermes.LLMClient
 	if cfg.Hermes.BaseURL != "" && cfg.App.Env != "test" {
-		llmClient = hermes.NewHTTPLLMClient(cfg.Hermes.BaseURL, cfg.Hermes.APIKey, cfg.Hermes.Model, cfg.Hermes.Timeout)
+		llmClient = hermes.NewAgentClient(cfg.Hermes.BaseURL, cfg.Hermes.APIKey, cfg.Hermes.Model, cfg.Hermes.Timeout)
 	} else {
 		llmClient = &hermes.MockLLMClient{}
 	}
@@ -118,6 +128,7 @@ func main() {
 		MaxAttempts:         cfg.Hermes.MaxAttempts,
 	})
 	hermesHandler := hermes.NewHandler(hermesService)
+	hermesTools := hermes.NewToolHandler(catalogService, cfg.Hermes.ToolAPIKey)
 
 	onWhatsAppMessage := func(msgCtx context.Context, msg *gowa.InboundMessage) {
 		if msg == nil || strings.TrimSpace(msg.MessageBody) == "" {
@@ -184,16 +195,28 @@ func main() {
 		sessions,
 	)
 	gowaSettings := gowa.NewSettingsHandler(wc)
+	branchStore := branch.NewStore(pool)
+	branchService := branch.NewService(branchStore)
+	branchHandler := branch.NewHandler(branchService)
+	reportStore := report.NewStore(pool)
+	reportService := report.NewService(reportStore, branchService)
+	reportHandler := report.NewHandler(reportService)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", h.Live)
 	mux.HandleFunc("GET /health/ready", h.Ready)
+	mux.HandleFunc("GET /api/v1/reports/summary", reportHandler.Summary)
+	mux.HandleFunc("GET /api/v1/branches", branchHandler.List)
+	mux.HandleFunc("POST /api/v1/admin/branches", branchHandler.Create)
+	mux.HandleFunc("PATCH /api/v1/admin/branches/{id}", branchHandler.Update)
+	mux.HandleFunc("PATCH /api/v1/admin/users/{id}/branch", branchHandler.AssignUser)
 	mux.HandleFunc("GET /api/v1/settings/whatsapp", gowaSettings.GetSettings)
 	mux.HandleFunc("POST /api/v1/settings/whatsapp/pair", gowaSettings.PairDevice)
 	mux.HandleFunc("POST /api/v1/settings/whatsapp/disconnect", gowaSettings.DisconnectDevice)
 	mux.HandleFunc("GET /api/v1/settings/whatsapp/qr-image", gowaSettings.ProxyQRImage)
 	mux.HandleFunc("POST /api/v1/auth/google/challenge", googleAuth.Challenge)
 	mux.HandleFunc("POST /api/v1/auth/google", googleAuth.Login)
+	mux.HandleFunc("POST /api/v1/auth/login", googleAuth.LoginPassword)
 	mux.HandleFunc("GET /api/v1/auth/me", googleAuth.Me)
 	mux.HandleFunc("POST /api/v1/auth/logout", googleAuth.Logout)
 	mux.Handle("POST /webhooks/gowa", gowaWebhook)
@@ -205,7 +228,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/public/orders/preview", orders.PreviewWeb)
 	mux.HandleFunc("POST /api/v1/public/orders", orders.CreateWeb)
 	mux.HandleFunc("GET /api/v1/public/orders/{token}", orders.GetByPublicToken)
-	mux.HandleFunc("GET /api/v1/agent/menu", catalogHandler.Public)
+	mux.HandleFunc("GET /api/v1/hermes/tools/catalog", hermesTools.Catalog)
 	mux.HandleFunc("GET /api/v1/agent/status", hermesHandler.GetStatus)
 	mux.HandleFunc("POST /api/v1/agent/turn", hermesHandler.Turn)
 	mux.HandleFunc("GET /api/v1/agent/handoffs", hermesHandler.ListHandoffs)
@@ -220,8 +243,10 @@ func main() {
 	mux.HandleFunc("POST /api/v1/admin/menus", catalogHandler.CreateMenu)
 	mux.HandleFunc("PATCH /api/v1/admin/menus/{id}", catalogHandler.UpdateMenu)
 	mux.HandleFunc("PATCH /api/v1/admin/menus/{id}/availability", catalogHandler.Availability)
+	mux.HandleFunc("PATCH /api/v1/admin/modifier-options/{id}/availability", catalogHandler.OptionAvailability)
 	mux.HandleFunc("POST /api/v1/admin/menu-images", catalogHandler.UploadImage)
 	mux.HandleFunc("POST /api/v1/admin/cashiers/invitations", superadminHandler.InviteCashier)
+	mux.HandleFunc("PUT /api/v1/admin/cashiers/{id}/branch", superadminHandler.UpdateCashierBranch)
 	mux.HandleFunc("GET /api/v1/orders", orders.List)
 	mux.HandleFunc("GET /api/v1/orders/queue", orders.Queue)
 	mux.HandleFunc("GET /api/v1/orders/{id}", orders.GetByID)
@@ -248,7 +273,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/superadmin/users/{id}/revoke-sessions", superadminHandler.RevokeSessions)
 	mux.HandleFunc("GET /api/v1/superadmin/audits", superadminHandler.ListAudits)
 	mux.Handle("GET /", http.FileServer(http.Dir("web")))
-	authenticatedMux := customer.Authenticate(cfg.Auth.StaffToken, cfg.Auth.KDSToken, sessions, mux)
+	authenticatedMux := customer.Authenticate(cfg.Auth.StaffToken, cfg.Auth.KDSToken, sessions, branch.Middleware(branchService)(mux))
 	server := &http.Server{Addr: cfg.Address(), Handler: httpserver.Middleware(logger, authenticatedMux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
 		logger.Info("API listening", "address", server.Addr, "environment", cfg.App.Env)

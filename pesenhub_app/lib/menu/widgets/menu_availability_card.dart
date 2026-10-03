@@ -46,7 +46,7 @@ class MenuAvailabilityCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Header: Name, SKU, Category Badge & Version Chip
+          // 1. Header: Category badge, SKU, Name & Version Chip
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -54,28 +54,41 @@ class MenuAvailabilityCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.name,
-                      style: AppTypography.titleMedium.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: isAvailable
-                            ? AppColors.textPrimary
-                            : AppColors.textMuted,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
                     Row(
                       children: [
-                        Flexible(
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
                           child: Text(
                             categoryName,
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
+                            style: const TextStyle(
+                              color: Color(0xFF475569),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
                             ),
                             maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Flexible(
+                          child: Text(
+                            item.productType == 'TERANG_BULAN'
+                                ? 'Terang Bulan'
+                                : 'Martabak Telur',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textMuted,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -90,21 +103,25 @@ class MenuAvailabilityCard extends StatelessWidget {
                             item.sku,
                             style: AppTypography.bodySmall.copyWith(
                               color: AppColors.textMuted,
+                              fontSize: 11,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 5),
                     Text(
-                      item.productType == 'TERANG_BULAN'
-                          ? 'Terang Bulan'
-                          : 'Martabak Telur',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w600,
+                      item.name,
+                      style: AppTypography.titleMedium.copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15.5,
+                        color: isAvailable
+                            ? AppColors.textPrimary
+                            : AppColors.textMuted,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -112,7 +129,7 @@ class MenuAvailabilityCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               // Version Chip
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceVariant,
                   borderRadius: AppSpacing.borderRadiusSm,
@@ -167,8 +184,18 @@ class MenuAvailabilityCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     key: Key('edit-menu-${item.id}'),
                     onPressed: isMutationEnabled ? onEdit : null,
-                    icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Edit Menu'),
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text(
+                      'Edit Menu',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -176,8 +203,18 @@ class MenuAvailabilityCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     key: Key('edit-price-${item.id}'),
                     onPressed: isMutationEnabled ? onEditPrice : null,
-                    icon: const Icon(Icons.sell_outlined),
-                    label: const Text('Edit Harga'),
+                    icon: const Icon(Icons.sell_outlined, size: 16),
+                    label: const Text(
+                      'Edit Harga',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -198,9 +235,10 @@ class MenuAvailabilityCard extends StatelessWidget {
                 child: Text(
                   'Rp ${item.priceAmount}',
                   style: AppTypography.titleMedium.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
                     color: isAvailable
-                        ? AppColors.textPrimary
+                        ? AppColors.primary
                         : AppColors.textMuted,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -215,18 +253,18 @@ class MenuAvailabilityCard extends StatelessWidget {
                   // Status Badge
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
+                      horizontal: 8,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: isAvailable
-                          ? AppColors.successBg
-                          : AppColors.errorBg,
-                      borderRadius: AppSpacing.borderRadiusSm,
+                          ? const Color(0xFFEBF7EE)
+                          : const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: isAvailable
-                            ? AppColors.success.withValues(alpha: 0.3)
-                            : AppColors.error.withValues(alpha: 0.3),
+                            ? const Color(0xFFBCE3C5)
+                            : const Color(0xFFFECACA),
                       ),
                     ),
                     child: Row(
@@ -238,18 +276,18 @@ class MenuAvailabilityCard extends StatelessWidget {
                               : Icons.cancel_rounded,
                           size: 14,
                           color: isAvailable
-                              ? AppColors.success
-                              : AppColors.error,
+                              ? const Color(0xFF2E7D32)
+                              : const Color(0xFFD32F2F),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           isAvailable ? 'Stok tersedia' : 'Stok habis',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w700,
                             color: isAvailable
-                                ? AppColors.success
-                                : AppColors.error,
+                                ? const Color(0xFF2E7D32)
+                                : const Color(0xFFD32F2F),
                           ),
                         ),
                       ],

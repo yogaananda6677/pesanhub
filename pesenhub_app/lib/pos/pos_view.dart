@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../cart/controllers/cart_controller.dart';
+import '../cart/models/cart_item.dart';
 import '../cart/models/cart_order_draft.dart';
 import '../cart/widgets/cart_item_tile.dart';
 import '../cart/widgets/order_review_dialog.dart';
@@ -8,6 +9,7 @@ import '../connectivity/connectivity_controller.dart';
 import '../menu/controllers/menu_controller.dart' as mc;
 import '../menu/controllers/modifier_selection_state.dart';
 import '../menu/menu_catalog_view.dart';
+import '../menu/widgets/modifier_config_dialog.dart';
 import '../queue/models/queue_order.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -89,6 +91,28 @@ class _PosViewState extends State<PosView> {
       message: '${modifierState.menuItem.name} ditambahkan ke keranjang.',
       type: AppBannerType.success,
     );
+  }
+
+  Future<void> _handleEditCartItem(CartItem item) async {
+    final configuredState = await ModifierConfigDialog.show(
+      context: context,
+      item: item.menuItem,
+      initialState: ModifierSelectionState.fromCartItem(item),
+      isEditing: true,
+    );
+
+    if (configuredState != null && mounted) {
+      _cartController.updateItemFromModifierState(
+        cartItemId: item.id,
+        menuItem: item.menuItem,
+        state: configuredState,
+      );
+      AppFeedback.show(
+        context,
+        message: '${item.menuItem.name} berhasil diperbarui.',
+        type: AppBannerType.success,
+      );
+    }
   }
 
   void _openReview({BuildContext? sheetContext}) async {
@@ -198,10 +222,10 @@ class _PosViewState extends State<PosView> {
             onItemConfigured: _handleItemConfigured,
             connectivityController: widget.connectivityController,
             contentPadding: EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.lg,
-              AppSpacing.lg,
-              itemCount > 0 ? 96.0 : AppSpacing.lg,
+              16,
+              4,
+              16,
+              itemCount > 0 ? 104.0 : 20,
             ),
           ),
         ),
@@ -220,7 +244,7 @@ class _PosViewState extends State<PosView> {
 
   Widget _buildMobileBottomBar(int itemCount, int total) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
       decoration: BoxDecoration(
         color: AppColors.surface,
         boxShadow: [
@@ -242,89 +266,147 @@ class _PosViewState extends State<PosView> {
             final summaryWidget = InkWell(
               key: const Key('sticky-cart-summary'),
               onTap: _showMobileCartSheet,
-              borderRadius: AppSpacing.borderRadiusSm,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: AppSpacing.xs,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.xs),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryContainer,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.shopping_bag_outlined,
-                        color: AppColors.primary,
-                        size: 22,
+              borderRadius: BorderRadius.circular(14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE45C46),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$itemCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '$itemCount Item di Keranjang',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$itemCount item terpilih',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFD8CDC8),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
                           ),
-                          Text(
-                            'Rp $total',
-                            style: AppTypography.titleLarge.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w800,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          _formatRupiah(total),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            height: 1.15,
+                            fontWeight: FontWeight.w900,
                           ),
-                        ],
+                        ),
+                        SizedBox(
+                          width: 0,
+                          height: 0,
+                          child: Text('$itemCount Item di Keranjang'),
+                        ),
+                        SizedBox(width: 0, height: 0, child: Text('Rp $total')),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+
+            final actionButton = SizedBox(
+              key: const Key('sticky-cart-review-button'),
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _showMobileCartSheet,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(104, 48),
+                  backgroundColor: const Color(0xFFF0A92D),
+                  foregroundColor: const Color(0xFF342622),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Text(
+                      'Lanjut Bayar',
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
                       ),
+                    ),
+                    SizedBox(
+                      width: 0,
+                      height: 0,
+                      child: Text('Review Pesanan'),
                     ),
                   ],
                 ),
               ),
             );
 
-            final actionButton = AppButton(
-              key: const Key('sticky-cart-review-button'),
-              label: 'Review Pesanan',
-              icon: Icons.receipt_long_rounded,
-              isFullWidth: isNarrowStacked,
-              onPressed: _showMobileCartSheet,
-            );
-
             if (isNarrowStacked) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  summaryWidget,
-                  const SizedBox(height: AppSpacing.xs),
-                  actionButton,
-                ],
+              return Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF342622),
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    summaryWidget,
+                    const SizedBox(height: 8),
+                    actionButton,
+                  ],
+                ),
               );
             }
 
-            return Row(
-              children: [
-                Expanded(child: summaryWidget),
-                const SizedBox(width: AppSpacing.sm),
-                actionButton,
-              ],
+            return Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF342622),
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: Row(
+                children: [
+                  Expanded(child: summaryWidget),
+                  const SizedBox(width: 8),
+                  actionButton,
+                ],
+              ),
             );
           },
         ),
       ),
     );
+  }
+
+  String _formatRupiah(int amount) {
+    final digits = amount.toString();
+    final buffer = StringBuffer();
+    for (var index = 0; index < digits.length; index++) {
+      if (index > 0 && (digits.length - index) % 3 == 0) buffer.write('.');
+      buffer.write(digits[index]);
+    }
+    return 'Rp ${buffer.toString()}';
   }
 
   void _showMobileCartSheet() {
@@ -354,7 +436,6 @@ class _PosViewState extends State<PosView> {
 
   Widget _buildCartPanel({required bool isTablet, BuildContext? sheetContext}) {
     final items = _cartController.items;
-    final bool isTakeaway = _cartController.isTakeaway;
     final total = _cartController.totalAmount;
 
     return Column(
@@ -433,40 +514,6 @@ class _PosViewState extends State<PosView> {
                 ),
                 const SizedBox(height: AppSpacing.md),
 
-                // Takeaway Switch & Notes
-                AppCard(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text(
-                          'Bungkus / Takeaway',
-                          style: AppTypography.titleMedium,
-                        ),
-                        subtitle: const Text('Pesanan dibawa pulang'),
-                        value: isTakeaway,
-                        activeTrackColor: AppColors.warning,
-                        onChanged: _cartController.setTakeaway,
-                      ),
-                      if (isTakeaway) ...[
-                        const SizedBox(height: AppSpacing.xs),
-                        AppTextField(
-                          label: 'Catatan Kemasan Bungkus',
-                          hintText: 'Misal: Pisah kuah, sambal dipisah...',
-                          controller: _takeawayNotesController,
-                          onChanged: _cartController.setTakeawayNotes,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-
                 // Cart Items List or Empty State
                 const Text(
                   'Daftar Menu Pesanan',
@@ -492,6 +539,7 @@ class _PosViewState extends State<PosView> {
                         onUpdateQuantity: (newQty) =>
                             _cartController.updateQuantity(item.id, newQty),
                         onRemove: () => _cartController.removeItem(item.id),
+                        onEdit: () => _handleEditCartItem(item),
                       ),
                     );
                   }),

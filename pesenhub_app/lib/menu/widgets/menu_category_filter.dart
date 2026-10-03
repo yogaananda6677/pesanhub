@@ -50,11 +50,10 @@ class MenuCategoryFilter extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         child: Ink(
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary : AppColors.surface,
-            borderRadius: BorderRadius.circular(10),
+            color: isSelected ? const Color(0xFF342622) : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: isSelected ? AppColors.primary : AppColors.border,
-              width: 1.5,
+              color: isSelected ? const Color(0xFF342622) : Colors.transparent,
             ),
           ),
           child: ConstrainedBox(

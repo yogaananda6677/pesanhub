@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"database/sql"
+	"encoding/json"
 	dbx "pesenhub/backend/internal/database"
 )
 
@@ -56,8 +57,10 @@ func (s *Store) ListUsers(ctx context.Context, filterStatus Status, search strin
 		           SELECT count(*)
 		           FROM app_sessions s
 		           WHERE s.user_id = u.id AND s.expires_at > now() AND s.revoked_at IS NULL
-		       ), 0) AS active_sessions
+		       ), 0) AS active_sessions,
+		       u.branch_id::text, COALESCE(b.name, '')
 		FROM app_users u
+		LEFT JOIN branches b ON b.id = u.branch_id
 		WHERE ($1 = '' OR u.status = $1)
 		  AND ($2 = '' OR u.email_normalized LIKE CONCAT('%',$2,'%') OR lower(u.display_name) LIKE CONCAT('%',$2,'%'))
 		ORDER BY u.created_at DESC
@@ -79,14 +82,23 @@ func (s *Store) ListUsers(ctx context.Context, filterStatus Status, search strin
 	for rows.Next() {
 		var u UserSummary
 		var rawEmail string
+		var branchID sql.NullString
+		var branchName sql.NullString
 		if err := rows.Scan(
 			&u.ID, &rawEmail, &u.DisplayName, &u.Role, &u.Status,
 			&u.StatusReason, &u.ApprovedAt, &u.CreatedAt, &u.UpdatedAt,
-			&u.ActiveSessionCount,
+			&u.ActiveSessionCount, &branchID, &branchName,
 		); err != nil {
 			return nil, err
 		}
 		u.EmailMasked = MaskEmail(rawEmail)
+		if branchID.Valid && branchID.String != "" {
+			bID := branchID.String
+			u.BranchID = &bID
+		}
+		if branchName.Valid {
+			u.BranchName = branchName.String
+		}
 		users = append(users, u)
 	}
 	return users, rows.Err()
@@ -100,15 +112,19 @@ func (s *Store) GetUser(ctx context.Context, userID string) (*UserSummary, error
 		           SELECT count(*)
 		           FROM app_sessions s
 		           WHERE s.user_id = u.id AND s.expires_at > now() AND s.revoked_at IS NULL
-		       ), 0) AS active_sessions
+		       ), 0) AS active_sessions,
+		       u.branch_id::text, COALESCE(b.name, '')
 		FROM app_users u
+		LEFT JOIN branches b ON b.id = u.branch_id
 		WHERE u.id = $1::uuid`
 	var u UserSummary
 	var rawEmail string
+	var branchID sql.NullString
+	var branchName sql.NullString
 	if err := s.pool.QueryRow(ctx, query, userID).Scan(
 		&u.ID, &rawEmail, &u.DisplayName, &u.Role, &u.Status,
 		&u.StatusReason, &u.ApprovedAt, &u.CreatedAt, &u.UpdatedAt,
-		&u.ActiveSessionCount,
+		&u.ActiveSessionCount, &branchID, &branchName,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUserNotFound
@@ -116,6 +132,13 @@ func (s *Store) GetUser(ctx context.Context, userID string) (*UserSummary, error
 		return nil, err
 	}
 	u.EmailMasked = MaskEmail(rawEmail)
+	if branchID.Valid && branchID.String != "" {
+		bID := branchID.String
+		u.BranchID = &bID
+	}
+	if branchName.Valid {
+		u.BranchName = branchName.String
+	}
 	return &u, nil
 }
 
@@ -129,7 +152,7 @@ func (s *Store) ListInvitations(ctx context.Context, limit, offset int) ([]Invit
 
 	query := `
 		SELECT i.id::text, i.email_normalized, i.outlet_name, i.role, i.status, i.invited_by::text,
-		       i.created_at, i.expires_at
+		       i.created_at, i.expires_at, i.branch_id::text
 		FROM user_invitations i
 		WHERE i.status = 'PENDING' AND i.expires_at > now()
 		ORDER BY i.created_at DESC
@@ -146,23 +169,28 @@ func (s *Store) ListInvitations(ctx context.Context, limit, offset int) ([]Invit
 	for rows.Next() {
 		var inv Invitation
 		var rawEmail string
+		var branchID sql.NullString
 		if err := rows.Scan(
 			&inv.ID, &rawEmail, &inv.OutletName, &inv.Role, &inv.Status, &inv.InvitedBy,
-			&inv.CreatedAt, &inv.ExpiresAt,
+			&inv.CreatedAt, &inv.ExpiresAt, &branchID,
 		); err != nil {
 			return nil, err
 		}
 		inv.EmailMasked = MaskEmail(rawEmail)
+		if branchID.Valid && branchID.String != "" {
+			bID := branchID.String
+			inv.BranchID = &bID
+		}
 		invitations = append(invitations, inv)
 	}
 	return invitations, rows.Err()
 }
 
-func (s *Store) CreateInvitation(ctx context.Context, actorID, email, outletName string, expiry time.Duration) (Invitation, error) {
+func (s *Store) CreateInvitation(ctx context.Context, actorID, email, outletName, branchID string, expiry time.Duration) (Invitation, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
-	outletName = strings.TrimSpace(outletName)
-	if outletName == "" {
-		outletName = "PesenHub Outlet #01"
+	branchID = strings.TrimSpace(branchID)
+	if branchID == "" {
+		branchID = "b0000000-0000-0000-0000-000000000001"
 	}
 	if expiry <= 0 {
 		expiry = 7 * 24 * time.Hour
@@ -174,6 +202,13 @@ func (s *Store) CreateInvitation(ctx context.Context, actorID, email, outletName
 	defer tx.Rollback(ctx)
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, "identity-email:"+email); err != nil {
 		return Invitation{}, err
+	}
+
+	if outletName == "" {
+		_ = tx.QueryRow(ctx, `SELECT name FROM branches WHERE id = $1`, branchID).Scan(&outletName)
+		if outletName == "" {
+			outletName = "PesenHub Outlet"
+		}
 	}
 
 	// Check if already registered in app_users
@@ -195,11 +230,12 @@ func (s *Store) CreateInvitation(ctx context.Context, actorID, email, outletName
 	expiresAt := now.Add(expiry)
 
 	query := `
-		INSERT INTO user_invitations (id, email_normalized, invited_by, outlet_name, role, status, expires_at, created_at, updated_at)
-		VALUES ($1::uuid, $2, $3::uuid, $4, 'CASHIER', 'PENDING', $5, $6, $6)
+		INSERT INTO user_invitations (id, email_normalized, invited_by, outlet_name, branch_id, role, status, expires_at, created_at, updated_at)
+		VALUES ($1::uuid, $2, $3::uuid, $4, $5::uuid, 'CASHIER', 'PENDING', $6, $7, $7)
 		ON DUPLICATE KEY UPDATE
 		    invited_by = VALUES(invited_by),
 		    outlet_name = VALUES(outlet_name),
+		    branch_id = VALUES(branch_id),
 		    role = 'CASHIER',
 		    status = 'PENDING',
 		    expires_at = VALUES(expires_at),
@@ -211,21 +247,40 @@ func (s *Store) CreateInvitation(ctx context.Context, actorID, email, outletName
 	var inv Invitation
 	inv.ID = invID
 	inv.OutletName = outletName
+	inv.BranchID = &branchID
 	inv.Role = RoleCashier
 	inv.Status = "PENDING"
 	inv.InvitedBy = actorID
 	inv.EmailMasked = MaskEmail(email)
 
-	_, err = tx.Exec(ctx, query, invID, email, actorID, outletName, expiresAt, now)
+	_, err = tx.Exec(ctx, query, invID, email, actorID, outletName, branchID, expiresAt, now)
 	if err != nil {
 		return Invitation{}, err
 	}
-	err = tx.QueryRow(ctx, `SELECT id, created_at, expires_at FROM user_invitations WHERE email_normalized=$1`, email).Scan(
-		&inv.ID, &inv.CreatedAt, &inv.ExpiresAt,
+	var bID sql.NullString
+	err = tx.QueryRow(ctx, `SELECT id, created_at, expires_at, branch_id::text FROM user_invitations WHERE email_normalized=$1`, email).Scan(
+		&inv.ID, &inv.CreatedAt, &inv.ExpiresAt, &bID,
 	)
 	if err != nil {
 		return Invitation{}, err
 	}
+	if bID.Valid && bID.String != "" {
+		resBID := bID.String
+		inv.BranchID = &resBID
+	}
+
+	auditID, _ := newUUID()
+	invMeta, _ := json.Marshal(map[string]any{
+		"invitation_id": inv.ID,
+		"email_masked":  inv.EmailMasked,
+		"branch_id":     branchID,
+		"outlet_name":   outletName,
+		"role":          "CASHIER",
+	})
+	_, _ = tx.Exec(ctx, `INSERT INTO audit_logs (id, aggregate_type, aggregate_id, action, actor_type, actor_id, request_id, metadata_redacted, created_at)
+		VALUES ($1::uuid, 'USER_INVITATION', $2, 'CASHIER_INVITED', 'USER', $3, 'system', $4, $5)`,
+		auditID, inv.ID, actorID, invMeta, now)
+
 	if err := tx.Commit(ctx); err != nil {
 		return Invitation{}, err
 	}
@@ -322,6 +377,63 @@ func (s *Store) UpdateUserStatus(ctx context.Context, actorID, targetUserID stri
 		INSERT INTO user_status_audits (id, user_id, actor_user_id, from_status, to_status, reason_redacted, request_id, created_at)
 		VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8)`,
 		auditID, targetUserID, actorID, currentStatus, string(targetStatus), reason, requestID, now)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (s *Store) UpdateUserBranch(ctx context.Context, actorID, targetUserID, branchID, reason, requestID string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var currentRole string
+	var currentBranchID sql.NullString
+	err = tx.QueryRow(ctx, `SELECT role, branch_id::text FROM app_users WHERE id = $1::uuid FOR UPDATE`, targetUserID).Scan(&currentRole, &currentBranchID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrUserNotFound
+	}
+	if err != nil {
+		return err
+	}
+
+	var branchActive bool
+	err = tx.QueryRow(ctx, `SELECT is_active FROM branches WHERE id = $1::uuid`, branchID).Scan(&branchActive)
+	if errors.Is(err, sql.ErrNoRows) {
+		return errors.New("branch not found")
+	}
+	if err != nil {
+		return err
+	}
+	if !branchActive {
+		return errors.New("branch is inactive")
+	}
+
+	now := s.now().UTC()
+	_, err = tx.Exec(ctx, `UPDATE app_users SET branch_id = $1::uuid, updated_at = $2 WHERE id = $3::uuid`, branchID, now, targetUserID)
+	if err != nil {
+		return err
+	}
+
+	// Revoke active sessions of target user so they re-authenticate with the new branch claim
+	_, err = tx.Exec(ctx, `UPDATE app_sessions SET revoked_at = $1 WHERE user_id = $2::uuid AND revoked_at IS NULL`, now, targetUserID)
+	if err != nil {
+		return err
+	}
+
+	// Audit log
+	auditID, _ := newUUID()
+	oldBranch := ""
+	if currentBranchID.Valid {
+		oldBranch = currentBranchID.String
+	}
+	meta, _ := json.Marshal(map[string]any{"old_branch_id": oldBranch, "new_branch_id": branchID, "reason": reason})
+	_, err = tx.Exec(ctx, `INSERT INTO audit_logs (id, aggregate_type, aggregate_id, action, actor_type, actor_id, request_id, metadata_redacted, created_at)
+		VALUES ($1::uuid, 'USER', $2, 'CASHIER_BRANCH_TRANSFERRED', 'USER', $3, $4, $5, $6)`, auditID, targetUserID, actorID, requestID, meta, now)
 	if err != nil {
 		return err
 	}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"database/sql"
+	"pesenhub/backend/internal/branch"
 	"pesenhub/backend/internal/customer"
 	dbx "pesenhub/backend/internal/database"
 )
@@ -109,7 +110,9 @@ func (s *Store) ApplyMidtransWebhook(ctx context.Context, notification MidtransN
 		if _, err = tx.Exec(ctx, `INSERT INTO audit_logs (id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES ($1,'PAYMENT',$2,'MIDTRANS_PAYMENT_STATUS_CHANGED','SYSTEM','MIDTRANS',$3,$4)`, customer.NewID(), p.ID, requestID, redacted); err != nil {
 			return WebhookResult{}, err
 		}
-		outbox, _ := json.Marshal(map[string]any{"payment_id": p.ID, "order_id": p.OrderID, "status": p.Status, "version": p.Version})
+		var orderBranchID string
+		_ = tx.QueryRow(ctx, `SELECT COALESCE(branch_id::text, '') FROM orders WHERE id=$1`, p.OrderID).Scan(&orderBranchID)
+		outbox, _ := json.Marshal(map[string]any{"payment_id": p.ID, "order_id": p.OrderID, "status": p.Status, "version": p.Version, "branch_id": orderBranchID})
 		if _, err = tx.Exec(ctx, `INSERT INTO outbox_events (id,aggregate_type,aggregate_id,event_type,payload,deduplication_key) VALUES ($1,'PAYMENT',$2,'PAYMENT_STATUS_CHANGED',$3,$4)`, customer.NewID(), p.ID, outbox, fmt.Sprintf("payment-status:%s:%d", p.ID, p.Version)); err != nil {
 			return WebhookResult{}, err
 		}
@@ -176,13 +179,17 @@ func (s *Store) PrepareQRIS(ctx context.Context, orderID, key, hash, actorID, re
 	}
 
 	var total int64
-	var orderStatus string
-	err = tx.QueryRow(ctx, `SELECT total_amount,status FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&total, &orderStatus)
+	var orderStatus, orderBranchID string
+	err = tx.QueryRow(ctx, `SELECT total_amount,status,COALESCE(branch_id::text,'') FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&total, &orderStatus, &orderBranchID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Payment{}, false, false, ErrOrderNotFound
 	}
 	if err != nil {
 		return Payment{}, false, false, err
+	}
+	scope := branch.ScopeFromContext(ctx)
+	if !scope.All && scope.BranchID != "" && orderBranchID != scope.BranchID {
+		return Payment{}, false, false, ErrOrderNotFound
 	}
 	if orderStatus == "REJECTED" || orderStatus == "CANCELLED" {
 		return Payment{}, false, false, ErrOrderNotPayable
@@ -305,13 +312,17 @@ func (s *Store) RecordCash(ctx context.Context, orderID string, in CashInput, ke
 	}
 
 	var total int64
-	var status string
-	err = tx.QueryRow(ctx, `SELECT total_amount,status FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&total, &status)
+	var status, orderBranchID string
+	err = tx.QueryRow(ctx, `SELECT total_amount,status,COALESCE(branch_id::text,'') FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&total, &status, &orderBranchID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Payment{}, false, ErrOrderNotFound
 	}
 	if err != nil {
 		return Payment{}, false, err
+	}
+	scope := branch.ScopeFromContext(ctx)
+	if !scope.All && scope.BranchID != "" && orderBranchID != scope.BranchID {
+		return Payment{}, false, ErrOrderNotFound
 	}
 	if status == "REJECTED" || status == "CANCELLED" {
 		return Payment{}, false, ErrOrderNotPayable
@@ -334,7 +345,7 @@ func (s *Store) RecordCash(ctx context.Context, orderID string, in CashInput, ke
 	if err != nil {
 		return Payment{}, false, err
 	}
-	redacted, _ := json.Marshal(map[string]any{"payment_id": p.ID, "order_id": orderID, "method": "CASH", "status": "PAID", "amount": in.Amount})
+	redacted, _ := json.Marshal(map[string]any{"payment_id": p.ID, "order_id": orderID, "method": "CASH", "status": "PAID", "amount": in.Amount, "branch_id": orderBranchID})
 	if _, err = tx.Exec(ctx, `INSERT INTO payment_events (id,payment_id,provider,provider_event_id,event_type,payload_redacted,processed_at) VALUES ($1,$2,'CASH',$3,'CASH_PAYMENT_RECORDED',$4,now())`, customer.NewID(), p.ID, "cash:"+key, redacted); err != nil {
 		return Payment{}, false, err
 	}

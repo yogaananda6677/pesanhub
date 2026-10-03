@@ -47,6 +47,15 @@ class _Gateway implements AuthGateway {
   }
 
   @override
+  Future<SessionCredential> loginWithPassword(
+    String username,
+    String password,
+  ) async {
+    if (loginError != null) throw loginError!;
+    return result;
+  }
+
+  @override
   Future<AuthUser> currentUser() async {
     if (currentError != null) throw currentError!;
     return current;
@@ -235,7 +244,79 @@ void main() {
     });
   });
 
-  testWidgets('login UI only offers Google authentication', (tester) async {
+  test('API password exchange is unauthenticated and decodes credential', () async {
+    late http.Request captured;
+    final client = PesenHubApiClient(
+      config: ApiConfig(baseUri: Uri.parse('https://api.example.test/api/v1/')),
+      accessToken: () async => null,
+      client: MockClient((request) async {
+        captured = request;
+        return http.Response(
+          jsonEncode({
+            'access_token': 'signed-session-token',
+            'token_type': 'Bearer',
+            'expires_at': '2030-09-06T16:00:00Z',
+            'user': approvedUser.toJson(),
+          }),
+          200,
+        );
+      }),
+    );
+
+    final result = await client.loginWithPassword('kasir', 'kasir123');
+    expect(result.accessToken, 'signed-session-token');
+    expect(captured.url.path, '/api/v1/auth/login');
+    expect(captured.headers.containsKey('Authorization'), isFalse);
+    expect(jsonDecode(captured.body), {
+      'username': 'kasir',
+      'password': 'kasir123',
+    });
+  });
+
+  test('password sign in persists session and unlocks app', () async {
+    final store = MemorySessionStore();
+    final gateway = _Gateway(credential());
+    final identity = _Identity();
+    final controller = SessionController(
+      store: store,
+      gateway: gateway,
+      identityClient: identity,
+    );
+    await controller.restore();
+    expect(controller.status, SessionStatus.signedOut);
+
+    await controller.signInWithPassword('kasir', 'kasir123');
+    expect(controller.status, SessionStatus.signedIn);
+    expect(store.credential?.accessToken, 'session-token');
+    controller.dispose();
+  });
+
+  test('password sign in failure populates error message', () async {
+    final store = MemorySessionStore();
+    final gateway = _Gateway(
+      credential(),
+      loginError: const ApiFailure(ApiFailureKind.unauthenticated),
+    );
+    final identity = _Identity();
+    final controller = SessionController(
+      store: store,
+      gateway: gateway,
+      identityClient: identity,
+    );
+    await controller.restore();
+
+    await controller.signInWithPassword('wrong', 'creds');
+    expect(controller.status, SessionStatus.signedOut);
+    expect(
+      controller.errorMessage,
+      'Username atau kata sandi salah. Silakan periksa kembali.',
+    );
+    controller.dispose();
+  });
+
+  testWidgets('login UI offers username and password with Google option', (
+    tester,
+  ) async {
     final controller = SessionController(
       store: MemorySessionStore(),
       gateway: _Gateway(credential()),
@@ -247,8 +328,37 @@ void main() {
     );
 
     expect(find.text('Masuk ke PesenHub'), findsOneWidget);
+    expect(find.byKey(const Key('login-username-input')), findsOneWidget);
+    expect(find.byKey(const Key('login-password-input')), findsOneWidget);
+    expect(find.text('Masuk'), findsOneWidget);
     expect(find.text('Lanjutkan dengan Google'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
+    controller.dispose();
+  });
+
+  testWidgets('login UI can sign in with username and password', (tester) async {
+    final controller = SessionController(
+      store: MemorySessionStore(),
+      gateway: _Gateway(credential()),
+      identityClient: _Identity(),
+    );
+    await controller.restore();
+    await tester.pumpWidget(
+      MaterialApp(home: LoginView(controller: controller)),
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('login-username-input')),
+      'kasir',
+    );
+    await tester.enterText(
+      find.byKey(const Key('login-password-input')),
+      'kasir123',
+    );
+    await tester.tap(find.text('Masuk'));
+    await tester.pumpAndSettle();
+
+    expect(controller.status, SessionStatus.signedIn);
+    controller.dispose();
   });
 
   testWidgets('pending account sees locked approval experience', (

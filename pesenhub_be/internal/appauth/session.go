@@ -15,16 +15,17 @@ import (
 )
 
 type claims struct {
-	Subject string `json:"sub"`
-	Role    string `json:"role"`
-	Issued  int64  `json:"iat"`
-	Expires int64  `json:"exp"`
-	Nonce   string `json:"nonce"`
-	Session string `json:"sid"`
+	Subject  string `json:"sub"`
+	Role     string `json:"role"`
+	BranchID string `json:"bid,omitempty"`
+	Issued   int64  `json:"iat"`
+	Expires  int64  `json:"exp"`
+	Nonce    string `json:"nonce"`
+	Session  string `json:"sid"`
 }
 
 type SessionValidator interface {
-	ValidateSession(context.Context, string, string) (role, status string, ok bool)
+	ValidateSession(context.Context, string, string) (role, status, branchID string, ok bool)
 }
 
 type SessionManager struct {
@@ -44,11 +45,15 @@ func NewSessionManager(secret string, ttl time.Duration) (*SessionManager, error
 }
 
 func (m *SessionManager) Issue(subject, role string) (string, time.Time, error) {
-	token, _, expires, err := m.IssuePersistent(subject, role)
+	token, _, expires, err := m.IssuePersistentWithBranch(subject, role, "")
 	return token, expires, err
 }
 
 func (m *SessionManager) IssuePersistent(subject, role string) (string, string, time.Time, error) {
+	return m.IssuePersistentWithBranch(subject, role, "")
+}
+
+func (m *SessionManager) IssuePersistentWithBranch(subject, role, branchID string) (string, string, time.Time, error) {
 	now := m.now().UTC()
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
@@ -60,12 +65,13 @@ func (m *SessionManager) IssuePersistent(subject, role string) (string, string, 
 	}
 	sessionID := base64.RawURLEncoding.EncodeToString(random[:])
 	payload, err := json.Marshal(claims{
-		Subject: subject,
-		Role:    role,
-		Issued:  now.Unix(),
-		Expires: expires.Unix(),
-		Nonce:   sessionID,
-		Session: sessionID,
+		Subject:  subject,
+		Role:     role,
+		BranchID: branchID,
+		Issued:   now.Unix(),
+		Expires:  expires.Unix(),
+		Nonce:    sessionID,
+		Session:  sessionID,
 	})
 	if err != nil {
 		return "", "", time.Time{}, err
@@ -95,8 +101,9 @@ func (m *SessionManager) Verify(ctx context.Context, token string) (customer.Pri
 		return customer.Principal{}, false
 	}
 	role := value.Role
+	branchID := value.BranchID
 	if m.validator != nil {
-		currentRole, status, valid := m.validator.ValidateSession(ctx, value.Session, value.Subject)
+		currentRole, status, currentBranch, valid := m.validator.ValidateSession(ctx, value.Session, value.Subject)
 		if !valid {
 			return customer.Principal{}, false
 		}
@@ -105,8 +112,11 @@ func (m *SessionManager) Verify(ctx context.Context, token string) (customer.Pri
 		} else {
 			role = currentRole
 		}
+		if currentBranch != "" {
+			branchID = currentBranch
+		}
 	}
-	return customer.Principal{Subject: value.Subject, Role: role, SessionID: value.Session}, true
+	return customer.Principal{Subject: value.Subject, Role: role, SessionID: value.Session, BranchID: branchID}, true
 }
 
 func validSessionRole(role string) bool {
