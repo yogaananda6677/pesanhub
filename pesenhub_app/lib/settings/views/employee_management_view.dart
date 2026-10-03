@@ -752,6 +752,9 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
   void _showAddEmployeeDialog() {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController(text: 'kasir123');
+    int selectedMethod = 0; // 0: Google, 1: Buatkan Akun
+    bool obscurePassword = true;
     String selectedRole = 'CASHIER';
     String? selectedBranch = widget.currentBranchId;
 
@@ -790,7 +793,7 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Undang Kasir Baru',
+                      'Undang / Tambah Kasir',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -799,10 +802,110 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Undang kasir untuk outlet Anda. Kasir dapat login via Google atau email dengan sandi default "kasir123".',
+                      'Pilih metode penambahan kasir sesuai kebutuhan outlet Anda.',
                       style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
                     ),
                     const SizedBox(height: 16),
+
+                    // Method Selector Tabs
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setSheetState(() => selectedMethod = 0),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: selectedMethod == 0 ? const Color(0xFFF9EFE7) : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: selectedMethod == 0 ? const Color(0xFF8D321F) : const Color(0xFFE2E8F0),
+                                  width: selectedMethod == 0 ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.mark_email_read_rounded,
+                                    size: 22,
+                                    color: selectedMethod == 0 ? const Color(0xFF8D321F) : const Color(0xFF64748B),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Undang via Google',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: selectedMethod == 0 ? FontWeight.w800 : FontWeight.w600,
+                                      color: selectedMethod == 0 ? const Color(0xFF8D321F) : const Color(0xFF64748B),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Login via Akun Google',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: selectedMethod == 0 ? const Color(0xFF8D321F) : const Color(0xFF94A3B8),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setSheetState(() => selectedMethod = 1),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: selectedMethod == 1 ? const Color(0xFFF9EFE7) : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: selectedMethod == 1 ? const Color(0xFF8D321F) : const Color(0xFFE2E8F0),
+                                  width: selectedMethod == 1 ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.lock_person_rounded,
+                                    size: 22,
+                                    color: selectedMethod == 1 ? const Color(0xFF8D321F) : const Color(0xFF64748B),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Buatkan Akun',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: selectedMethod == 1 ? FontWeight.w800 : FontWeight.w600,
+                                      color: selectedMethod == 1 ? const Color(0xFF8D321F) : const Color(0xFF64748B),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Email & Kata Sandi',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: selectedMethod == 1 ? const Color(0xFF8D321F) : const Color(0xFF94A3B8),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Field 1: Nama Lengkap
                     TextField(
                       controller: nameCtrl,
                       decoration: const InputDecoration(
@@ -812,16 +915,55 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // Field 2: Email
                     TextField(
                       controller: emailCtrl,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email Kasir / Akun Google',
-                        hintText: 'kasir@gmail.com',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: selectedMethod == 0 ? 'Email Akun Google' : 'Email / Username Kasir',
+                        hintText: selectedMethod == 0 ? 'kasir@gmail.com' : 'kasir1 / kasir@outlet.com',
+                        border: const OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // Field 3 (Only for Method 1: Buatkan Akun): Password
+                    if (selectedMethod == 1) ...[
+                      TextField(
+                        controller: passwordCtrl,
+                        obscureText: obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'Kata Sandi (Password)',
+                          hintText: 'Minimal 6 karakter',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              size: 20,
+                            ),
+                            onPressed: () => setSheetState(() => obscurePassword = !obscurePassword),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () => setSheetState(() => passwordCtrl.text = 'kasir123'),
+                          icon: const Icon(Icons.auto_fix_high_rounded, size: 14),
+                          label: const Text('Gunakan Sandi Standar (kasir123)', style: TextStyle(fontSize: 11)),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF8D321F),
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // Field 4: Dropdown Peran
                     DropdownButtonFormField<String>(
                       initialValue: selectedRole,
                       decoration: const InputDecoration(
@@ -848,25 +990,73 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                         }
                       },
                     ),
+                    const SizedBox(height: 14),
+
+                    // Explanatory Note Info Box
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: selectedMethod == 0 ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: selectedMethod == 0 ? const Color(0xFFBBF7D0) : const Color(0xFFBFDBFE),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            selectedMethod == 0 ? Icons.info_outline_rounded : Icons.vpn_key_outlined,
+                            size: 18,
+                            color: selectedMethod == 0 ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              selectedMethod == 0
+                                  ? 'Kasir akan menerima akses login instan. Cukup buka aplikasi dan klik tombol "Masuk dengan Google" menggunakan email di atas.'
+                                  : 'Akun langsung aktif. Beritahukan email dan kata sandi ini kepada kasir untuk login manual pada aplikasi.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: selectedMethod == 0 ? Colors.green.shade900 : Colors.blue.shade900,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 20),
+
+                    // Submit Button
                     ElevatedButton(
                       onPressed: () async {
                         final messenger = ScaffoldMessenger.of(context);
                         final name = nameCtrl.text.trim();
                         final email = emailCtrl.text.trim().toLowerCase();
+                        final password = passwordCtrl.text.trim();
+
                         if (name.isEmpty || !email.contains('@')) {
                           messenger.showSnackBar(
                             const SnackBar(
-                              content: Text(
-                                'Nama dan email wajib diisi dengan benar.',
-                              ),
+                              content: Text('Nama dan email wajib diisi dengan benar.'),
                             ),
                           );
                           return;
                         }
+
+                        if (selectedMethod == 1 && password.isEmpty) {
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Kata sandi wajib diisi untuk pembuatan akun langsung.'),
+                            ),
+                          );
+                          return;
+                        }
+
                         Navigator.of(sheetCtx).pop();
 
-                        if (widget.inviteCashier != null && selectedRole == 'CASHIER') {
+                        if (selectedMethod == 0 && widget.inviteCashier != null && selectedRole == 'CASHIER') {
                           try {
                             await widget.inviteCashier!(email);
                           } catch (_) {}
@@ -880,6 +1070,7 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                               email: email,
                               role: selectedRole,
                               branchId: selectedBranch,
+                              password: selectedMethod == 1 ? password : null,
                             );
                             if (!mounted) return;
                             setState(() => _employees.insert(0, newEmp));
@@ -909,11 +1100,12 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                         }
 
                         if (!mounted) return;
+                        final successMsg = selectedMethod == 0
+                            ? 'Undangan Google berhasil dikirim ke $email. Kasir dapat login via tombol Google!'
+                            : 'Akun kasir $name berhasil dibuat! Kasir dapat login dengan email $email.';
                         messenger.showSnackBar(
                           SnackBar(
-                            content: Text(
-                              'Undangan berhasil dikirim untuk $name ($email). Kasir dapat segera login!',
-                            ),
+                            content: Text(successMsg),
                             backgroundColor: AppColors.success,
                           ),
                         );
@@ -926,7 +1118,7 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Kirim Undangan Kasir'),
+                      child: Text(selectedMethod == 0 ? 'Kirim Undangan Google' : 'Buatkan Akun Kasir'),
                     ),
                   ],
                 ),

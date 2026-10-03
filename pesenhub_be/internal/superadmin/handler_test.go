@@ -174,7 +174,7 @@ func (m *mockStore) ListEmployees(ctx context.Context, search string) ([]Employe
 	return []EmployeeSummary{}, nil
 }
 
-func (m *mockStore) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID string) (EmployeeSummary, error) {
+func (m *mockStore) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID, password string) (EmployeeSummary, error) {
 	return EmployeeSummary{ID: "emp-123", Email: email, DisplayName: displayName, Role: role, Status: "APPROVED"}, nil
 }
 

@@ -557,7 +557,7 @@ func (m *mockStoreBranchInv) GetTrafficMetrics(ctx context.Context, timeRange st
 func (m *mockStoreBranchInv) ListEmployees(ctx context.Context, search string) ([]superadmin.EmployeeSummary, error) {
 	return nil, nil
 }
-func (m *mockStoreBranchInv) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID string) (superadmin.EmployeeSummary, error) {
+func (m *mockStoreBranchInv) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID, password string) (superadmin.EmployeeSummary, error) {
 	return superadmin.EmployeeSummary{ID: "emp-1", Email: email, DisplayName: displayName, Role: role}, nil
 }
 func (m *mockStoreBranchInv) UpdateEmployee(ctx context.Context, targetUserID string, displayName, role, status, branchID *string) (superadmin.EmployeeSummary, error) {

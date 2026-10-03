@@ -679,7 +679,7 @@ func (s *Store) ListEmployees(ctx context.Context, search string) ([]EmployeeSum
 	return employees, nil
 }
 
-func (s *Store) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID string) (EmployeeSummary, error) {
+func (s *Store) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID, password string) (EmployeeSummary, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if displayName == "" {
 		local, _, _ := strings.Cut(email, "@")
@@ -703,6 +703,11 @@ func (s *Store) CreateEmployee(ctx context.Context, actorID, email, displayName,
 	now := s.now().UTC()
 	expiresAt := now.Add(30 * 24 * time.Hour)
 
+	statusReason := "invited_google"
+	if password != "" {
+		statusReason = "pwd:" + password
+	}
+
 	// 1. Upsert into user_invitations so cashier invitation is valid
 	invID, _ := newUUID()
 	_, _ = s.pool.Exec(ctx, `
@@ -719,15 +724,16 @@ func (s *Store) CreateEmployee(ctx context.Context, actorID, email, displayName,
 
 	// 2. Upsert into app_users
 	_, err = s.pool.Exec(ctx, `
-		INSERT INTO app_users (id, email_normalized, display_name, role, branch_id, status, approved_at, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, 'APPROVED', $6, $7, $8)
+		INSERT INTO app_users (id, email_normalized, display_name, role, branch_id, status, status_reason, approved_at, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, 'APPROVED', $6, $7, $8, $9)
 		ON DUPLICATE KEY UPDATE 
 			display_name = VALUES(display_name),
 			role = VALUES(role),
 			branch_id = VALUES(branch_id),
 			status = 'APPROVED',
+			status_reason = VALUES(status_reason),
 			updated_at = VALUES(updated_at)
-	`, userID, email, displayName, role, branchID, now, now, now)
+	`, userID, email, displayName, role, branchID, statusReason, now, now, now)
 
 	if err != nil {
 		return EmployeeSummary{}, err

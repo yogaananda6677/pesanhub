@@ -187,6 +187,7 @@ class PesenHubApiClient
     required String email,
     required String role,
     String? branchId,
+    String? password,
   }) async {
     final response = await _send(
       'POST',
@@ -196,6 +197,7 @@ class PesenHubApiClient
         'email': email.trim().toLowerCase(),
         'role': role,
         if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+        if (password != null && password.isNotEmpty) 'password': password,
       }),
     );
     try {

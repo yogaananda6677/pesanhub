@@ -28,6 +28,7 @@ type User struct {
 	ApprovedAt  *time.Time `json:"approved_at,omitempty"`
 	BranchID    *string    `json:"branch_id,omitempty"`
 	BranchName  string     `json:"branch_name,omitempty"`
+	StatusReason string    `json:"-"`
 }
 
 type GoogleIdentity struct {

@@ -199,6 +199,41 @@ void main() {
     );
 
     testWidgets(
+      'EmployeeManagementView dialog supports 2 onboarding methods (Google Invite & Create Account)',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const EmployeeManagementView(isAdmin: true),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Tap Undang Kasir
+        await tester.tap(find.text('Undang Kasir'));
+        await tester.pumpAndSettle();
+
+        // Dialog should be open with 2 methods
+        expect(find.text('Undang / Tambah Kasir'), findsOneWidget);
+        expect(find.text('Undang via Google'), findsOneWidget);
+        expect(find.text('Buatkan Akun'), findsOneWidget);
+
+        // Default tab is 0 (Google)
+        expect(find.text('Kirim Undangan Google'), findsOneWidget);
+        expect(find.text('Email Akun Google'), findsOneWidget);
+
+        // Switch to tab 1 (Buatkan Akun)
+        await tester.tap(find.text('Buatkan Akun'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Buatkan Akun Kasir'), findsOneWidget);
+        expect(find.text('Email / Username Kasir'), findsOneWidget);
+        expect(find.text('Kata Sandi (Password)'), findsOneWidget);
+        expect(find.text('Gunakan Sandi Standar (kasir123)'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'OutletOperationalView (Screen 4) renders operational hours and branches',
       (tester) async {
         await tester.pumpWidget(

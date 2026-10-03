@@ -52,7 +52,7 @@ func (s *Store) ProvisionSuperadmin(ctx context.Context, email, displayName, req
 	}
 	created := result.RowsAffected() == 1
 	user, err := scanUser(tx.QueryRow(ctx, `
-		SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '')
+		SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, ''), COALESCE(u.status_reason, '')
 		FROM app_users u
 		LEFT JOIN branches b ON b.id = u.branch_id
 		WHERE u.email_normalized = $1 FOR UPDATE`, email))
@@ -82,7 +82,7 @@ func (s *Store) ProvisionSuperadmin(ctx context.Context, email, displayName, req
 
 func (s *Store) EnsureSuperadmin(ctx context.Context, defaultEmail, defaultName string) (User, error) {
 	row := s.pool.QueryRow(ctx, `
-		SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '')
+		SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, ''), COALESCE(u.status_reason, '')
 		FROM app_users u
 		LEFT JOIN branches b ON b.id = u.branch_id
 		WHERE u.role = 'SUPERADMIN' AND u.status = 'APPROVED'
@@ -247,7 +247,7 @@ func (s *Store) upsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 		}
 	}
 	user, err := scanUser(tx.QueryRow(ctx, `
-		SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '')
+		SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, ''), COALESCE(u.status_reason, '')
 		FROM app_users u
 		LEFT JOIN branches b ON b.id = u.branch_id
 		WHERE u.id = $1::uuid`, linkedUserID))
@@ -261,12 +261,12 @@ func (s *Store) upsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 }
 
 func (s *Store) UserByID(ctx context.Context, id string) (User, error) {
-	return scanUser(s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.id = $1::uuid`, id))
+	return scanUser(s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, ''), COALESCE(u.status_reason, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.id = $1::uuid`, id))
 }
 
 func (s *Store) UserByEmail(ctx context.Context, email string) (User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
-	return scanUser(s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.email_normalized = $1`, email))
+	return scanUser(s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, ''), COALESCE(u.status_reason, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.email_normalized = $1`, email))
 }
 
 func (s *Store) UpdateDisplayName(ctx context.Context, id, displayName string) error {
@@ -277,7 +277,7 @@ func (s *Store) UpdateDisplayName(ctx context.Context, id, displayName string) e
 func (s *Store) EnsureUser(ctx context.Context, email, displayName, role string) (User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	displayName = strings.TrimSpace(displayName)
-	row := s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.email_normalized = $1`, email)
+	row := s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, ''), COALESCE(u.status_reason, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.email_normalized = $1`, email)
 	user, err := scanUser(row)
 	if err == nil {
 		return user, nil
@@ -300,7 +300,7 @@ func (s *Store) EnsureUser(ctx context.Context, email, displayName, role string)
 	if err != nil {
 		return User{}, err
 	}
-	return scanUser(s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.email_normalized = $1`, email))
+	return scanUser(s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, ''), COALESCE(u.status_reason, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.email_normalized = $1`, email))
 }
 
 func (s *Store) CreateSession(ctx context.Context, id, userID string, expiresAt time.Time) error {
@@ -332,7 +332,8 @@ func scanUser(row rowScanner) (User, error) {
 	var email string
 	var branchID sql.NullString
 	var branchName sql.NullString
-	err := row.Scan(&user.ID, &email, &user.DisplayName, &user.Role, &user.Status, &user.ApprovedAt, &branchID, &branchName)
+	var statusReason sql.NullString
+	err := row.Scan(&user.ID, &email, &user.DisplayName, &user.Role, &user.Status, &user.ApprovedAt, &branchID, &branchName, &statusReason)
 	if err != nil {
 		return User{}, err
 	}
@@ -343,6 +344,9 @@ func scanUser(row rowScanner) (User, error) {
 	}
 	if branchName.Valid {
 		user.BranchName = branchName.String
+	}
+	if statusReason.Valid {
+		user.StatusReason = statusReason.String
 	}
 	return user, nil
 }

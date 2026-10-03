@@ -32,7 +32,7 @@ type ServiceStore interface {
 	ListAudits(ctx context.Context, targetUserID string, limit, offset int) ([]AuditEntry, error)
 	GetTrafficMetrics(ctx context.Context, timeRange string) (TrafficMetrics, error)
 	ListEmployees(ctx context.Context, search string) ([]EmployeeSummary, error)
-	CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID string) (EmployeeSummary, error)
+	CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID, password string) (EmployeeSummary, error)
 	UpdateEmployee(ctx context.Context, targetUserID string, displayName, role, status, branchID *string) (EmployeeSummary, error)
 	DeleteEmployee(ctx context.Context, targetUserID string) error
 }
@@ -405,8 +405,8 @@ func (s *Service) ListEmployees(ctx context.Context, search string) ([]EmployeeS
 	return s.store.ListEmployees(ctx, search)
 }
 
-func (s *Service) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID string) (EmployeeSummary, error) {
-	return s.store.CreateEmployee(ctx, actorID, email, displayName, role, branchID)
+func (s *Service) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID, password string) (EmployeeSummary, error) {
+	return s.store.CreateEmployee(ctx, actorID, email, displayName, role, branchID, password)
 }
 
 func (s *Service) UpdateEmployee(ctx context.Context, targetUserID string, displayName, role, status, branchID *string) (EmployeeSummary, error) {

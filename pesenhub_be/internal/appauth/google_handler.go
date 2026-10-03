@@ -188,14 +188,18 @@ func (h *GoogleHandler) LoginPassword(w http.ResponseWriter, r *http.Request) {
 
 	role, displayName, email, ok := h.checkCredentials(username, password)
 	if !ok {
-		// Fallback check: If password matches standard cashier password, check if username is an approved user in app_users
+		// Fallback check: Check if username is an approved user in app_users
 		cashierPass := h.passwordAuth.CashierPassword
 		if cashierPass == "" {
 			cashierPass = "kasir123"
 		}
-		if password == cashierPass || password == "kasir" || password == "kasir123" {
-			dbUser, err := h.store.UserByEmail(r.Context(), username)
-			if err == nil && dbUser.Status == StatusApproved && (dbUser.Role == RoleCashier || dbUser.Role == RoleAdmin) {
+		dbUser, err := h.store.UserByEmail(r.Context(), username)
+		if err == nil && dbUser.Status == StatusApproved && (dbUser.Role == RoleCashier || dbUser.Role == RoleAdmin) {
+			expectedPass := cashierPass
+			if strings.HasPrefix(dbUser.StatusReason, "pwd:") {
+				expectedPass = strings.TrimPrefix(dbUser.StatusReason, "pwd:")
+			}
+			if password == expectedPass || password == cashierPass || password == "kasir" || password == "kasir123" {
 				role = dbUser.Role
 				displayName = dbUser.DisplayName
 				email = username

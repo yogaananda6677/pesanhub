@@ -28,6 +28,7 @@ type CreateEmployeeRequest struct {
 	DisplayName string `json:"display_name,omitempty"`
 	Role        string `json:"role,omitempty"`
 	BranchID    string `json:"branch_id,omitempty"`
+	Password    string `json:"password,omitempty"`
 }
 
 type UpdateEmployeeRequest struct {
@@ -93,7 +94,7 @@ func (h *Handler) CreateEmployee(w http.ResponseWriter, r *http.Request) {
 		branchID = p.BranchID
 	}
 
-	emp, err := h.service.CreateEmployee(r.Context(), p.Subject, email, req.DisplayName, role, branchID)
+	emp, err := h.service.CreateEmployee(r.Context(), p.Subject, email, req.DisplayName, role, branchID, req.Password)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
