@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pesenhub_app/settings/controllers/whatsapp_settings_controller.dart';
 import 'package:pesenhub_app/settings/models/employee.dart';
+import 'package:pesenhub_app/settings/models/whatsapp_settings_data.dart';
 import 'package:pesenhub_app/settings/views/app_policy_view.dart';
 import 'package:pesenhub_app/settings/views/device_printer_view.dart';
 import 'package:pesenhub_app/settings/views/employee_management_view.dart';
 import 'package:pesenhub_app/settings/views/integration_services_view.dart';
 import 'package:pesenhub_app/settings/views/outlet_operational_view.dart';
+import 'package:pesenhub_app/settings/widgets/whatsapp_qr_dialog.dart';
 import 'package:pesenhub_app/shell/destination_views.dart';
 import 'package:pesenhub_app/theme/app_theme.dart';
 
@@ -226,10 +229,82 @@ void main() {
         await tester.tap(find.text('Buatkan Akun'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Buatkan Akun Kasir'), findsOneWidget);
-        expect(find.text('Email / Username Kasir'), findsOneWidget);
-        expect(find.text('Kata Sandi (Password)'), findsOneWidget);
-        expect(find.text('Gunakan Sandi Standar (kasir123)'), findsOneWidget);
+        // Verify Role is locked to Cashier only (no role dropdown)
+        expect(find.text('Peran: Kasir Outlet'), findsOneWidget);
+        expect(find.text('CASHIER'), findsOneWidget);
+        expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'WhatsAppQrDialog supports both QR scan and Pairing Code methods',
+      (tester) async {
+        final mockController = WhatsAppSettingsController(
+          customPair: ({deviceId, method, phone}) async {
+            if (method == 'code') {
+              return const WhatsAppPairResult(
+                isAlreadyLoggedIn: false,
+                status: 'WAITING_PAIR_CODE',
+                deviceId: 'pesenhub-dev',
+                method: 'code',
+                pairCode: 'EK1N-D4A9',
+                phone: '+628123456789',
+                qrDuration: 0,
+                qrLink: '',
+                qrProxyUrl: '',
+              );
+            }
+            return const WhatsAppPairResult(
+              isAlreadyLoggedIn: false,
+              status: 'WAITING_QR_SCAN',
+              deviceId: 'pesenhub-dev',
+              method: 'qr',
+              qrDuration: 30,
+              qrLink: 'http://test.com/qr.png',
+              qrProxyUrl: '/api/v1/settings/whatsapp/qr-image?url=test',
+            );
+          },
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: Scaffold(
+              body: Builder(
+                builder: (ctx) => ElevatedButton(
+                  onPressed: () => WhatsAppQrDialog.show(ctx, controller: mockController),
+                  child: const Text('Open Dialog'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Open Dialog'));
+        await tester.pumpAndSettle();
+
+        // Check dialog title and tabs
+        expect(find.text('Hubungkan WhatsApp (GOWA)'), findsOneWidget);
+        expect(find.text('Pindai QR'), findsOneWidget);
+        expect(find.text('Kode Tautan'), findsOneWidget);
+        expect(find.text('Cara Pindai QR:'), findsOneWidget);
+
+        // Switch to Tab 1 (Kode Tautan)
+        await tester.tap(find.text('Kode Tautan'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Nomor WhatsApp Outlet'), findsOneWidget);
+        expect(find.text('Dapatkan Kode Tautan'), findsOneWidget);
+        expect(find.text('Cara Menautkan dengan Kode:'), findsOneWidget);
+
+        // Enter phone number and request code
+        await tester.enterText(find.byType(TextField), '08123456789');
+        await tester.tap(find.text('Dapatkan Kode Tautan'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('EK1N-D4A9'), findsOneWidget);
+        expect(find.text('Salin Kode'), findsOneWidget);
       },
     );
 

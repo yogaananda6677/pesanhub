@@ -67,7 +67,7 @@ func (h *SettingsHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isConnected := activeDevice.State == "logged_in" || activeDevice.State == "connected"
+	isConnected := readiness.Device == DeviceReady && (activeDevice.State == "logged_in" || activeDevice.JID != "")
 	status := "DISCONNECTED"
 	if isConnected {
 		status = "CONNECTED"
@@ -95,12 +95,14 @@ func (h *SettingsHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// PairDevice initiates pairing by ensuring device registration and fetching login QR code.
+// PairDevice initiates pairing by ensuring device registration and fetching login QR code or pairing code.
 func (h *SettingsHandler) PairDevice(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var body struct {
 		DeviceID string `json:"device_id"`
+		Method   string `json:"method"` // "qr" or "code"
+		Phone    string `json:"phone"`  // WhatsApp phone number
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
 
@@ -114,13 +116,67 @@ func (h *SettingsHandler) PairDevice(w http.ResponseWriter, r *http.Request) {
 
 	reqID := httpserver.RequestID(ctx)
 
-	// 1. Ensure device exists in GOWA
+	var phoneInternational string
+	var phoneE164 string
+
+	// 1. Validate inputs upfront
+	if strings.EqualFold(body.Method, "code") {
+		phoneRaw := strings.TrimSpace(body.Phone)
+		if phoneRaw == "" {
+			httpapi.WriteError(w, http.StatusBadRequest, "INVALID_PHONE", "Nomor WhatsApp tidak boleh kosong untuk metode tautkan dengan kode.", reqID, nil)
+			return
+		}
+		var quarantined bool
+		var reason string
+		phoneE164, quarantined, reason = NormalizeSenderPhone(phoneRaw)
+		if quarantined {
+			httpapi.WriteError(w, http.StatusBadRequest, "INVALID_PHONE", "Nomor WhatsApp tidak valid ("+reason+"). Gunakan format Indonesia yang aktif (contoh: 08123456789 atau 628123456789).", reqID, nil)
+			return
+		}
+		phoneInternational = strings.TrimPrefix(phoneE164, "+")
+	}
+
+	// 2. Ensure device exists in GOWA
 	if err := h.client.EnsureDevice(ctx, deviceID); err != nil {
 		httpapi.WriteError(w, http.StatusBadGateway, "FAILED_ENSURE_DEVICE", "Failed to register WhatsApp device with gateway: "+err.Error(), reqID, nil)
 		return
 	}
 
-	// 2. Fetch login QR code
+	// 3. Handle Pairing Code Method
+	if strings.EqualFold(body.Method, "code") {
+		codeRes, err := h.client.GetDeviceLoginCode(ctx, deviceID, phoneInternational)
+		if err != nil {
+			httpapi.WriteError(w, http.StatusBadGateway, "FAILED_GET_CODE", "Failed to retrieve login pairing code: "+err.Error(), reqID, nil)
+			return
+		}
+
+		if codeRes.PairCode == "" {
+			// Already logged in
+			h.client.SetDeviceID(deviceID)
+			httpapi.WriteJSON(w, http.StatusOK, map[string]any{
+				"data": map[string]any{
+					"is_already_logged_in": true,
+					"status":               "CONNECTED",
+					"device_id":            deviceID,
+				},
+			})
+			return
+		}
+
+		httpapi.WriteJSON(w, http.StatusOK, map[string]any{
+			"data": map[string]any{
+				"is_already_logged_in": false,
+				"status":               "WAITING_PAIR_CODE",
+				"device_id":            deviceID,
+				"method":               "code",
+				"pair_code":            codeRes.PairCode,
+				"phone":                phoneE164,
+			},
+		})
+		return
+	}
+
+	// 4. Handle QR Code Method (Default)
 	loginRes, err := h.client.GetDeviceLoginQR(ctx, deviceID)
 	if err != nil {
 		httpapi.WriteError(w, http.StatusBadGateway, "FAILED_GET_QR", "Failed to retrieve login QR code: "+err.Error(), reqID, nil)
@@ -147,6 +203,7 @@ func (h *SettingsHandler) PairDevice(w http.ResponseWriter, r *http.Request) {
 			"is_already_logged_in": false,
 			"status":               "WAITING_QR_SCAN",
 			"device_id":            deviceID,
+			"method":               "qr",
 			"qr_duration":          loginRes.QRDuration,
 			"qr_link":              loginRes.QRLink,
 			"qr_proxy_url":         proxyURL,

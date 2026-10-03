@@ -63,6 +63,11 @@ type QRLoginResult struct {
 	QRLink     string `json:"qr_link"`
 }
 
+type CodeLoginResult struct {
+	DeviceID string `json:"device_id"`
+	PairCode string `json:"pair_code"`
+}
+
 type DeviceStatusResult struct {
 	DeviceID    string `json:"device_id"`
 	IsConnected bool   `json:"is_connected"`
@@ -275,6 +280,32 @@ func (c *Client) GetDeviceLoginQR(ctx context.Context, deviceID string) (*QRLogi
 	_ = json.Unmarshal(bodyBytes, &envelope)
 	if envelope.Code == "ALREADY_LOGGED_IN" || strings.Contains(strings.ToLower(envelope.Message), "already logged in") {
 		return &QRLoginResult{DeviceID: deviceID, QRDuration: 0, QRLink: ""}, nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("%w: status %d (%s)", ErrProvider, resp.StatusCode, envelope.Message)
+	}
+	return &envelope.Results, nil
+}
+
+func (c *Client) GetDeviceLoginCode(ctx context.Context, deviceID, phone string) (*CodeLoginResult, error) {
+	loginURL := fmt.Sprintf("%s/devices/%s/login/code?phone=%s", c.baseURL, url.PathEscape(deviceID), url.QueryEscape(phone))
+	resp, err := c.request(ctx, http.MethodPost, loginURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if err != nil {
+		return nil, err
+	}
+	var envelope struct {
+		Code    string          `json:"code"`
+		Message string          `json:"message"`
+		Results CodeLoginResult `json:"results"`
+	}
+	_ = json.Unmarshal(bodyBytes, &envelope)
+	if envelope.Code == "ALREADY_LOGGED_IN" || strings.Contains(strings.ToLower(envelope.Message), "already logged in") {
+		return &CodeLoginResult{DeviceID: deviceID, PairCode: ""}, nil
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("%w: status %d (%s)", ErrProvider, resp.StatusCode, envelope.Message)

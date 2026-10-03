@@ -963,32 +963,69 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                       const SizedBox(height: 8),
                     ],
 
-                    // Field 4: Dropdown Peran
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedRole,
-                      decoration: const InputDecoration(
-                        labelText: 'Peran / Hak Akses',
-                        border: OutlineInputBorder(),
+                    // Field 4: Peran Terkunci (Khusus Kasir)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'CASHIER',
-                          child: Text('Kasir (Default)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'MANAGER',
-                          child: Text('Manajer Outlet'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'ADMIN',
-                          child: Text('Admin Outlet'),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setSheetState(() => selectedRole = val);
-                        }
-                      },
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF9EFE7),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.point_of_sale_rounded,
+                              size: 18,
+                              color: Color(0xFF8D321F),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Peran: Kasir Outlet',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Akses transaksi POS, pesanan & pencetakan struk',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'CASHIER',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 14),
 
