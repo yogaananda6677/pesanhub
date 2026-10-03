@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../order/order_detail_view.dart';
 import '../order/widgets/payment_dialog.dart';
@@ -13,7 +15,7 @@ import 'widgets/order_queue_card.dart';
 class QueueView extends StatefulWidget {
   final QueueController controller;
   final VoidCallback? onRefresh;
-  final void Function(QueueOrder order, String newStatus)? onStatusChanged;
+  final FutureOr<void> Function(QueueOrder order, String newStatus)? onStatusChanged;
 
   const QueueView({
     super.key,
@@ -72,7 +74,7 @@ class _QueueViewState extends State<QueueView>
         (o) => o.id == order.id,
         orElse: () => order.copyWith(paymentStatus: 'PAID'),
       );
-      _handleStatusChanged(currentOrder, 'COMPLETED');
+      await _handleStatusChanged(currentOrder, 'COMPLETED');
     } else {
       if (mounted) {
         AppFeedback.show(
@@ -107,21 +109,21 @@ class _QueueViewState extends State<QueueView>
     }
   }
 
-  void _handleStatusChanged(QueueOrder order, String newStatus) {
+  Future<void> _handleStatusChanged(QueueOrder order, String newStatus) async {
     final currentOrder = widget.controller.allOrders.firstWhere(
       (o) => o.id == order.id,
       orElse: () => order,
     );
 
     if (newStatus == 'COMPLETED' && currentOrder.paymentStatus != 'PAID') {
-      _handlePaymentAndCompletion(currentOrder);
+      await _handlePaymentAndCompletion(currentOrder);
       return;
     }
 
     var updated = true;
     if (widget.onStatusChanged != null) {
       try {
-        widget.onStatusChanged!(currentOrder, newStatus);
+        await widget.onStatusChanged!(currentOrder, newStatus);
       } catch (_) {
         updated = false;
       }
@@ -130,14 +132,14 @@ class _QueueViewState extends State<QueueView>
     }
     if (mounted) {
       setState(() {});
+      AppFeedback.show(
+        context,
+        message: updated
+            ? '${currentOrder.orderNumber} dipindahkan ke ${_statusLabel(newStatus)}.'
+            : '${currentOrder.orderNumber} tidak dapat diperbarui. Muat ulang lalu coba lagi.',
+        type: updated ? AppBannerType.success : AppBannerType.error,
+      );
     }
-    AppFeedback.show(
-      context,
-      message: updated
-          ? '${currentOrder.orderNumber} dipindahkan ke ${_statusLabel(newStatus)}.'
-          : '${currentOrder.orderNumber} tidak dapat diperbarui. Muat ulang lalu coba lagi.',
-      type: updated ? AppBannerType.success : AppBannerType.error,
-    );
   }
 
   String _statusLabel(String status) => switch (status) {
@@ -158,7 +160,7 @@ class _QueueViewState extends State<QueueView>
           (o) => o.id == orderId,
           orElse: () => order,
         );
-        _handleStatusChanged(current, targetStatus);
+        await _handleStatusChanged(current, targetStatus);
         return widget.controller.allOrders.firstWhere((o) => o.id == orderId);
       },
       reloadFn: (orderId) async {

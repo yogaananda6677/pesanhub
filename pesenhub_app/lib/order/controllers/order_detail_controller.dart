@@ -285,10 +285,10 @@ class OrderDetailController extends ChangeNotifier {
   }
 
   /// Marks the current order as paid locally.
+  /// Preserves version to avoid 409 Version Conflict with backend transitions.
   void markPaid() {
     _order = _order.copyWith(
       paymentStatus: 'PAID',
-      version: _order.version + 1,
     );
     notifyListeners();
   }

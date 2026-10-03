@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../alerts/order_alert_controller.dart';
 import '../cart/controllers/cart_controller.dart';
@@ -55,7 +57,7 @@ class PosDestinationView extends StatelessWidget {
 class QueueDestinationView extends StatefulWidget {
   final QueueController? controller;
   final OrderAlertController? alertController;
-  final void Function(QueueOrder order, String newStatus)? onStatusChanged;
+  final FutureOr<void> Function(QueueOrder order, String newStatus)? onStatusChanged;
   final Future<void> Function()? onRefresh;
 
   const QueueDestinationView({

@@ -367,8 +367,8 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
       branchId: session?.activeBranchId,
       availableBranches: _branches,
       onSwitchBranch: session?.canAccessAllBranches == true ? _switchBranch : null,
-      onStatusChanged: (order, targetStatus) {
-        _coordinator?.transitionOrderStatus(
+      onStatusChanged: (order, targetStatus) async {
+        await _coordinator?.transitionOrderStatus(
           order.id,
           targetStatus,
           order.version,

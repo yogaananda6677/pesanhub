@@ -146,7 +146,8 @@ func (s *Service) Transition(ctx context.Context, orderID string, in TransitionI
 	if s.transitions == nil {
 		return StatusResult{}, false, errors.New("transition store unavailable")
 	}
-	if err := validateUUID(strings.TrimSpace(orderID)); err != nil {
+	orderID = strings.TrimPrefix(strings.TrimSpace(orderID), "ord-")
+	if err := validateUUID(orderID); err != nil {
 		return StatusResult{}, false, ErrNotFound
 	}
 	in.TargetStatus = strings.TrimSpace(in.TargetStatus)
@@ -260,7 +261,7 @@ func (s *Service) GetByID(ctx context.Context, p customer.Principal, id string) 
 	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "KDS") {
 		return OrderDetail{}, customer.ErrUnauthorized
 	}
-	id = strings.TrimSpace(id)
+	id = strings.TrimPrefix(strings.TrimSpace(id), "ord-")
 	if err := validateUUID(id); err != nil {
 		return OrderDetail{}, ErrNotFound
 	}
@@ -284,7 +285,7 @@ func (s *Service) QueueSnapshot(ctx context.Context, p customer.Principal) ([]Or
 		return nil, customer.ErrUnauthorized
 	}
 	filter := OrderFilter{
-		Statuses: []string{"ACCEPTED", "PREPARING", "READY_FOR_PICKUP"},
+		Statuses: []string{"PENDING", "ACCEPTED", "PREPARING", "READY_FOR_PICKUP"},
 		Pagination: httpapi.Pagination{
 			Size:  httpapi.MaxPageSize,
 			Order: "asc",
@@ -412,7 +413,7 @@ func (s *Service) GetAuditLogs(ctx context.Context, orderID string, p customer.P
 	if !customer.CanOperateOutlet(p) {
 		return nil, customer.ErrUnauthorized
 	}
-	orderID = strings.TrimSpace(orderID)
+	orderID = strings.TrimPrefix(strings.TrimSpace(orderID), "ord-")
 	if orderID == "" {
 		return nil, ErrNotFound
 	}

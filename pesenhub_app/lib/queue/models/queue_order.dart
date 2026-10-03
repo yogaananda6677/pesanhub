@@ -83,6 +83,15 @@ class QueueOrder {
 
   /// Extract numeric queue identifier from order number or fallback.
   String get displayQueueNumber {
+    // Match trailing sequence number, e.g. "BWX-20261003-0001" -> "1", "ORD-0042" -> "42", "#05" -> "5"
+    final match = RegExp(r'(?:-(\d+)|#?(\d+))$').firstMatch(orderNumber.trim());
+    if (match != null) {
+      final digits = match.group(1) ?? match.group(2);
+      if (digits != null) {
+        final numVal = int.tryParse(digits);
+        return numVal != null ? '$numVal' : digits;
+      }
+    }
     final digits = RegExp(r'\d+').firstMatch(orderNumber);
     if (digits != null) {
       final numVal = int.tryParse(digits.group(0)!);

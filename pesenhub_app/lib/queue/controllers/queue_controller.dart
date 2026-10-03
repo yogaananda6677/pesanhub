@@ -202,14 +202,14 @@ class QueueController extends ChangeNotifier {
     return true;
   }
 
-  /// Updates payment status of an existing order locally with version bump.
+  /// Updates payment status of an existing order locally.
+  /// Preserves version to avoid 409 Version Conflict with backend transitions.
   bool updatePaymentStatus(String orderId, String newPaymentStatus) {
     final existing = _ordersMap[orderId];
     if (existing == null) return false;
 
     _ordersMap[orderId] = existing.copyWith(
       paymentStatus: newPaymentStatus,
-      version: existing.version + 1,
     );
     notifyListeners();
     return true;

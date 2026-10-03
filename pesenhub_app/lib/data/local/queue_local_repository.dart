@@ -216,6 +216,33 @@ class QueueLocalRepository {
     );
   }
 
+  /// Updates payment status for a specific order in local database.
+  Future<void> updatePaymentStatus(
+    String id,
+    String paymentStatus,
+  ) async {
+    final db = await _localDb.database;
+    await db.update(
+      'queue_orders',
+      {'payment_status': paymentStatus},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Returns the next order sequence number for today (reset daily starting at 1).
+  Future<int> getNextDailySequence() async {
+    final db = await _localDb.database;
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day).toIso8601String();
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM queue_orders WHERE created_at >= ?',
+      [todayStart],
+    );
+    final count = (result.first['count'] as num?)?.toInt() ?? 0;
+    return count + 1;
+  }
+
   /// Loads cached queue snapshot with cache timestamp and stale marker.
   Future<CachedResult<List<QueueOrder>>> getOrdersWithFreshness({
     String? branchId,

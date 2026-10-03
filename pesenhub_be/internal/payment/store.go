@@ -178,15 +178,17 @@ func (s *Store) PrepareQRIS(ctx context.Context, orderID, key, hash, actorID, re
 		return Payment{}, false, false, err
 	}
 
+	var actualOrderID string
 	var total int64
 	var orderStatus, orderBranchID string
-	err = tx.QueryRow(ctx, `SELECT total_amount,status,COALESCE(branch_id::text,'') FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&total, &orderStatus, &orderBranchID)
+	err = tx.QueryRow(ctx, `SELECT id::text,total_amount,status,COALESCE(branch_id::text,'') FROM orders WHERE id=$1 OR client_order_id=$1 FOR UPDATE`, orderID).Scan(&actualOrderID, &total, &orderStatus, &orderBranchID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Payment{}, false, false, ErrOrderNotFound
 	}
 	if err != nil {
 		return Payment{}, false, false, err
 	}
+	orderID = actualOrderID
 	scope := branch.ScopeFromContext(ctx)
 	if !scope.All && scope.BranchID != "" && orderBranchID != scope.BranchID {
 		return Payment{}, false, false, ErrOrderNotFound
@@ -311,15 +313,17 @@ func (s *Store) RecordCash(ctx context.Context, orderID string, in CashInput, ke
 		return Payment{}, false, err
 	}
 
+	var actualOrderID string
 	var total int64
 	var status, orderBranchID string
-	err = tx.QueryRow(ctx, `SELECT total_amount,status,COALESCE(branch_id::text,'') FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&total, &status, &orderBranchID)
+	err = tx.QueryRow(ctx, `SELECT id::text,total_amount,status,COALESCE(branch_id::text,'') FROM orders WHERE id=$1 OR client_order_id=$1 FOR UPDATE`, orderID).Scan(&actualOrderID, &total, &status, &orderBranchID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Payment{}, false, ErrOrderNotFound
 	}
 	if err != nil {
 		return Payment{}, false, err
 	}
+	orderID = actualOrderID
 	scope := branch.ScopeFromContext(ctx)
 	if !scope.All && scope.BranchID != "" && orderBranchID != scope.BranchID {
 		return Payment{}, false, ErrOrderNotFound

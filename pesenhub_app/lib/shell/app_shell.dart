@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../alerts/order_alert_controller.dart';
 import '../cart/controllers/cart_controller.dart';
@@ -44,7 +46,7 @@ class AppShell extends StatefulWidget {
   final String? branchId;
   final List<Map<String, dynamic>>? availableBranches;
   final Future<void> Function(String? branchId)? onSwitchBranch;
-  final void Function(QueueOrder order, String newStatus)? onStatusChanged;
+  final FutureOr<void> Function(QueueOrder order, String newStatus)? onStatusChanged;
   final Future<void> Function()? onRefreshQueue;
 
   const AppShell({

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"database/sql"
+	"time"
 	"github.com/go-sql-driver/mysql"
 	dbx "pesenhub/backend/internal/database"
 
@@ -69,6 +70,19 @@ func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInp
 	if role != "STAFF" && role != "ADMIN" && role != "CASHIER" {
 		return StatusResult{}, false, customer.ErrUnauthorized
 	}
+	var actualOrderID string
+	var current string
+	var version int64
+	var orderBranchID string
+	err = tx.QueryRow(ctx, `SELECT id::text,status,version,branch_id::text FROM orders WHERE id=$1 OR client_order_id=$1 FOR UPDATE`, orderID).Scan(&actualOrderID, &current, &version, &orderBranchID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return StatusResult{}, false, ErrNotFound
+	}
+	if err != nil {
+		return StatusResult{}, false, err
+	}
+	orderID = actualOrderID
+
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "ORDER_STATUS:"+orderID+":"+key); err != nil {
 		return StatusResult{}, false, err
 	}
@@ -82,16 +96,6 @@ func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInp
 		return replay, false, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
-		return StatusResult{}, false, err
-	}
-	var current string
-	var version int64
-	var orderBranchID string
-	err = tx.QueryRow(ctx, `SELECT status,version,branch_id::text FROM orders WHERE id=$1 FOR UPDATE`, orderID).Scan(&current, &version, &orderBranchID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return StatusResult{}, false, ErrNotFound
-	}
-	if err != nil {
 		return StatusResult{}, false, err
 	}
 	scope := branch.ScopeFromContext(ctx)
@@ -131,6 +135,37 @@ func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInp
 	}
 	s.notifyOutbox()
 	return result, true, nil
+}
+
+func nextDailyOrderNumber(ctx context.Context, tx *dbx.Tx, branchID, branchCode string) (string, error) {
+	if branchCode == "" {
+		branchCode = "ORD"
+	}
+	if branchID == "" {
+		branchID = "b0000000-0000-0000-0000-000000000001"
+	}
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		loc = time.FixedZone("WIB", 7*3600)
+	}
+	now := time.Now().In(loc)
+	dateStr := now.Format("2006-01-02")
+	dateCompact := now.Format("20060102")
+
+	var seq int
+	err = tx.QueryRow(ctx, `SELECT last_sequence FROM daily_order_sequences WHERE branch_id = $1 AND order_date = $2 FOR UPDATE`, branchID, dateStr).Scan(&seq)
+	if errors.Is(err, sql.ErrNoRows) {
+		seq = 1
+		_, err = tx.Exec(ctx, `INSERT INTO daily_order_sequences (branch_id, order_date, last_sequence) VALUES ($1, $2, 1)`, branchID, dateStr)
+	} else if err == nil {
+		seq++
+		_, err = tx.Exec(ctx, `UPDATE daily_order_sequences SET last_sequence = $1, updated_at = now() WHERE branch_id = $2 AND order_date = $3`, seq, branchID, dateStr)
+	}
+	if err != nil {
+		// Fallback to random if sequence table fails
+		return fmt.Sprintf("%s-%s-%s", branchCode, dateCompact, strings.ToUpper(strings.ReplaceAll(customer.NewID(), "-", "")[:6])), nil
+	}
+	return fmt.Sprintf("%s-%s-%04d", branchCode, dateCompact, seq), nil
 }
 
 func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequest string) (Order, bool, error) {
@@ -185,9 +220,16 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 		requestID = parts[1]
 	}
 	bID, bCode, bName, _ := resolveBranchForOrder(ctx, tx, in.BranchID)
-	orderNum := fmt.Sprintf("%s-%s", bCode, strings.ToUpper(strings.ReplaceAll(customer.NewID(), "-", "")[:16]))
+	orderNum, err := nextDailyOrderNumber(ctx, tx, bID, bCode)
+	if err != nil {
+		return Order{}, false, err
+	}
+	orderID := customer.NewID()
+	if in.ClientOrderID != "" && domain.ValidUUID(in.ClientOrderID) {
+		orderID = in.ClientOrderID
+	}
 	o := Order{
-		ID:            customer.NewID(),
+		ID:            orderID,
 		OrderNumber:   orderNum,
 		ClientOrderID: in.ClientOrderID,
 		BranchID:      bID,
@@ -481,7 +523,7 @@ func (s *Store) GetByID(ctx context.Context, orderID string) (OrderDetail, error
 		COALESCE(o.public_tracking_token, '')
 		FROM orders o
 		LEFT JOIN branches b ON b.id = o.branch_id
-		WHERE o.id = $1`, orderID).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.BranchID, &o.BranchCode, &o.BranchName, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt, &o.PublicTrackingToken)
+		WHERE o.id = $1 OR o.client_order_id = $1`, orderID).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.BranchID, &o.BranchCode, &o.BranchName, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt, &o.PublicTrackingToken)
 	if errors.Is(err, sql.ErrNoRows) {
 		return OrderDetail{}, ErrNotFound
 	}
@@ -498,7 +540,7 @@ func (s *Store) GetByID(ctx context.Context, orderID string) (OrderDetail, error
 	histRows, err := s.db.Query(ctx, `SELECT COALESCE(from_status, ''), to_status, order_version, actor_type, COALESCE(actor_id, ''), COALESCE(reason_code, ''), created_at
 		FROM order_status_history
 		WHERE order_id = $1
-		ORDER BY order_version ASC`, orderID)
+		ORDER BY order_version ASC`, o.ID)
 	if err != nil {
 		return OrderDetail{}, err
 	}
@@ -659,7 +701,10 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 
 	bID, bCode, _, _ := resolveBranchForOrder(ctx, tx, in.BranchID)
 	orderID := customer.NewID()
-	orderNumber := fmt.Sprintf("%s-%s", bCode, strings.ToUpper(strings.ReplaceAll(customer.NewID(), "-", "")[:16]))
+	orderNumber, err := nextDailyOrderNumber(ctx, tx, bID, bCode)
+	if err != nil {
+		return PublicOrderResponse{}, false, err
+	}
 	trackingToken := "trk_" + strings.ToLower(strings.ReplaceAll(customer.NewID(), "-", "")+strings.ReplaceAll(customer.NewID(), "-", "")[:8])
 
 	res := PublicOrderResponse{
@@ -814,7 +859,10 @@ func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput,
 
 	bID, bCode, _, _ := resolveBranchForOrder(ctx, tx, in.BranchID)
 	orderID := customer.NewID()
-	orderNumber := fmt.Sprintf("%s-%s", bCode, strings.ToUpper(strings.ReplaceAll(customer.NewID(), "-", "")[:16]))
+	orderNumber, err := nextDailyOrderNumber(ctx, tx, bID, bCode)
+	if err != nil {
+		return WhatsAppOrderResponse{}, false, err
+	}
 	trackingToken := "trk_" + strings.ToLower(strings.ReplaceAll(customer.NewID(), "-", "")+strings.ReplaceAll(customer.NewID(), "-", "")[:8])
 
 	res := WhatsAppOrderResponse{
@@ -1000,14 +1048,15 @@ func (s *Store) GetAuditLogs(ctx context.Context, orderID, actorID, requestID st
 		return nil, ErrNotFound
 	}
 
-	var exists bool
-	err := s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM orders WHERE id = $1)`, orderID).Scan(&exists)
+	var actualID string
+	err := s.db.QueryRow(ctx, `SELECT id::text FROM orders WHERE id = $1 OR client_order_id = $1`, orderID).Scan(&actualID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
-	if !exists {
-		return nil, ErrNotFound
-	}
+	orderID = actualID
 
 	// Self-audited: record that audit logs were accessed
 	_, _ = s.db.Exec(ctx, `INSERT INTO audit_logs (id, aggregate_type, aggregate_id, action, actor_type, actor_id, request_id, metadata_redacted)

@@ -45,7 +45,10 @@ class CartController extends ChangeNotifier {
   static String _generateId() {
     final random = Random();
     final hexDigits = '0123456789abcdef';
-    return List.generate(32, (_) => hexDigits[random.nextInt(16)]).join();
+    final chars = List.generate(32, (_) => hexDigits[random.nextInt(16)]);
+    chars[12] = '4';
+    chars[16] = hexDigits[(random.nextInt(4)) + 8];
+    return '${chars.sublist(0, 8).join()}-${chars.sublist(8, 12).join()}-${chars.sublist(12, 16).join()}-${chars.sublist(16, 20).join()}-${chars.sublist(20, 32).join()}';
   }
 
   // Getters
@@ -324,8 +327,11 @@ class CartController extends ChangeNotifier {
     required OutboxRepository outboxRepo,
     required QueueLocalRepository queueRepo,
   }) async {
-    final orderNumber =
-        'ORD-${draft.idempotencyKey.substring(0, 8).toUpperCase()}';
+    final seq = await queueRepo.getNextDailySequence();
+    final now = DateTime.now();
+    final dateCompact =
+        '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+    final orderNumber = 'ORD-$dateCompact-${seq.toString().padLeft(4, '0')}';
     final maskedPhone = PiiSanitizer.maskPhone(draft.customerPhone);
     final localOrder = QueueOrder(
       id: 'ord-${draft.clientOrderId}',
