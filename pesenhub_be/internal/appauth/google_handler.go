@@ -123,6 +123,38 @@ func (h *GoogleHandler) Me(w http.ResponseWriter, r *http.Request) {
 	httpapi.WriteJSON(w, http.StatusOK, user)
 }
 
+func (h *GoogleHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
+	requestID := httpserver.RequestID(r.Context())
+	principal := customer.PrincipalFromRequest(r)
+	if principal.Subject == "" {
+		httpapi.WriteError(w, http.StatusUnauthorized, "UNAUTHENTICATED", "Authentication is required.", requestID, nil)
+		return
+	}
+	var body struct {
+		DisplayName string `json:"display_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httpapi.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Format permintaan tidak valid.", requestID, nil)
+		return
+	}
+	name := strings.TrimSpace(body.DisplayName)
+	if len(name) < 2 || len(name) > 120 {
+		httpapi.WriteError(w, http.StatusBadRequest, "INVALID_NAME", "Nama minimal 2 karakter dan maksimal 120 karakter.", requestID, nil)
+		return
+	}
+	if err := h.store.UpdateDisplayName(r.Context(), principal.Subject, name); err != nil {
+		httpapi.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Gagal memperbarui nama pengguna.", requestID, nil)
+		return
+	}
+	user, err := h.store.UserByID(r.Context(), principal.Subject)
+	if err != nil {
+		httpapi.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Gagal mengambil data pengguna.", requestID, nil)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	httpapi.WriteJSON(w, http.StatusOK, user)
+}
+
 func (h *GoogleHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	principal := customer.PrincipalFromRequest(r)
 	if principal.Subject == "" || principal.SessionID == "" {

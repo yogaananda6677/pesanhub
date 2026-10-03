@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../data/remote/pesenhub_api_client.dart';
 import '../alerts/order_alert_controller.dart';
 import '../cart/controllers/cart_controller.dart';
 import '../cart/models/cart_order_draft.dart';
@@ -49,6 +50,8 @@ class AppShell extends StatefulWidget {
   final FutureOr<void> Function(QueueOrder order, String newStatus)?
   onStatusChanged;
   final Future<void> Function()? onRefreshQueue;
+  final PesenHubApiClient? apiClient;
+  final Future<void> Function(String newName)? onUpdateDisplayName;
 
   const AppShell({
     super.key,
@@ -74,6 +77,8 @@ class AppShell extends StatefulWidget {
     this.onSwitchBranch,
     this.onStatusChanged,
     this.onRefreshQueue,
+    this.apiClient,
+    this.onUpdateDisplayName,
   });
 
   @override
@@ -265,7 +270,11 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         userEmail: widget.userEmail,
         userRole: widget.userRole,
         branchName: widget.branchName,
+        branchId: widget.branchId,
+        availableBranches: widget.availableBranches,
         connectivityController: _connectivity,
+        apiClient: widget.apiClient,
+        onUpdateDisplayName: widget.onUpdateDisplayName,
       ),
     ];
   }

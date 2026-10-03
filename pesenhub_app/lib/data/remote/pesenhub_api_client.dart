@@ -13,6 +13,7 @@ import 'catalog_gateway.dart';
 import 'order_dto.dart';
 import '../../menu/models/menu_category.dart';
 import '../../menu/models/menu_item.dart';
+import '../../settings/models/employee.dart';
 
 abstract class QueueRemoteGateway {
   Future<List<QueueOrder>> fetchQueue();
@@ -142,6 +143,100 @@ class PesenHubApiClient
     } catch (_) {
       throw _invalidResponse(response);
     }
+  }
+
+  Future<Map<String, dynamic>> updateMyDisplayName(String newName) async {
+    final response = await _send(
+      'PATCH',
+      config.resolve('auth/me'),
+      body: jsonEncode({'display_name': newName.trim()}),
+    );
+    try {
+      return _decodeObject(response);
+    } on ApiFailure {
+      rethrow;
+    } catch (_) {
+      throw _invalidResponse(response);
+    }
+  }
+
+  Future<List<Employee>> fetchEmployees({String? search}) async {
+    final baseUri = config.resolve('admin/employees');
+    final uri = (search != null && search.trim().isNotEmpty)
+        ? baseUri.replace(queryParameters: {'q': search.trim()})
+        : baseUri;
+    final response = await _send('GET', uri);
+    final json = _decodeObject(response);
+    final data = json['data'];
+    if (data is! List) throw _invalidResponse(response);
+    try {
+      return data
+          .map(
+            (item) => Employee.fromJson(Map<String, dynamic>.from(item as Map)),
+          )
+          .toList();
+    } on ApiFailure {
+      rethrow;
+    } catch (_) {
+      throw _invalidResponse(response);
+    }
+  }
+
+  Future<Employee> createEmployee({
+    required String displayName,
+    required String email,
+    required String role,
+    String? branchId,
+  }) async {
+    final response = await _send(
+      'POST',
+      config.resolve('admin/employees'),
+      body: jsonEncode({
+        'display_name': displayName.trim(),
+        'email': email.trim().toLowerCase(),
+        'role': role,
+        if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+      }),
+    );
+    try {
+      final json = _decodeObject(response);
+      return Employee.fromJson(json);
+    } on ApiFailure {
+      rethrow;
+    } catch (_) {
+      throw _invalidResponse(response);
+    }
+  }
+
+  Future<Employee> updateEmployee(
+    String id, {
+    String? displayName,
+    String? role,
+    String? status,
+    String? branchId,
+  }) async {
+    final response = await _send(
+      'PATCH',
+      config.resolve('admin/employees/$id'),
+      body: jsonEncode({
+        if (displayName != null) 'display_name': displayName.trim(),
+        'role': ?role,
+        'status': ?status,
+        'branch_id': ?branchId,
+      }),
+    );
+    try {
+      final json = _decodeObject(response);
+      return Employee.fromJson(json);
+    } on ApiFailure {
+      rethrow;
+    } catch (_) {
+      throw _invalidResponse(response);
+    }
+  }
+
+  Future<void> deleteEmployee(String id) async {
+    await _send('DELETE', config.resolve('admin/employees/$id'));
   }
 
   @override

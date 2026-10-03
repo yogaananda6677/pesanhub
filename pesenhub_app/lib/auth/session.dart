@@ -79,6 +79,26 @@ class AuthUser {
     if (branchId != null) 'branch_id': branchId,
     if (branchName != null) 'branch_name': branchName,
   };
+
+  AuthUser copyWith({
+    String? id,
+    String? email,
+    String? displayName,
+    String? role,
+    ApprovalStatus? status,
+    String? branchId,
+    String? branchName,
+  }) {
+    return AuthUser(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      displayName: displayName ?? this.displayName,
+      role: role ?? this.role,
+      status: status ?? this.status,
+      branchId: branchId ?? this.branchId,
+      branchName: branchName ?? this.branchName,
+    );
+  }
 }
 
 class SessionCredential {
@@ -253,6 +273,15 @@ class SessionController extends ChangeNotifier {
     }
     _activeBranchId = branchId;
     _activeBranchName = branchName;
+    notifyListeners();
+  }
+
+  Future<void> updateDisplayName(String newDisplayName) async {
+    final curUser = user;
+    if (curUser == null || _credential == null) return;
+    final updatedUser = curUser.copyWith(displayName: newDisplayName.trim());
+    _credential = _credential!.withUser(updatedUser);
+    await store.write(_credential!);
     notifyListeners();
   }
 

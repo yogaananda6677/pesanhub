@@ -554,6 +554,18 @@ func (m *mockStoreBranchInv) ListAudits(ctx context.Context, targetUserID string
 func (m *mockStoreBranchInv) GetTrafficMetrics(ctx context.Context, timeRange string) (superadmin.TrafficMetrics, error) {
 	return superadmin.TrafficMetrics{}, nil
 }
+func (m *mockStoreBranchInv) ListEmployees(ctx context.Context, search string) ([]superadmin.EmployeeSummary, error) {
+	return nil, nil
+}
+func (m *mockStoreBranchInv) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID string) (superadmin.EmployeeSummary, error) {
+	return superadmin.EmployeeSummary{ID: "emp-1", Email: email, DisplayName: displayName, Role: role}, nil
+}
+func (m *mockStoreBranchInv) UpdateEmployee(ctx context.Context, targetUserID string, displayName, role, status, branchID *string) (superadmin.EmployeeSummary, error) {
+	return superadmin.EmployeeSummary{ID: targetUserID}, nil
+}
+func (m *mockStoreBranchInv) DeleteEmployee(ctx context.Context, targetUserID string) error {
+	return nil
+}
 
 // Skenario 2j: Admin dapat memindahkan kasir ke cabang lain; kasir tidak bisa memindahkan dirinya.
 func TestIsolation_2j_AdminTransfersCashier_CashierSelfTransferForbidden(t *testing.T) {

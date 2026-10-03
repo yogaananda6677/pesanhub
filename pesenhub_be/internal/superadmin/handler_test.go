@@ -170,6 +170,22 @@ func (m *mockStore) GetTrafficMetrics(ctx context.Context, timeRange string) (Tr
 	return m.traffic, nil
 }
 
+func (m *mockStore) ListEmployees(ctx context.Context, search string) ([]EmployeeSummary, error) {
+	return []EmployeeSummary{}, nil
+}
+
+func (m *mockStore) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID string) (EmployeeSummary, error) {
+	return EmployeeSummary{ID: "emp-123", Email: email, DisplayName: displayName, Role: role, Status: "APPROVED"}, nil
+}
+
+func (m *mockStore) UpdateEmployee(ctx context.Context, targetUserID string, displayName, role, status, branchID *string) (EmployeeSummary, error) {
+	return EmployeeSummary{ID: targetUserID, Status: "UPDATED"}, nil
+}
+
+func (m *mockStore) DeleteEmployee(ctx context.Context, targetUserID string) error {
+	return nil
+}
+
 type mockDB struct {
 	pingErr error
 }

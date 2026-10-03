@@ -31,6 +31,10 @@ type ServiceStore interface {
 	RevokeUserSessions(ctx context.Context, targetUserID string) error
 	ListAudits(ctx context.Context, targetUserID string, limit, offset int) ([]AuditEntry, error)
 	GetTrafficMetrics(ctx context.Context, timeRange string) (TrafficMetrics, error)
+	ListEmployees(ctx context.Context, search string) ([]EmployeeSummary, error)
+	CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID string) (EmployeeSummary, error)
+	UpdateEmployee(ctx context.Context, targetUserID string, displayName, role, status, branchID *string) (EmployeeSummary, error)
+	DeleteEmployee(ctx context.Context, targetUserID string) error
 }
 
 type WhatsAppGatewayInspector interface {
@@ -395,4 +399,20 @@ func (s *Service) UpdateCashierBranch(ctx context.Context, actorPrincipal custom
 		reason = "ADMIN_TRANSFER"
 	}
 	return s.store.UpdateUserBranch(ctx, actorPrincipal.Subject, targetUserID, newBranchID, reason, requestID)
+}
+
+func (s *Service) ListEmployees(ctx context.Context, search string) ([]EmployeeSummary, error) {
+	return s.store.ListEmployees(ctx, search)
+}
+
+func (s *Service) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID string) (EmployeeSummary, error) {
+	return s.store.CreateEmployee(ctx, actorID, email, displayName, role, branchID)
+}
+
+func (s *Service) UpdateEmployee(ctx context.Context, targetUserID string, displayName, role, status, branchID *string) (EmployeeSummary, error) {
+	return s.store.UpdateEmployee(ctx, targetUserID, displayName, role, status, branchID)
+}
+
+func (s *Service) DeleteEmployee(ctx context.Context, targetUserID string) error {
+	return s.store.DeleteEmployee(ctx, targetUserID)
 }

@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	dbx "pesenhub/backend/internal/database"
+	"strconv"
 )
 
 var (
@@ -586,4 +587,235 @@ func (s *Store) GetTrafficMetrics(ctx context.Context, timeRange string) (Traffi
 	}
 
 	return metrics, nil
+}
+
+func (s *Store) ListEmployees(ctx context.Context, search string) ([]EmployeeSummary, error) {
+	search = strings.ToLower(strings.TrimSpace(search))
+
+	query := `
+		SELECT u.id, u.email_normalized, u.display_name, u.role, u.status, u.created_at,
+		       u.branch_id, COALESCE(b.name, '')
+		FROM app_users u
+		LEFT JOIN branches b ON b.id = u.branch_id
+		WHERE ($1 = '' OR u.email_normalized LIKE CONCAT('%',$1,'%') OR lower(u.display_name) LIKE CONCAT('%',$1,'%'))
+		ORDER BY u.created_at ASC
+	`
+	rows, err := s.pool.Query(ctx, query, search)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var employees []EmployeeSummary
+	seenEmails := make(map[string]bool)
+
+	for rows.Next() {
+		var emp EmployeeSummary
+		var branchID sql.NullString
+		var branchName sql.NullString
+		if err := rows.Scan(
+			&emp.ID, &emp.Email, &emp.DisplayName, &emp.Role, &emp.Status, &emp.CreatedAt,
+			&branchID, &branchName,
+		); err != nil {
+			return nil, err
+		}
+		if branchID.Valid && branchID.String != "" {
+			bID := branchID.String
+			emp.BranchID = &bID
+		}
+		if branchName.Valid {
+			emp.BranchName = branchName.String
+		}
+		if emp.DisplayName == "" {
+			emp.DisplayName = emp.Email
+		}
+		seenEmails[strings.ToLower(emp.Email)] = true
+		employees = append(employees, emp)
+	}
+
+	invQuery := `
+		SELECT i.id, i.email_normalized, i.outlet_name, i.role, i.status, i.created_at,
+		       i.branch_id, COALESCE(b.name, '')
+		FROM user_invitations i
+		LEFT JOIN branches b ON b.id = i.branch_id
+		WHERE i.status = 'PENDING' AND i.expires_at > now()
+		  AND ($1 = '' OR i.email_normalized LIKE CONCAT('%',$1,'%'))
+		ORDER BY i.created_at DESC
+	`
+	invRows, err := s.pool.Query(ctx, invQuery, search)
+	if err == nil {
+		defer invRows.Close()
+		for invRows.Next() {
+			var emp EmployeeSummary
+			var branchID sql.NullString
+			var branchName sql.NullString
+			if err := invRows.Scan(
+				&emp.ID, &emp.Email, &emp.DisplayName, &emp.Role, &emp.Status, &emp.CreatedAt,
+				&branchID, &branchName,
+			); err == nil {
+				if seenEmails[strings.ToLower(emp.Email)] {
+					continue
+				}
+				emp.Status = "INVITED"
+				if emp.DisplayName == "" {
+					emp.DisplayName = emp.Email
+				}
+				if branchID.Valid && branchID.String != "" {
+					bID := branchID.String
+					emp.BranchID = &bID
+				}
+				if branchName.Valid {
+					emp.BranchName = branchName.String
+				}
+				employees = append(employees, emp)
+			}
+		}
+	}
+
+	if employees == nil {
+		employees = []EmployeeSummary{}
+	}
+	return employees, nil
+}
+
+func (s *Store) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID string) (EmployeeSummary, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if displayName == "" {
+		local, _, _ := strings.Cut(email, "@")
+		displayName = strings.Title(local)
+	}
+	if role == "" {
+		role = "CASHIER"
+	}
+	if branchID == "" {
+		branchID = "b0000000-0000-0000-0000-000000000001"
+	}
+
+	userID, err := newUUID()
+	if err != nil {
+		return EmployeeSummary{}, err
+	}
+
+	now := s.now().UTC()
+	_, err = s.pool.Exec(ctx, `
+		INSERT INTO app_users (id, email_normalized, display_name, role, branch_id, status, approved_at, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, 'APPROVED', $6, $7, $8)
+		ON DUPLICATE KEY UPDATE 
+			display_name = VALUES(display_name),
+			role = VALUES(role),
+			branch_id = VALUES(branch_id),
+			status = 'APPROVED',
+			updated_at = VALUES(updated_at)
+	`, userID, email, displayName, role, branchID, now, now, now)
+
+	if err != nil {
+		return EmployeeSummary{}, err
+	}
+
+	_, _ = s.CreateInvitation(ctx, actorID, email, "Martabak & Terang Bulan Jenggirat", branchID, 30*24*time.Hour)
+
+	emp := EmployeeSummary{
+		ID:          userID,
+		Email:       email,
+		DisplayName: displayName,
+		Role:        role,
+		Status:      "APPROVED",
+		BranchID:    &branchID,
+		CreatedAt:   now,
+	}
+
+	var bName sql.NullString
+	_ = s.pool.QueryRow(ctx, `SELECT name FROM branches WHERE id = $1`, branchID).Scan(&bName)
+	if bName.Valid {
+		emp.BranchName = bName.String
+	}
+	return emp, nil
+}
+
+func (s *Store) UpdateEmployee(ctx context.Context, targetUserID string, displayName, role, status, branchID *string) (EmployeeSummary, error) {
+	now := s.now().UTC()
+	updates := []string{"updated_at = $1"}
+	args := []any{now}
+	argIdx := 2
+
+	if displayName != nil {
+		name := strings.TrimSpace(*displayName)
+		if len(name) >= 2 {
+			updates = append(updates, "display_name = $"+strconv.Itoa(argIdx))
+			args = append(args, name)
+			argIdx++
+		}
+	}
+	if role != nil {
+		r := strings.ToUpper(strings.TrimSpace(*role))
+		if r == "CASHIER" || r == "ADMIN" || r == "MANAGER" {
+			updates = append(updates, "role = $"+strconv.Itoa(argIdx))
+			args = append(args, r)
+			argIdx++
+		}
+	}
+	if status != nil {
+		st := strings.ToUpper(strings.TrimSpace(*status))
+		if st == "APPROVED" || st == "SUSPENDED" || st == "REJECTED" {
+			updates = append(updates, "status = $"+strconv.Itoa(argIdx))
+			args = append(args, st)
+			argIdx++
+		}
+	}
+	if branchID != nil {
+		bID := strings.TrimSpace(*branchID)
+		if bID != "" {
+			updates = append(updates, "branch_id = $"+strconv.Itoa(argIdx))
+			args = append(args, bID)
+			argIdx++
+		}
+	}
+
+	args = append(args, targetUserID)
+	q := "UPDATE app_users SET " + strings.Join(updates, ", ") + " WHERE id = $" + strconv.Itoa(argIdx)
+
+	res, err := s.pool.Exec(ctx, q, args...)
+	if err != nil {
+		return EmployeeSummary{}, err
+	}
+	if res.RowsAffected() == 0 {
+		if displayName != nil {
+			_, _ = s.pool.Exec(ctx, `UPDATE user_invitations SET outlet_name = $1, updated_at = now() WHERE id = $2`, *displayName, targetUserID)
+		}
+		if status != nil && *status == "SUSPENDED" {
+			_ = s.RevokeInvitation(ctx, targetUserID)
+		}
+	}
+
+	var emp EmployeeSummary
+	var bID sql.NullString
+	var branchName sql.NullString
+	err = s.pool.QueryRow(ctx, `
+		SELECT u.id, u.email_normalized, u.display_name, u.role, u.status, u.created_at,
+		       u.branch_id, COALESCE(b.name, '')
+		FROM app_users u
+		LEFT JOIN branches b ON b.id = u.branch_id
+		WHERE u.id = $1
+	`, targetUserID).Scan(
+		&emp.ID, &emp.Email, &emp.DisplayName, &emp.Role, &emp.Status, &emp.CreatedAt,
+		&bID, &branchName,
+	)
+	if err == nil {
+		if bID.Valid && bID.String != "" {
+			idStr := bID.String
+			emp.BranchID = &idStr
+		}
+		if branchName.Valid {
+			emp.BranchName = branchName.String
+		}
+		return emp, nil
+	}
+	return EmployeeSummary{ID: targetUserID, Status: "UPDATED"}, nil
+}
+
+func (s *Store) DeleteEmployee(ctx context.Context, targetUserID string) error {
+	_, _ = s.pool.Exec(ctx, `UPDATE app_users SET status = 'SUSPENDED', updated_at = now() WHERE id = $1`, targetUserID)
+	_ = s.RevokeUserSessions(ctx, targetUserID)
+	_ = s.RevokeInvitation(ctx, targetUserID)
+	return nil
 }

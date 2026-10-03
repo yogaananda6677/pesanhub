@@ -392,6 +392,12 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
       onRefreshQueue: () async {
         await _coordinator?.refreshSnapshot();
       },
+      apiClient: _api,
+      onUpdateDisplayName: session != null
+          ? (newName) async {
+              await session.updateDisplayName(newName);
+            }
+          : null,
     );
   }
 

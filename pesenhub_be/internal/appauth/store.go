@@ -20,6 +20,7 @@ type IdentityStore interface {
 	CreateSession(context.Context, string, string, time.Time) error
 	RevokeSession(context.Context, string, string) error
 	EnsureUser(ctx context.Context, email, displayName, role string) (User, error)
+	UpdateDisplayName(ctx context.Context, id, displayName string) error
 }
 
 type Store struct{ pool *dbx.Pool }
@@ -260,6 +261,11 @@ func (s *Store) upsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 
 func (s *Store) UserByID(ctx context.Context, id string) (User, error) {
 	return scanUser(s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.id = $1::uuid`, id))
+}
+
+func (s *Store) UpdateDisplayName(ctx context.Context, id, displayName string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE app_users SET display_name = $1, updated_at = now() WHERE id = $2::uuid`, displayName, id)
+	return err
 }
 
 func (s *Store) EnsureUser(ctx context.Context, email, displayName, role string) (User, error) {
