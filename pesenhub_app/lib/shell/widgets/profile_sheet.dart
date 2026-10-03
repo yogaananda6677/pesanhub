@@ -49,7 +49,9 @@ class ProfileSheet extends StatelessWidget {
     final effectiveName = displayName?.trim().isNotEmpty == true
         ? displayName!.trim()
         : 'Yoga Ananda';
-    final initial = effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'Y';
+    final initial = effectiveName.isNotEmpty
+        ? effectiveName[0].toUpperCase()
+        : 'Y';
     final effectiveRole = role?.trim().isNotEmpty == true
         ? role!.trim().toUpperCase()
         : 'SUPERADMIN / KASIR';
@@ -104,7 +106,9 @@ class ProfileSheet extends StatelessWidget {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.25),
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.25,
+                                ),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -197,7 +201,8 @@ class ProfileSheet extends StatelessWidget {
                         _buildInfoRow(
                           icon: Icons.location_on_outlined,
                           title: 'Cabang & Alamat',
-                          value: branchAddress != null && branchAddress!.isNotEmpty
+                          value:
+                              branchAddress != null && branchAddress!.isNotEmpty
                               ? '${branchName ?? "Cabang"} — $branchAddress'
                               : (branchName ?? 'Semua Cabang'),
                         ),

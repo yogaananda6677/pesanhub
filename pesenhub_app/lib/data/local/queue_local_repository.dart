@@ -139,7 +139,9 @@ class QueueLocalRepository {
     final List<Object?> whereArgs = [];
 
     if (activeOnly) {
-      conditions.add("order_status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED')");
+      conditions.add(
+        "order_status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED')",
+      );
     }
 
     if (branchId != null && branchId.isNotEmpty) {
@@ -217,10 +219,7 @@ class QueueLocalRepository {
   }
 
   /// Updates payment status for a specific order in local database.
-  Future<void> updatePaymentStatus(
-    String id,
-    String paymentStatus,
-  ) async {
+  Future<void> updatePaymentStatus(String id, String paymentStatus) async {
     final db = await _localDb.database;
     await db.update(
       'queue_orders',

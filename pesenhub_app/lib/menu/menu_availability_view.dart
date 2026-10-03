@@ -159,7 +159,10 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                     icon: const Icon(Icons.add_rounded, size: 20),
                     label: const Text(
                       'Tambah menu',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
@@ -188,7 +191,10 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                           icon: const Icon(Icons.tune_rounded, size: 16),
                           label: const Text(
                             'Kelola topping global',
-                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11.5,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                           style: OutlinedButton.styleFrom(
@@ -213,7 +219,10 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                           icon: const Icon(Icons.category_outlined, size: 16),
                           label: const Text(
                             'Kelola kategori',
-                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11.5,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                           style: OutlinedButton.styleFrom(
@@ -235,7 +244,10 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                         icon: const Icon(Icons.refresh_rounded, size: 16),
                         label: const Text(
                           'Muat ulang',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11.5,
+                          ),
                         ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.textSecondary,
@@ -466,9 +478,7 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                 ? Icons.admin_panel_settings_rounded
                 : Icons.visibility_rounded,
             size: 22,
-            color: controller.isStaff
-                ? AppColors.primary
-                : AppColors.textMuted,
+            color: controller.isStaff ? AppColors.primary : AppColors.textMuted,
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -646,14 +656,18 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
     required VoidCallback onTap,
   }) {
     final isSemua = label == 'Semua';
-    final activeColor = selectedColor ?? (isSemua ? const Color(0xFF2B1B16) : AppColors.primary);
+    final activeColor =
+        selectedColor ??
+        (isSemua ? const Color(0xFF2B1B16) : AppColors.primary);
 
     return FilterChip(
       label: Text('$label ($count)'),
       selected: isSelected,
       showCheckmark: false,
       onSelected: (_) => onTap(),
-      selectedColor: isSemua ? const Color(0xFF2B1B16) : activeColor.withValues(alpha: 0.12),
+      selectedColor: isSemua
+          ? const Color(0xFF2B1B16)
+          : activeColor.withValues(alpha: 0.12),
       backgroundColor: Colors.white,
       labelStyle: TextStyle(
         fontSize: 12,

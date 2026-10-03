@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import 'local_database.dart';
 import 'models/outbox_mutation.dart';
@@ -218,5 +219,48 @@ class OutboxRepository {
   Future<void> clearSyncedMutations() async {
     final db = await _localDb.database;
     await db.delete('outbox_mutations', where: "sync_status = 'SYNCED'");
+  }
+
+  /// Recovers any mutations that failed permanently because branch was not yet selected/specified.
+  Future<int> recoverBranchScopeFailures(String defaultBranchId) async {
+    final db = await _localDb.database;
+    final rows = await db.query(
+      'outbox_mutations',
+      where:
+          "sync_status = 'FAILED_PERMANENT' AND (error_message LIKE '%cabang%' OR error_message LIKE '%BRANCH_SCOPE_REQUIRED%' OR branch_id IS NULL OR branch_id = '')",
+    );
+    int recovered = 0;
+    for (final row in rows) {
+      final id = row['id'] as String;
+      final payloadStr = row['payload_json'] as String? ?? '{}';
+      var payload = <String, dynamic>{};
+      try {
+        final decoded = jsonDecode(payloadStr);
+        if (decoded is Map) payload = Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+      payload['branch_id'] = defaultBranchId;
+
+      await db.update(
+        'outbox_mutations',
+        {
+          'branch_id': defaultBranchId,
+          'payload_json': jsonEncode(payload),
+          'sync_status': OutboxSyncStatus.pending.toDbString(),
+          'error_message': null,
+          'retry_count': 0,
+          'next_retry_at': null,
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      recovered++;
+    }
+
+    // Also update any queue_orders with missing branch_id
+    await db.update('queue_orders', {
+      'branch_id': defaultBranchId,
+    }, where: "branch_id IS NULL OR branch_id = ''");
+
+    return recovered;
   }
 }

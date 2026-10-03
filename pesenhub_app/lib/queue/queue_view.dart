@@ -15,7 +15,8 @@ import 'widgets/order_queue_card.dart';
 class QueueView extends StatefulWidget {
   final QueueController controller;
   final VoidCallback? onRefresh;
-  final FutureOr<void> Function(QueueOrder order, String newStatus)? onStatusChanged;
+  final FutureOr<void> Function(QueueOrder order, String newStatus)?
+  onStatusChanged;
 
   const QueueView({
     super.key,

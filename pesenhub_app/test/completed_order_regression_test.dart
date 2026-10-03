@@ -54,7 +54,8 @@ class MockTestGateway implements QueueRemoteGateway, OrderSyncGateway {
     if (failNextTransition) {
       throw const ApiFailure(ApiFailureKind.conflict);
     }
-    final existing = allOrders[orderId] ??
+    final existing =
+        allOrders[orderId] ??
         QueueOrder(
           id: orderId,
           orderNumber: '#TEST',
@@ -144,18 +145,19 @@ void main() {
       createdAt: fixedNow.subtract(const Duration(minutes: 5)),
       version: version,
       items: const [
-        QueueOrderItem(
-          name: 'Martabak Telur',
-          quantity: 1,
-          unitPrice: 35000,
-        ),
+        QueueOrderItem(name: 'Martabak Telur', quantity: 1, unitPrice: 35000),
       ],
     );
   }
 
   group('Fase B: Reproduksi & Regression Tests Transaksi Selesai Muncul Lagi', () {
     test('B4.1: Selesai lalu refresh tidak memunculkan kembali pesanan', () async {
-      final initialOrder = makeOrder(id: 'ord-101', orderNumber: '#ORD-101', status: 'READY_FOR_PICKUP', version: 1);
+      final initialOrder = makeOrder(
+        id: 'ord-101',
+        orderNumber: '#ORD-101',
+        status: 'READY_FOR_PICKUP',
+        version: 1,
+      );
       final controller = QueueController(initialOrders: [initialOrder]);
       expect(controller.countForStatus('READY_FOR_PICKUP'), equals(1));
 
@@ -170,7 +172,12 @@ void main() {
       // Jika refresh terjadi dari snapshot yang stale (versi lebih rendah dari COMPLETED lokal),
       // setSnapshot melindungi terminal status lokal agar tidak teregresi ke status lama.
       final staleSnapshot = [
-        makeOrder(id: 'ord-101', orderNumber: '#ORD-101', status: 'READY_FOR_PICKUP', version: 1),
+        makeOrder(
+          id: 'ord-101',
+          orderNumber: '#ORD-101',
+          status: 'READY_FOR_PICKUP',
+          version: 1,
+        ),
       ];
 
       controller.setSnapshot(staleSnapshot);
@@ -179,257 +186,345 @@ void main() {
       expect(
         controller.countForStatus('READY_FOR_PICKUP'),
         equals(0),
-        reason: 'Pesanan yang telah diselesaikan tidak boleh muncul kembali saat snapshot stale dimuat',
+        reason:
+            'Pesanan yang telah diselesaikan tidak boleh muncul kembali saat snapshot stale dimuat',
       );
     });
 
-    test('B4.2: SQLite getOrders memfilter pesanan terminal (COMPLETED/CANCELLED/REJECTED)', () async {
-      final db = LocalDatabase(
-        customPath: inMemoryDatabasePath,
-        customFactory: databaseFactoryFfi,
-      );
-      final repo = QueueLocalRepository(db);
+    test(
+      'B4.2: SQLite getOrders memfilter pesanan terminal (COMPLETED/CANCELLED/REJECTED)',
+      () async {
+        final db = LocalDatabase(
+          customPath: inMemoryDatabasePath,
+          customFactory: databaseFactoryFfi,
+        );
+        final repo = QueueLocalRepository(db);
 
-      final activeOrder = makeOrder(id: 'ord-act', orderNumber: '#ORD-ACT', status: 'READY_FOR_PICKUP');
-      final completedOrder = makeOrder(id: 'ord-cmp', orderNumber: '#ORD-CMP', status: 'COMPLETED');
+        final activeOrder = makeOrder(
+          id: 'ord-act',
+          orderNumber: '#ORD-ACT',
+          status: 'READY_FOR_PICKUP',
+        );
+        final completedOrder = makeOrder(
+          id: 'ord-cmp',
+          orderNumber: '#ORD-CMP',
+          status: 'COMPLETED',
+        );
 
-      await repo.saveOrders(orders: [activeOrder, completedOrder]);
+        await repo.saveOrders(orders: [activeOrder, completedOrder]);
 
-      final loaded = await repo.getOrders(activeOnly: true);
+        final loaded = await repo.getOrders(activeOnly: true);
 
-      // SQLite active queue harus HANYA mengembalikan order aktif, bukan COMPLETED
-      expect(
-        loaded.any((o) => o.id == 'ord-cmp'),
-        isFalse,
-        reason: 'QueueLocalRepository.getOrders tidak boleh menyertakan pesanan COMPLETED',
-      );
-      expect(loaded.length, equals(1));
-      expect(loaded.first.id, equals('ord-act'));
+        // SQLite active queue harus HANYA mengembalikan order aktif, bukan COMPLETED
+        expect(
+          loaded.any((o) => o.id == 'ord-cmp'),
+          isFalse,
+          reason:
+              'QueueLocalRepository.getOrders tidak boleh menyertakan pesanan COMPLETED',
+        );
+        expect(loaded.length, equals(1));
+        expect(loaded.first.id, equals('ord-act'));
 
-      await db.close();
-    });
+        await db.close();
+      },
+    );
 
-    test('B4.3: Event WebSocket duplikat untuk pesanan selesai tidak mengubah state terminal', () async {
-      final initialOrder = makeOrder(id: 'ord-404', orderNumber: '#ORD-404', status: 'COMPLETED', version: 5);
-      final controller = QueueController(initialOrders: [initialOrder]);
+    test(
+      'B4.3: Event WebSocket duplikat untuk pesanan selesai tidak mengubah state terminal',
+      () async {
+        final initialOrder = makeOrder(
+          id: 'ord-404',
+          orderNumber: '#ORD-404',
+          status: 'COMPLETED',
+          version: 5,
+        );
+        final controller = QueueController(initialOrders: [initialOrder]);
 
-      expect(controller.allOrders.first.orderStatus, equals('COMPLETED'));
+        expect(controller.allOrders.first.orderStatus, equals('COMPLETED'));
 
-      // Event WS duplikat dengan status READY_FOR_PICKUP dan versi lebih rendah
-      controller.upsertOrder(
-        makeOrder(id: 'ord-404', orderNumber: '#ORD-404', status: 'READY_FOR_PICKUP', version: 4),
-        eventId: 'evt-dup-1',
-      );
+        // Event WS duplikat dengan status READY_FOR_PICKUP dan versi lebih rendah
+        controller.upsertOrder(
+          makeOrder(
+            id: 'ord-404',
+            orderNumber: '#ORD-404',
+            status: 'READY_FOR_PICKUP',
+            version: 4,
+          ),
+          eventId: 'evt-dup-1',
+        );
 
-      // Status HARUS TETAP COMPLETED
-      expect(controller.allOrders.first.orderStatus, equals('COMPLETED'));
+        // Status HARUS TETAP COMPLETED
+        expect(controller.allOrders.first.orderStatus, equals('COMPLETED'));
 
-      // Event WS duplikat dengan eventId yang sama
-      controller.upsertOrder(
-        makeOrder(id: 'ord-404', orderNumber: '#ORD-404', status: 'READY_FOR_PICKUP', version: 5),
-        eventId: 'evt-dup-1',
-      );
+        // Event WS duplikat dengan eventId yang sama
+        controller.upsertOrder(
+          makeOrder(
+            id: 'ord-404',
+            orderNumber: '#ORD-404',
+            status: 'READY_FOR_PICKUP',
+            version: 5,
+          ),
+          eventId: 'evt-dup-1',
+        );
 
-      expect(controller.allOrders.first.orderStatus, equals('COMPLETED'));
-    });
+        expect(controller.allOrders.first.orderStatus, equals('COMPLETED'));
+      },
+    );
 
-    test('B4.4: Selesai via Coordinator mengirim mutasi ke server dan konsisten saat refresh', () async {
-      final db = LocalDatabase(
-        customPath: inMemoryDatabasePath,
-        customFactory: databaseFactoryFfi,
-      );
-      final repo = QueueLocalRepository(db);
-      final outbox = OutboxRepository(db);
-      final order = makeOrder(id: 'ord-202', orderNumber: '#ORD-202', status: 'READY_FOR_PICKUP', version: 2);
-      final gateway = MockTestGateway([order]);
-      final controller = QueueController();
-      final factory = MockRealtimeFactory();
+    test(
+      'B4.4: Selesai via Coordinator mengirim mutasi ke server dan konsisten saat refresh',
+      () async {
+        final db = LocalDatabase(
+          customPath: inMemoryDatabasePath,
+          customFactory: databaseFactoryFfi,
+        );
+        final repo = QueueLocalRepository(db);
+        final outbox = OutboxRepository(db);
+        final order = makeOrder(
+          id: 'ord-202',
+          orderNumber: '#ORD-202',
+          status: 'READY_FOR_PICKUP',
+          version: 2,
+        );
+        final gateway = MockTestGateway([order]);
+        final controller = QueueController();
+        final factory = MockRealtimeFactory();
 
-      final coordinator = QueueRealtimeCoordinator(
-        config: ApiConfig(
-          baseUri: Uri.parse('http://localhost:8080/api/v1'),
-        ),
-        accessToken: () async => 'test-token',
-        gateway: gateway,
-        localQueue: repo,
-        outboxRepo: outbox,
-        queueController: controller,
-        connectionFactory: factory,
-      );
+        final coordinator = QueueRealtimeCoordinator(
+          config: ApiConfig(baseUri: Uri.parse('http://localhost:8080/api/v1')),
+          accessToken: () async => 'test-token',
+          gateway: gateway,
+          localQueue: repo,
+          outboxRepo: outbox,
+          queueController: controller,
+          connectionFactory: factory,
+        );
 
-      await coordinator.start();
-      expect(controller.countForStatus('READY_FOR_PICKUP'), equals(1));
+        await coordinator.start();
+        expect(controller.countForStatus('READY_FOR_PICKUP'), equals(1));
 
-      // Selesaikan pesanan via coordinator
-      final result = await coordinator.transitionOrderStatus(order.id, 'COMPLETED', order.version);
-      expect(result.orderStatus, equals('COMPLETED'));
-      expect(gateway.lastTransitionedId, equals(order.id));
-      expect(gateway.lastTransitionedStatus, equals('COMPLETED'));
+        // Selesaikan pesanan via coordinator
+        final result = await coordinator.transitionOrderStatus(
+          order.id,
+          'COMPLETED',
+          order.version,
+        );
+        expect(result.orderStatus, equals('COMPLETED'));
+        expect(gateway.lastTransitionedId, equals(order.id));
+        expect(gateway.lastTransitionedStatus, equals('COMPLETED'));
 
-      // Di active queue, order sudah tidak ada di tab READY_FOR_PICKUP
-      expect(controller.countForStatus('READY_FOR_PICKUP'), equals(0));
+        // Di active queue, order sudah tidak ada di tab READY_FOR_PICKUP
+        expect(controller.countForStatus('READY_FOR_PICKUP'), equals(0));
 
-      // Refresh snapshot dari server
-      await coordinator.refreshSnapshot();
+        // Refresh snapshot dari server
+        await coordinator.refreshSnapshot();
 
-      // Order tetap tidak muncul kembali
-      expect(controller.countForStatus('READY_FOR_PICKUP'), equals(0));
+        // Order tetap tidak muncul kembali
+        expect(controller.countForStatus('READY_FOR_PICKUP'), equals(0));
 
-      coordinator.dispose();
-      await db.close();
-    });
+        coordinator.dispose();
+        await db.close();
+      },
+    );
 
-    test('B4.5: Selesai saat offline masuk outbox UPDATE_STATUS dan tetap COMPLETED', () async {
-      final db = LocalDatabase(
-        customPath: inMemoryDatabasePath,
-        customFactory: databaseFactoryFfi,
-      );
-      final repo = QueueLocalRepository(db);
-      final outbox = OutboxRepository(db);
-      final order = makeOrder(id: 'ord-off-1', orderNumber: '#ORD-OFF', status: 'READY_FOR_PICKUP', version: 1);
-      final gateway = MockTestGateway([order]);
-      final controller = QueueController();
-      final factory = MockRealtimeFactory();
-      final connectivity = ConnectivityController(initiallyOnline: false);
+    test(
+      'B4.5: Selesai saat offline masuk outbox UPDATE_STATUS dan tetap COMPLETED',
+      () async {
+        final db = LocalDatabase(
+          customPath: inMemoryDatabasePath,
+          customFactory: databaseFactoryFfi,
+        );
+        final repo = QueueLocalRepository(db);
+        final outbox = OutboxRepository(db);
+        final order = makeOrder(
+          id: 'ord-off-1',
+          orderNumber: '#ORD-OFF',
+          status: 'READY_FOR_PICKUP',
+          version: 1,
+        );
+        final gateway = MockTestGateway([order]);
+        final controller = QueueController();
+        final factory = MockRealtimeFactory();
+        final connectivity = ConnectivityController(initiallyOnline: false);
 
-      final coordinator = QueueRealtimeCoordinator(
-        config: ApiConfig(
-          baseUri: Uri.parse('http://localhost:8080/api/v1'),
-        ),
-        accessToken: () async => 'test-token',
-        gateway: gateway,
-        localQueue: repo,
-        outboxRepo: outbox,
-        queueController: controller,
-        connectionFactory: factory,
-        connectivity: connectivity,
-      );
+        final coordinator = QueueRealtimeCoordinator(
+          config: ApiConfig(baseUri: Uri.parse('http://localhost:8080/api/v1')),
+          accessToken: () async => 'test-token',
+          gateway: gateway,
+          localQueue: repo,
+          outboxRepo: outbox,
+          queueController: controller,
+          connectionFactory: factory,
+          connectivity: connectivity,
+        );
 
-      await coordinator.start();
-      expect(controller.countForStatus('READY_FOR_PICKUP'), equals(1));
+        await coordinator.start();
+        expect(controller.countForStatus('READY_FOR_PICKUP'), equals(1));
 
-      // Transisi saat offline
-      await coordinator.transitionOrderStatus(order.id, 'COMPLETED', order.version);
+        // Transisi saat offline
+        await coordinator.transitionOrderStatus(
+          order.id,
+          'COMPLETED',
+          order.version,
+        );
 
-      // Verifikasi di controller lokal sudah COMPLETED
-      expect(controller.countForStatus('READY_FOR_PICKUP'), equals(0));
+        // Verifikasi di controller lokal sudah COMPLETED
+        expect(controller.countForStatus('READY_FOR_PICKUP'), equals(0));
 
-      // Verifikasi mutasi tersimpan di outbox
-      final pendingMutations = await outbox.getPendingMutations();
-      expect(pendingMutations.length, equals(1));
-      expect(pendingMutations.first.mutationType, equals('UPDATE_STATUS'));
-      expect(pendingMutations.first.payloadJson, contains('COMPLETED'));
+        // Verifikasi mutasi tersimpan di outbox
+        final pendingMutations = await outbox.getPendingMutations();
+        expect(pendingMutations.length, equals(1));
+        expect(pendingMutations.first.mutationType, equals('UPDATE_STATUS'));
+        expect(pendingMutations.first.payloadJson, contains('COMPLETED'));
 
-      // Verifikasi di SQLite lokal juga sudah ter-update
-      final localOrders = await repo.getOrders(activeOnly: false);
-      expect(localOrders.firstWhere((o) => o.id == order.id).orderStatus, equals('COMPLETED'));
+        // Verifikasi di SQLite lokal juga sudah ter-update
+        final localOrders = await repo.getOrders(activeOnly: false);
+        expect(
+          localOrders.firstWhere((o) => o.id == order.id).orderStatus,
+          equals('COMPLETED'),
+        );
 
-      coordinator.dispose();
-      await db.close();
-    });
+        coordinator.dispose();
+        await db.close();
+      },
+    );
 
-    test('B4.6: Rollback transisi jika server menolak penyelesaian pesanan', () async {
-      final db = LocalDatabase(
-        customPath: inMemoryDatabasePath,
-        customFactory: databaseFactoryFfi,
-      );
-      final repo = QueueLocalRepository(db);
-      final order = makeOrder(id: 'ord-fail-1', orderNumber: '#ORD-FAIL', status: 'READY_FOR_PICKUP', version: 2);
-      final gateway = MockTestGateway([order]);
-      gateway.failNextTransition = true; // Server menolak (409 conflict)
+    test(
+      'B4.6: Rollback transisi jika server menolak penyelesaian pesanan',
+      () async {
+        final db = LocalDatabase(
+          customPath: inMemoryDatabasePath,
+          customFactory: databaseFactoryFfi,
+        );
+        final repo = QueueLocalRepository(db);
+        final order = makeOrder(
+          id: 'ord-fail-1',
+          orderNumber: '#ORD-FAIL',
+          status: 'READY_FOR_PICKUP',
+          version: 2,
+        );
+        final gateway = MockTestGateway([order]);
+        gateway.failNextTransition = true; // Server menolak (409 conflict)
 
-      final controller = QueueController();
-      final factory = MockRealtimeFactory();
+        final controller = QueueController();
+        final factory = MockRealtimeFactory();
 
-      final coordinator = QueueRealtimeCoordinator(
-        config: ApiConfig(
-          baseUri: Uri.parse('http://localhost:8080/api/v1'),
-        ),
-        accessToken: () async => 'test-token',
-        gateway: gateway,
-        localQueue: repo,
-        queueController: controller,
-        connectionFactory: factory,
-      );
+        final coordinator = QueueRealtimeCoordinator(
+          config: ApiConfig(baseUri: Uri.parse('http://localhost:8080/api/v1')),
+          accessToken: () async => 'test-token',
+          gateway: gateway,
+          localQueue: repo,
+          queueController: controller,
+          connectionFactory: factory,
+        );
 
-      await coordinator.start();
-      expect(controller.countForStatus('READY_FOR_PICKUP'), equals(1));
+        await coordinator.start();
+        expect(controller.countForStatus('READY_FOR_PICKUP'), equals(1));
 
-      // Transisi gagal
-      await expectLater(
-        coordinator.transitionOrderStatus(order.id, 'COMPLETED', order.version),
-        throwsA(isA<ApiFailure>()),
-      );
+        // Transisi gagal
+        await expectLater(
+          coordinator.transitionOrderStatus(
+            order.id,
+            'COMPLETED',
+            order.version,
+          ),
+          throwsA(isA<ApiFailure>()),
+        );
 
-      // Verifikasi ROLLBACK: status kembali ke READY_FOR_PICKUP
-      expect(controller.countForStatus('READY_FOR_PICKUP'), equals(1));
-      expect(controller.allOrders.first.orderStatus, equals('READY_FOR_PICKUP'));
+        // Verifikasi ROLLBACK: status kembali ke READY_FOR_PICKUP
+        expect(controller.countForStatus('READY_FOR_PICKUP'), equals(1));
+        expect(
+          controller.allOrders.first.orderStatus,
+          equals('READY_FOR_PICKUP'),
+        );
 
-      coordinator.dispose();
-      await db.close();
-    });
+        coordinator.dispose();
+        await db.close();
+      },
+    );
 
-    test('B4.7: Transisi dari PENDING langsung ke PREPARING berhasil', () async {
-      final db = LocalDatabase(
-        customPath: inMemoryDatabasePath,
-        customFactory: databaseFactoryFfi,
-      );
-      final repo = QueueLocalRepository(db);
-      final order = makeOrder(id: 'ord-pos-1', orderNumber: '#ORD-POS1', status: 'PENDING', version: 1);
-      final gateway = MockTestGateway([order]);
-      final controller = QueueController();
-      final factory = MockRealtimeFactory();
+    test(
+      'B4.7: Transisi dari PENDING langsung ke PREPARING berhasil',
+      () async {
+        final db = LocalDatabase(
+          customPath: inMemoryDatabasePath,
+          customFactory: databaseFactoryFfi,
+        );
+        final repo = QueueLocalRepository(db);
+        final order = makeOrder(
+          id: 'ord-pos-1',
+          orderNumber: '#ORD-POS1',
+          status: 'PENDING',
+          version: 1,
+        );
+        final gateway = MockTestGateway([order]);
+        final controller = QueueController();
+        final factory = MockRealtimeFactory();
 
-      final coordinator = QueueRealtimeCoordinator(
-        config: ApiConfig(
-          baseUri: Uri.parse('http://localhost:8080/api/v1'),
-        ),
-        accessToken: () async => 'test-token',
-        gateway: gateway,
-        localQueue: repo,
-        queueController: controller,
-        connectionFactory: factory,
-      );
+        final coordinator = QueueRealtimeCoordinator(
+          config: ApiConfig(baseUri: Uri.parse('http://localhost:8080/api/v1')),
+          accessToken: () async => 'test-token',
+          gateway: gateway,
+          localQueue: repo,
+          queueController: controller,
+          connectionFactory: factory,
+        );
 
-      await coordinator.start();
-      expect(controller.countForStatus('PENDING'), equals(1));
+        await coordinator.start();
+        expect(controller.countForStatus('PENDING'), equals(1));
 
-      // Transisi dari PENDING ke PREPARING
-      final result = await coordinator.transitionOrderStatus(order.id, 'PREPARING', order.version);
-      expect(result.orderStatus, equals('PREPARING'));
-      expect(controller.countForStatus('PREPARING'), equals(1));
-      expect(controller.countForStatus('PENDING'), equals(0));
+        // Transisi dari PENDING ke PREPARING
+        final result = await coordinator.transitionOrderStatus(
+          order.id,
+          'PREPARING',
+          order.version,
+        );
+        expect(result.orderStatus, equals('PREPARING'));
+        expect(controller.countForStatus('PREPARING'), equals(1));
+        expect(controller.countForStatus('PENDING'), equals(0));
 
-      coordinator.dispose();
-      await db.close();
-    });
+        coordinator.dispose();
+        await db.close();
+      },
+    );
 
-    test('B4.8: Order UNPAID dibayar lalu diselesaikan tidak stuck dan hilang dari antrean aktif', () async {
-      final order = makeOrder(
-        id: 'ord-unpaid-1',
-        orderNumber: '#ORD-UNPAID',
-        status: 'READY_FOR_PICKUP',
-        paymentStatus: 'UNPAID',
-        version: 1,
-      );
-      final controller = QueueController(initialOrders: [order]);
+    test(
+      'B4.8: Order UNPAID dibayar lalu diselesaikan tidak stuck dan hilang dari antrean aktif',
+      () async {
+        final order = makeOrder(
+          id: 'ord-unpaid-1',
+          orderNumber: '#ORD-UNPAID',
+          status: 'READY_FOR_PICKUP',
+          paymentStatus: 'UNPAID',
+          version: 1,
+        );
+        final controller = QueueController(initialOrders: [order]);
 
-      expect(controller.countForStatus('READY_FOR_PICKUP'), equals(1));
+        expect(controller.countForStatus('READY_FOR_PICKUP'), equals(1));
 
-      // Bayar pesanan
-      final paidSuccess = controller.updatePaymentStatus(order.id, 'PAID');
-      expect(paidSuccess, isTrue);
-      expect(controller.allOrders.first.paymentStatus, equals('PAID'));
+        // Bayar pesanan
+        final paidSuccess = controller.updatePaymentStatus(order.id, 'PAID');
+        expect(paidSuccess, isTrue);
+        expect(controller.allOrders.first.paymentStatus, equals('PAID'));
 
-      // Selesaikan pesanan setelah dibayar
-      final completeSuccess = controller.updateOrderStatus(order.id, 'COMPLETED');
-      expect(completeSuccess, isTrue);
-      expect(controller.allOrders.first.orderStatus, equals('COMPLETED'));
+        // Selesaikan pesanan setelah dibayar
+        final completeSuccess = controller.updateOrderStatus(
+          order.id,
+          'COMPLETED',
+        );
+        expect(completeSuccess, isTrue);
+        expect(controller.allOrders.first.orderStatus, equals('COMPLETED'));
 
-      // Order TIDAK BOLEH ada di antrean aktif
-      expect(controller.allOrders.where((o) => o.isActive).any((o) => o.id == order.id), isFalse);
-      expect(controller.countForStatus('READY_FOR_PICKUP'), equals(0));
-      expect(controller.countForStatus('ALL'), equals(0));
-    });
+        // Order TIDAK BOLEH ada di antrean aktif
+        expect(
+          controller.allOrders
+              .where((o) => o.isActive)
+              .any((o) => o.id == order.id),
+          isFalse,
+        );
+        expect(controller.countForStatus('READY_FOR_PICKUP'), equals(0));
+        expect(controller.countForStatus('ALL'), equals(0));
+      },
+    );
   });
 }

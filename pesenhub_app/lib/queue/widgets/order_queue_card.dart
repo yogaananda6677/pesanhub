@@ -255,14 +255,21 @@ class OrderQueueCard extends StatelessWidget {
     final (label, nextStatus, color) = isPendingWhatsApp
         ? ('Terima Pesanan', 'ACCEPTED', const Color(0xFF1B5E20))
         : switch (order.orderStatus) {
-            'PENDING' ||
-            'ACCEPTED' => ('Mulai Proses', 'PREPARING', const Color(0xFF342622)),
+            'PENDING' || 'ACCEPTED' => (
+              'Mulai Proses',
+              'PREPARING',
+              const Color(0xFF342622),
+            ),
             'PREPARING' => (
               'Siap Diambil',
               'READY_FOR_PICKUP',
               const Color(0xFF4E896A),
             ),
-            'READY_FOR_PICKUP' => ('Selesai', 'COMPLETED', const Color(0xFF342622)),
+            'READY_FOR_PICKUP' => (
+              'Selesai',
+              'COMPLETED',
+              const Color(0xFF342622),
+            ),
             _ => ('Pesanan Selesai', null, const Color(0xFF9B918D)),
           };
 

@@ -129,7 +129,10 @@ class MenuAvailabilityCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               // Version Chip
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 2.5,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceVariant,
                   borderRadius: AppSpacing.borderRadiusSm,
@@ -187,7 +190,10 @@ class MenuAvailabilityCard extends StatelessWidget {
                     icon: const Icon(Icons.edit_outlined, size: 16),
                     label: const Text(
                       'Edit Menu',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -206,7 +212,10 @@ class MenuAvailabilityCard extends StatelessWidget {
                     icon: const Icon(Icons.sell_outlined, size: 16),
                     label: const Text(
                       'Edit Harga',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 8),

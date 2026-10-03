@@ -24,8 +24,9 @@ class ModifierSelectionState extends ChangeNotifier {
     }
     if (initialSelectedOptions != null && initialSelectedOptions.isNotEmpty) {
       for (final entry in initialSelectedOptions.entries) {
-        _selectedOptionQuantities[entry.key] =
-            Map<String, int>.from(entry.value);
+        _selectedOptionQuantities[entry.key] = Map<String, int>.from(
+          entry.value,
+        );
       }
     } else {
       _initializeDefaults();

@@ -514,6 +514,9 @@ class PesenHubApiClient
     if (rawItems is! List) throw const FormatException('items are required');
     return {
       'client_order_id': source['client_order_id'],
+      if (source['branch_id'] is String &&
+          (source['branch_id'] as String).isNotEmpty)
+        'branch_id': source['branch_id'],
       'customer_name': source['customer_name'],
       if (source['customer_phone'] is String &&
           !(source['customer_phone'] as String).contains('*'))

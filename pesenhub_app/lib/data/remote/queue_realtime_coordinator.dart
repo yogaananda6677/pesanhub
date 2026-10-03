@@ -141,8 +141,10 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
     final previousVersion = existing?.version ?? expectedVersion;
 
     // 1. Optimistic update in QueueController
-    final localUpdated =
-        queueController.updateOrderStatus(orderId, targetStatus);
+    final localUpdated = queueController.updateOrderStatus(
+      orderId,
+      targetStatus,
+    );
     if (!localUpdated && existing != null) {
       return existing;
     }
@@ -157,7 +159,7 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
     // 3. Attempt server transition if online
     final isOnline = connectivity != null
         ? (connectivity!.state != OperationalConnectionState.offline &&
-            connectivity!.networkOnline)
+              connectivity!.networkOnline)
         : _networkAvailable;
     if (isOnline) {
       try {
@@ -175,7 +177,8 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
         );
         return serverOrder;
       } on ApiFailure catch (f) {
-        if (f.isTransient) {
+        if (f.isTransient ||
+            (f.statusCode == 404 && orderId.startsWith('ord-'))) {
           await _enqueueStatusMutation(
             orderId,
             targetStatus,

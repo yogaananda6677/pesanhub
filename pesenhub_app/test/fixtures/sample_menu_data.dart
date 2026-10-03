@@ -211,13 +211,48 @@ abstract final class SampleMenuData {
     maxSelect: 1,
     sortOrder: 10,
     options: [
-      MenuOption(id: 'opt-bc-original', code: 'original', name: 'Original', priceDeltaAmount: 0),
-      MenuOption(id: 'opt-bc-redvelvet', code: 'red_velvet', name: 'Red Velvet', priceDeltaAmount: 2000),
-      MenuOption(id: 'opt-bc-pandan', code: 'pandan', name: 'Pandan', priceDeltaAmount: 2000),
-      MenuOption(id: 'opt-bc-blackforest', code: 'black_forest', name: 'Black Forest', priceDeltaAmount: 2000),
-      MenuOption(id: 'opt-bc-taro', code: 'taro', name: 'Taro', priceDeltaAmount: 2000),
-      MenuOption(id: 'opt-bc-mocca', code: 'mocca', name: 'Mocca', priceDeltaAmount: 2000),
-      MenuOption(id: 'opt-bc-greentea', code: 'green_tea', name: 'Green Tea', priceDeltaAmount: 2000),
+      MenuOption(
+        id: 'opt-bc-original',
+        code: 'original',
+        name: 'Original',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-bc-redvelvet',
+        code: 'red_velvet',
+        name: 'Red Velvet',
+        priceDeltaAmount: 2000,
+      ),
+      MenuOption(
+        id: 'opt-bc-pandan',
+        code: 'pandan',
+        name: 'Pandan',
+        priceDeltaAmount: 2000,
+      ),
+      MenuOption(
+        id: 'opt-bc-blackforest',
+        code: 'black_forest',
+        name: 'Black Forest',
+        priceDeltaAmount: 2000,
+      ),
+      MenuOption(
+        id: 'opt-bc-taro',
+        code: 'taro',
+        name: 'Taro',
+        priceDeltaAmount: 2000,
+      ),
+      MenuOption(
+        id: 'opt-bc-mocca',
+        code: 'mocca',
+        name: 'Mocca',
+        priceDeltaAmount: 2000,
+      ),
+      MenuOption(
+        id: 'opt-bc-greentea',
+        code: 'green_tea',
+        name: 'Green Tea',
+        priceDeltaAmount: 2000,
+      ),
     ],
   );
 
@@ -229,14 +264,54 @@ abstract final class SampleMenuData {
     maxSelect: 8,
     sortOrder: 20,
     options: [
-      MenuOption(id: 'opt-tb-coklat', code: 'coklat', name: 'Coklat', priceDeltaAmount: 0),
-      MenuOption(id: 'opt-tb-pisang', code: 'pisang', name: 'Pisang', priceDeltaAmount: 0),
-      MenuOption(id: 'opt-tb-keju', code: 'keju', name: 'Keju', priceDeltaAmount: 0),
-      MenuOption(id: 'opt-tb-oreo', code: 'oreo', name: 'Oreo', priceDeltaAmount: 0),
-      MenuOption(id: 'opt-tb-kacang', code: 'kacang', name: 'Kacang', priceDeltaAmount: 0),
-      MenuOption(id: 'opt-tb-strawberry', code: 'selai_strawberry', name: 'Selai Strawberry', priceDeltaAmount: 0),
-      MenuOption(id: 'opt-tb-blueberry', code: 'selai_blueberry', name: 'Selai Blueberry', priceDeltaAmount: 0),
-      MenuOption(id: 'opt-tb-goldenfill', code: 'goldenfill', name: 'Goldenfill', priceDeltaAmount: 0),
+      MenuOption(
+        id: 'opt-tb-coklat',
+        code: 'coklat',
+        name: 'Coklat',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-pisang',
+        code: 'pisang',
+        name: 'Pisang',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-keju',
+        code: 'keju',
+        name: 'Keju',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-oreo',
+        code: 'oreo',
+        name: 'Oreo',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-kacang',
+        code: 'kacang',
+        name: 'Kacang',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-strawberry',
+        code: 'selai_strawberry',
+        name: 'Selai Strawberry',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-blueberry',
+        code: 'selai_blueberry',
+        name: 'Selai Blueberry',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-goldenfill',
+        code: 'goldenfill',
+        name: 'Goldenfill',
+        priceDeltaAmount: 0,
+      ),
     ],
   );
 

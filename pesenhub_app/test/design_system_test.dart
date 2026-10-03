@@ -141,7 +141,14 @@ void main() {
       );
     }
 
-    final sources = ['CASHIER_MANUAL', 'CUSTOMER_WEB', 'WHATSAPP', 'GRABFOOD', 'GOFOOD', 'SHOPEEFOOD'];
+    final sources = [
+      'CASHIER_MANUAL',
+      'CUSTOMER_WEB',
+      'WHATSAPP',
+      'GRABFOOD',
+      'GOFOOD',
+      'SHOPEEFOOD',
+    ];
 
     for (final source in sources) {
       testWidgets(

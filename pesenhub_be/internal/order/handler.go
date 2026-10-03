@@ -83,11 +83,6 @@ func (h *Handler) CreateManual(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}
-	scope := branch.ScopeFromContext(r.Context())
-	if p.Role == "ADMIN" && scope.All {
-		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_SCOPE_REQUIRED", "Pilih cabang aktif terlebih dahulu sebelum membuat pesanan.", httpserver.RequestID(r.Context()), nil)
-		return
-	}
 	var in CreateInput
 	d := json.NewDecoder(io.LimitReader(r.Body, (1<<20)+1))
 	d.DisallowUnknownFields()
@@ -99,8 +94,13 @@ func (h *Handler) CreateManual(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, ErrMalformedInput)
 		return
 	}
+	scope := branch.ScopeFromContext(r.Context())
 	if !scope.All && scope.BranchID != "" {
 		in.BranchID = scope.BranchID
+	}
+	if p.Role == "ADMIN" && scope.All && in.BranchID == "" {
+		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_SCOPE_REQUIRED", "Pilih cabang aktif terlebih dahulu sebelum membuat pesanan.", httpserver.RequestID(r.Context()), nil)
+		return
 	}
 	o, created, err := h.service.CreateManual(r.Context(), in, r.Header.Get("Idempotency-Key"), p.Subject, httpserver.RequestID(r.Context()))
 	if err != nil {

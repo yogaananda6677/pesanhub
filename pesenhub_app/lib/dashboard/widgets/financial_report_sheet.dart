@@ -69,7 +69,9 @@ class FinancialReportSheet extends StatelessWidget {
         : (totalRevenue - effectiveQris);
     final effectiveAvg = averageOrderValue > 0
         ? averageOrderValue
-        : (completedOrdersCount > 0 ? (totalRevenue / completedOrdersCount).round() : 0);
+        : (completedOrdersCount > 0
+              ? (totalRevenue / completedOrdersCount).round()
+              : 0);
 
     return Container(
       constraints: BoxConstraints(
@@ -150,7 +152,9 @@ class FinancialReportSheet extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2B1B16).withValues(alpha: 0.15),
+                          color: const Color(
+                            0xFF2B1B16,
+                          ).withValues(alpha: 0.15),
                           blurRadius: 16,
                           offset: const Offset(0, 6),
                         ),
@@ -363,7 +367,10 @@ class FinancialReportSheet extends StatelessWidget {
     );
   }
 
-  static Widget _buildMetricItem({required String label, required String value}) {
+  static Widget _buildMetricItem({
+    required String label,
+    required String value,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

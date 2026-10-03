@@ -249,6 +249,13 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
         setState(() {
           _branches = branches;
         });
+        if (_session?.activeBranchId == null && branches.isNotEmpty) {
+          final defaultBranch = branches.firstWhere(
+            (b) => b['is_default'] == true,
+            orElse: () => branches.first,
+          );
+          await _switchBranch(defaultBranch['id'] as String?);
+        }
       }
     } catch (_) {}
   }
@@ -263,6 +270,12 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
         orElse: () => null,
       );
       branchName = b?['name'] as String?;
+      final recovered = await _outboxRepository?.recoverBranchScopeFailures(
+        branchId,
+      );
+      if (recovered != null && recovered > 0) {
+        unawaited(_sync?.syncPendingMutations());
+      }
     }
     session.setActiveBranch(branchId: branchId, branchName: branchName);
     await _queueRepository?.clearQueueCache();
@@ -366,7 +379,9 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
       branchName: session?.activeBranchName,
       branchId: session?.activeBranchId,
       availableBranches: _branches,
-      onSwitchBranch: session?.canAccessAllBranches == true ? _switchBranch : null,
+      onSwitchBranch: session?.canAccessAllBranches == true
+          ? _switchBranch
+          : null,
       onStatusChanged: (order, targetStatus) async {
         await _coordinator?.transitionOrderStatus(
           order.id,
@@ -394,10 +409,20 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
       throw StateError('Backend runtime is not configured');
     }
 
+    var branchId = _session?.activeBranchId;
+    if (branchId == null && _branches.isNotEmpty) {
+      final defaultBranch = _branches.firstWhere(
+        (b) => b['is_default'] == true,
+        orElse: () => _branches.first,
+      );
+      branchId = defaultBranch['id'] as String?;
+    }
+
     final order = await cart.persistOfflineDraft(
       draft: draft,
       outboxRepo: outboxRepository,
       queueRepo: queueRepository,
+      branchId: branchId,
     );
     queue.upsertOrder(order);
     await sync.refreshState();

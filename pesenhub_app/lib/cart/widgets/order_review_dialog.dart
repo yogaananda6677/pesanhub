@@ -297,70 +297,95 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                             children: [
                               ChoiceChip(
                                 label: const Text('Kasir'),
-                                avatar: const Icon(Icons.point_of_sale_rounded, size: 14),
+                                avatar: const Icon(
+                                  Icons.point_of_sale_rounded,
+                                  size: 14,
+                                ),
                                 selected: draft.source == 'CASHIER_MANUAL',
                                 onSelected: isSubmitting
                                     ? null
                                     : (selected) {
                                         if (selected) {
                                           setState(() {
-                                            widget.controller.setOrderSource('CASHIER_MANUAL');
+                                            widget.controller.setOrderSource(
+                                              'CASHIER_MANUAL',
+                                            );
                                           });
                                         }
                                       },
                               ),
                               ChoiceChip(
                                 label: const Text('WhatsApp'),
-                                avatar: const Icon(Icons.chat_bubble_outline_rounded, size: 14),
+                                avatar: const Icon(
+                                  Icons.chat_bubble_outline_rounded,
+                                  size: 14,
+                                ),
                                 selected: draft.source == 'WHATSAPP',
                                 onSelected: isSubmitting
                                     ? null
                                     : (selected) {
                                         if (selected) {
                                           setState(() {
-                                            widget.controller.setOrderSource('WHATSAPP');
+                                            widget.controller.setOrderSource(
+                                              'WHATSAPP',
+                                            );
                                           });
                                         }
                                       },
                               ),
                               ChoiceChip(
                                 label: const Text('GoFood'),
-                                avatar: const Icon(Icons.delivery_dining_rounded, size: 14),
+                                avatar: const Icon(
+                                  Icons.delivery_dining_rounded,
+                                  size: 14,
+                                ),
                                 selected: draft.source == 'GOFOOD',
                                 onSelected: isSubmitting
                                     ? null
                                     : (selected) {
                                         if (selected) {
                                           setState(() {
-                                            widget.controller.setOrderSource('GOFOOD');
+                                            widget.controller.setOrderSource(
+                                              'GOFOOD',
+                                            );
                                           });
                                         }
                                       },
                               ),
                               ChoiceChip(
                                 label: const Text('GrabFood'),
-                                avatar: const Icon(Icons.delivery_dining_rounded, size: 14),
+                                avatar: const Icon(
+                                  Icons.delivery_dining_rounded,
+                                  size: 14,
+                                ),
                                 selected: draft.source == 'GRABFOOD',
                                 onSelected: isSubmitting
                                     ? null
                                     : (selected) {
                                         if (selected) {
                                           setState(() {
-                                            widget.controller.setOrderSource('GRABFOOD');
+                                            widget.controller.setOrderSource(
+                                              'GRABFOOD',
+                                            );
                                           });
                                         }
                                       },
                               ),
                               ChoiceChip(
                                 label: const Text('ShopeeFood'),
-                                avatar: const Icon(Icons.fastfood_rounded, size: 14),
+                                avatar: const Icon(
+                                  Icons.fastfood_rounded,
+                                  size: 14,
+                                ),
                                 selected: draft.source == 'SHOPEEFOOD',
                                 onSelected: isSubmitting
                                     ? null
                                     : (selected) {
                                         if (selected) {
                                           setState(() {
-                                            widget.controller.setOrderSource('SHOPEEFOOD');
+                                            widget.controller.setOrderSource(
+                                              'SHOPEEFOOD',
+                                            );
                                           });
                                         }
                                       },
@@ -532,7 +557,8 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                             children: [
                               Expanded(
                                 child: OutlinedButton.icon(
-                                  onPressed: () => setState(() => _payNow = true),
+                                  onPressed: () =>
+                                      setState(() => _payNow = true),
                                   icon: Icon(
                                     _payNow
                                         ? Icons.radio_button_checked_rounded
@@ -552,7 +578,9 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                                           ? AppColors.primary
                                           : AppColors.border,
                                     ),
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10),
                                     ),
@@ -562,7 +590,8 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(
                                 child: OutlinedButton.icon(
-                                  onPressed: () => setState(() => _payNow = false),
+                                  onPressed: () =>
+                                      setState(() => _payNow = false),
                                   icon: Icon(
                                     !_payNow
                                         ? Icons.radio_button_checked_rounded
@@ -582,7 +611,9 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                                           ? AppColors.primary
                                           : AppColors.border,
                                     ),
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10),
                                     ),
@@ -600,7 +631,8 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                               children: [
                                 Expanded(
                                   child: OutlinedButton.icon(
-                                    onPressed: () => setState(() => _paymentMethodIndex = 0),
+                                    onPressed: () =>
+                                        setState(() => _paymentMethodIndex = 0),
                                     icon: Icon(
                                       Icons.payments_rounded,
                                       size: 16,
@@ -627,7 +659,9 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                                             ? AppColors.primary
                                             : AppColors.border,
                                       ),
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
@@ -637,7 +671,8 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                                 const SizedBox(width: AppSpacing.sm),
                                 Expanded(
                                   child: OutlinedButton.icon(
-                                    onPressed: () => setState(() => _paymentMethodIndex = 1),
+                                    onPressed: () =>
+                                        setState(() => _paymentMethodIndex = 1),
                                     icon: Icon(
                                       Icons.qr_code_scanner_rounded,
                                       size: 16,
@@ -664,7 +699,9 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                                             ? AppColors.primary
                                             : AppColors.border,
                                       ),
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
@@ -679,7 +716,10 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                                 spacing: 6,
                                 runSpacing: 6,
                                 children: [
-                                  _buildPresetChip('Uang Pas', draft.totalAmount),
+                                  _buildPresetChip(
+                                    'Uang Pas',
+                                    draft.totalAmount,
+                                  ),
                                   _buildPresetChip('Rp 20.000', 20000),
                                   _buildPresetChip('Rp 50.000', 50000),
                                   _buildPresetChip('Rp 100.000', 100000),
@@ -695,8 +735,9 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                                 decoration: InputDecoration(
                                   labelText: 'Uang Tunai Diterima',
                                   prefixText: 'Rp ',
-                                  prefixStyle:
-                                      const TextStyle(fontWeight: FontWeight.bold),
+                                  prefixStyle: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                   filled: true,
                                   fillColor: const Color(0xFFFAFAFA),
                                   border: OutlineInputBorder(
@@ -845,8 +886,8 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                     icon: isSubmitting ? null : Icons.check_circle_rounded,
                     isFullWidth: true,
                     // Criteria #2 & #4: Double-tap locked and disabled during submission
-                    onPressed: (isSubmitting ||
-                            (_payNow && isCash && !isCashValid))
+                    onPressed:
+                        (isSubmitting || (_payNow && isCash && !isCashValid))
                         ? null
                         : () async {
                             widget.controller.setPaymentInfo(

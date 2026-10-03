@@ -79,8 +79,7 @@ class _NotificationSheetState extends State<NotificationSheet> {
           title: activeAlert.kind == 'NEW_ORDER'
               ? 'Pesanan Baru Masuk'
               : 'Status Pesanan Berubah',
-          message:
-              '${activeAlert.orderNumber}: ${activeAlert.message}',
+          message: '${activeAlert.orderNumber}: ${activeAlert.message}',
           time: 'Baru saja',
           icon: Icons.notifications_active_rounded,
           iconColor: const Color(0xFFC62828),
@@ -161,11 +160,14 @@ class _NotificationSheetState extends State<NotificationSheet> {
     final notifications = _generateNotifications();
     final filtered = switch (_selectedFilter) {
       'BELUM DIBACA' => notifications.where((n) => n.isUnread).toList(),
-      'PERINGATAN' => notifications
-          .where((n) =>
-              n.iconColor == AppColors.error ||
-              n.iconColor == const Color(0xFFC62828))
-          .toList(),
+      'PERINGATAN' =>
+        notifications
+            .where(
+              (n) =>
+                  n.iconColor == AppColors.error ||
+                  n.iconColor == const Color(0xFFC62828),
+            )
+            .toList(),
       _ => notifications,
     };
 
@@ -282,7 +284,9 @@ class _NotificationSheetState extends State<NotificationSheet> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryContainer.withValues(alpha: 0.5),
+                            color: AppColors.primaryContainer.withValues(
+                              alpha: 0.5,
+                            ),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(

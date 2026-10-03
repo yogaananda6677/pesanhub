@@ -244,34 +244,39 @@ void main() {
     });
   });
 
-  test('API password exchange is unauthenticated and decodes credential', () async {
-    late http.Request captured;
-    final client = PesenHubApiClient(
-      config: ApiConfig(baseUri: Uri.parse('https://api.example.test/api/v1/')),
-      accessToken: () async => null,
-      client: MockClient((request) async {
-        captured = request;
-        return http.Response(
-          jsonEncode({
-            'access_token': 'signed-session-token',
-            'token_type': 'Bearer',
-            'expires_at': '2030-09-06T16:00:00Z',
-            'user': approvedUser.toJson(),
-          }),
-          200,
-        );
-      }),
-    );
+  test(
+    'API password exchange is unauthenticated and decodes credential',
+    () async {
+      late http.Request captured;
+      final client = PesenHubApiClient(
+        config: ApiConfig(
+          baseUri: Uri.parse('https://api.example.test/api/v1/'),
+        ),
+        accessToken: () async => null,
+        client: MockClient((request) async {
+          captured = request;
+          return http.Response(
+            jsonEncode({
+              'access_token': 'signed-session-token',
+              'token_type': 'Bearer',
+              'expires_at': '2030-09-06T16:00:00Z',
+              'user': approvedUser.toJson(),
+            }),
+            200,
+          );
+        }),
+      );
 
-    final result = await client.loginWithPassword('kasir', 'kasir123');
-    expect(result.accessToken, 'signed-session-token');
-    expect(captured.url.path, '/api/v1/auth/login');
-    expect(captured.headers.containsKey('Authorization'), isFalse);
-    expect(jsonDecode(captured.body), {
-      'username': 'kasir',
-      'password': 'kasir123',
-    });
-  });
+      final result = await client.loginWithPassword('kasir', 'kasir123');
+      expect(result.accessToken, 'signed-session-token');
+      expect(captured.url.path, '/api/v1/auth/login');
+      expect(captured.headers.containsKey('Authorization'), isFalse);
+      expect(jsonDecode(captured.body), {
+        'username': 'kasir',
+        'password': 'kasir123',
+      });
+    },
+  );
 
   test('password sign in persists session and unlocks app', () async {
     final store = MemorySessionStore();
@@ -335,7 +340,9 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('login UI can sign in with username and password', (tester) async {
+  testWidgets('login UI can sign in with username and password', (
+    tester,
+  ) async {
     final controller = SessionController(
       store: MemorySessionStore(),
       gateway: _Gateway(credential()),

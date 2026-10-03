@@ -327,8 +327,11 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
     MenuModifierGroup group,
     String? errorMessage,
   ) {
-    final isQuantityGroup = group.code == 'extra_isian' ||
-        group.options.any((o) => o.priceDeltaAmount > 0 && !group.isSingleSelect);
+    final isQuantityGroup =
+        group.code == 'extra_isian' ||
+        group.options.any(
+          (o) => o.priceDeltaAmount > 0 && !group.isSingleSelect,
+        );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
@@ -553,7 +556,9 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
           width: isSelected ? 1.5 : 1,
         ),
       ),
-      onSelected: isAvailable ? (_) => _state.toggleOption(group, option) : null,
+      onSelected: isAvailable
+          ? (_) => _state.toggleOption(group, option)
+          : null,
     );
   }
 }

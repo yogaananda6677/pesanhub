@@ -52,10 +52,7 @@ class ApiConfig {
 
   Uri websocketUri(String token, {String? branchId}) {
     final httpUri = resolve('ws/orders');
-    final query = <String, String>{
-      ...httpUri.queryParameters,
-      'token': token,
-    };
+    final query = <String, String>{...httpUri.queryParameters, 'token': token};
     if (branchId != null && branchId.isNotEmpty) {
       query['branch_id'] = branchId;
     }

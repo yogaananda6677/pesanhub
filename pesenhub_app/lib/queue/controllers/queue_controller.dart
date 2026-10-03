@@ -208,9 +208,7 @@ class QueueController extends ChangeNotifier {
     final existing = _ordersMap[orderId];
     if (existing == null) return false;
 
-    _ordersMap[orderId] = existing.copyWith(
-      paymentStatus: newPaymentStatus,
-    );
+    _ordersMap[orderId] = existing.copyWith(paymentStatus: newPaymentStatus);
     notifyListeners();
     return true;
   }

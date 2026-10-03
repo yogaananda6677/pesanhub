@@ -94,7 +94,8 @@ class _LoginViewState extends State<LoginView> {
                             color: AppColors.textSecondary,
                           ),
                         ),
-                        if (widget.controller.errorMessage case final error?) ...[
+                        if (widget.controller.errorMessage
+                            case final error?) ...[
                           const SizedBox(height: AppSpacing.md),
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -268,7 +269,9 @@ class _LoginViewState extends State<LoginView> {
                           children: [
                             const Expanded(child: Divider()),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               child: Text(
                                 'atau masuk dengan',
                                 style: AppTypography.bodySmall.copyWith(

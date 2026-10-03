@@ -274,7 +274,10 @@ class _MenuCatalogViewState extends State<MenuCatalogView> {
                 ),
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF5EBE6),
                     borderRadius: BorderRadius.circular(8),

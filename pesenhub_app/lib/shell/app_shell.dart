@@ -46,7 +46,8 @@ class AppShell extends StatefulWidget {
   final String? branchId;
   final List<Map<String, dynamic>>? availableBranches;
   final Future<void> Function(String? branchId)? onSwitchBranch;
-  final FutureOr<void> Function(QueueOrder order, String newStatus)? onStatusChanged;
+  final FutureOr<void> Function(QueueOrder order, String newStatus)?
+  onStatusChanged;
   final Future<void> Function()? onRefreshQueue;
 
   const AppShell({
@@ -425,8 +426,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     final displayName = widget.userName?.trim().isNotEmpty == true
         ? widget.userName!.trim()
         : 'Yoga Ananda';
-    final initial =
-        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'Y';
+    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'Y';
     final hasUnreadAlert = _alerts.activeAlert != null;
 
     return Container(
@@ -660,8 +660,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     );
   }
 
-
-
   void _showBranchSwitcherBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -712,18 +710,30 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                   const SizedBox(height: 16),
                   ListTile(
                     key: const Key('branch-option-all'),
-                    leading: const Icon(Icons.dashboard_customize_outlined, color: AppColors.primary),
+                    leading: const Icon(
+                      Icons.dashboard_customize_outlined,
+                      color: AppColors.primary,
+                    ),
                     title: const Text(
                       'Semua Cabang',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    subtitle: const Text('Tampilkan data gabungan seluruh cabang'),
+                    subtitle: const Text(
+                      'Tampilkan data gabungan seluruh cabang',
+                    ),
                     trailing: currentId == null || currentId.isEmpty
-                        ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                        ? const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.primary,
+                          )
                         : null,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     selected: currentId == null || currentId.isEmpty,
-                    selectedTileColor: AppColors.primaryContainer.withValues(alpha: 0.3),
+                    selectedTileColor: AppColors.primaryContainer.withValues(
+                      alpha: 0.3,
+                    ),
                     onTap: () {
                       Navigator.pop(bottomSheetContext);
                       widget.onSwitchBranch?.call(null);
@@ -738,18 +748,28 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
                     return ListTile(
                       key: Key('branch-option-$id'),
-                      leading: const Icon(Icons.storefront_rounded, color: AppColors.primary),
+                      leading: const Icon(
+                        Icons.storefront_rounded,
+                        color: AppColors.primary,
+                      ),
                       title: Text(
                         name,
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       subtitle: Text('Kode: $code'),
                       trailing: isSelected
-                          ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                          ? const Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.primary,
+                            )
                           : null,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       selected: isSelected,
-                      selectedTileColor: AppColors.primaryContainer.withValues(alpha: 0.3),
+                      selectedTileColor: AppColors.primaryContainer.withValues(
+                        alpha: 0.3,
+                      ),
                       onTap: () {
                         Navigator.pop(bottomSheetContext);
                         widget.onSwitchBranch?.call(id);

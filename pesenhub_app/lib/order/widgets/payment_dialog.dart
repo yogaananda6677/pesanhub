@@ -131,12 +131,15 @@ class _PaymentDialogState extends State<PaymentDialog> {
                             color: Color(0xFF2B1B16),
                           ),
                         ),
-                        if (widget.orderNumber != null || widget.customerName != null) ...[
+                        if (widget.orderNumber != null ||
+                            widget.customerName != null) ...[
                           const SizedBox(height: 2),
                           Text(
                             [
-                              if (widget.orderNumber != null) widget.orderNumber!,
-                              if (widget.customerName != null) widget.customerName!,
+                              if (widget.orderNumber != null)
+                                widget.orderNumber!,
+                              if (widget.customerName != null)
+                                widget.customerName!,
                             ].join(' • '),
                             style: const TextStyle(
                               fontSize: 12,
@@ -150,7 +153,10 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(null),
-                    icon: const Icon(Icons.close_rounded, color: Color(0xFF8C7E77)),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Color(0xFF8C7E77),
+                    ),
                     tooltip: 'Batal',
                   ),
                 ],
@@ -209,7 +215,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
                             boxShadow: isCash
                                 ? [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.06),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.06,
+                                      ),
                                       blurRadius: 4,
                                       offset: const Offset(0, 2),
                                     ),
@@ -254,7 +262,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
                             boxShadow: !isCash
                                 ? [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.06),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.06,
+                                      ),
                                       blurRadius: 4,
                                       offset: const Offset(0, 2),
                                     ),
@@ -469,8 +479,12 @@ class _PaymentDialogState extends State<PaymentDialog> {
                               final result = PaymentResult(
                                 isPaid: true,
                                 paymentMethod: isCash ? 'CASH' : 'QRIS',
-                                receivedAmount: isCash ? _receivedAmount : total,
-                                changeAmount: isCash ? (change > 0 ? change : 0) : 0,
+                                receivedAmount: isCash
+                                    ? _receivedAmount
+                                    : total,
+                                changeAmount: isCash
+                                    ? (change > 0 ? change : 0)
+                                    : 0,
                               );
                               Navigator.of(context).pop(result);
                             },

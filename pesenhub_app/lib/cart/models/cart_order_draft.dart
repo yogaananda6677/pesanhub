@@ -13,6 +13,7 @@ class CartOrderDraft {
   final String paymentStatus;
   final String? paymentMethod;
   final List<CartItem> items;
+  final String? branchId;
 
   const CartOrderDraft({
     required this.idempotencyKey,
@@ -25,6 +26,7 @@ class CartOrderDraft {
     this.paymentStatus = 'UNPAID',
     this.paymentMethod,
     this.items = const [],
+    this.branchId,
   });
 
   int get totalItemCount => items.fold(0, (sum, item) => sum + item.quantity);
@@ -44,6 +46,7 @@ class CartOrderDraft {
     String? paymentStatus,
     String? paymentMethod,
     List<CartItem>? items,
+    String? branchId,
   }) {
     return CartOrderDraft(
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
@@ -56,6 +59,7 @@ class CartOrderDraft {
       paymentStatus: paymentStatus ?? this.paymentStatus,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       items: items ?? this.items,
+      branchId: branchId ?? this.branchId,
     );
   }
 
@@ -68,6 +72,7 @@ class CartOrderDraft {
       'source': source,
       'is_takeaway': isTakeaway,
       'takeaway_notes': takeawayNotes,
+      if (branchId != null && branchId!.isNotEmpty) 'branch_id': branchId,
       'payment_status': paymentStatus,
       'payment_method': paymentMethod,
       'items': items

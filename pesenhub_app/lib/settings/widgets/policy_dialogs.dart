@@ -9,7 +9,11 @@ class PolicyDialogs {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.privacy_tip_outlined, color: AppColors.primary, size: 24),
+            Icon(
+              Icons.privacy_tip_outlined,
+              color: AppColors.primary,
+              size: 24,
+            ),
             SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -34,7 +38,11 @@ class PolicyDialogs {
                 '2. Integrasi WhatsApp Gateway (GOWA) hanya memiliki hak untuk sesi pengiriman pesan keluar (notifikasi & struk). Pesan pribadi atau percakapan lain tidak diakses atau disimpan.\n\n'
                 '3. Data lokal pada perangkat dienkripsi dengan standar SQLite & secure keystore perangkat.\n\n'
                 '4. Mitra gerai memiliki kendali penuh atas data katalog menu dan laporan keuangan usaha.',
-                style: TextStyle(fontSize: 13, height: 1.45, color: Color(0xFF475569)),
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: Color(0xFF475569),
+                ),
               ),
             ],
           ),
@@ -45,7 +53,9 @@ class PolicyDialogs {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('Saya Mengerti'),
           ),
@@ -86,7 +96,11 @@ class PolicyDialogs {
                 '2. Setiap kasir bertanggung jawab atas keakuratan input transaksi tunai maupun non-tunai pada jam operasional kerja masing-masing.\n\n'
                 '3. Fitur offline mode memungkinkan kasir tetap bertransaksi saat koneksi internet terputus. Data akan otomatis disinkronkan saat koneksi kembali stabil.\n\n'
                 '4. Dilarang menyalahgunakan kredensial login atau membagikan akun kasir kepada pihak yang tidak berwenang.',
-                style: TextStyle(fontSize: 13, height: 1.45, color: Color(0xFF475569)),
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: Color(0xFF475569),
+                ),
               ),
             ],
           ),
@@ -97,7 +111,9 @@ class PolicyDialogs {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('Tutup'),
           ),
@@ -113,7 +129,11 @@ class PolicyDialogs {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 24),
+            Icon(
+              Icons.info_outline_rounded,
+              color: AppColors.primary,
+              size: 24,
+            ),
             SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -149,7 +169,11 @@ class PolicyDialogs {
                 '• Pengaturan Kasir POS terstandar Warung Kasir.\n'
                 '• Integrasi WhatsApp Gateway & Cetak Struk Bluetooth.\n'
                 '• Sinkronisasi offline outbox otomatis.',
-                style: TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF475569)),
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: Color(0xFF475569),
+                ),
               ),
             ],
           ),
@@ -160,7 +184,9 @@ class PolicyDialogs {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('Selesai'),
           ),
@@ -192,7 +218,11 @@ class PolicyDialogs {
           children: [
             const Text(
               'Pratinjau Struk Kasir Thermal (58mm):',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF64748B),
+              ),
             ),
             const SizedBox(height: 8),
             Container(
@@ -216,7 +246,11 @@ class PolicyDialogs {
                 '================================\n'
                 '     Terima kasih atas pesanan!    \n'
                 '================================\n',
-                style: TextStyle(fontFamily: 'monospace', fontSize: 10.5, height: 1.3),
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 10.5,
+                  height: 1.3,
+                ),
               ),
             ),
           ],
@@ -231,7 +265,9 @@ class PolicyDialogs {
               Navigator.of(context).pop();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Perintah cetak struk berhasil dikirim ke printer thermal.'),
+                  content: Text(
+                    'Perintah cetak struk berhasil dikirim ke printer thermal.',
+                  ),
                   backgroundColor: AppColors.success,
                 ),
               );

@@ -182,10 +182,7 @@ void main() {
         },
         onFetchPublic: () async {
           publicCalled = true;
-          return const RemoteCatalog(
-            categories: [_category],
-            menus: [_menu],
-          );
+          return const RemoteCatalog(categories: [_category], menus: [_menu]);
         },
       );
 

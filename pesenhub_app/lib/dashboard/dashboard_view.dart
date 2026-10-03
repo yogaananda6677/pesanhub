@@ -275,8 +275,9 @@ class DashboardView extends StatelessWidget {
       return summary.totalRevenue;
     }
     if (queueController != null) {
-      final completed = queueController!.allOrders
-          .where((o) => o.orderStatus == 'COMPLETED' || o.paymentStatus == 'PAID');
+      final completed = queueController!.allOrders.where(
+        (o) => o.orderStatus == 'COMPLETED' || o.paymentStatus == 'PAID',
+      );
       final sum = completed.fold<int>(0, (prev, o) => prev + o.totalAmount);
       if (sum > 0) return sum;
     }
@@ -301,7 +302,9 @@ class DashboardView extends StatelessWidget {
             cashRevenue: summary.cashRevenue,
             averageOrderValue: summary.averageOrderValue > 0
                 ? summary.averageOrderValue
-                : (summary.completedCount > 0 ? (revenue ~/ summary.completedCount) : 0),
+                : (summary.completedCount > 0
+                      ? (revenue ~/ summary.completedCount)
+                      : 0),
           );
         },
         borderRadius: BorderRadius.circular(20),
@@ -355,7 +358,10 @@ class DashboardView extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primaryContainer,
                       borderRadius: BorderRadius.circular(8),
@@ -413,7 +419,10 @@ class DashboardView extends StatelessWidget {
                 runSpacing: 6,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(8),
@@ -421,17 +430,28 @@ class DashboardView extends StatelessWidget {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.qr_code_2_rounded, size: 14, color: Color(0xFF0284C7)),
+                        Icon(
+                          Icons.qr_code_2_rounded,
+                          size: 14,
+                          color: Color(0xFF0284C7),
+                        ),
                         SizedBox(width: 6),
                         Text(
                           'QRIS: 60%',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(8),
@@ -439,11 +459,19 @@ class DashboardView extends StatelessWidget {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.payments_outlined, size: 14, color: Color(0xFF16A34A)),
+                        Icon(
+                          Icons.payments_outlined,
+                          size: 14,
+                          color: Color(0xFF16A34A),
+                        ),
                         SizedBox(width: 6),
                         Text(
                           'Tunai: 40%',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
+                          ),
                         ),
                       ],
                     ),
@@ -533,7 +561,9 @@ class DashboardView extends StatelessWidget {
                     cashRevenue: summary.cashRevenue,
                     averageOrderValue: summary.averageOrderValue > 0
                         ? summary.averageOrderValue
-                        : (summary.completedCount > 0 ? (revenue ~/ summary.completedCount) : 0),
+                        : (summary.completedCount > 0
+                              ? (revenue ~/ summary.completedCount)
+                              : 0),
                   );
                 },
               ),

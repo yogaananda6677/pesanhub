@@ -57,7 +57,8 @@ class PosDestinationView extends StatelessWidget {
 class QueueDestinationView extends StatefulWidget {
   final QueueController? controller;
   final OrderAlertController? alertController;
-  final FutureOr<void> Function(QueueOrder order, String newStatus)? onStatusChanged;
+  final FutureOr<void> Function(QueueOrder order, String newStatus)?
+  onStatusChanged;
   final Future<void> Function()? onRefresh;
 
   const QueueDestinationView({
@@ -285,17 +286,25 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
     final effectiveRole = widget.isAdmin
         ? 'Superadmin'
         : (widget.userRole?.trim().isNotEmpty == true
-            ? widget.userRole!.trim()
-            : 'Kasir Utama');
+              ? widget.userRole!.trim()
+              : 'Kasir Utama');
 
     return SingleChildScrollView(
       key: const PageStorageKey('settings_view_scroll'),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 1. WhatsApp-Style User & Outlet Profile Card
-          _buildWhatsAppProfileHeader(context, effectiveName, effectiveEmail, effectiveRole),
+          _buildWhatsAppProfileHeader(
+            context,
+            effectiveName,
+            effectiveEmail,
+            effectiveRole,
+          ),
           const SizedBox(height: AppSpacing.lg),
 
           // 2. WhatsApp Gateway Management (Retains WhatsAppSettingsCard for tests)
@@ -307,7 +316,12 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
 
           // 3. Profil Gerai & Operasional Detail
           _buildSectionHeader('INFORMASI GERAI & OPERASIONAL'),
-          _buildStoreProfileCard(context, effectiveName, effectiveEmail, effectiveRole),
+          _buildStoreProfileCard(
+            context,
+            effectiveName,
+            effectiveEmail,
+            effectiveRole,
+          ),
           const SizedBox(height: AppSpacing.lg),
 
           // 4. Pengaturan Printer Kasir & Struk
@@ -438,7 +452,10 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE8F5E9),
                         borderRadius: BorderRadius.circular(12),
@@ -469,7 +486,11 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                 const SizedBox(height: 6),
                 const Row(
                   children: [
-                    Icon(Icons.storefront_rounded, size: 14, color: Color(0xFF128C7E)),
+                    Icon(
+                      Icons.storefront_rounded,
+                      size: 14,
+                      color: Color(0xFF128C7E),
+                    ),
                     SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -511,7 +532,8 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
           const Divider(height: 20, color: Color(0xFFF1F5F9)),
           _buildSettingRow(
             label: 'Cabang / Alamat',
-            value: widget.branchAddress != null && widget.branchAddress!.isNotEmpty
+            value:
+                widget.branchAddress != null && widget.branchAddress!.isNotEmpty
                 ? '${widget.branchName ?? "Cabang"} (${widget.branchAddress})'
                 : (widget.branchName ?? 'Semua Cabang'),
           ),
@@ -555,7 +577,10 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Pengaturan Printer Kasir', style: AppTypography.titleMedium),
+                    Text(
+                      'Pengaturan Printer Kasir',
+                      style: AppTypography.titleMedium,
+                    ),
                     Text(
                       'Konfigurasi Bluetooth thermal printer',
                       style: AppTypography.bodySmall,
@@ -570,7 +595,10 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Expanded(
-                child: Text('Ukuran Kertas Struk', style: AppTypography.bodyMedium),
+                child: Text(
+                  'Ukuran Kertas Struk',
+                  style: AppTypography.bodyMedium,
+                ),
               ),
               const SizedBox(width: 8),
               Row(
@@ -586,7 +614,10 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
           const SizedBox(height: AppSpacing.xs),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Cetak Otomatis Struk', style: AppTypography.bodyMedium),
+            title: const Text(
+              'Cetak Otomatis Struk',
+              style: AppTypography.bodyMedium,
+            ),
             subtitle: const Text(
               'Cetak struk langsung setiap kali transaksi kasir berhasil',
               style: AppTypography.bodySmall,
@@ -604,7 +635,9 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
               foregroundColor: AppColors.primary,
               side: const BorderSide(color: AppColors.primary),
               minimumSize: const Size(double.infinity, 44),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
         ],
@@ -659,7 +692,10 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Sinkronisasi & Data Lokal', style: AppTypography.titleMedium),
+                    Text(
+                      'Sinkronisasi & Data Lokal',
+                      style: AppTypography.titleMedium,
+                    ),
                     Text(
                       'Penyimpanan offline & status koneksi cloud',
                       style: AppTypography.bodySmall,
@@ -701,7 +737,9 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Sinkronisasi data selesai. Semua data mutakhir.'),
+                        content: Text(
+                          'Sinkronisasi data selesai. Semua data mutakhir.',
+                        ),
                         backgroundColor: AppColors.success,
                       ),
                     );
@@ -711,7 +749,9 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
                     side: const BorderSide(color: AppColors.border),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
@@ -721,7 +761,9 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Cache gambar & katalog menu berhasil dibersihkan.'),
+                        content: Text(
+                          'Cache gambar & katalog menu berhasil dibersihkan.',
+                        ),
                         backgroundColor: AppColors.primary,
                       ),
                     );
@@ -731,7 +773,9 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
                     side: const BorderSide(color: AppColors.border),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
@@ -776,9 +820,7 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
               child: Text(
                 feedback,
                 style: AppTypography.bodySmall.copyWith(
-                  color: _invitationFailed
-                      ? Colors.red
-                      : Colors.green.shade700,
+                  color: _invitationFailed ? Colors.red : Colors.green.shade700,
                 ),
               ),
             ),
@@ -803,10 +845,7 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Informasi Outlet',
-            style: AppTypography.titleMedium,
-          ),
+          const Text('Informasi Outlet', style: AppTypography.titleMedium),
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
@@ -920,13 +959,21 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
       ),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF1E293B),
+        ),
       ),
       subtitle: Text(
         subtitle,
         style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
       ),
-      trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 20),
+      trailing: const Icon(
+        Icons.chevron_right_rounded,
+        color: Color(0xFF94A3B8),
+        size: 20,
+      ),
       onTap: onTap,
     );
   }
@@ -945,10 +992,7 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
           flex: 4,
           child: Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF64748B),
-            ),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
           ),
         ),
         const SizedBox(width: 12),

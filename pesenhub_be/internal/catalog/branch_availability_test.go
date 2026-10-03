@@ -90,12 +90,12 @@ func TestAuthorizedStaffWithBranchScopeCanToggleAvailability(t *testing.T) {
 
 // MultiBranchRepo simulates branch-isolated availability storage for unit tests
 type multiBranchRepo struct {
-	categories        []Category
-	menu              Menu
-	menuAvailability  map[string]map[string]bool // branchID -> menuID -> is_available
-	menuVersions      map[string]map[string]int64
-	optAvailability   map[string]map[string]bool
-	optVersions       map[string]map[string]int64
+	categories       []Category
+	menu             Menu
+	menuAvailability map[string]map[string]bool // branchID -> menuID -> is_available
+	menuVersions     map[string]map[string]int64
+	optAvailability  map[string]map[string]bool
+	optVersions      map[string]map[string]int64
 }
 
 func newMultiBranchRepo(menu Menu, initialAvailable bool) *multiBranchRepo {

@@ -326,7 +326,9 @@ class CartController extends ChangeNotifier {
     required CartOrderDraft draft,
     required OutboxRepository outboxRepo,
     required QueueLocalRepository queueRepo,
+    String? branchId,
   }) async {
+    final effectiveBranchId = branchId ?? draft.branchId;
     final seq = await queueRepo.getNextDailySequence();
     final now = DateTime.now();
     final dateCompact =
@@ -343,6 +345,7 @@ class CartController extends ChangeNotifier {
       paymentStatus: draft.paymentStatus,
       isTakeaway: draft.isTakeaway,
       takeawayNotes: draft.takeawayNotes,
+      branchId: effectiveBranchId,
       items: draft.items.map((i) {
         return QueueOrderItem(
           name: i.menuItem.name,
@@ -356,7 +359,10 @@ class CartController extends ChangeNotifier {
       version: 1,
     );
 
-    final sanitizedDraft = draft.copyWith(customerPhone: maskedPhone);
+    final sanitizedDraft = draft.copyWith(
+      customerPhone: maskedPhone,
+      branchId: effectiveBranchId,
+    );
     final mutation = OutboxMutation(
       id: 'mut-${draft.clientOrderId}',
       idempotencyKey: draft.idempotencyKey,
@@ -365,6 +371,7 @@ class CartController extends ChangeNotifier {
       payloadJson: jsonEncode(sanitizedDraft.toJson()),
       syncStatus: OutboxSyncStatus.pending,
       createdAt: DateTime.now(),
+      branchId: effectiveBranchId,
     );
     await queueRepo.persistOrderWithMutation(
       order: localOrder,

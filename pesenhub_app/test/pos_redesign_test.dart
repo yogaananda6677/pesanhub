@@ -355,9 +355,7 @@ void main() {
         final modState = ModifierSelectionState(menuItem: nasgor);
         cartController.addItemFromModifierState(nasgor, modState);
 
-        await tester.pumpWidget(
-          buildPosApp(cartController: cartController),
-        );
+        await tester.pumpWidget(buildPosApp(cartController: cartController));
         await tester.pumpAndSettle();
 
         // Open bottom sheet
@@ -377,7 +375,10 @@ void main() {
 
         // Enter notes
         await tester.enterText(
-          find.widgetWithText(TextField, 'Misal: Pisah acar, sambal sedikit, dll...'),
+          find.widgetWithText(
+            TextField,
+            'Misal: Pisah acar, sambal sedikit, dll...',
+          ),
           'Jangan terlalu asin',
         );
         await tester.pumpAndSettle();

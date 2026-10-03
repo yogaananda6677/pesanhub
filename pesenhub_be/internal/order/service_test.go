@@ -119,4 +119,3 @@ func TestCreateManualSource(t *testing.T) {
 		t.Fatalf("expected ErrInvalidInput, got %v", err)
 	}
 }
-
