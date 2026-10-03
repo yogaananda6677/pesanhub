@@ -597,7 +597,8 @@ func (s *Store) ListEmployees(ctx context.Context, search string) ([]EmployeeSum
 		       u.branch_id, COALESCE(b.name, '')
 		FROM app_users u
 		LEFT JOIN branches b ON b.id = u.branch_id
-		WHERE ($1 = '' OR u.email_normalized LIKE CONCAT('%',$1,'%') OR lower(u.display_name) LIKE CONCAT('%',$1,'%'))
+		WHERE u.role != 'SUPERADMIN'
+		  AND ($1 = '' OR u.email_normalized LIKE CONCAT('%',$1,'%') OR lower(u.display_name) LIKE CONCAT('%',$1,'%'))
 		ORDER BY u.created_at ASC
 	`
 	rows, err := s.pool.Query(ctx, query, search)
@@ -638,7 +639,7 @@ func (s *Store) ListEmployees(ctx context.Context, search string) ([]EmployeeSum
 		       i.branch_id, COALESCE(b.name, '')
 		FROM user_invitations i
 		LEFT JOIN branches b ON b.id = i.branch_id
-		WHERE i.status = 'PENDING' AND i.expires_at > now()
+		WHERE i.role != 'SUPERADMIN' AND i.status = 'PENDING' AND i.expires_at > now()
 		  AND ($1 = '' OR i.email_normalized LIKE CONCAT('%',$1,'%'))
 		ORDER BY i.created_at DESC
 	`
@@ -687,6 +688,9 @@ func (s *Store) CreateEmployee(ctx context.Context, actorID, email, displayName,
 	if role == "" {
 		role = "CASHIER"
 	}
+	if role == "SUPERADMIN" {
+		role = "CASHIER"
+	}
 	if branchID == "" {
 		branchID = "b0000000-0000-0000-0000-000000000001"
 	}
@@ -697,6 +701,23 @@ func (s *Store) CreateEmployee(ctx context.Context, actorID, email, displayName,
 	}
 
 	now := s.now().UTC()
+	expiresAt := now.Add(30 * 24 * time.Hour)
+
+	// 1. Upsert into user_invitations so cashier invitation is valid
+	invID, _ := newUUID()
+	_, _ = s.pool.Exec(ctx, `
+		INSERT INTO user_invitations (id, email_normalized, invited_by, outlet_name, branch_id, role, status, expires_at, created_at, updated_at)
+		VALUES ($1, $2, $3, 'Martabak & Terang Bulan Jenggirat', $4, $5, 'PENDING', $6, $7, $7)
+		ON DUPLICATE KEY UPDATE 
+			invited_by = VALUES(invited_by),
+			branch_id = VALUES(branch_id),
+			role = VALUES(role),
+			status = 'PENDING',
+			expires_at = VALUES(expires_at),
+			updated_at = VALUES(updated_at)
+	`, invID, email, actorID, branchID, role, expiresAt, now)
+
+	// 2. Upsert into app_users
 	_, err = s.pool.Exec(ctx, `
 		INSERT INTO app_users (id, email_normalized, display_name, role, branch_id, status, approved_at, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, 'APPROVED', $6, $7, $8)
@@ -711,8 +732,6 @@ func (s *Store) CreateEmployee(ctx context.Context, actorID, email, displayName,
 	if err != nil {
 		return EmployeeSummary{}, err
 	}
-
-	_, _ = s.CreateInvitation(ctx, actorID, email, "Martabak & Terang Bulan Jenggirat", branchID, 30*24*time.Hour)
 
 	emp := EmployeeSummary{
 		ID:          userID,

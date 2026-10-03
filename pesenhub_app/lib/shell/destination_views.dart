@@ -261,10 +261,13 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
     final effectiveEmail = widget.userEmail?.trim().isNotEmpty == true
         ? widget.userEmail!.trim()
         : 'admin@jenggirat.com';
-    final effectiveRole = widget.isAdmin
-        ? 'Superadmin'
-        : (widget.userRole?.trim().isNotEmpty == true
-              ? widget.userRole!.trim()
+    final rawRole = widget.userRole?.trim() ?? '';
+    final effectiveRole = (widget.isAdmin ||
+            rawRole.toUpperCase() == 'SUPERADMIN' ||
+            rawRole.toUpperCase() == 'ADMIN')
+        ? 'Admin'
+        : (rawRole.isNotEmpty
+              ? (rawRole.toUpperCase() == 'MANAGER' ? 'Manajer' : rawRole)
               : 'Kasir');
 
     return SingleChildScrollView(
@@ -453,7 +456,9 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            role.toUpperCase(),
+                            (role.toUpperCase() == 'SUPERADMIN'
+                                ? 'ADMIN'
+                                : role.toUpperCase()),
                             style: const TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w900,
@@ -546,7 +551,7 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
         Expanded(
           child: _buildStatItem(
             icon: Icons.verified_user_rounded,
-            value: role,
+            value: (role.toUpperCase() == 'SUPERADMIN') ? 'Admin' : role,
             label: 'ROLE',
             onTap: () => _openEmployeeManagement(context),
           ),
@@ -635,8 +640,11 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
             iconBg: const Color(0xFFF9EFE7),
             iconColor: const Color(0xFF8D321F),
             title: 'Manajemen Karyawan',
+            badgeText: 'Khusus Admin',
+            badgeBg: const Color(0xFFFFF3E0),
+            badgeColor: const Color(0xFFE65100),
             subtitle:
-                'Kelola data karyawan, hak akses, dan peran dalam sistem.',
+                'Kelola data staf & kasir, hak akses, dan undang kasir baru.',
             onTap: () => _openEmployeeManagement(context),
           ),
           const Divider(height: 1, indent: 64, color: Color(0xFFF4EEEA)),
@@ -824,12 +832,25 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
   }
 
   void _openEmployeeManagement(BuildContext context) {
+    if (!widget.isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Akses terbatas. Hanya Admin yang dapat mengelola dan mengundang kasir.',
+          ),
+          backgroundColor: Color(0xFFD32F2F),
+        ),
+      );
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => EmployeeManagementView(
           apiClient: widget.apiClient,
           availableBranches: widget.availableBranches,
           currentBranchId: widget.branchId,
+          isAdmin: widget.isAdmin,
+          inviteCashier: widget.inviteCashier,
         ),
       ),
     );

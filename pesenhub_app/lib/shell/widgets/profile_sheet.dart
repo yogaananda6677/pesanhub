@@ -52,9 +52,10 @@ class ProfileSheet extends StatelessWidget {
     final initial = effectiveName.isNotEmpty
         ? effectiveName[0].toUpperCase()
         : 'Y';
-    final effectiveRole = role?.trim().isNotEmpty == true
-        ? role!.trim().toUpperCase()
-        : 'SUPERADMIN / KASIR';
+    final roleUpper = role?.trim().toUpperCase() ?? '';
+    final effectiveRole = roleUpper.contains('SUPERADMIN')
+        ? 'ADMIN'
+        : (roleUpper.isNotEmpty ? roleUpper : 'ADMIN / KASIR');
     final effectiveEmail = email?.trim().isNotEmpty == true
         ? email!.trim()
         : 'admin@jenggirat.com';

@@ -28,7 +28,6 @@ class Employee {
   String get roleDisplay {
     switch (role.toUpperCase()) {
       case 'SUPERADMIN':
-        return 'Superadmin';
       case 'ADMIN':
       case 'OWNER':
         return 'Admin Outlet';

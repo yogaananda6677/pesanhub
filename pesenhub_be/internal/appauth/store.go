@@ -17,6 +17,7 @@ var ErrBootstrapConflict = errors.New("bootstrap identity belongs to a non-super
 type IdentityStore interface {
 	UpsertGoogleIdentity(context.Context, GoogleIdentity) (User, error)
 	UserByID(context.Context, string) (User, error)
+	UserByEmail(context.Context, string) (User, error)
 	CreateSession(context.Context, string, string, time.Time) error
 	RevokeSession(context.Context, string, string) error
 	EnsureUser(ctx context.Context, email, displayName, role string) (User, error)
@@ -261,6 +262,11 @@ func (s *Store) upsertGoogleIdentity(ctx context.Context, identity GoogleIdentit
 
 func (s *Store) UserByID(ctx context.Context, id string) (User, error) {
 	return scanUser(s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.id = $1::uuid`, id))
+}
+
+func (s *Store) UserByEmail(ctx context.Context, email string) (User, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	return scanUser(s.pool.QueryRow(ctx, `SELECT u.id::text, u.email_normalized, u.display_name, u.role, u.status, u.approved_at, u.branch_id::text, COALESCE(b.name, '') FROM app_users u LEFT JOIN branches b ON b.id = u.branch_id WHERE u.email_normalized = $1`, email))
 }
 
 func (s *Store) UpdateDisplayName(ctx context.Context, id, displayName string) error {

@@ -9,12 +9,16 @@ class EmployeeManagementView extends StatefulWidget {
   final PesenHubApiClient? apiClient;
   final List<Map<String, dynamic>>? availableBranches;
   final String? currentBranchId;
+  final bool isAdmin;
+  final Future<String> Function(String email)? inviteCashier;
 
   const EmployeeManagementView({
     super.key,
     this.apiClient,
     this.availableBranches,
     this.currentBranchId,
+    this.isAdmin = true,
+    this.inviteCashier,
   });
 
   @override
@@ -33,7 +37,7 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
       id: 'emp-1',
       email: 'yogaanandaxx1212@gmail.com',
       displayName: 'Yoga Ananda Sabila Rizqi',
-      role: 'SUPERADMIN',
+      role: 'ADMIN',
       status: 'APPROVED',
       branchName: 'Semua Cabang',
     ),
@@ -85,8 +89,11 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
 
   Future<void> _loadEmployees() async {
     final client = widget.apiClient;
+    final fallback = _fallbackEmployees
+        .where((e) => e.role.toUpperCase() != 'SUPERADMIN')
+        .toList();
     if (client == null) {
-      setState(() => _employees = List.of(_fallbackEmployees));
+      setState(() => _employees = fallback);
       return;
     }
 
@@ -97,23 +104,29 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
     try {
       final fetched = await client.fetchEmployees();
       if (!mounted) return;
+      final sanitized = fetched
+          .where((e) => e.role.toUpperCase() != 'SUPERADMIN')
+          .toList();
       setState(() {
-        _employees = fetched.isNotEmpty ? fetched : List.of(_fallbackEmployees);
+        _employees = sanitized.isNotEmpty ? sanitized : fallback;
         _isLoading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _employees = List.of(_fallbackEmployees);
+        _employees = fallback;
         _isLoading = false;
       });
     }
   }
 
   List<Employee> get _filteredEmployees {
-    if (_searchQuery.isEmpty) return _employees;
+    final nonSuper = _employees
+        .where((e) => e.role.toUpperCase() != 'SUPERADMIN')
+        .toList();
+    if (_searchQuery.isEmpty) return nonSuper;
     final q = _searchQuery.toLowerCase();
-    return _employees.where((e) {
+    return nonSuper.where((e) {
       return e.displayName.toLowerCase().contains(q) ||
           e.email.toLowerCase().contains(q) ||
           e.roleDisplay.toLowerCase().contains(q);
@@ -327,11 +340,38 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
   }
 
   Widget _buildAddEmployeeButton() {
+    if (!widget.isAdmin) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.lock_outline_rounded, size: 20, color: Color(0xFF64748B)),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Fitur undang kasir hanya dapat diakses oleh Admin Outlet.',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return ElevatedButton.icon(
       onPressed: _showAddEmployeeDialog,
-      icon: const Icon(Icons.add_rounded, size: 20, color: Colors.white),
+      icon: const Icon(Icons.person_add_rounded, size: 20, color: Colors.white),
       label: const Text(
-        'Tambah Karyawan',
+        'Undang Kasir',
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w700,
@@ -448,8 +488,9 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
             ),
           ),
 
-          // 3-dots Action Menu
-          PopupMenuButton<String>(
+          // 3-dots Action Menu (only for Admin)
+          if (widget.isAdmin)
+            PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF94A3B8)),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -749,7 +790,7 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Tambah Karyawan Baru',
+                      'Undang Kasir Baru',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -758,14 +799,14 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Masukkan informasi karyawan untuk didaftarkan ke sistem.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      'Undang kasir untuk outlet Anda. Kasir dapat login via Google atau email dengan sandi default "kasir123".',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: nameCtrl,
                       decoration: const InputDecoration(
-                        labelText: 'Nama Lengkap Karyawan',
+                        labelText: 'Nama Lengkap Kasir',
                         hintText: 'Misal: Budi Santoso',
                         border: OutlineInputBorder(),
                       ),
@@ -775,8 +816,8 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                       controller: emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(
-                        labelText: 'Email Karyawan',
-                        hintText: 'karyawan@gmail.com',
+                        labelText: 'Email Kasir / Akun Google',
+                        hintText: 'kasir@gmail.com',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -790,7 +831,7 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                       items: const [
                         DropdownMenuItem(
                           value: 'CASHIER',
-                          child: Text('Kasir'),
+                          child: Text('Kasir (Default)'),
                         ),
                         DropdownMenuItem(
                           value: 'MANAGER',
@@ -824,6 +865,12 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                           return;
                         }
                         Navigator.of(sheetCtx).pop();
+
+                        if (widget.inviteCashier != null && selectedRole == 'CASHIER') {
+                          try {
+                            await widget.inviteCashier!(email);
+                          } catch (_) {}
+                        }
 
                         final client = widget.apiClient;
                         if (client != null) {
@@ -865,7 +912,7 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                         messenger.showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Karyawan $name berhasil ditambahkan!',
+                              'Undangan berhasil dikirim untuk $name ($email). Kasir dapat segera login!',
                             ),
                             backgroundColor: AppColors.success,
                           ),
@@ -879,7 +926,7 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Simpan & Tambahkan'),
+                      child: const Text('Kirim Undangan Kasir'),
                     ),
                   ],
                 ),

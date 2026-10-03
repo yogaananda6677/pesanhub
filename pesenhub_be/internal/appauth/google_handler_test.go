@@ -38,6 +38,9 @@ func (s *fakeIdentityStore) UpsertGoogleIdentity(_ context.Context, identity Goo
 	return s.user, nil
 }
 func (s *fakeIdentityStore) UserByID(_ context.Context, id string) (User, error) { return s.user, nil }
+func (s *fakeIdentityStore) UserByEmail(_ context.Context, email string) (User, error) {
+	return s.user, nil
+}
 func (s *fakeIdentityStore) UpdateDisplayName(_ context.Context, id, displayName string) error {
 	s.user.DisplayName = displayName
 	return nil

@@ -630,7 +630,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                     displayName: widget.userName,
                     email: widget.userEmail,
                     role: widget.isAdmin
-                        ? 'Superadmin'
+                        ? 'Admin'
                         : (widget.userRole ?? 'Kasir Utama'),
                     branchName: widget.branchName,
                     onSignOut: widget.onSignOut,

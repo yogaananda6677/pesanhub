@@ -86,7 +86,8 @@ void main() {
         // Verify Profile Info
         expect(find.text('Yoga Ananda'), findsOneWidget);
         expect(find.text('yogaanandaxx1212@gmail.com'), findsOneWidget);
-        expect(find.text('SUPERADMIN'), findsOneWidget);
+        expect(find.text('ADMIN'), findsOneWidget);
+        expect(find.text('SUPERADMIN'), findsNothing);
         expect(find.text('Martabak & Terang Bulan Jenggirat'), findsOneWidget);
 
         // Verify 3 Quick Stat Cards
@@ -161,7 +162,8 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Manajemen Karyawan'), findsOneWidget);
-        expect(find.text('Tambah Karyawan'), findsOneWidget);
+        expect(find.text('Undang Kasir'), findsOneWidget);
+        expect(find.text('SUPERADMIN'), findsNothing);
 
         // Check fallback employee list
         expect(find.text('Yoga Ananda Sabila Rizqi'), findsOneWidget);
@@ -173,6 +175,26 @@ void main() {
 
         expect(find.text('Dewi Lestari'), findsOneWidget);
         expect(find.text('Siti Nurhaliza'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'EmployeeManagementView displays lock notice and hides action menu when isAdmin is false',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const EmployeeManagementView(isAdmin: false),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Undang Kasir'), findsNothing);
+        expect(
+          find.text('Fitur undang kasir hanya dapat diakses oleh Admin Outlet.'),
+          findsOneWidget,
+        );
+        expect(find.byType(PopupMenuButton<String>), findsNothing);
       },
     );
 
