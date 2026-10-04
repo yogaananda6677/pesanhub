@@ -279,17 +279,9 @@ void main() {
                   'total_revenue': 85000,
                   'total_orders': 3,
                   'average_order_value': 28333,
-                  'orders_by_status': {
-                    'COMPLETED': 3,
-                    'PENDING': 0,
-                  },
-                  'revenue_by_payment_method': {
-                    'CASH': 50000,
-                    'QRIS': 35000,
-                  },
-                  'orders_by_payment_status': {
-                    'PAID': 3,
-                  },
+                  'orders_by_status': {'COMPLETED': 3, 'PENDING': 0},
+                  'revenue_by_payment_method': {'CASH': 50000, 'QRIS': 35000},
+                  'orders_by_payment_status': {'PAID': 3},
                 },
               }),
               200,

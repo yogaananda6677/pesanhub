@@ -223,8 +223,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       averageOrderValue: sAov > 0
           ? sAov
           : (effectiveCompleted > 0
-              ? (effectiveTotalRev ~/ effectiveCompleted)
-              : 0),
+                ? (effectiveTotalRev ~/ effectiveCompleted)
+                : 0),
       lastUpdatedAt: now,
     );
   }
