@@ -16,41 +16,41 @@ ON DUPLICATE KEY UPDATE name=VALUES(name), sort_order=VALUES(sort_order), is_act
 INSERT INTO menus(id,category_id,sku,name,description,product_type,price_amount,hpp_amount,is_available,version,sort_order)
 SELECT seed.id,c.id,seed.sku,seed.menu_name,seed.description,'MARTABAK_TELUR',seed.price,NULL,true,1,seed.sort_order
 FROM (
-  SELECT '20000000-0000-4000-8000-000000000001' id,'Sosis / Jamur' category_name,'MT-SJ-BIASA' sku,'Biasa' menu_name,'Martabak Telur isian Sosis/Jamur porsi biasa dengan sambal uleg dan acar segar' description,20000 price,10 sort_order
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000002','Sosis / Jamur','MT-SJ-SPESIAL','Spesial','Martabak Telur isian Sosis/Jamur porsi spesial dengan telur ekstra dan acar segar',30000,20
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000003','Sosis / Jamur','MT-SJ-ISTIMEWA','Istimewa','Martabak Telur isian Sosis/Jamur porsi istimewa paling tebal dan mantap',40000,30
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000004','Daging Ayam','MT-AYAM-BIASA','Biasa','Martabak Telur daging ayam cincang gurih porsi biasa',25000,10
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000005','Daging Ayam','MT-AYAM-SPESIAL','Spesial','Martabak Telur daging ayam cincang gurih porsi spesial',35000,20
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000006','Daging Ayam','MT-AYAM-ISTIMEWA','Istimewa','Martabak Telur daging ayam cincang melimpah porsi istimewa',45000,30
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000007','Daging Sapi','MT-SAPI-BIASA','Biasa','Martabak Telur daging sapi olahan rempah pilihan porsi biasa',30000,10
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000008','Daging Sapi','MT-SAPI-SPESIAL','Spesial','Martabak Telur daging sapi olahan rempah pilihan porsi spesial',40000,20
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000009','Daging Sapi','MT-SAPI-ISTIMEWA','Istimewa','Martabak Telur daging sapi olahan rempah pilihan porsi istimewa',50000,30
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000010','Martel Mozarella','MT-MOZA-1','1 Isian + Moza','Sensasi tarik menarik Keju Mozarella lumer dengan 1 pilihan isian daging/sosis',50000,10
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000011','Martel Mozarella','MT-MOZA-MIX2','Mix 2 + Moza','Sensasi tarik menarik Keju Mozarella lumer dengan mix 2 isian gurih',55000,20
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000012','Martel Mozarella','MT-MOZA-MIX3','Mix 3 + Moza','Sensasi tarik menarik Keju Mozarella lumer dengan mix 3 isian lezat',60000,30
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000013','Martel Mozarella','MT-MOZA-MIX4','Mix 4 + Moza','Sensasi tarik menarik Keju Mozarella lumer komplit dengan mix 4 isian',65000,40
+  SELECT '20000000-0000-4000-8000-000000000001' id,'Sosis / Jamur' category_name,'MT-SJ-BIASA' sku,'Martabak Sosis/Jamur Biasa' menu_name,'Martabak Telur isian Sosis/Jamur porsi biasa dengan sambal uleg dan acar segar' description,20000 price,10 sort_order
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000002','Sosis / Jamur','MT-SJ-SPESIAL','Martabak Sosis/Jamur Spesial','Martabak Telur isian Sosis/Jamur porsi spesial dengan telur ekstra dan acar segar',30000,20
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000003','Sosis / Jamur','MT-SJ-ISTIMEWA','Martabak Sosis/Jamur Istimewa','Martabak Telur isian Sosis/Jamur porsi istimewa paling tebal dan mantap',40000,30
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000004','Daging Ayam','MT-AYAM-BIASA','Martabak Daging Ayam Biasa','Martabak Telur daging ayam cincang gurih porsi biasa',25000,10
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000005','Daging Ayam','MT-AYAM-SPESIAL','Martabak Daging Ayam Spesial','Martabak Telur daging ayam cincang gurih porsi spesial',35000,20
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000006','Daging Ayam','MT-AYAM-ISTIMEWA','Martabak Daging Ayam Istimewa','Martabak Telur daging ayam cincang melimpah porsi istimewa',45000,30
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000007','Daging Sapi','MT-SAPI-BIASA','Martabak Daging Sapi Biasa','Martabak Telur daging sapi olahan rempah pilihan porsi biasa',30000,10
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000008','Daging Sapi','MT-SAPI-SPESIAL','Martabak Daging Sapi Spesial','Martabak Telur daging sapi olahan rempah pilihan porsi spesial',40000,20
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000009','Daging Sapi','MT-SAPI-ISTIMEWA','Martabak Daging Sapi Istimewa','Martabak Telur daging sapi olahan rempah pilihan porsi istimewa',50000,30
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000010','Martel Mozarella','MT-MOZA-1','Martabak Mozarella 1 Isian','Sensasi tarik menarik Keju Mozarella lumer dengan 1 pilihan isian daging/sosis',50000,10
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000011','Martel Mozarella','MT-MOZA-MIX2','Martabak Mozarella Mix 2','Sensasi tarik menarik Keju Mozarella lumer dengan mix 2 isian gurih',55000,20
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000012','Martel Mozarella','MT-MOZA-MIX3','Martabak Mozarella Mix 3','Sensasi tarik menarik Keju Mozarella lumer dengan mix 3 isian lezat',60000,30
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000013','Martel Mozarella','MT-MOZA-MIX4','Martabak Mozarella Mix 4','Sensasi tarik menarik Keju Mozarella lumer komplit dengan mix 4 isian',65000,40
 ) seed
 JOIN menu_categories c ON c.name=seed.category_name
 ON DUPLICATE KEY UPDATE
   category_id=VALUES(category_id),sku=VALUES(sku),name=VALUES(name),description=VALUES(description),
-  price_amount=VALUES(price_amount),sort_order=VALUES(sort_order),is_available=true;
+  price_amount=VALUES(price_amount),sort_order=VALUES(sort_order),is_available=true,version=menus.version+1;
 
 -- 3. Terang Bulan Menus
 INSERT INTO menus(id,category_id,sku,name,description,product_type,price_amount,hpp_amount,is_available,version,sort_order)
 SELECT seed.id,c.id,seed.sku,seed.menu_name,seed.description,'TERANG_BULAN',seed.price,NULL,true,1,seed.sort_order
 FROM (
-  SELECT '20000000-0000-4000-8000-000000000014' id,'Terang Bulan Manis' category_name,'TB-1TOPING-BIASA' sku,'1 Toping - Biasa' menu_name,'Manis susu kenyal sampai pagi dengan 1 pilihan toping porsi biasa' description,18000 price,10 sort_order
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000015','Terang Bulan Manis','TB-1TOPING-BESAR','1 Toping - Besar','Manis susu kenyal sampai pagi dengan 1 pilihan toping porsi besar mantap' description,25000,20
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000016','Terang Bulan Manis','TB-2TOPING-BIASA','2 Toping - Biasa','Kombinasi 2 pilihan toping lezat ukuran biasa' description,23000,30
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000017','Terang Bulan Manis','TB-2TOPING-BESAR','2 Toping - Besar','Kombinasi 2 pilihan toping lezat ukuran besar' description,30000,40
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000018','Terang Bulan Manis','TB-3TOPING-BIASA','3 Toping - Biasa','Perpaduan 3 toping melimpah porsi biasa' description,28000,50
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000019','Terang Bulan Manis','TB-3TOPING-BESAR','3 Toping - Besar','Perpaduan 3 toping melimpah porsi besar' description,35000,60
-  UNION ALL SELECT '20000000-0000-4000-8000-000000000020','Terang Bulan Manis','TB-PIZZA-ALLINONE','Cut Pizza All In One','Terang Bulan Pizza potong 8 dengan kombinasi toping aneka rasa serba ada' description,45000,70
+  SELECT '20000000-0000-4000-8000-000000000014' id,'Terang Bulan Manis' category_name,'TB-1TOPING-BIASA' sku,'Terang Bulan 1 Toping - Biasa' menu_name,'Manis susu kenyal sampai pagi dengan 1 pilihan toping porsi biasa' description,18000 price,10 sort_order
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000015','Terang Bulan Manis','TB-1TOPING-BESAR','Terang Bulan 1 Toping - Besar','Manis susu kenyal sampai pagi dengan 1 pilihan toping porsi besar mantap' description,25000,20
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000016','Terang Bulan Manis','TB-2TOPING-BIASA','Terang Bulan 2 Toping - Biasa','Kombinasi 2 pilihan toping lezat ukuran biasa' description,23000,30
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000017','Terang Bulan Manis','TB-2TOPING-BESAR','Terang Bulan 2 Toping - Besar','Kombinasi 2 pilihan toping lezat ukuran besar' description,30000,40
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000018','Terang Bulan Manis','TB-3TOPING-BIASA','Terang Bulan 3 Toping - Biasa','Perpaduan 3 toping melimpah porsi biasa' description,28000,50
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000019','Terang Bulan Manis','TB-3TOPING-BESAR','Terang Bulan 3 Toping - Besar','Perpaduan 3 toping melimpah porsi besar' description,35000,60
+  UNION ALL SELECT '20000000-0000-4000-8000-000000000020','Terang Bulan Manis','TB-PIZZA-ALLINONE','Terang Bulan Cut Pizza All In One','Terang Bulan Pizza potong 8 dengan kombinasi toping aneka rasa serba ada' description,45000,70
 ) seed
 JOIN menu_categories c ON c.name=seed.category_name
 ON DUPLICATE KEY UPDATE
   category_id=VALUES(category_id),sku=VALUES(sku),name=VALUES(name),description=VALUES(description),
-  price_amount=VALUES(price_amount),sort_order=VALUES(sort_order),is_available=true;
+  price_amount=VALUES(price_amount),sort_order=VALUES(sort_order),is_available=true,version=menus.version+1;
 
 -- 4. Channel Prices
 INSERT INTO menu_channel_prices(menu_id,channel,amount)

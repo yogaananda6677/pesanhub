@@ -13,8 +13,8 @@ var (
 	orderStatusPatterns = []*regexp.Regexp{
 		regexp.MustCompile(`(?i)\b(udah|sudah)\s+(jadi|siap|beres|kelar|bisa\s+diambil)(\s+belum|\s+belom|\s+gak|\s+ngga|\?)?`),
 		regexp.MustCompile(`(?i)\b(bisa\s+diambil\s+belum|sudah\s+bisa\s+diambil|udah\s+bisa\s+diambil)\b`),
-		regexp.MustCompile(`(?i)\b(status\s+pesanan|cek\s+pesanan|cek\s+status|gimana\s+pesanan|pantau\s+pesanan|lacak\s+pesanan)\b`),
-		regexp.MustCompile(`(?i)\bpesanan(ku|\s+saya)?\s+(udah|sudah|sampai\s+mana|masih\s+lama)\b`),
+		regexp.MustCompile(`(?i)\b(status\s+pesanan|cek\s+pesanan|cek\s+status|gimana\s+pesanan|pantau\s+pesanan|lacak\s+pesanan|posisi\s+pesanan)\b`),
+		regexp.MustCompile(`(?i)\b(pesanan|makanan|martabak|terang\s*bulan)(ku|\s+saya)?\s+(udah|sudah|sampai\s+mana|di\s*mana|dimana|masih\s+lama)\b`),
 		regexp.MustCompile(`(?i)\b(sampai\s+mana|masih\s+lama\s+(gak|ngga|ya)|kapan\s+selesai|kapan\s+jadi)\b`),
 	}
 
@@ -39,9 +39,11 @@ var (
 	}
 
 	locationPatterns = []*regexp.Regexp{
-		regexp.MustCompile(`(?i)\b(lokasi(nya)?|alamat(nya)?|posisi(nya)?|tempat(nya)?|shareloc|share\s*loc|gmaps|google\s*maps?)\b`),
-		regexp.MustCompile(`(?i)\b(di\s*mana|dimana)\b.*(outlet|toko|kedai|gerai|jenggirat|martabak|tempat(nya)?|jualan|beli)\b`),
-		regexp.MustCompile(`(?i)\b(outlet|toko|kedai|gerai|jenggirat|martabak|tempat(nya)?|jualan|beli)\b.*(di\s*mana|dimana|lokasi(nya)?|alamat(nya)?)\b`),
+		regexp.MustCompile(`(?i)\b(lokasi(nya)?|alamat(nya)?|tempat(nya)?|shareloc|share\s*loc|gmaps|google\s*maps?)\b`),
+		regexp.MustCompile(`(?i)\bposisi(nya)?\s*(di\s*mana|dimana)\b`),
+		regexp.MustCompile(`(?i)\b(di\s*mana|dimana)\b.*(outlet|toko|kedai|gerai|jenggirat|tempat\s+jualan)\b`),
+		regexp.MustCompile(`(?i)\b(outlet|toko|kedai|gerai|jenggirat|tempat\s+jualan)\b.*(di\s*mana|dimana|lokasi|alamat)\b`),
+		regexp.MustCompile(`(?i)\bposisi\s*(outlet|toko|kedai|gerai|jenggirat)\b`),
 		regexp.MustCompile(`(?i)^\s*(lokasi(nya)?|alamat(nya)?|posisi(nya)?|tempat(nya)?|dimana|di\s+mana)(\s+(outlet|toko|kedai|gerai|jenggirat|kak|mas|min|nya|ya))*\s*[\.!?]*\s*$`),
 	}
 
@@ -132,6 +134,9 @@ func DetectRecommendationInquiry(text string) bool {
 func DetectStoreInfoInquiry(text string) (bool, string) {
 	trimmed := strings.TrimSpace(text)
 	if trimmed == "" {
+		return false, ""
+	}
+	if DetectOrderStatusInquiry(trimmed) {
 		return false, ""
 	}
 	for _, p := range hoursPatterns {

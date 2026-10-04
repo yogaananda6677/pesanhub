@@ -93,6 +93,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   late final OrderAlertController _alerts;
   late final bool _ownsConnectivity;
   late final bool _ownsAlerts;
+  Map<String, dynamic>? _serverReportSummary;
 
   @override
   void initState() {
@@ -109,13 +110,45 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         widget.initialDashboardState ??
         DashboardState.success(_calculateSummary());
     widget.queueController?.addListener(_onQueueChanged);
+    _loadReportSummary();
+  }
+
+  @override
+  void didUpdateWidget(AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.branchId != oldWidget.branchId ||
+        widget.apiClient != oldWidget.apiClient) {
+      _loadReportSummary();
+    }
+  }
+
+  Future<void> _loadReportSummary() async {
+    final client = widget.apiClient;
+    if (client == null) return;
+    try {
+      final now = DateTime.now();
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      final report = await client.fetchReportSummary(
+        branchId: widget.branchId,
+        from: startOfDay,
+        to: endOfDay,
+      );
+      if (mounted) {
+        setState(() {
+          _serverReportSummary = report;
+          if (widget.initialDashboardState == null) {
+            _dashboardState = DashboardState.success(_calculateSummary());
+          }
+        });
+      }
+    } catch (_) {
+      // Offline fallback: keep existing metrics
+    }
   }
 
   OperationalSummary _calculateSummary() {
     final queue = widget.queueController;
-    if (queue == null) {
-      return OperationalSummary(lastUpdatedAt: DateTime.now());
-    }
     int pending = 0;
     int preparing = 0;
     int ready = 0;
@@ -123,40 +156,75 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     int completed = 0;
     int totalRev = 0;
     final now = DateTime.now();
-    for (final order in queue.allOrders) {
-      if (order.orderStatus == 'COMPLETED' || order.paymentStatus == 'PAID') {
-        totalRev += order.totalAmount;
-      }
-      switch (order.orderStatus) {
-        case 'PENDING':
-        case 'ACCEPTED':
-          pending++;
-          if (now.difference(order.createdAt).inMinutes > 15) {
-            overdue++;
-          }
-          break;
-        case 'PREPARING':
-          preparing++;
-          if (now.difference(order.createdAt).inMinutes > 20) {
-            overdue++;
-          }
-          break;
-        case 'READY_FOR_PICKUP':
-        case 'READY':
-          ready++;
-          break;
-        case 'COMPLETED':
-          completed++;
-          break;
+
+    if (queue != null) {
+      for (final order in queue.allOrders) {
+        if (order.orderStatus == 'COMPLETED' || order.paymentStatus == 'PAID') {
+          totalRev += order.totalAmount;
+        }
+        switch (order.orderStatus) {
+          case 'PENDING':
+          case 'ACCEPTED':
+            pending++;
+            if (now.difference(order.createdAt).inMinutes > 15) {
+              overdue++;
+            }
+            break;
+          case 'PREPARING':
+            preparing++;
+            if (now.difference(order.createdAt).inMinutes > 20) {
+              overdue++;
+            }
+            break;
+          case 'READY_FOR_PICKUP':
+          case 'READY':
+            ready++;
+            break;
+          case 'COMPLETED':
+            completed++;
+            break;
+        }
       }
     }
+
+    int sRev = 0;
+    int sCompleted = 0;
+    int sQris = 0;
+    int sCash = 0;
+    int sAov = 0;
+
+    if (_serverReportSummary != null) {
+      final s = _serverReportSummary!;
+      sRev = (s['total_revenue'] as num?)?.toInt() ?? 0;
+      final statusMap = s['orders_by_status'];
+      if (statusMap is Map) {
+        sCompleted = (statusMap['COMPLETED'] as num?)?.toInt() ?? 0;
+      }
+      final paymentRevMap = s['revenue_by_payment_method'];
+      if (paymentRevMap is Map) {
+        sQris = (paymentRevMap['QRIS'] as num?)?.toInt() ?? 0;
+        sCash = (paymentRevMap['CASH'] as num?)?.toInt() ?? 0;
+      }
+      sAov = (s['average_order_value'] as num?)?.toInt() ?? 0;
+    }
+
+    final effectiveTotalRev = sRev > totalRev ? sRev : totalRev;
+    final effectiveCompleted = sCompleted > completed ? sCompleted : completed;
+
     return OperationalSummary(
       pendingCount: pending,
       preparingCount: preparing,
       readyCount: ready,
       overdueCount: overdue,
-      completedCount: completed,
-      totalRevenue: totalRev,
+      completedCount: effectiveCompleted,
+      totalRevenue: effectiveTotalRev,
+      qrisRevenue: sQris,
+      cashRevenue: sCash,
+      averageOrderValue: sAov > 0
+          ? sAov
+          : (effectiveCompleted > 0
+              ? (effectiveTotalRev ~/ effectiveCompleted)
+              : 0),
       lastUpdatedAt: now,
     );
   }
@@ -198,6 +266,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 
   void _handleRefreshDashboard() {
+    _loadReportSummary();
     if (widget.onRefreshDashboard != null) {
       widget.onRefreshDashboard!();
     } else {
@@ -259,7 +328,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       QueueDestinationView(
         controller: widget.queueController,
         alertController: _alerts,
-        onStatusChanged: widget.onStatusChanged,
+        onStatusChanged: (order, status) async {
+          await widget.onStatusChanged?.call(order, status);
+          if (status == 'COMPLETED') {
+            unawaited(_loadReportSummary());
+          }
+        },
         onRefresh: widget.onRefreshQueue,
       ),
       SettingsDestinationView(

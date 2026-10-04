@@ -252,8 +252,13 @@ func (r *CatalogResolver) resolveItem(rawItem RawExtractedItem, categories []cat
 				sizeKeyword = "Besar"
 			}
 			targetName := fmt.Sprintf("%d Toping - %s", toppingCount, sizeKeyword)
+			targetWithHyphen := fmt.Sprintf("%d toping - %s", toppingCount, strings.ToLower(sizeKeyword))
+			targetWithoutHyphen := fmt.Sprintf("%d toping %s", toppingCount, strings.ToLower(sizeKeyword))
 			for _, m := range cat.Menus {
-				if strings.EqualFold(m.Name, targetName) {
+				mNorm := strings.ToLower(m.Name)
+				if strings.EqualFold(m.Name, targetName) ||
+					strings.Contains(mNorm, targetWithHyphen) ||
+					strings.Contains(mNorm, targetWithoutHyphen) {
 					menuCopy := m
 					catCopy := cat
 					matchedMenu = &menuCopy

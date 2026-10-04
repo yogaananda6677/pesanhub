@@ -1,5 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:pesenhub_app/data/remote/api_config.dart';
+import 'package:pesenhub_app/data/remote/pesenhub_api_client.dart';
 import 'package:pesenhub_app/navigation/app_destination.dart';
 import 'package:pesenhub_app/menu/controllers/menu_controller.dart' as mc;
 import 'package:pesenhub_app/menu/models/menu_category.dart';
@@ -260,6 +265,56 @@ void main() {
 
         // Development-only showcase data is not exposed in production settings.
         expect(find.text('Buka Katalog Design System'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Server report summary syncs and updates dashboard financial metrics',
+      (tester) async {
+        final mockClient = MockClient((request) async {
+          if (request.url.path.contains('reports/summary')) {
+            return http.Response(
+              jsonEncode({
+                'summary': {
+                  'total_revenue': 85000,
+                  'total_orders': 3,
+                  'average_order_value': 28333,
+                  'orders_by_status': {
+                    'COMPLETED': 3,
+                    'PENDING': 0,
+                  },
+                  'revenue_by_payment_method': {
+                    'CASH': 50000,
+                    'QRIS': 35000,
+                  },
+                  'orders_by_payment_status': {
+                    'PAID': 3,
+                  },
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('Not Found', 404);
+        });
+
+        final apiClient = PesenHubApiClient(
+          config: ApiConfig(baseUri: Uri.parse('http://localhost:8080/api/v1')),
+          accessToken: () async => 'test-token',
+          client: mockClient,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: AppShell(apiClient: apiClient),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Rp 85.000'), findsOneWidget);
+        expect(find.text('(3 transaksi selesai)'), findsOneWidget);
       },
     );
   });

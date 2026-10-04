@@ -389,6 +389,10 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
           order.version,
         );
       },
+      onRefreshDashboard: () {
+        unawaited(_coordinator?.refreshSnapshot());
+        unawaited(_catalogCoordinator?.refresh());
+      },
       onRefreshQueue: () async {
         await _coordinator?.refreshSnapshot();
       },

@@ -62,12 +62,13 @@ const (
 
 // ExtractionRequest carries the input data to extract an order draft candidate.
 type ExtractionRequest struct {
-	InboundMessageID *string `json:"inbound_message_id,omitempty"`
-	MessageText      string  `json:"message_text"`
-	SenderPhone      string  `json:"sender_phone"`
-	CustomerName     string  `json:"customer_name,omitempty"`
-	CorrelationID    string  `json:"correlation_id"`
-	Session          string  `json:"session"`
+	InboundMessageID *string       `json:"inbound_message_id,omitempty"`
+	MessageText      string        `json:"message_text"`
+	SenderPhone      string        `json:"sender_phone"`
+	CustomerName     string        `json:"customer_name,omitempty"`
+	CorrelationID    string        `json:"correlation_id"`
+	Session          string        `json:"session"`
+	PromptContext    PromptContext `json:"prompt_context,omitempty"`
 }
 
 // RawExtractedItem is the JSON structure parsed directly from the LLM output.
@@ -87,6 +88,7 @@ type RawExtractedOrder struct {
 	FulfillmentType string             `json:"fulfillment_type,omitempty"`
 	PaymentMethod   string             `json:"payment_method,omitempty"`
 	Confidence      float64            `json:"confidence"`
+	ReplyText       string             `json:"reply_text,omitempty"`
 }
 
 // SelectedModifier represents a validated modifier option matched against the catalog.
@@ -126,6 +128,7 @@ type DraftCandidate struct {
 	OverallConfidence float64         `json:"overall_confidence"`
 	IsAmbiguous       bool            `json:"is_ambiguous"`
 	AmbiguityReasons  []string        `json:"ambiguity_reasons,omitempty"`
+	ReplyText         string          `json:"reply_text,omitempty"`
 }
 
 // ToolCallAudit records an individual tool invocation during extraction for audit.

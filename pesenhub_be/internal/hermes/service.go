@@ -169,7 +169,11 @@ func (s *Service) ExtractOrder(ctx context.Context, req ExtractionRequest) (*Dra
 	}
 
 	// 2. Prepare Prompts
-	sysPrompt, userPrompt := BuildExtractionPromptWithCustomer(req.MessageText, req.CustomerName)
+	pCtx := req.PromptContext
+	if pCtx.CustomerName == "" {
+		pCtx.CustomerName = req.CustomerName
+	}
+	sysPrompt, userPrompt := BuildExtractionPromptWithFullContext(req.MessageText, pCtx)
 
 	// 3. Invoke LLM
 	llmStart := time.Now()
@@ -302,6 +306,7 @@ func (s *Service) ExtractOrder(ctx context.Context, req ExtractionRequest) (*Dra
 		OverallConfidence: overallScore,
 		IsAmbiguous:       isAmbiguous,
 		AmbiguityReasons:  ambiguityReasons,
+		ReplyText:         strings.TrimSpace(rawOrder.ReplyText),
 	}
 	if strings.TrimSpace(rawOrder.FulfillmentType) != "" {
 		draft.FulfillmentType = strings.TrimSpace(rawOrder.FulfillmentType)
@@ -514,275 +519,7 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 		}, nil
 	}
 
-	// 4a. Order status inquiry (e.g. "udah jadi belum?", "status pesanan saya?", "cek pesanan")
-	if DetectOrderStatusInquiry(req.MessageText) {
-		// If customer has an ongoing draft with items, show current draft status
-		if state.CurrentDraft != nil && len(state.CurrentDraft.Items) > 0 {
-			var sb strings.Builder
-			greeting := "kak"
-			if state.CustomerName != "" {
-				greeting = "kak " + state.CustomerName
-			}
-			sb.WriteString(fmt.Sprintf("Halo %s! Berikut draf pesanan kakak saat ini yang belum dikonfirmasi:\n", greeting))
-			for _, it := range state.CurrentDraft.Items {
-				var modNames []string
-				for _, m := range it.SelectedModifiers {
-					if strings.EqualFold(m.OptionName, "Original") && m.PriceDeltaAmount == 0 {
-						continue
-					}
-					modNames = append(modNames, m.OptionName)
-				}
-				modStr := ""
-				if len(modNames) > 0 {
-					modStr = fmt.Sprintf(" (%s)", strings.Join(modNames, ", "))
-				}
-				sb.WriteString(fmt.Sprintf("- %dx %s%s: Rp %d\n", it.Quantity, it.Name, modStr, it.LineTotalAmount))
-			}
-			sb.WriteString(fmt.Sprintf("\nTotal: Rp %d\n", state.CurrentDraft.SubtotalAmount))
-			sb.WriteString(fmt.Sprintf("Apakah pesanannya mau langsung kami buatkan atau ada tambahan menu lain %s? 😊", greeting))
-			reply := sb.String()
-			state.LastQuestion = reply
-			_ = s.convStore.Save(ctx, state)
-
-			durationMs := int(time.Since(startTime).Milliseconds())
-			run := &AgentRun{
-				ID:               newID(),
-				InboundMessageID: req.InboundMessageID,
-				Session:          session,
-				CustomerPhone:    req.SenderPhone,
-				Model:            s.modelName,
-				PromptVersion:    s.promptVersion,
-				ConfidenceScore:  1.0,
-				IsAmbiguous:      false,
-				AmbiguityReasons: []string{},
-				DurationMs:       durationMs,
-				Status:           StatusSuccess,
-				CorrelationID:    correlationID,
-				CreatedAt:        time.Now().UTC(),
-			}
-			if s.store != nil {
-				_ = s.store.RecordRun(ctx, run)
-			}
-
-			return &TurnResponse{
-				State:            state,
-				Draft:            state.CurrentDraft,
-				ReplyText:        reply,
-				RequiresHandoff:  false,
-				HandledByAgent:   true,
-				AutomationPaused: false,
-				Run:              run,
-			}, nil
-		}
-
-		var activeOrder *order.OrderDetail
-		if state.LastOrderID != nil && *state.LastOrderID != "" && s.orderReader != nil {
-			if ord, err := s.orderReader.GetByID(ctx, *state.LastOrderID); err == nil && ord.ID != "" {
-				activeOrder = &ord
-			}
-		}
-		if activeOrder == nil && s.orderReader != nil {
-			if ord, err := s.orderReader.GetLatestByPhone(ctx, req.SenderPhone); err == nil && ord.ID != "" {
-				activeOrder = &ord
-			}
-		}
-
-		var reply string
-		if activeOrder != nil {
-			reply = formatOrderStatusMessage(*activeOrder, state.CustomerName)
-		} else {
-			reply = formatNoActiveOrderMessage(state.CustomerName)
-		}
-
-		state.LastQuestion = reply
-		_ = s.convStore.Save(ctx, state)
-
-		durationMs := int(time.Since(startTime).Milliseconds())
-		run := &AgentRun{
-			ID:               newID(),
-			InboundMessageID: req.InboundMessageID,
-			Session:          session,
-			CustomerPhone:    req.SenderPhone,
-			Model:            s.modelName,
-			PromptVersion:    s.promptVersion,
-			ConfidenceScore:  1.0,
-			IsAmbiguous:      false,
-			AmbiguityReasons: []string{},
-			DurationMs:       durationMs,
-			Status:           StatusSuccess,
-			CorrelationID:    correlationID,
-			CreatedAt:        time.Now().UTC(),
-		}
-		if s.store != nil {
-			_ = s.store.RecordRun(ctx, run)
-		}
-
-		return &TurnResponse{
-			State:            state,
-			Draft:            state.CurrentDraft,
-			ReplyText:        reply,
-			RequiresHandoff:  false,
-			HandledByAgent:   true,
-			AutomationPaused: false,
-			Run:              run,
-		}, nil
-	}
-
-	// 4b. Category inquiry (e.g. "mau pesen terangbulan", "mau martabak") without specific variant
-	if isCatInquiry, catType := DetectCategoryInquiry(req.MessageText); isCatInquiry {
-		reply := formatCategoryInquiryMessage(catType, state.CustomerName)
-		state.LastQuestion = reply
-		_ = s.convStore.Save(ctx, state)
-
-		durationMs := int(time.Since(startTime).Milliseconds())
-		run := &AgentRun{
-			ID:               newID(),
-			InboundMessageID: req.InboundMessageID,
-			Session:          session,
-			CustomerPhone:    req.SenderPhone,
-			Model:            s.modelName,
-			PromptVersion:    s.promptVersion,
-			ConfidenceScore:  1.0,
-			IsAmbiguous:      false,
-			AmbiguityReasons: []string{},
-			DurationMs:       durationMs,
-			Status:           StatusSuccess,
-			CorrelationID:    correlationID,
-			CreatedAt:        time.Now().UTC(),
-		}
-		if s.store != nil {
-			_ = s.store.RecordRun(ctx, run)
-		}
-
-		return &TurnResponse{
-			State:            state,
-			Draft:            state.CurrentDraft,
-			ReplyText:        reply,
-			RequiresHandoff:  false,
-			HandledByAgent:   true,
-			AutomationPaused: false,
-			Run:              run,
-		}, nil
-	}
-
-	// 4b. Catalog / menu inquiry (e.g. "minta katalognya dong kak", "ada menu apa aja?", "lihat menu")
-	if DetectCatalogInquiry(req.MessageText) {
-		reply := formatCatalogMenuMessage(categories, state.CustomerName)
-		if state.CurrentDraft != nil && len(state.CurrentDraft.Items) > 0 {
-			reply += "\n\n📌 _Catatan: Draf pesanan kakak sebelumnya masih tersimpan. Setelah melihat foto/menu, mau lanjut dibuatkan atau ada yang mau diubah kak?_"
-		}
-		state.LastQuestion = reply
-		_ = s.convStore.Save(ctx, state)
-
-		catalogMedia := getCatalogMediaAttachments()
-
-		durationMs := int(time.Since(startTime).Milliseconds())
-		run := &AgentRun{
-			ID:               newID(),
-			InboundMessageID: req.InboundMessageID,
-			Session:          session,
-			CustomerPhone:    req.SenderPhone,
-			Model:            s.modelName,
-			PromptVersion:    s.promptVersion,
-			ConfidenceScore:  1.0,
-			IsAmbiguous:      false,
-			AmbiguityReasons: []string{},
-			DurationMs:       durationMs,
-			Status:           StatusSuccess,
-			CorrelationID:    correlationID,
-			CreatedAt:        time.Now().UTC(),
-		}
-		if s.store != nil {
-			_ = s.store.RecordRun(ctx, run)
-		}
-
-		return &TurnResponse{
-			State:            state,
-			Draft:            state.CurrentDraft,
-			ReplyText:        reply,
-			RequiresHandoff:  false,
-			HandledByAgent:   true,
-			AutomationPaused: false,
-			Run:              run,
-			MediaAttachments: catalogMedia,
-		}, nil
-	}
-
-	// 4c. Recommendation inquiry (e.g. "rekomendasi apa kak?", "paling enak apa?")
-	if DetectRecommendationInquiry(req.MessageText) {
-		reply := formatRecommendationMessage(state.CustomerName)
-		state.LastQuestion = reply
-		_ = s.convStore.Save(ctx, state)
-
-		durationMs := int(time.Since(startTime).Milliseconds())
-		run := &AgentRun{
-			ID:               newID(),
-			InboundMessageID: req.InboundMessageID,
-			Session:          session,
-			CustomerPhone:    req.SenderPhone,
-			Model:            s.modelName,
-			PromptVersion:    s.promptVersion,
-			ConfidenceScore:  1.0,
-			IsAmbiguous:      false,
-			AmbiguityReasons: []string{},
-			DurationMs:       durationMs,
-			Status:           StatusSuccess,
-			CorrelationID:    correlationID,
-			CreatedAt:        time.Now().UTC(),
-		}
-		if s.store != nil {
-			_ = s.store.RecordRun(ctx, run)
-		}
-
-		return &TurnResponse{
-			State:            state,
-			Draft:            state.CurrentDraft,
-			ReplyText:        reply,
-			RequiresHandoff:  false,
-			HandledByAgent:   true,
-			AutomationPaused: false,
-			Run:              run,
-		}, nil
-	}
-
-	// 4d. Store info inquiry (hours / location)
-	if isInfo, infoType := DetectStoreInfoInquiry(req.MessageText); isInfo {
-		reply := formatStoreInfoMessage(infoType, state.CustomerName)
-		state.LastQuestion = reply
-		_ = s.convStore.Save(ctx, state)
-
-		durationMs := int(time.Since(startTime).Milliseconds())
-		run := &AgentRun{
-			ID:               newID(),
-			InboundMessageID: req.InboundMessageID,
-			Session:          session,
-			CustomerPhone:    req.SenderPhone,
-			Model:            s.modelName,
-			PromptVersion:    s.promptVersion,
-			ConfidenceScore:  1.0,
-			IsAmbiguous:      false,
-			AmbiguityReasons: []string{},
-			DurationMs:       durationMs,
-			Status:           StatusSuccess,
-			CorrelationID:    correlationID,
-			CreatedAt:        time.Now().UTC(),
-		}
-		if s.store != nil {
-			_ = s.store.RecordRun(ctx, run)
-		}
-
-		return &TurnResponse{
-			State:            state,
-			Draft:            state.CurrentDraft,
-			ReplyText:        reply,
-			RequiresHandoff:  false,
-			HandledByAgent:   true,
-			AutomationPaused: false,
-			Run:              run,
-		}, nil
-	}
-
-	// 4e. Receipt / struk inquiry (e.g. "minta struknya dong kak", "kirim struk")
+	// 4a. Receipt / struk inquiry (e.g. "minta struknya dong kak", "kirim struk")
 	if DetectReceiptInquiry(req.MessageText) {
 		var activeOrder *order.OrderDetail
 		if state.LastOrderID != nil && *state.LastOrderID != "" && s.orderReader != nil {
@@ -846,50 +583,8 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 		}, nil
 	}
 
-	// 4f. General greeting inquiry (e.g. "halo", "halo mas", "selamat sore")
-	if DetectGreetingInquiry(req.MessageText) {
-		reply := formatGreetingMessage(state.CustomerName)
-		state.Status = ConversationAwaitingClarification
-		state.PendingAmbiguity = "empty_order_items"
-		state.CurrentDraft = &DraftCandidate{
-			CustomerPhone: req.SenderPhone,
-			CustomerName:  state.CustomerName,
-			Items:         []ExtractedItem{},
-		}
-		state.LastQuestion = reply
-		state.ClarificationAttempts = 0
-		_ = s.convStore.Save(ctx, state)
-
-		durationMs := int(time.Since(startTime).Milliseconds())
-		run := &AgentRun{
-			ID:               newID(),
-			InboundMessageID: req.InboundMessageID,
-			Session:          session,
-			CustomerPhone:    req.SenderPhone,
-			Model:            s.modelName,
-			PromptVersion:    s.promptVersion,
-			ConfidenceScore:  1.0,
-			IsAmbiguous:      false,
-			AmbiguityReasons: []string{},
-			DurationMs:       durationMs,
-			Status:           StatusSuccess,
-			CorrelationID:    correlationID,
-			CreatedAt:        time.Now().UTC(),
-		}
-		if s.store != nil {
-			_ = s.store.RecordRun(ctx, run)
-		}
-
-		return &TurnResponse{
-			State:            state,
-			Draft:            state.CurrentDraft,
-			ReplyText:        reply,
-			RequiresHandoff:  false,
-			HandledByAgent:   true,
-			AutomationPaused: false,
-			Run:              run,
-		}, nil
-	}
+	// Dynamic operational and customer context injection for natural conversational AI
+	pCtx := s.buildPromptContext(ctx, req, state)
 
 	// 5. If currently awaiting clarification:
 	if state.Status == ConversationAwaitingClarification && state.CurrentDraft != nil {
@@ -903,7 +598,30 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 				CustomerName:     state.CustomerName,
 				CorrelationID:    correlationID,
 				Session:          session,
+				PromptContext:    pCtx,
 			})
+			if extractErr == nil && len(newDraft.Items) == 0 {
+				reply := newDraft.ReplyText
+				var mediaAttachments []MediaAttachment
+				if reply == "" {
+					reply, mediaAttachments = s.fallbackConversationalReply(ctx, req, state, categories)
+				} else if DetectCatalogInquiry(req.MessageText) {
+					mediaAttachments = getCatalogMediaAttachments()
+				}
+				state.LastQuestion = reply
+				_ = s.convStore.Save(ctx, state)
+
+				return &TurnResponse{
+					State:            state,
+					Draft:            state.CurrentDraft,
+					ReplyText:        reply,
+					RequiresHandoff:  false,
+					HandledByAgent:   true,
+					AutomationPaused: false,
+					Run:              run,
+					MediaAttachments: mediaAttachments,
+				}, nil
+			}
 			if extractErr == nil && len(newDraft.Items) > 0 {
 				plan := s.clarifier.PlanClarification(newDraft, 0, categories)
 				if plan.RequiresHandoff {
@@ -1010,6 +728,7 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 					CustomerName:     state.CustomerName,
 					CorrelationID:    correlationID,
 					Session:          session,
+					PromptContext:    pCtx,
 				})
 				if extractErr == nil && len(newDraft.Items) > 0 {
 					isReplacing := strings.Contains(msgLower, "ga jadi") || strings.Contains(msgLower, "gak jadi") ||
@@ -1359,6 +1078,7 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 				CustomerName:     state.CustomerName,
 				CorrelationID:    correlationID,
 				Session:          session,
+				PromptContext:    pCtx,
 			})
 			if err != nil || len(newDraft.Items) == 0 {
 				greeting := "kak"
@@ -1441,6 +1161,37 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 			}, nil
 
 		case IntentUnknown:
+			if DetectOrderStatusInquiry(req.MessageText) {
+				reply := formatDraftStatusMessage(state.CurrentDraft, state.CustomerName)
+				state.LastQuestion = reply
+				_ = s.convStore.Save(ctx, state)
+				return &TurnResponse{
+					State:            state,
+					Draft:            state.CurrentDraft,
+					ReplyText:        reply,
+					RequiresHandoff:  false,
+					HandledByAgent:   true,
+					AutomationPaused: false,
+				}, nil
+			}
+			if isInfo, infoType := DetectStoreInfoInquiry(req.MessageText); isInfo {
+				infoReply := formatStoreInfoMessage(infoType, state.CustomerName)
+				greeting := "kak"
+				if state.CustomerName != "" {
+					greeting = "kak " + state.CustomerName
+				}
+				reply := fmt.Sprintf("%s\n\nApakah pesanan yang tadi mau langsung kami buatkan ya %s?", infoReply, greeting)
+				state.LastQuestion = reply
+				_ = s.convStore.Save(ctx, state)
+				return &TurnResponse{
+					State:            state,
+					Draft:            state.CurrentDraft,
+					ReplyText:        reply,
+					RequiresHandoff:  false,
+					HandledByAgent:   true,
+					AutomationPaused: false,
+				}, nil
+			}
 			greeting := "kak"
 			if state.CustomerName != "" {
 				greeting = "kak " + state.CustomerName
@@ -1494,6 +1245,7 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 		CustomerName:     state.CustomerName,
 		CorrelationID:    correlationID,
 		Session:          session,
+		PromptContext:    pCtx,
 	})
 	if err != nil {
 		state.ToolFailureCount++
@@ -1526,6 +1278,42 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 	}
 
 	state.ToolFailureCount = 0
+
+	// Conversational / Question / Greeting (empty items)
+	if len(draft.Items) == 0 {
+		reply := draft.ReplyText
+		var mediaAttachments []MediaAttachment
+
+		if reply == "" {
+			reply, mediaAttachments = s.fallbackConversationalReply(ctx, req, state, categories)
+		} else if DetectCatalogInquiry(req.MessageText) {
+			mediaAttachments = getCatalogMediaAttachments()
+		}
+
+		state.Status = ConversationAwaitingClarification
+		state.PendingAmbiguity = "empty_order_items"
+		if state.CurrentDraft == nil {
+			state.CurrentDraft = &DraftCandidate{
+				CustomerPhone: req.SenderPhone,
+				CustomerName:  state.CustomerName,
+				Items:         []ExtractedItem{},
+			}
+		}
+		state.LastQuestion = reply
+		state.ClarificationAttempts = 0
+		_ = s.convStore.Save(ctx, state)
+
+		return &TurnResponse{
+			State:            state,
+			Draft:            state.CurrentDraft,
+			ReplyText:        reply,
+			RequiresHandoff:  false,
+			HandledByAgent:   true,
+			AutomationPaused: false,
+			Run:              run,
+			MediaAttachments: mediaAttachments,
+		}, nil
+	}
 
 	plan := s.clarifier.PlanClarification(draft, 0, categories)
 	if plan.RequiresHandoff {
@@ -1853,4 +1641,156 @@ func buildReceiptMediaAttachment(ord order.OrderDetail, customerName string) *Me
 		Caption:  fmt.Sprintf("🧾 Struk Resmi Pesanan #%s - Martabak & Terang Bulan Jenggirat Kediri", ord.OrderNumber),
 		Data:     pdfBytes,
 	}
+}
+
+func formatDraftStatusMessage(draft *DraftCandidate, customerName string) string {
+	var sb strings.Builder
+	greeting := "kak"
+	if strings.TrimSpace(customerName) != "" {
+		greeting = "kak " + strings.TrimSpace(customerName)
+	}
+	sb.WriteString(fmt.Sprintf("Halo %s! Berikut draf pesanan kakak saat ini yang belum dikonfirmasi:\n", greeting))
+	for _, it := range draft.Items {
+		var modNames []string
+		for _, m := range it.SelectedModifiers {
+			if strings.EqualFold(m.OptionName, "Original") && m.PriceDeltaAmount == 0 {
+				continue
+			}
+			modNames = append(modNames, m.OptionName)
+		}
+		modStr := ""
+		if len(modNames) > 0 {
+			modStr = fmt.Sprintf(" (%s)", strings.Join(modNames, ", "))
+		}
+		sb.WriteString(fmt.Sprintf("- %dx %s%s: Rp %d\n", it.Quantity, it.Name, modStr, it.LineTotalAmount))
+	}
+	sb.WriteString(fmt.Sprintf("\nTotal: Rp %d\n", draft.SubtotalAmount))
+	sb.WriteString(fmt.Sprintf("Apakah pesanannya mau langsung kami buatkan atau ada tambahan menu lain %s? 😊", greeting))
+	return sb.String()
+}
+
+func (s *Service) buildPromptContext(ctx context.Context, req TurnRequest, state *ConversationState) PromptContext {
+	customerName := state.CustomerName
+	if customerName == "" {
+		customerName = cleanCustomerName(req.CustomerName)
+	}
+
+	var activeOrderStatus string
+	var activeOrderItems string
+	var activeOrder *order.OrderDetail
+	if state.LastOrderID != nil && *state.LastOrderID != "" && s.orderReader != nil {
+		if ord, err := s.orderReader.GetByID(ctx, *state.LastOrderID); err == nil && ord.ID != "" {
+			activeOrder = &ord
+		}
+	}
+	if activeOrder == nil && s.orderReader != nil {
+		if ord, err := s.orderReader.GetLatestByPhone(ctx, req.SenderPhone); err == nil && ord.ID != "" {
+			activeOrder = &ord
+		}
+	}
+
+	if activeOrder != nil {
+		statusLabel := activeOrder.Status
+		switch activeOrder.Status {
+		case "PENDING", "SUBMITTED":
+			statusLabel = "Menunggu Konfirmasi Kasir"
+		case "ACCEPTED", "CONFIRMED":
+			statusLabel = "Dikonfirmasi Kasir"
+		case "PREPARING":
+			statusLabel = "Sedang Dimasak / Disiapkan di Dapur"
+		case "READY", "READY_FOR_PICKUP":
+			statusLabel = "Sudah Matang & Siap Diambil di Kasir"
+		case "COMPLETED":
+			statusLabel = "Selesai / Sudah Diambil"
+		case "CANCELLED":
+			statusLabel = "Dibatalkan"
+		}
+		activeOrderStatus = fmt.Sprintf("Pesanan #%s - Status: %s (%s). Total: Rp %d.", activeOrder.OrderNumber, activeOrder.Status, statusLabel, activeOrder.TotalAmount)
+		if activeOrder.PublicTrackingToken != "" {
+			activeOrderStatus += fmt.Sprintf(" Link tracking: http://localhost:3000/orders/track/%s", activeOrder.PublicTrackingToken)
+		}
+
+		var itemNames []string
+		for _, it := range activeOrder.Items {
+			itemNames = append(itemNames, fmt.Sprintf("%dx %s", it.Quantity, it.Name))
+		}
+		if len(itemNames) > 0 {
+			activeOrderItems = strings.Join(itemNames, ", ")
+		}
+	}
+
+	var currentDraftInfo string
+	if state.CurrentDraft != nil && len(state.CurrentDraft.Items) > 0 {
+		var draftItems []string
+		for _, it := range state.CurrentDraft.Items {
+			var mods []string
+			for _, m := range it.SelectedModifiers {
+				if !strings.EqualFold(m.OptionName, "Original") || m.PriceDeltaAmount > 0 {
+					mods = append(mods, m.OptionName)
+				}
+			}
+			modStr := ""
+			if len(mods) > 0 {
+				modStr = fmt.Sprintf(" (%s)", strings.Join(mods, ", "))
+			}
+			draftItems = append(draftItems, fmt.Sprintf("%dx %s%s (Rp %d)", it.Quantity, it.Name, modStr, it.LineTotalAmount))
+		}
+		currentDraftInfo = fmt.Sprintf("Draf pesanan belum terkonfirmasi: %s. Subtotal: Rp %d.", strings.Join(draftItems, ", "), state.CurrentDraft.SubtotalAmount)
+	}
+
+	outletInfo := "Nama: Martabak & Terang Bulan Jenggirat. Alamat: Jl. Ahmad Yani No. 45 (Kediri / Banyuwangi). Jam Buka: 16:00 - 23:00 WIB setiap hari. Pesanan bisa diambil langsung di outlet (Pickup / Takeaway) atau pesan lewat WhatsApp."
+
+	return PromptContext{
+		CustomerName:      customerName,
+		ActiveOrderStatus: activeOrderStatus,
+		ActiveOrderItems:  activeOrderItems,
+		CurrentDraftInfo:  currentDraftInfo,
+		OutletInfo:        outletInfo,
+	}
+}
+
+func (s *Service) fallbackConversationalReply(ctx context.Context, req TurnRequest, state *ConversationState, categories []catalog.Category) (string, []MediaAttachment) {
+	var activeOrder *order.OrderDetail
+	if state.LastOrderID != nil && *state.LastOrderID != "" && s.orderReader != nil {
+		if ord, err := s.orderReader.GetByID(ctx, *state.LastOrderID); err == nil && ord.ID != "" {
+			activeOrder = &ord
+		}
+	}
+	if activeOrder == nil && s.orderReader != nil {
+		if ord, err := s.orderReader.GetLatestByPhone(ctx, req.SenderPhone); err == nil && ord.ID != "" {
+			activeOrder = &ord
+		}
+	}
+
+	if DetectOrderStatusInquiry(req.MessageText) {
+		if state.CurrentDraft != nil && len(state.CurrentDraft.Items) > 0 {
+			return formatDraftStatusMessage(state.CurrentDraft, state.CustomerName), nil
+		}
+		if activeOrder != nil {
+			return formatOrderStatusMessage(*activeOrder, state.CustomerName), nil
+		}
+		return formatNoActiveOrderMessage(state.CustomerName), nil
+	}
+
+	if isCat, catType := DetectCategoryInquiry(req.MessageText); isCat {
+		return formatCategoryInquiryMessage(catType, state.CustomerName), nil
+	}
+
+	if DetectCatalogInquiry(req.MessageText) {
+		reply := formatCatalogMenuMessage(categories, state.CustomerName)
+		if state.CurrentDraft != nil && len(state.CurrentDraft.Items) > 0 {
+			reply += "\n\n📌 _Catatan: Draf pesanan kakak sebelumnya masih tersimpan. Setelah melihat foto/menu, mau lanjut dibuatkan atau ada yang mau diubah kak?_"
+		}
+		return reply, getCatalogMediaAttachments()
+	}
+
+	if DetectRecommendationInquiry(req.MessageText) {
+		return formatRecommendationMessage(state.CustomerName), nil
+	}
+
+	if isInfo, infoType := DetectStoreInfoInquiry(req.MessageText); isInfo {
+		return formatStoreInfoMessage(infoType, state.CustomerName), nil
+	}
+
+	return formatGreetingMessage(state.CustomerName), nil
 }
