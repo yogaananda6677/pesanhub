@@ -287,3 +287,142 @@ func TestProcessTurn_ReceiptInquiry_WithPDF(t *testing.T) {
 		t.Errorf("expected non-empty receipt PDF data")
 	}
 }
+
+func TestProcessTurn_AIConversationalReplyWithInjectedContext(t *testing.T) {
+	phone := "+6281234567890"
+	reader := &mockOrderReader{
+		latestByPhone: map[string]order.OrderDetail{
+			phone: {
+				ID:                  "ord-99",
+				OrderNumber:         "BWX-099",
+				Status:              "PREPARING",
+				PublicTrackingToken: "track-bwx-099",
+				Items: []order.OrderItemDetail{
+					{Name: "Martabak Daging Sapi Spesial", Quantity: 1},
+				},
+			},
+		},
+	}
+
+	mockClient := &MockLLMClient{
+		Response: &RawExtractedOrder{
+			Items:      []RawExtractedItem{},
+			Confidence: 0.5,
+			ReplyText:  "Halo kak Yoga! Pesanan kakak #BWX-099 (1x Martabak Daging Sapi Spesial) sedang dimasak di dapur ya kak! Pantau terus di https://pesanhub.id/track/track-bwx-099 😊",
+		},
+	}
+
+	svc := NewService(Config{
+		Client:          mockClient,
+		CatalogProvider: &mockCatalogProvider{categories: sampleCatalog()},
+		OrderReader:     reader,
+	})
+
+	resp, err := svc.ProcessTurn(context.Background(), TurnRequest{
+		SenderPhone:  phone,
+		MessageText:  "posisi pesanan saya gimana kak?",
+		CustomerName: "Yoga",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !resp.HandledByAgent {
+		t.Errorf("expected HandledByAgent = true")
+	}
+	// Verify LLM prompt received dynamic injected context
+	if !strings.Contains(mockClient.LastUserPrompt, "Known Customer Name: Yoga") {
+		t.Errorf("expected customer name in injected context, got prompt: %s", mockClient.LastUserPrompt)
+	}
+	if !strings.Contains(mockClient.LastUserPrompt, "BWX-099") {
+		t.Errorf("expected active order number in injected context, got prompt: %s", mockClient.LastUserPrompt)
+	}
+	if !strings.Contains(mockClient.LastUserPrompt, "Outlet Operational Context") {
+		t.Errorf("expected outlet operational context in injected prompt, got: %s", mockClient.LastUserPrompt)
+	}
+
+	// Verify reply text matches the AI natural response
+	if resp.ReplyText != mockClient.Response.ReplyText {
+		t.Errorf("expected reply %q, got %q", mockClient.Response.ReplyText, resp.ReplyText)
+	}
+	// Must NOT contain store location
+	if strings.Contains(resp.ReplyText, "Jl. Ahmad Yani") {
+		t.Errorf("order status question must NOT return store address!")
+	}
+}
+
+func TestProcessTurn_PosisiPesananDoesNotMatchOutletLocation(t *testing.T) {
+	phone := "+6281234567890"
+	reader := &mockOrderReader{
+		latestByPhone: map[string]order.OrderDetail{
+			phone: {
+				ID:                  "ord-1",
+				OrderNumber:         "BWX-001",
+				Status:              "PREPARING",
+				PublicTrackingToken: "track-bwx-001",
+				Items: []order.OrderItemDetail{
+					{Name: "Martabak Daging Sapi", Quantity: 1},
+				},
+			},
+		},
+	}
+
+	// Mock LLM returns empty reply_text so fallback executes
+	mockClient := &MockLLMClient{}
+
+	svc := NewService(Config{
+		Client:          mockClient,
+		CatalogProvider: &mockCatalogProvider{categories: sampleCatalog()},
+		OrderReader:     reader,
+	})
+
+	// Test case reported by user: "posisi pesanan saya gimana"
+	resp, err := svc.ProcessTurn(context.Background(), TurnRequest{
+		SenderPhone:  phone,
+		MessageText:  "posisi pesanan saya gimana",
+		CustomerName: "Yoga",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !resp.HandledByAgent {
+		t.Errorf("expected HandledByAgent = true")
+	}
+	if !strings.Contains(resp.ReplyText, "BWX-001") {
+		t.Errorf("expected order status in reply, got: %s", resp.ReplyText)
+	}
+	// Verify it does NOT mistake "posisi pesanan" as outlet location
+	if strings.Contains(resp.ReplyText, "Jl. Ahmad Yani") || strings.Contains(resp.ReplyText, "Google Maps") {
+		t.Fatalf("order status inquiry was wrongly routed to outlet location! Reply: %s", resp.ReplyText)
+	}
+}
+
+func TestProcessTurn_OutletLocationInquiryReturnsLocation(t *testing.T) {
+	phone := "+6281234567890"
+	mockClient := &MockLLMClient{}
+
+	svc := NewService(Config{
+		Client:          mockClient,
+		CatalogProvider: &mockCatalogProvider{categories: sampleCatalog()},
+	})
+
+	resp, err := svc.ProcessTurn(context.Background(), TurnRequest{
+		SenderPhone:  phone,
+		MessageText:  "posisi outlet di mana kak?",
+		CustomerName: "Yoga",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !resp.HandledByAgent {
+		t.Errorf("expected HandledByAgent = true")
+	}
+	if !strings.Contains(resp.ReplyText, "Jl. Ahmad Yani No. 45") {
+		t.Errorf("expected outlet location in reply, got: %s", resp.ReplyText)
+	}
+	if !strings.Contains(resp.ReplyText, "Google Maps") {
+		t.Errorf("expected maps link in reply, got: %s", resp.ReplyText)
+	}
+}

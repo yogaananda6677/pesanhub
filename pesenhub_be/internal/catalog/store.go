@@ -144,7 +144,7 @@ func (s *Store) SetMenuAvailability(ctx context.Context, branchID, id string, av
 
 	var m Menu
 	err = tx.QueryRow(ctx, `
-		SELECT m.id::text, m.category_id::text, m.sku, m.name, COALESCE(m.description,''), m.product_type, COALESCE(m.image_url,''), m.price_amount, m.hpp_amount, bma.is_available, bma.version, m.sort_order
+		SELECT m.id::text, m.category_id::text, m.sku, m.name, COALESCE(m.description,''), m.product_type, COALESCE(m.image_url,''), m.price_amount, m.hpp_amount, bma.is_available, m.version, m.sort_order
 		FROM menus m
 		JOIN branch_menu_availability bma ON bma.menu_id = m.id AND bma.branch_id = $1
 		WHERE m.id = $2`, branchID, id).Scan(&m.ID, &m.CategoryID, &m.SKU, &m.Name, &m.Description, &m.ProductType, &m.ImageURL, &m.PriceAmount, &m.HPPAmount, &m.Available, &m.Version, &m.SortOrder)
@@ -322,7 +322,7 @@ func (s *Store) list(ctx context.Context, categoryID, branchID string, admin boo
 		return nil, err
 	}
 	for ci := range categories {
-		menuSQL := `SELECT m.id::text,m.category_id::text,m.sku,m.name,COALESCE(m.description,''),m.product_type,COALESCE(m.image_url,''),m.price_amount,m.hpp_amount,COALESCE(bma.is_available, m.is_available),COALESCE(bma.version, m.version),m.sort_order 
+		menuSQL := `SELECT m.id::text,m.category_id::text,m.sku,m.name,COALESCE(m.description,''),m.product_type,COALESCE(m.image_url,''),m.price_amount,m.hpp_amount,COALESCE(bma.is_available, m.is_available),m.version,m.sort_order 
 FROM menus m 
 LEFT JOIN branch_menu_availability bma ON bma.menu_id = m.id AND bma.branch_id = $2 
 WHERE m.category_id=$1`

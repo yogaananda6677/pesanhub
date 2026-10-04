@@ -33,7 +33,7 @@ MENU DOMAIN KNOWLEDGE:
    - Levels / Portions: Biasa (2 telur), Spesial (3 telur), Istimewa (4 telur). For Martel Mozarella: 1 Isian + Moza, Mix 2 + Moza, Mix 3 + Moza, Mix 4 + Moza.
    - Modifiers: Level pedas (Tidak Pedas, Sedang, Pedas), Extra Isian.
 2. TERANG BULAN MANIS (MARTABAK MANIS):
-   - Menu formats: "1 Toping - Biasa", "1 Toping - Besar", "2 Toping - Biasa", "2 Toping - Besar", "3 Toping - Biasa", "3 Toping - Besar", "Cut Pizza All In One".
+   - Menu formats: "Terang Bulan 1 Toping - Biasa", "Terang Bulan 1 Toping - Besar", "Terang Bulan 2 Toping - Biasa", "Terang Bulan 2 Toping - Besar", "Terang Bulan 3 Toping - Biasa", "Terang Bulan 3 Toping - Besar", "Terang Bulan Cut Pizza All In One" (or short form "1 Toping - Biasa", etc.).
    - Modifiers: Toppings (Coklat, Keju, Kacang, Pisang, Oreo, Goldenfill, Selai Strawberry, Selai Blueberry), Base Cake (Original, Pandan, Red Velvet, etc.).
    - NOTE: "Biasa", "Besar", "1 Toping", "2 Toping", "3 Toping" are parts of the menu name, NOT modifiers.
    - If base cake is not specified, default is Original.
@@ -60,9 +60,10 @@ RULES:
   "notes": "string (order level notes or empty)",
   "fulfillment_type": "string (PICKUP, DELIVERY, DINE_IN, or empty if unknown)",
   "payment_method": "string (CASH, QRIS, TRANSFER, or empty if unknown)",
-  "confidence": 0.90
+  "confidence": 0.90,
+  "reply_text": "string (warm, friendly, and natural conversational reply in Indonesian answering the customer's question or acknowledging their order)"
 }
-8. If the message does not contain a specific food/drink order (e.g. general "mau pesen terangbulan", "mau martabak", "ada apa aja") or is conversational/chitchat/greeting/introduction/service inquiry, return "items": [] with confidence <= 0.5.`
+8. If the message does not contain a specific food/drink order (e.g. general greeting, asking active order status, asking store location/hours, menu recommendations, or asking catalog), return "items": [] with confidence <= 0.5, and provide a helpful, natural, and friendly response in "reply_text" using the provided store, order, or customer context.`
 
 	HermesOrderSkill        = "/pesenhub-order"
 	MaxCustomerMessageRunes = 4000
@@ -123,17 +124,52 @@ func WrapUntrustedMessage(message string) string {
 	return fmt.Sprintf("<untrusted_customer_message>\n%s\n</untrusted_customer_message>", strings.TrimSpace(sanitized))
 }
 
+// PromptContext provides dynamic operational and customer context to the LLM.
+type PromptContext struct {
+	CustomerName      string
+	ActiveOrderStatus string
+	ActiveOrderItems  string
+	CurrentDraftInfo  string
+	OutletInfo        string
+}
+
 // BuildExtractionPrompt builds the system prompt and user prompt pair for the LLM.
 func BuildExtractionPrompt(rawMessage string) (systemPrompt string, userPrompt string) {
-	return BuildExtractionPromptWithCustomer(rawMessage, "")
+	return BuildExtractionPromptWithFullContext(rawMessage, PromptContext{})
 }
 
 // BuildExtractionPromptWithCustomer builds prompts including customer context if available.
 func BuildExtractionPromptWithCustomer(rawMessage, customerName string) (systemPrompt string, userPrompt string) {
+	return BuildExtractionPromptWithFullContext(rawMessage, PromptContext{CustomerName: customerName})
+}
+
+// BuildExtractionPromptWithFullContext builds prompts with complete customer, order, and store context.
+func BuildExtractionPromptWithFullContext(rawMessage string, pCtx PromptContext) (systemPrompt string, userPrompt string) {
 	systemPrompt = SystemPromptTemplate
-	userPrompt = fmt.Sprintf("%s\nExtract the order entities from the following customer message:\n\n%s", HermesOrderSkill, WrapUntrustedMessage(rawMessage))
-	if strings.TrimSpace(customerName) != "" {
-		userPrompt = fmt.Sprintf("Known Customer Name: %s\n%s", strings.TrimSpace(customerName), userPrompt)
+
+	var contextLines []string
+	if strings.TrimSpace(pCtx.CustomerName) != "" {
+		contextLines = append(contextLines, fmt.Sprintf("Known Customer Name: %s", strings.TrimSpace(pCtx.CustomerName)))
 	}
+	if strings.TrimSpace(pCtx.ActiveOrderStatus) != "" {
+		itemsDesc := ""
+		if strings.TrimSpace(pCtx.ActiveOrderItems) != "" {
+			itemsDesc = fmt.Sprintf(" (Items: %s)", strings.TrimSpace(pCtx.ActiveOrderItems))
+		}
+		contextLines = append(contextLines, fmt.Sprintf("Customer Active Order Status: %s%s", strings.TrimSpace(pCtx.ActiveOrderStatus), itemsDesc))
+	}
+	if strings.TrimSpace(pCtx.CurrentDraftInfo) != "" {
+		contextLines = append(contextLines, fmt.Sprintf("Customer Unconfirmed Order Draft: %s", strings.TrimSpace(pCtx.CurrentDraftInfo)))
+	}
+	if strings.TrimSpace(pCtx.OutletInfo) != "" {
+		contextLines = append(contextLines, fmt.Sprintf("Outlet Operational Context: %s", strings.TrimSpace(pCtx.OutletInfo)))
+	}
+
+	contextHeader := ""
+	if len(contextLines) > 0 {
+		contextHeader = strings.Join(contextLines, "\n") + "\n\n"
+	}
+
+	userPrompt = fmt.Sprintf("%s%s\nExtract the order entities or provide a friendly natural answer in reply_text for the following customer message:\n\n%s", contextHeader, HermesOrderSkill, WrapUntrustedMessage(rawMessage))
 	return systemPrompt, userPrompt
 }

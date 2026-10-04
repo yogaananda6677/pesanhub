@@ -27,11 +27,18 @@ func TestDetectOrderStatusInquiry(t *testing.T) {
 		"masih lama gak ya",
 		"udah beres belum kak",
 		"bisa diambil belum",
+		"posisi pesanan saya gimana",
+		"martabak saya sudah di mana",
+		"posisi pesanan",
 	}
 
 	for _, text := range positives {
 		if !DetectOrderStatusInquiry(text) {
 			t.Errorf("expected DetectOrderStatusInquiry(%q) = true, got false", text)
+		}
+		// Ensure that order status inquiry is NEVER classified as store info inquiry
+		if ok, infoType := DetectStoreInfoInquiry(text); ok {
+			t.Errorf("expected DetectStoreInfoInquiry(%q) = false, got true (type=%s)", text, infoType)
 		}
 	}
 
