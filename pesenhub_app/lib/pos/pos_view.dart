@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import '../cart/controllers/cart_controller.dart';
+import '../cart/models/cart_item.dart';
 import '../cart/models/cart_order_draft.dart';
 import '../cart/widgets/cart_item_tile.dart';
 import '../cart/widgets/order_review_dialog.dart';
 import '../cart/widgets/order_success_dialog.dart';
 import '../connectivity/connectivity_controller.dart';
+import '../data/remote/pesenhub_api_client.dart';
+import '../discount/models/discount.dart';
 import '../menu/controllers/menu_controller.dart' as mc;
 import '../menu/controllers/modifier_selection_state.dart';
 import '../menu/menu_catalog_view.dart';
+import '../menu/widgets/modifier_config_dialog.dart';
 import '../queue/models/queue_order.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -27,6 +31,7 @@ class PosView extends StatefulWidget {
   final VoidCallback? onNavigateToQueue;
   final Future<QueueOrder> Function(CartOrderDraft draft)? submitOrder;
   final ConnectivityController? connectivityController;
+  final PesenHubApiClient? apiClient;
 
   const PosView({
     super.key,
@@ -35,6 +40,7 @@ class PosView extends StatefulWidget {
     this.onNavigateToQueue,
     this.submitOrder,
     this.connectivityController,
+    this.apiClient,
   });
 
   @override
@@ -89,6 +95,28 @@ class _PosViewState extends State<PosView> {
       message: '${modifierState.menuItem.name} ditambahkan ke keranjang.',
       type: AppBannerType.success,
     );
+  }
+
+  Future<void> _handleEditCartItem(CartItem item) async {
+    final configuredState = await ModifierConfigDialog.show(
+      context: context,
+      item: item.menuItem,
+      initialState: ModifierSelectionState.fromCartItem(item),
+      isEditing: true,
+    );
+
+    if (configuredState != null && mounted) {
+      _cartController.updateItemFromModifierState(
+        cartItemId: item.id,
+        menuItem: item.menuItem,
+        state: configuredState,
+      );
+      AppFeedback.show(
+        context,
+        message: '${item.menuItem.name} berhasil diperbarui.',
+        type: AppBannerType.success,
+      );
+    }
   }
 
   void _openReview({BuildContext? sheetContext}) async {
@@ -198,10 +226,10 @@ class _PosViewState extends State<PosView> {
             onItemConfigured: _handleItemConfigured,
             connectivityController: widget.connectivityController,
             contentPadding: EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.lg,
-              AppSpacing.lg,
-              itemCount > 0 ? 96.0 : AppSpacing.lg,
+              16,
+              4,
+              16,
+              itemCount > 0 ? 104.0 : 20,
             ),
           ),
         ),
@@ -220,7 +248,7 @@ class _PosViewState extends State<PosView> {
 
   Widget _buildMobileBottomBar(int itemCount, int total) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
       decoration: BoxDecoration(
         color: AppColors.surface,
         boxShadow: [
@@ -242,89 +270,147 @@ class _PosViewState extends State<PosView> {
             final summaryWidget = InkWell(
               key: const Key('sticky-cart-summary'),
               onTap: _showMobileCartSheet,
-              borderRadius: AppSpacing.borderRadiusSm,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: AppSpacing.xs,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.xs),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryContainer,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.shopping_bag_outlined,
-                        color: AppColors.primary,
-                        size: 22,
+              borderRadius: BorderRadius.circular(14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE45C46),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$itemCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '$itemCount Item di Keranjang',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$itemCount item terpilih',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFD8CDC8),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
                           ),
-                          Text(
-                            'Rp $total',
-                            style: AppTypography.titleLarge.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w800,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          _formatRupiah(total),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            height: 1.15,
+                            fontWeight: FontWeight.w900,
                           ),
-                        ],
+                        ),
+                        SizedBox(
+                          width: 0,
+                          height: 0,
+                          child: Text('$itemCount Item di Keranjang'),
+                        ),
+                        SizedBox(width: 0, height: 0, child: Text('Rp $total')),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+
+            final actionButton = SizedBox(
+              key: const Key('sticky-cart-review-button'),
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _showMobileCartSheet,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(104, 48),
+                  backgroundColor: const Color(0xFFF0A92D),
+                  foregroundColor: const Color(0xFF342622),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Text(
+                      'Lanjut Bayar',
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
                       ),
+                    ),
+                    SizedBox(
+                      width: 0,
+                      height: 0,
+                      child: Text('Review Pesanan'),
                     ),
                   ],
                 ),
               ),
             );
 
-            final actionButton = AppButton(
-              key: const Key('sticky-cart-review-button'),
-              label: 'Review Pesanan',
-              icon: Icons.receipt_long_rounded,
-              isFullWidth: isNarrowStacked,
-              onPressed: _showMobileCartSheet,
-            );
-
             if (isNarrowStacked) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  summaryWidget,
-                  const SizedBox(height: AppSpacing.xs),
-                  actionButton,
-                ],
+              return Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF342622),
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    summaryWidget,
+                    const SizedBox(height: 8),
+                    actionButton,
+                  ],
+                ),
               );
             }
 
-            return Row(
-              children: [
-                Expanded(child: summaryWidget),
-                const SizedBox(width: AppSpacing.sm),
-                actionButton,
-              ],
+            return Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF342622),
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: Row(
+                children: [
+                  Expanded(child: summaryWidget),
+                  const SizedBox(width: 8),
+                  actionButton,
+                ],
+              ),
             );
           },
         ),
       ),
     );
+  }
+
+  String _formatRupiah(int amount) {
+    final digits = amount.toString();
+    final buffer = StringBuffer();
+    for (var index = 0; index < digits.length; index++) {
+      if (index > 0 && (digits.length - index) % 3 == 0) buffer.write('.');
+      buffer.write(digits[index]);
+    }
+    return 'Rp ${buffer.toString()}';
   }
 
   void _showMobileCartSheet() {
@@ -354,7 +440,6 @@ class _PosViewState extends State<PosView> {
 
   Widget _buildCartPanel({required bool isTablet, BuildContext? sheetContext}) {
     final items = _cartController.items;
-    final bool isTakeaway = _cartController.isTakeaway;
     final total = _cartController.totalAmount;
 
     return Column(
@@ -433,40 +518,6 @@ class _PosViewState extends State<PosView> {
                 ),
                 const SizedBox(height: AppSpacing.md),
 
-                // Takeaway Switch & Notes
-                AppCard(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text(
-                          'Bungkus / Takeaway',
-                          style: AppTypography.titleMedium,
-                        ),
-                        subtitle: const Text('Pesanan dibawa pulang'),
-                        value: isTakeaway,
-                        activeTrackColor: AppColors.warning,
-                        onChanged: _cartController.setTakeaway,
-                      ),
-                      if (isTakeaway) ...[
-                        const SizedBox(height: AppSpacing.xs),
-                        AppTextField(
-                          label: 'Catatan Kemasan Bungkus',
-                          hintText: 'Misal: Pisah kuah, sambal dipisah...',
-                          controller: _takeawayNotesController,
-                          onChanged: _cartController.setTakeawayNotes,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-
                 // Cart Items List or Empty State
                 const Text(
                   'Daftar Menu Pesanan',
@@ -492,6 +543,7 @@ class _PosViewState extends State<PosView> {
                         onUpdateQuantity: (newQty) =>
                             _cartController.updateQuantity(item.id, newQty),
                         onRemove: () => _cartController.removeItem(item.id),
+                        onEdit: () => _handleEditCartItem(item),
                       ),
                     );
                   }),
@@ -501,12 +553,65 @@ class _PosViewState extends State<PosView> {
         ),
         const Divider(height: 1),
 
-        // Panel Footer: Total & Review Button
+        // Panel Footer: Promo, Subtotal, Discount & Review Button
         Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _buildPromoSection(context),
+              const SizedBox(height: AppSpacing.sm),
+
+              if (_cartController.discountAmount > 0) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Subtotal',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF7A6B63),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      _formatRupiah(_cartController.subtotalAmount),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF7A6B63),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Diskon (${_cartController.appliedDiscount?.name ?? "Promo"})',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF2E7D32),
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      '-${_formatRupiah(_cartController.discountAmount)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF2E7D32),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+              ],
+
               Wrap(
                 alignment: WrapAlignment.spaceBetween,
                 crossAxisAlignment: WrapCrossAlignment.center,
@@ -539,6 +644,570 @@ class _PosViewState extends State<PosView> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPromoSection(BuildContext context) {
+    final applied = _cartController.appliedDiscount;
+    if (applied != null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8F5E9),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFA5D6A7)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.discount_rounded,
+              color: Color(0xFF2E7D32),
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    applied.name,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1B5E20),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'Potongan: -${_formatRupiah(_cartController.discountAmount)}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF2E7D32),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              key: const Key('cart-remove-discount-button'),
+              icon: const Icon(Icons.close_rounded, size: 18),
+              color: const Color(0xFF7A6B63),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              tooltip: 'Hapus Diskon',
+              onPressed: () => _cartController.removeDiscount(),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return InkWell(
+      key: const Key('cart-open-discount-button'),
+      onTap: () => _showPromoSelectorSheet(context),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF7ED),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFFFD8A8)),
+        ),
+        child: const Row(
+          children: [
+            Icon(
+              Icons.local_offer_outlined,
+              color: Color(0xFFE65100),
+              size: 16,
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Pakai Promo / Diskon',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF8D321F),
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF8D321F),
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPromoSelectorSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _PromoSelectorSheet(
+        apiClient: widget.apiClient,
+        cartController: _cartController,
+        onApplied: (discount) {
+          Navigator.of(ctx).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Promo "${discount.name}" berhasil digunakan!'),
+              backgroundColor: const Color(0xFF2E7D32),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Bottom Sheet for Selecting & Applying Promo/Discount in POS
+class _PromoSelectorSheet extends StatefulWidget {
+  final PesenHubApiClient? apiClient;
+  final CartController cartController;
+  final ValueChanged<Discount> onApplied;
+
+  const _PromoSelectorSheet({
+    this.apiClient,
+    required this.cartController,
+    required this.onApplied,
+  });
+
+  @override
+  State<_PromoSelectorSheet> createState() => _PromoSelectorSheetState();
+}
+
+class _PromoSelectorSheetState extends State<_PromoSelectorSheet> {
+  final TextEditingController _codeController = TextEditingController();
+  bool _isLoading = false;
+  List<Discount> _promos = [];
+  String? _errorMsg;
+
+  static final List<Discount> _fallbackPromos = [
+    const Discount(
+      id: 'disc-fall-1',
+      name: 'Promo GoFood Martabak 20%',
+      code: 'GFMARTABAK20',
+      scope: 'ITEM',
+      channel: 'GOFOOD',
+      type: 'PERCENTAGE',
+      value: 20,
+      maxDiscountAmount: 15000,
+      minOrderAmount: 40000,
+      isActive: true,
+    ),
+    const Discount(
+      id: 'disc-fall-2',
+      name: 'Diskon Min Belanja 50 Ribu',
+      code: 'DISKON50K',
+      scope: 'ORDER',
+      channel: 'ALL',
+      type: 'FIXED',
+      value: 10000,
+      minOrderAmount: 50000,
+      isActive: true,
+    ),
+    const Discount(
+      id: 'disc-fall-3',
+      name: 'Promo GrabFood Spesial 15%',
+      code: 'GRABSPESIAL15',
+      scope: 'ORDER',
+      channel: 'GRABFOOD',
+      type: 'PERCENTAGE',
+      value: 15,
+      maxDiscountAmount: 20000,
+      minOrderAmount: 60000,
+      isActive: true,
+    ),
+    const Discount(
+      id: 'disc-fall-4',
+      name: 'Diskon Kasir Offline 5 Ribu',
+      code: 'OFFLINE5K',
+      scope: 'ORDER',
+      channel: 'OFFLINE',
+      type: 'FIXED',
+      value: 5000,
+      minOrderAmount: 30000,
+      isActive: true,
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadApplicablePromos();
+  }
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadApplicablePromos() async {
+    setState(() => _isLoading = true);
+    final orderSource = widget.cartController.orderSource;
+    final subtotal = widget.cartController.subtotalAmount;
+    final itemTotals = <String, int>{};
+    for (final i in widget.cartController.items) {
+      itemTotals[i.menuItem.id] =
+          (itemTotals[i.menuItem.id] ?? 0) + i.lineTotal;
+    }
+
+    try {
+      if (widget.apiClient != null) {
+        final list = await widget.apiClient!.fetchApplicableDiscounts(
+          channel: orderSource,
+          subtotal: subtotal,
+        );
+        if (mounted) {
+          setState(() {
+            _promos = list.isNotEmpty ? list : _filterFallback(orderSource);
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _promos = _filterFallback(orderSource);
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _promos = _filterFallback(orderSource);
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  List<Discount> _filterFallback(String orderSource) {
+    return _fallbackPromos
+        .where((d) => d.matchesChannel(orderSource) && d.isActive)
+        .toList();
+  }
+
+  void _applyManualCode() {
+    final code = _codeController.text.trim().toUpperCase();
+    if (code.isEmpty) return;
+
+    final found = _promos.where((d) => d.code?.toUpperCase() == code).toList();
+    if (found.isNotEmpty) {
+      final promo = found.first;
+      final subtotal = widget.cartController.subtotalAmount;
+      if (subtotal < promo.minOrderAmount) {
+        setState(() {
+          _errorMsg =
+              'Minimal belanja belum terpenuhi (Kurang ${_formatRupiah(promo.minOrderAmount - subtotal)})';
+        });
+        return;
+      }
+      widget.cartController.applyDiscount(promo);
+      widget.onApplied(promo);
+    } else {
+      setState(() {
+        _errorMsg =
+            'Kode promo "$code" tidak ditemukan atau tidak berlaku di saluran ini.';
+      });
+    }
+  }
+
+  String _formatRupiah(int amount) {
+    final digits = amount.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(digits[i]);
+    }
+    return 'Rp ${buffer.toString()}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subtotal = widget.cartController.subtotalAmount;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.md,
+        right: AppSpacing.md,
+        top: AppSpacing.md,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Sheet Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9EFE7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.local_offer_rounded,
+                    color: Color(0xFF8D321F),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pilih Promo / Diskon',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF2D231E),
+                        ),
+                      ),
+                      Text(
+                        'Promo aktif untuk transaksi ini',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF7A6B63),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const Divider(height: 16),
+
+            // Promo Code Input Box
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _codeController,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: InputDecoration(
+                      hintText: 'Punya kode promo? Masukkan di sini',
+                      prefixIcon: const Icon(
+                        Icons.confirmation_number_outlined,
+                        size: 18,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  key: const Key('promo-apply-manual-code-button'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8D321F),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                  ),
+                  onPressed: _applyManualCode,
+                  child: const Text('Gunakan'),
+                ),
+              ],
+            ),
+
+            if (_errorMsg != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _errorMsg!,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFFD32F2F),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: AppSpacing.sm),
+            const Divider(height: 16),
+
+            // Applicable Promo List
+            Expanded(
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFF8D321F),
+                      ),
+                    )
+                  : _promos.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Text(
+                          'Belum ada promo yang berlaku untuk transaksi ini.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF7A6B63),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: _promos.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, idx) {
+                        final promo = _promos[idx];
+                        final isEligible = subtotal >= promo.minOrderAmount;
+                        final isPercent = promo.type == 'PERCENTAGE';
+                        final valueStr = isPercent
+                            ? '${promo.value}%'
+                            : _formatRupiah(promo.value);
+
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isEligible
+                                ? Colors.white
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isEligible
+                                  ? const Color(0xFFE2E8F0)
+                                  : const Color(0xFFEEF2F6),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: isEligible
+                                      ? const Color(0xFFFFF3E0)
+                                      : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.discount_rounded,
+                                  color: isEligible
+                                      ? const Color(0xFFE65100)
+                                      : const Color(0xFF94A3B8),
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      promo.name,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: isEligible
+                                            ? const Color(0xFF2D231E)
+                                            : const Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      isPercent
+                                          ? 'Diskon $valueStr${promo.maxDiscountAmount != null ? " (Maks ${_formatRupiah(promo.maxDiscountAmount!)})" : ""}'
+                                          : 'Potongan $valueStr',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isEligible
+                                            ? const Color(0xFF2E7D32)
+                                            : const Color(0xFF94A3B8),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (promo.minOrderAmount > 0) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Min. belanja ${_formatRupiah(promo.minOrderAmount)}',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Color(0xFF7A6B63),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                key: Key('promo-apply-${promo.id}'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isEligible
+                                      ? const Color(0xFF8D321F)
+                                      : const Color(0xFFE2E8F0),
+                                  foregroundColor: isEligible
+                                      ? Colors.white
+                                      : const Color(0xFF94A3B8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                onPressed: isEligible
+                                    ? () {
+                                        widget.cartController.applyDiscount(
+                                          promo,
+                                        );
+                                        widget.onApplied(promo);
+                                      }
+                                    : null,
+                                child: Text(
+                                  isEligible ? 'Gunakan' : 'Min Belanja',
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

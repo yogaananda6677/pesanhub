@@ -7,23 +7,40 @@ class CartOrderDraft {
   final String clientOrderId;
   final String customerName;
   final String? customerPhone;
+  final String source; // CASHIER_MANUAL, WHATSAPP, GRABFOOD, GOFOOD, SHOPEEFOOD
   final bool isTakeaway;
   final String? takeawayNotes;
+  final String paymentStatus;
+  final String? paymentMethod;
   final List<CartItem> items;
+  final String? branchId;
+  final String? discountId;
+  final int discountAmount;
+  final String? discountName;
 
   const CartOrderDraft({
     required this.idempotencyKey,
     required this.clientOrderId,
     required this.customerName,
     this.customerPhone,
+    this.source = 'CASHIER_MANUAL',
     this.isTakeaway = false,
     this.takeawayNotes,
+    this.paymentStatus = 'UNPAID',
+    this.paymentMethod,
     this.items = const [],
+    this.branchId,
+    this.discountId,
+    this.discountAmount = 0,
+    this.discountName,
   });
 
   int get totalItemCount => items.fold(0, (sum, item) => sum + item.quantity);
   int get subtotalAmount => items.fold(0, (sum, item) => sum + item.lineTotal);
-  int get totalAmount => subtotalAmount;
+  int get totalAmount {
+    final res = subtotalAmount - discountAmount;
+    return res < 0 ? 0 : res;
+  }
 
   bool get isValid => customerName.trim().isNotEmpty && items.isNotEmpty;
 
@@ -32,18 +49,32 @@ class CartOrderDraft {
     String? clientOrderId,
     String? customerName,
     String? customerPhone,
+    String? source,
     bool? isTakeaway,
     String? takeawayNotes,
+    String? paymentStatus,
+    String? paymentMethod,
     List<CartItem>? items,
+    String? branchId,
+    String? discountId,
+    int? discountAmount,
+    String? discountName,
   }) {
     return CartOrderDraft(
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       clientOrderId: clientOrderId ?? this.clientOrderId,
       customerName: customerName ?? this.customerName,
       customerPhone: customerPhone ?? this.customerPhone,
+      source: source ?? this.source,
       isTakeaway: isTakeaway ?? this.isTakeaway,
       takeawayNotes: takeawayNotes ?? this.takeawayNotes,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       items: items ?? this.items,
+      branchId: branchId ?? this.branchId,
+      discountId: discountId ?? this.discountId,
+      discountAmount: discountAmount ?? this.discountAmount,
+      discountName: discountName ?? this.discountName,
     );
   }
 
@@ -53,8 +84,19 @@ class CartOrderDraft {
       'client_order_id': clientOrderId,
       'customer_name': customerName,
       'customer_phone': customerPhone,
+      'source': source,
       'is_takeaway': isTakeaway,
       'takeaway_notes': takeawayNotes,
+      if (branchId != null && branchId!.isNotEmpty) 'branch_id': branchId,
+      if (discountId != null && discountId!.isNotEmpty)
+        'discount_id': discountId,
+      if (discountAmount > 0) 'discount_amount': discountAmount,
+      if (discountName != null && discountName!.isNotEmpty)
+        'discount_name': discountName,
+      'subtotal_amount': subtotalAmount,
+      'total_amount': totalAmount,
+      'payment_status': paymentStatus,
+      'payment_method': paymentMethod,
       'items': items
           .map(
             (i) => {

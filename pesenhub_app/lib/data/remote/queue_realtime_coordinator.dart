@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import '../../connectivity/connectivity_controller.dart';
 import '../../queue/controllers/queue_controller.dart';
 import '../../queue/models/queue_order.dart';
+import '../local/models/outbox_mutation.dart';
+import '../local/outbox_repository.dart';
 import '../local/queue_local_repository.dart';
 import 'api_config.dart';
 import 'api_failure.dart';
@@ -63,11 +65,13 @@ class QueueRealtimeState {
 class QueueRealtimeCoordinator extends ChangeNotifier {
   final ApiConfig config;
   final Future<String?> Function() accessToken;
+  final Future<String?> Function()? activeBranchId;
   final QueueRemoteGateway gateway;
   final QueueLocalRepository localQueue;
   final QueueController queueController;
   final RealtimeConnectionFactory connectionFactory;
   final Future<bool> Function()? flushOutbox;
+  final OutboxRepository? outboxRepo;
   final Duration baseReconnectDelay;
   final Duration maxReconnectDelay;
   final ConnectivityController? connectivity;
@@ -89,11 +93,13 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
   QueueRealtimeCoordinator({
     required this.config,
     required this.accessToken,
+    this.activeBranchId,
     required this.gateway,
     required this.localQueue,
     required this.queueController,
     this.connectionFactory = const WebSocketRealtimeConnectionFactory(),
     this.flushOutbox,
+    this.outboxRepo,
     this.baseReconnectDelay = const Duration(seconds: 1),
     this.maxReconnectDelay = const Duration(seconds: 30),
     this.connectivity,
@@ -113,6 +119,144 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
       );
     }
     await _recoverAndConnect();
+  }
+
+  /// Triggers a manual or user-initiated queue snapshot refresh from backend.
+  Future<void> refreshSnapshot() async {
+    if (_canRecover) {
+      await _recoverSnapshot();
+    }
+  }
+
+  /// Transitions the status of an order with optimistic local update,
+  /// server-wins verification, rollback protection on rejection, and outbox persistence.
+  Future<QueueOrder> transitionOrderStatus(
+    String orderId,
+    String targetStatus,
+    int expectedVersion, {
+    String? reasonCode,
+  }) async {
+    final existing = _findOrder(orderId);
+    final previousStatus = existing?.orderStatus ?? 'READY_FOR_PICKUP';
+    final previousVersion = existing?.version ?? expectedVersion;
+
+    // 1. Optimistic update in QueueController
+    final localUpdated = queueController.updateOrderStatus(
+      orderId,
+      targetStatus,
+    );
+    if (!localUpdated && existing != null) {
+      return existing;
+    }
+
+    // 2. Persist locally to SQLite queue_orders
+    await localQueue.updateOrderStatus(
+      orderId,
+      targetStatus,
+      expectedVersion + 1,
+    );
+
+    // 3. Attempt server transition if online
+    final isOnline = connectivity != null
+        ? (connectivity!.state != OperationalConnectionState.offline &&
+              connectivity!.networkOnline)
+        : _networkAvailable;
+    if (isOnline) {
+      try {
+        final serverOrder = await gateway.transitionOrderStatus(
+          orderId,
+          targetStatus,
+          expectedVersion,
+          reasonCode: reasonCode,
+        );
+        queueController.upsertOrder(serverOrder);
+        await localQueue.updateOrderStatus(
+          orderId,
+          serverOrder.orderStatus,
+          serverOrder.version,
+        );
+        return serverOrder;
+      } on ApiFailure catch (f) {
+        if (f.isTransient ||
+            (f.statusCode == 404 && orderId.startsWith('ord-'))) {
+          await _enqueueStatusMutation(
+            orderId,
+            targetStatus,
+            expectedVersion,
+            reasonCode,
+          );
+          return queueController.allOrders.firstWhere(
+            (o) => o.id == orderId,
+            orElse: () => existing!,
+          );
+        } else {
+          // Permanent failure (409 conflict, 400 validation, etc.): Rollback!
+          queueController.rollbackOrderStatus(
+            orderId,
+            previousStatus,
+            previousVersion,
+          );
+          await localQueue.updateOrderStatus(
+            orderId,
+            previousStatus,
+            previousVersion,
+          );
+          rethrow;
+        }
+      } catch (e) {
+        await _enqueueStatusMutation(
+          orderId,
+          targetStatus,
+          expectedVersion,
+          reasonCode,
+        );
+        return queueController.allOrders.firstWhere(
+          (o) => o.id == orderId,
+          orElse: () => existing!,
+        );
+      }
+    } else {
+      // Offline mode: queue mutation to outbox
+      await _enqueueStatusMutation(
+        orderId,
+        targetStatus,
+        expectedVersion,
+        reasonCode,
+      );
+      return queueController.allOrders.firstWhere(
+        (o) => o.id == orderId,
+        orElse: () => existing!,
+      );
+    }
+  }
+
+  Future<void> _enqueueStatusMutation(
+    String orderId,
+    String targetStatus,
+    int expectedVersion,
+    String? reasonCode,
+  ) async {
+    final outbox = outboxRepo;
+    if (outbox == null) return;
+    final branchId = await activeBranchId?.call();
+    final mutation = OutboxMutation(
+      id: 'mut-${DateTime.now().millisecondsSinceEpoch}',
+      idempotencyKey:
+          'trans-$orderId-$expectedVersion-${DateTime.now().millisecondsSinceEpoch}',
+      clientOrderId: orderId.replaceFirst('ord-', ''),
+      mutationType: 'UPDATE_STATUS',
+      payloadJson: jsonEncode({
+        'order_id': orderId,
+        'target_status': targetStatus,
+        'expected_version': expectedVersion,
+        'reason_code': ?reasonCode,
+      }),
+      syncStatus: OutboxSyncStatus.pending,
+      retryCount: 0,
+      createdAt: DateTime.now(),
+      branchId: branchId,
+    );
+    await outbox.enqueueMutation(mutation);
   }
 
   Future<void> _recoverAndConnect() async {
@@ -187,7 +331,10 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
     if (token == null || token.isEmpty) {
       throw const ApiFailure(ApiFailureKind.unauthenticated);
     }
-    final connection = connectionFactory.connect(config.websocketUri(token));
+    final branchId = await activeBranchId?.call();
+    final connection = connectionFactory.connect(
+      config.websocketUri(token, branchId: branchId),
+    );
     _connection = connection;
     await connection.ready.timeout(config.requestTimeout);
     if (!_canRecover || !identical(connection, _connection)) {

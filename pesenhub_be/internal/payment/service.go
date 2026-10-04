@@ -42,7 +42,7 @@ func (s *Service) RecordCash(ctx context.Context, principal customer.Principal, 
 	if !customer.CanOperateOutlet(principal) {
 		return Payment{}, false, customer.ErrUnauthorized
 	}
-	orderID = strings.TrimSpace(orderID)
+	orderID = strings.TrimPrefix(strings.TrimSpace(orderID), "ord-")
 	if !domain.ValidUUID(orderID) {
 		return Payment{}, false, ErrOrderNotFound
 	}
@@ -67,7 +67,7 @@ func (s *Service) CreateQRIS(ctx context.Context, principal customer.Principal, 
 	if s.qrisStore == nil || s.midtrans == nil {
 		return Payment{}, false, ErrMidtransNotReady
 	}
-	orderID = strings.TrimSpace(orderID)
+	orderID = strings.TrimPrefix(strings.TrimSpace(orderID), "ord-")
 	if !domain.ValidUUID(orderID) {
 		return Payment{}, false, ErrOrderNotFound
 	}

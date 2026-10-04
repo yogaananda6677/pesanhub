@@ -44,7 +44,7 @@ Menggunakan breakpoint `AppSpacing.tabletBreakpoint = 600.0 dp`:
 
 ### 3.2 Tablet Viewport (>= 600 dp)
 - **Navigation Rail**: Bilah navigasi permanen di sisi kiri (`minWidth: 80 dp`) berisi:
-  - Header branding logo mangkuk nasi goreng PesenHub.
+  - Header branding logo martabak lipat PesenHub.
   - Item destinasi vertikal dengan ikon dan label teks ringkas.
   - Footer indikator konektivitas awan / server.
 - **Divider**: Garis batas pemisah halus (`VerticalDivider: 1px`).

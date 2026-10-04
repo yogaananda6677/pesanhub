@@ -15,17 +15,18 @@ import (
 )
 
 type mockStore struct {
-	users           []UserSummary
-	invitations     []Invitation
-	audits          []AuditEntry
-	traffic         TrafficMetrics
-	createInvErr    error
-	revokeInvErr    error
-	updateStatusErr error
-	revokeSessErr   error
-	listUsersErr    error
-	getUserErr      error
-	user            *UserSummary
+	users            []UserSummary
+	invitations      []Invitation
+	audits           []AuditEntry
+	traffic          TrafficMetrics
+	createInvErr     error
+	revokeInvErr     error
+	updateStatusErr  error
+	revokeSessErr    error
+	listUsersErr     error
+	getUserErr       error
+	user             *UserSummary
+	employeeRoleFunc func(ctx context.Context, id string) (string, error)
 }
 
 func (m *mockStore) GetUser(ctx context.Context, userID string) (*UserSummary, error) {
@@ -54,7 +55,7 @@ func (m *mockStore) ListInvitations(ctx context.Context, limit, offset int) ([]I
 	return m.invitations, nil
 }
 
-func (m *mockStore) CreateInvitation(ctx context.Context, actorID, email, outletName string, expiry time.Duration) (Invitation, error) {
+func (m *mockStore) CreateInvitation(ctx context.Context, actorID, email, outletName, branchID string, expiry time.Duration) (Invitation, error) {
 	if m.createInvErr != nil {
 		return Invitation{}, m.createInvErr
 	}
@@ -81,7 +82,16 @@ func TestAdminCanInviteCashierButOtherRolesCannot(t *testing.T) {
 			t.Fatalf("role %q: expected 403, got %d", role, rec.Code)
 		}
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/cashiers/invitations", bytes.NewBufferString(`{"email":"cashier@example.com"}`))
+	// Admin without branch_id is rejected with 400
+	reqMissingBranch := httptest.NewRequest(http.MethodPost, "/api/v1/admin/cashiers/invitations", bytes.NewBufferString(`{"email":"cashier@example.com"}`))
+	reqMissingBranch = withPrincipal(reqMissingBranch, "ADMIN")
+	recMissingBranch := httptest.NewRecorder()
+	handler.InviteCashier(recMissingBranch, reqMissingBranch)
+	if recMissingBranch.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invitation without branch, got %d", recMissingBranch.Code)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/cashiers/invitations", bytes.NewBufferString(`{"email":"cashier@example.com","branch_id":"b0000000-0000-0000-0000-000000000001"}`))
 	req = withPrincipal(req, "ADMIN")
 	rec := httptest.NewRecorder()
 	handler.InviteCashier(rec, req)
@@ -94,12 +104,59 @@ func TestAdminCanInviteCashierButOtherRolesCannot(t *testing.T) {
 	}
 }
 
+func TestUpdateCashierBranchAuthorization(t *testing.T) {
+	handler := NewHandler(NewService(&mockStore{}, nil, nil, nil))
+	targetUserID := "user-cashier-1"
+	newBranchID := "b0000000-0000-0000-0000-000000000002"
+
+	// 1. Unauthenticated or non-admin roles are rejected with 403
+	for _, role := range []string{"", "CASHIER", "STAFF"} {
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/cashiers/"+targetUserID+"/branch", bytes.NewBufferString(`{"branch_id":"`+newBranchID+`"}`))
+		req.SetPathValue("id", targetUserID)
+		req = withPrincipal(req, role)
+		rec := httptest.NewRecorder()
+		handler.UpdateCashierBranch(rec, req)
+		if role == "" && rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 for unauthenticated, got %d", rec.Code)
+		} else if role != "" && rec.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 for role %s, got %d", role, rec.Code)
+		}
+	}
+
+	// 2. Cashier cannot transfer themselves even if trying to act
+	reqSelf := httptest.NewRequest(http.MethodPut, "/api/v1/admin/cashiers/"+targetUserID+"/branch", bytes.NewBufferString(`{"branch_id":"`+newBranchID+`"}`))
+	reqSelf.SetPathValue("id", targetUserID)
+	reqSelf = reqSelf.WithContext(customer.WithPrincipal(reqSelf.Context(), customer.Principal{
+		Subject: targetUserID,
+		Role:    "CASHIER",
+	}))
+	recSelf := httptest.NewRecorder()
+	handler.UpdateCashierBranch(recSelf, reqSelf)
+	if recSelf.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 when cashier tries to move themselves, got %d", recSelf.Code)
+	}
+
+	// 3. Admin can transfer cashier
+	reqAdmin := httptest.NewRequest(http.MethodPut, "/api/v1/admin/cashiers/"+targetUserID+"/branch", bytes.NewBufferString(`{"branch_id":"`+newBranchID+`"}`))
+	reqAdmin.SetPathValue("id", targetUserID)
+	reqAdmin = withPrincipal(reqAdmin, "ADMIN")
+	recAdmin := httptest.NewRecorder()
+	handler.UpdateCashierBranch(recAdmin, reqAdmin)
+	if recAdmin.Code != http.StatusOK {
+		t.Fatalf("expected 200 for admin, got %d: %s", recAdmin.Code, recAdmin.Body.String())
+	}
+}
+
 func (m *mockStore) RevokeInvitation(ctx context.Context, invitationID string) error {
 	return m.revokeInvErr
 }
 
 func (m *mockStore) UpdateUserStatus(ctx context.Context, actorID, targetUserID string, targetStatus Status, reason, requestID string) error {
 	return m.updateStatusErr
+}
+
+func (m *mockStore) UpdateUserBranch(ctx context.Context, actorID, targetUserID, branchID, reason, requestID string) error {
+	return nil
 }
 
 func (m *mockStore) RevokeUserSessions(ctx context.Context, targetUserID string) error {
@@ -112,6 +169,29 @@ func (m *mockStore) ListAudits(ctx context.Context, targetUserID string, limit, 
 
 func (m *mockStore) GetTrafficMetrics(ctx context.Context, timeRange string) (TrafficMetrics, error) {
 	return m.traffic, nil
+}
+
+func (m *mockStore) ListEmployees(ctx context.Context, search string) ([]EmployeeSummary, error) {
+	return []EmployeeSummary{}, nil
+}
+
+func (m *mockStore) GetEmployeeRole(ctx context.Context, id string) (string, error) {
+	if m.employeeRoleFunc != nil {
+		return m.employeeRoleFunc(ctx, id)
+	}
+	return "CASHIER", nil
+}
+
+func (m *mockStore) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID, password string) (EmployeeSummary, error) {
+	return EmployeeSummary{ID: "emp-123", Email: email, DisplayName: displayName, Role: role, Status: "APPROVED"}, nil
+}
+
+func (m *mockStore) UpdateEmployee(ctx context.Context, targetUserID string, displayName, role, status, branchID *string) (EmployeeSummary, error) {
+	return EmployeeSummary{ID: targetUserID, Status: "UPDATED"}, nil
+}
+
+func (m *mockStore) DeleteEmployee(ctx context.Context, targetUserID string) error {
+	return nil
 }
 
 type mockDB struct {
@@ -754,5 +834,95 @@ func TestWhatsAppOverviewEndpoint(t *testing.T) {
 	}
 	if len(resp.Accounts) != 1 || resp.Accounts[0].Status != "CONNECTED" {
 		t.Fatalf("unexpected accounts: %+v", resp.Accounts)
+	}
+}
+
+func TestAdminCannotManageFellowAdminButCanManageCashier(t *testing.T) {
+	store := &mockStore{
+		employeeRoleFunc: func(ctx context.Context, id string) (string, error) {
+			if id == "admin-target" {
+				return "ADMIN", nil
+			}
+			return "CASHIER", nil
+		},
+	}
+	svc := NewService(store, nil, nil, nil)
+	h := NewHandler(svc)
+
+	// 1. Admin trying to update fellow admin -> 403 Forbidden
+	reqUpdateAdmin := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/employees/admin-target", bytes.NewBufferString(`{"display_name":"New Name"}`))
+	reqUpdateAdmin.SetPathValue("id", "admin-target")
+	reqUpdateAdmin = reqUpdateAdmin.WithContext(customer.WithPrincipal(reqUpdateAdmin.Context(), customer.Principal{
+		Subject: "admin-actor",
+		Role:    "ADMIN",
+	}))
+	recUpdateAdmin := httptest.NewRecorder()
+	h.UpdateEmployee(recUpdateAdmin, reqUpdateAdmin)
+	if recUpdateAdmin.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 when admin updates fellow admin, got %d: %s", recUpdateAdmin.Code, recUpdateAdmin.Body.String())
+	}
+
+	// 2. Admin updating cashier -> 200 OK
+	reqUpdateCashier := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/employees/cashier-target", bytes.NewBufferString(`{"display_name":"New Name"}`))
+	reqUpdateCashier.SetPathValue("id", "cashier-target")
+	reqUpdateCashier = reqUpdateCashier.WithContext(customer.WithPrincipal(reqUpdateCashier.Context(), customer.Principal{
+		Subject: "admin-actor",
+		Role:    "ADMIN",
+	}))
+	recUpdateCashier := httptest.NewRecorder()
+	h.UpdateEmployee(recUpdateCashier, reqUpdateCashier)
+	if recUpdateCashier.Code != http.StatusOK {
+		t.Fatalf("expected 200 when admin updates cashier, got %d: %s", recUpdateCashier.Code, recUpdateCashier.Body.String())
+	}
+
+	// 3. Admin trying to delete fellow admin -> 403 Forbidden
+	reqDeleteAdmin := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/employees/admin-target", nil)
+	reqDeleteAdmin.SetPathValue("id", "admin-target")
+	reqDeleteAdmin = reqDeleteAdmin.WithContext(customer.WithPrincipal(reqDeleteAdmin.Context(), customer.Principal{
+		Subject: "admin-actor",
+		Role:    "ADMIN",
+	}))
+	recDeleteAdmin := httptest.NewRecorder()
+	h.DeleteEmployee(recDeleteAdmin, reqDeleteAdmin)
+	if recDeleteAdmin.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 when admin deletes fellow admin, got %d", recDeleteAdmin.Code)
+	}
+
+	// 4. Admin deleting cashier -> 204 No Content
+	reqDeleteCashier := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/employees/cashier-target", nil)
+	reqDeleteCashier.SetPathValue("id", "cashier-target")
+	reqDeleteCashier = reqDeleteCashier.WithContext(customer.WithPrincipal(reqDeleteCashier.Context(), customer.Principal{
+		Subject: "admin-actor",
+		Role:    "ADMIN",
+	}))
+	recDeleteCashier := httptest.NewRecorder()
+	h.DeleteEmployee(recDeleteCashier, reqDeleteCashier)
+	if recDeleteCashier.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 when admin deletes cashier, got %d", recDeleteCashier.Code)
+	}
+
+	// 5. Admin trying to create another admin -> 403 Forbidden
+	reqCreateAdmin := httptest.NewRequest(http.MethodPost, "/api/v1/admin/employees", bytes.NewBufferString(`{"email":"newadmin@test.com","role":"ADMIN"}`))
+	reqCreateAdmin = reqCreateAdmin.WithContext(customer.WithPrincipal(reqCreateAdmin.Context(), customer.Principal{
+		Subject: "admin-actor",
+		Role:    "ADMIN",
+	}))
+	recCreateAdmin := httptest.NewRecorder()
+	h.CreateEmployee(recCreateAdmin, reqCreateAdmin)
+	if recCreateAdmin.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 when admin tries to create admin, got %d", recCreateAdmin.Code)
+	}
+
+	// 6. Admin trying to update their own account via employee management -> 403 Forbidden
+	reqSelf := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/employees/admin-actor", bytes.NewBufferString(`{"display_name":"New Name"}`))
+	reqSelf.SetPathValue("id", "admin-actor")
+	reqSelf = reqSelf.WithContext(customer.WithPrincipal(reqSelf.Context(), customer.Principal{
+		Subject: "admin-actor",
+		Role:    "ADMIN",
+	}))
+	recSelf := httptest.NewRecorder()
+	h.UpdateEmployee(recSelf, reqSelf)
+	if recSelf.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 when admin updates themselves, got %d", recSelf.Code)
 	}
 }

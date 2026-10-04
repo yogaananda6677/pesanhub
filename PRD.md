@@ -16,7 +16,7 @@
 
 > **Phase 0 baseline:** keputusan outlet, perangkat, fulfillment, pembayaran, local database, gateway WhatsApp, dan status canonical pada [`docs/PHASE_0_PRODUCT_DECISIONS.md`](docs/PHASE_0_PRODUCT_DECISIONS.md) berlaku setelah PR #79 di-merge. WAHA yang dipilih saat Phase 0 digantikan GOWA melalui Issue #118. Roadmap eksekusi mengikuti Epic #1 dan Phase Issue #2–#8; perubahan requirement tetap memerlukan persetujuan Owner.
 
-PesenHub adalah sistem pemesanan terpusat untuk menggantikan pencatatan manual berbasis buku pada outlet nasi goreng. Sistem menyatukan pesanan dari kasir, WhatsApp, dan Web Customer ke dalam satu antrean, membantu kasir yang juga menangani produksi, menerima pembayaran digital melalui Midtrans, dan memberi informasi otomatis kepada pelanggan ketika pesanan sudah selesai.
+PesenHub adalah sistem pemesanan terpusat untuk menggantikan pencatatan manual berbasis buku pada outlet martabak telur dan terang bulan. Sistem menyatukan pesanan dari kasir, WhatsApp, dan Web Customer ke dalam satu antrean, membantu kasir yang juga menangani produksi martabak dan loyang terang bulan, menerima pembayaran digital melalui Midtrans, dan memberi informasi otomatis kepada pelanggan ketika pesanan sudah selesai.
 
 Komponen utama sistem:
 
@@ -297,13 +297,13 @@ Status akun dikelola oleh Superadmin melalui Web Control Plane (`/superadmin/`).
   "fulfillment_type": "PICKUP",
   "items": [
     {
-      "menu_id": "NASGOR-SPESIAL",
-      "name_snapshot": "Nasi Goreng Spesial",
-      "unit_price": 20000,
+      "menu_id": "MAR-SPESIAL",
+      "name_snapshot": "Martabak Telur Spesial",
+      "unit_price": 25000,
       "quantity": 2,
       "spicy_level": "SEDANG",
       "toppings": [],
-      "notes": "Tanpa acar"
+      "notes": "Acar dipisah"
     }
   ],
   "subtotal": 40000,

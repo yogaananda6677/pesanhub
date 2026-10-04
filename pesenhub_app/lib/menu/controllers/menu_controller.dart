@@ -160,7 +160,13 @@ class MenuController extends ChangeNotifier {
         final matchesSku = item.sku.toLowerCase().contains(query);
         final matchesDesc =
             item.description?.toLowerCase().contains(query) ?? false;
-        if (!matchesName && !matchesSku && !matchesDesc) {
+        final categoryName = _categories
+            .where((c) => c.id == item.categoryId)
+            .firstOrNull
+            ?.name
+            .toLowerCase();
+        final matchesCategory = categoryName?.contains(query) ?? false;
+        if (!matchesName && !matchesSku && !matchesDesc && !matchesCategory) {
           return false;
         }
       }
@@ -168,7 +174,19 @@ class MenuController extends ChangeNotifier {
       return true;
     }).toList();
 
-    filtered.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final categoryOrderMap = {
+      for (final cat in _categories) cat.id: cat.sortOrder,
+    };
+
+    filtered.sort((a, b) {
+      final orderA = categoryOrderMap[a.categoryId] ?? 999;
+      final orderB = categoryOrderMap[b.categoryId] ?? 999;
+      final catCompare = orderA.compareTo(orderB);
+      if (catCompare != 0) return catCompare;
+      final itemCompare = a.sortOrder.compareTo(b.sortOrder);
+      if (itemCompare != 0) return itemCompare;
+      return a.name.compareTo(b.name);
+    });
     return filtered;
   }
 }

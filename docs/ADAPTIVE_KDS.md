@@ -6,11 +6,11 @@ Dokumen arsitektur dan panduan teknis untuk **Issue #30: Implementasi KDS adapti
 
 ## 1. Latar Belakang & Masalah
 
-Di dapur outlet nasi goreng yang sibuk, koki dan staf produksi membutuhkan tampilan yang:
+Di dapur outlet martabak & terang bulan yang sibuk, koki dan staf produksi membutuhkan tampilan yang:
 1. Terbaca jelas dari jarak pandang wajan/dapur (ukuran teks dan kontras tinggi).
 2. Menampilkan tiket pesanan secara adaptif pada layar tablet (multi-kolom) maupun smartphone (daftar vertikal) tanpa overflow horizontal.
 3. Memprioritaskan pesanan terlambat (*overdue* > 15 menit) secara deterministik di posisi teratas, diikuti oleh antrean FIFO.
-4. Membedakan secara instan antara makanan dapur (wajan/penggorengan) dan minuman barista.
+4. Membedakan secara instan antara makanan martabak telur/loyang terang bulan dan minuman barista.
 5. Menampilkan penanda bungkus (*takeaway*) beserta instruksi kemasan khusus pelanggan secara mencolok.
 6. Menyediakan aksi status 1-tap yang konsisten dengan kontrak versi (*version contract*) backend dan mencegah penekanan ganda (*double-tap*).
 

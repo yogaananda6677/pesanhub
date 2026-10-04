@@ -57,6 +57,7 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
   MenuAvailabilityController? _menuManagementController;
   CatalogRuntimeCoordinator? _catalogCoordinator;
   VoidCallback? _catalogConnectivityListener;
+  List<Map<String, dynamic>> _branches = [];
 
   @override
   void initState() {
@@ -69,6 +70,7 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
     final api = PesenHubApiClient(
       config: config,
       accessToken: () => session.accessToken(),
+      activeBranchId: () async => session.activeBranchId,
     );
     session = SessionController(
       store: SecureSessionStore(),
@@ -190,9 +192,11 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
     coordinator = QueueRealtimeCoordinator(
       config: config,
       accessToken: session.accessToken,
+      activeBranchId: () async => session.activeBranchId,
       gateway: api,
       localQueue: queueRepository,
       queueController: queueController,
+      outboxRepo: outboxRepository,
       connectivity: connectivity,
       onSessionExpired: session.signOut,
       flushOutbox: () async {
@@ -231,6 +235,56 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
     _catalogConnectivityListener = catalogConnectivityListener;
     unawaited(coordinator.start());
     unawaited(catalogCoordinator.start());
+    if (session.user?.role == 'ADMIN') {
+      unawaited(_loadBranches());
+    }
+  }
+
+  Future<void> _loadBranches() async {
+    final api = _api;
+    if (api == null) return;
+    try {
+      final branches = await api.fetchBranches();
+      if (mounted) {
+        setState(() {
+          _branches = branches;
+        });
+        if (_session?.activeBranchId == null && branches.isNotEmpty) {
+          final defaultBranch = branches.firstWhere(
+            (b) => b['is_default'] == true,
+            orElse: () => branches.first,
+          );
+          await _switchBranch(defaultBranch['id'] as String?);
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _switchBranch(String? branchId) async {
+    final session = _session;
+    if (session == null) return;
+    String? branchName;
+    if (branchId != null) {
+      final b = _branches.cast<Map<String, dynamic>?>().firstWhere(
+        (el) => el?['id'] == branchId,
+        orElse: () => null,
+      );
+      branchName = b?['name'] as String?;
+      final recovered = await _outboxRepository?.recoverBranchScopeFailures(
+        branchId,
+      );
+      if (recovered != null && recovered > 0) {
+        unawaited(_sync?.syncPendingMutations());
+      }
+    }
+    session.setActiveBranch(branchId: branchId, branchName: branchName);
+    await _queueRepository?.clearQueueCache();
+    _queueController?.setSnapshot([]);
+    _coordinator?.retryNow();
+    unawaited(_catalogCoordinator?.refresh());
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _stopServices() {
@@ -319,6 +373,31 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
       menuManagementController: _menuManagementController,
       isAdmin: session?.user?.role == 'ADMIN',
       inviteCashier: _api?.inviteCashier,
+      userName: session?.user?.displayName,
+      userEmail: session?.user?.email,
+      userRole: session?.user?.role,
+      branchName: session?.activeBranchName,
+      branchId: session?.activeBranchId,
+      availableBranches: _branches,
+      onSwitchBranch: session?.canAccessAllBranches == true
+          ? _switchBranch
+          : null,
+      onStatusChanged: (order, targetStatus) async {
+        await _coordinator?.transitionOrderStatus(
+          order.id,
+          targetStatus,
+          order.version,
+        );
+      },
+      onRefreshQueue: () async {
+        await _coordinator?.refreshSnapshot();
+      },
+      apiClient: _api,
+      onUpdateDisplayName: session != null
+          ? (newName) async {
+              await session.updateDisplayName(newName);
+            }
+          : null,
     );
   }
 
@@ -336,10 +415,20 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
       throw StateError('Backend runtime is not configured');
     }
 
+    var branchId = _session?.activeBranchId;
+    if (branchId == null && _branches.isNotEmpty) {
+      final defaultBranch = _branches.firstWhere(
+        (b) => b['is_default'] == true,
+        orElse: () => _branches.first,
+      );
+      branchId = defaultBranch['id'] as String?;
+    }
+
     final order = await cart.persistOfflineDraft(
       draft: draft,
       outboxRepo: outboxRepository,
       queueRepo: queueRepository,
+      branchId: branchId,
     );
     queue.upsertOrder(order);
     await sync.refreshState();

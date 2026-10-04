@@ -7,7 +7,7 @@ func TestCanonicalDomainValues(t *testing.T) {
 		name  string
 		valid bool
 	}{
-		{"source", OrderSourceWhatsApp.Valid() && OrderSourceCashierManual.Valid() && OrderSourceCustomerWeb.Valid() && !OrderSource("GOFOOD").Valid()},
+		{"source", OrderSourceWhatsApp.Valid() && OrderSourceCashierManual.Valid() && OrderSourceCustomerWeb.Valid() && OrderSourceGrabFood.Valid() && OrderSourceGoFood.Valid() && OrderSourceShopeeFood.Valid() && !OrderSource("UNKNOWN").Valid()},
 		{"fulfillment", FulfillmentPickup.Valid() && !Fulfillment("DELIVERY").Valid()},
 		{"order status", OrderStatusReady.Valid() && !OrderStatus("READY").Valid()},
 		{"payment method", PaymentMethodMidtransQRIS.Valid() && !PaymentMethod("CARD").Valid()},

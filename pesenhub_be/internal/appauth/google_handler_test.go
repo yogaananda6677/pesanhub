@@ -38,6 +38,22 @@ func (s *fakeIdentityStore) UpsertGoogleIdentity(_ context.Context, identity Goo
 	return s.user, nil
 }
 func (s *fakeIdentityStore) UserByID(_ context.Context, id string) (User, error) { return s.user, nil }
+func (s *fakeIdentityStore) UserByEmail(_ context.Context, email string) (User, error) {
+	return s.user, nil
+}
+func (s *fakeIdentityStore) UpdateDisplayName(_ context.Context, id, displayName string) error {
+	s.user.DisplayName = displayName
+	return nil
+}
+func (s *fakeIdentityStore) EnsureUser(_ context.Context, email, displayName, role string) (User, error) {
+	return User{
+		ID:          s.user.ID,
+		EmailMasked: email,
+		DisplayName: displayName,
+		Role:        Role(role),
+		Status:      StatusApproved,
+	}, nil
+}
 func (s *fakeIdentityStore) CreateSession(_ context.Context, id, userID string, _ time.Time) error {
 	s.sessions[id] = userID
 	return nil
@@ -48,8 +64,12 @@ func (s *fakeIdentityStore) RevokeSession(_ context.Context, id, userID string) 
 	}
 	return nil
 }
-func (s *fakeIdentityStore) ValidateSession(_ context.Context, id, userID string) (string, string, bool) {
-	return string(s.user.Role), string(s.user.Status), s.sessions[id] == userID && !s.revoked[id]
+func (s *fakeIdentityStore) ValidateSession(_ context.Context, id, userID string) (string, string, string, bool) {
+	var bID string
+	if s.user.BranchID != nil {
+		bID = *s.user.BranchID
+	}
+	return string(s.user.Role), string(s.user.Status), bID, s.sessions[id] == userID && !s.revoked[id]
 }
 
 func TestGoogleLoginCreatesPendingSessionAndConsumesNonce(t *testing.T) {
@@ -138,5 +158,65 @@ func TestChallengeIsSingleUseAndBounded(t *testing.T) {
 	}
 	if !store.Consume(nonce) || store.Consume(nonce) {
 		t.Fatal("challenge was not exactly single use")
+	}
+}
+
+func TestPasswordLoginCashierAndAdmin(t *testing.T) {
+	user := User{ID: "a1000000-0000-4000-8000-000000000001", EmailMasked: "ka***@example.test", DisplayName: "Kasir Jenggirat", Role: RoleCashier, Status: StatusApproved}
+	store := &fakeIdentityStore{user: user, sessions: map[string]string{}, revoked: map[string]bool{}}
+	sessions, _ := NewSessionManager("test-session-secret-at-least-32-characters", time.Hour)
+	sessions.SetValidator(store)
+	handler, _ := NewGoogleHandler(&fakeGoogleVerifier{}, store, sessions)
+	handler.SetPasswordAuth(PasswordAuthConfig{
+		AdminUsername:   "admin",
+		AdminPassword:   "admin123",
+		CashierUsername: "kasir",
+		CashierPassword: "kasir123",
+	})
+
+	// 1. Success Cashier Login
+	cashierBody := `{"username":"kasir","password":"kasir123"}`
+	resp := httptest.NewRecorder()
+	handler.LoginPassword(resp, httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(cashierBody)))
+	if resp.Code != http.StatusOK {
+		t.Fatalf("cashier login failed status=%d body=%s", resp.Code, resp.Body.String())
+	}
+	var sess SessionResponse
+	if err := json.Unmarshal(resp.Body.Bytes(), &sess); err != nil {
+		t.Fatal(err)
+	}
+	if sess.AccessToken == "" || sess.User.Role != RoleCashier {
+		t.Fatalf("unexpected cashier session: %#v", sess)
+	}
+
+	// 2. Success Admin Login
+	adminBody := `{"username":"admin","password":"admin123"}`
+	respAdmin := httptest.NewRecorder()
+	handler.LoginPassword(respAdmin, httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(adminBody)))
+	if respAdmin.Code != http.StatusOK {
+		t.Fatalf("admin login failed status=%d body=%s", respAdmin.Code, respAdmin.Body.String())
+	}
+	var adminSess SessionResponse
+	if err := json.Unmarshal(respAdmin.Body.Bytes(), &adminSess); err != nil {
+		t.Fatal(err)
+	}
+	if adminSess.AccessToken == "" || adminSess.User.Role != RoleAdmin {
+		t.Fatalf("unexpected admin session: %#v", adminSess)
+	}
+
+	// 3. Failed Login (Wrong Password)
+	wrongBody := `{"username":"kasir","password":"wrongpassword"}`
+	respWrong := httptest.NewRecorder()
+	handler.LoginPassword(respWrong, httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(wrongBody)))
+	if respWrong.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for wrong password, got %d", respWrong.Code)
+	}
+
+	// 4. Failed Login (Empty credentials)
+	emptyBody := `{"username":"","password":""}`
+	respEmpty := httptest.NewRecorder()
+	handler.LoginPassword(respEmpty, httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(emptyBody)))
+	if respEmpty.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for empty credentials, got %d", respEmpty.Code)
 	}
 }

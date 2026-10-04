@@ -11,7 +11,12 @@ class WhatsAppSettingsController extends ChangeNotifier {
   final Future<String?> Function()? getAuthToken;
 
   final Future<WhatsAppSettingsData> Function()? customFetchSettings;
-  final Future<WhatsAppPairResult> Function({String? deviceId})? customPair;
+  final Future<WhatsAppPairResult> Function({
+    String? deviceId,
+    String? method,
+    String? phone,
+  })?
+  customPair;
   final Future<void> Function({String? deviceId})? customDisconnect;
 
   WhatsAppSettingsData _data = WhatsAppSettingsData.initial;
@@ -128,7 +133,11 @@ class WhatsAppSettingsController extends ChangeNotifier {
     }
   }
 
-  Future<WhatsAppPairResult?> requestPairing({String? deviceId}) async {
+  Future<WhatsAppPairResult?> requestPairing({
+    String? deviceId,
+    String? method,
+    String? phone,
+  }) async {
     _isPairing = true;
     _errorMessage = null;
     notifyListeners();
@@ -136,11 +145,24 @@ class WhatsAppSettingsController extends ChangeNotifier {
     try {
       WhatsAppPairResult result;
       if (customPair != null) {
-        result = await customPair!(deviceId: deviceId);
+        result = await customPair!(
+          deviceId: deviceId,
+          method: method,
+          phone: phone,
+        );
       } else {
         final uri = Uri.parse('$baseUrl/api/v1/settings/whatsapp/pair');
         final headers = await _headers();
-        final payload = jsonEncode({'device_id': deviceId ?? _data.deviceId});
+        final payloadMap = <String, dynamic>{
+          'device_id': deviceId ?? _data.deviceId,
+        };
+        if (method != null && method.isNotEmpty) {
+          payloadMap['method'] = method;
+        }
+        if (phone != null && phone.isNotEmpty) {
+          payloadMap['phone'] = phone;
+        }
+        final payload = jsonEncode(payloadMap);
         final response = await _client
             .post(uri, headers: headers, body: payload)
             .timeout(const Duration(seconds: 10));
@@ -151,14 +173,30 @@ class WhatsAppSettingsController extends ChangeNotifier {
               : body;
           result = WhatsAppPairResult.fromJson(data);
         } else {
+          try {
+            final body = jsonDecode(response.body) as Map<String, dynamic>?;
+            final errorMsg = body?['error']?['message'] as String?;
+            if (errorMsg != null && errorMsg.isNotEmpty) {
+              throw Exception(errorMsg);
+            }
+          } catch (pe) {
+            if (pe is Exception && !pe.toString().contains('FormatException')) {
+              rethrow;
+            }
+          }
           throw Exception(
-            'Gagal meminta kode QR (status ${response.statusCode})',
+            'Gagal meminta tautan WhatsApp (status ${response.statusCode})',
           );
         }
       }
 
       _currentPairResult = result;
-      _startCountdown(result.qrDuration);
+      if (result.method == 'qr') {
+        _startCountdown(result.qrDuration);
+      } else {
+        _isPairing = false;
+        _remainingSeconds = 120;
+      }
 
       if (result.isAlreadyLoggedIn) {
         await loadSettings();
@@ -166,7 +204,7 @@ class WhatsAppSettingsController extends ChangeNotifier {
 
       return result;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
       _isPairing = false;
       return null;
     } finally {

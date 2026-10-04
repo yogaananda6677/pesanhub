@@ -41,11 +41,14 @@ class WhatsAppSettingsData {
   );
 }
 
-/// Data model representing the result of a WhatsApp QR pairing request.
+/// Data model representing the result of a WhatsApp pairing request (QR or Code).
 class WhatsAppPairResult {
   final bool isAlreadyLoggedIn;
   final String status;
   final String deviceId;
+  final String method; // 'qr' or 'code'
+  final String? pairCode;
+  final String? phone;
   final int qrDuration;
   final String qrLink;
   final String qrProxyUrl;
@@ -54,6 +57,9 @@ class WhatsAppPairResult {
     required this.isAlreadyLoggedIn,
     required this.status,
     required this.deviceId,
+    this.method = 'qr',
+    this.pairCode,
+    this.phone,
     required this.qrDuration,
     required this.qrLink,
     required this.qrProxyUrl,
@@ -64,6 +70,11 @@ class WhatsAppPairResult {
       isAlreadyLoggedIn: json['is_already_logged_in'] as bool? ?? false,
       status: json['status'] as String? ?? '',
       deviceId: json['device_id'] as String? ?? '',
+      method:
+          json['method'] as String? ??
+          (json.containsKey('pair_code') ? 'code' : 'qr'),
+      pairCode: json['pair_code'] as String?,
+      phone: json['phone'] as String?,
       qrDuration: (json['qr_duration'] as num?)?.toInt() ?? 30,
       qrLink: json['qr_link'] as String? ?? '',
       qrProxyUrl: json['qr_proxy_url'] as String? ?? '',

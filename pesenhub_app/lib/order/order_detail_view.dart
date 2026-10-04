@@ -11,6 +11,7 @@ import 'controllers/order_detail_controller.dart';
 import 'widgets/conflict_resolution_dialog.dart';
 import 'widgets/order_payment_card.dart';
 import 'widgets/order_status_timeline.dart';
+import 'widgets/payment_dialog.dart';
 
 /// OrderDetailView displays complete operational details of an order,
 /// a visual order lifecycle timeline separated from payment status,
@@ -391,7 +392,28 @@ class OrderDetailView extends StatelessWidget {
                     const SizedBox(height: AppSpacing.md),
 
                     // Criteria #3: Separate Payment Status Card
-                    OrderPaymentCard(order: order),
+                    OrderPaymentCard(
+                      order: order,
+                      onAcceptPayment: () async {
+                        final result = await PaymentDialog.show(
+                          context: context,
+                          totalAmount: order.totalAmount,
+                          orderNumber: order.orderNumber,
+                          customerName: order.customerName,
+                        );
+                        if (result != null && result.isPaid) {
+                          controller.markPaid();
+                          if (context.mounted) {
+                            AppFeedback.show(
+                              context,
+                              message:
+                                  'Pembayaran ${order.orderNumber} berhasil dicatat (LUNAS).',
+                              type: AppBannerType.success,
+                            );
+                          }
+                        }
+                      },
+                    ),
                     const SizedBox(height: AppSpacing.md),
 
                     // Highlighted Barista Drinks Section
@@ -536,11 +558,34 @@ class OrderDetailView extends StatelessWidget {
                       isFullWidth: true,
                       onPressed: isExecuting
                           ? null
-                          : () => controller.executeAction(
-                              primaryAction,
-                              transitionFn: transitionFn,
-                              reloadFn: reloadFn,
-                            ),
+                          : () async {
+                              if (primaryAction.targetStatus == 'COMPLETED' &&
+                                  order.paymentStatus != 'PAID') {
+                                final result = await PaymentDialog.show(
+                                  context: context,
+                                  totalAmount: order.totalAmount,
+                                  orderNumber: order.orderNumber,
+                                  customerName: order.customerName,
+                                );
+                                if (result == null || !result.isPaid) {
+                                  if (context.mounted) {
+                                    AppFeedback.show(
+                                      context,
+                                      message:
+                                          'Pesanan belum dibayar. Selesaikan pembayaran terlebih dahulu sebelum menyelesaikan pesanan.',
+                                      type: AppBannerType.warning,
+                                    );
+                                  }
+                                  return;
+                                }
+                                controller.markPaid();
+                              }
+                              await controller.executeAction(
+                                primaryAction,
+                                transitionFn: transitionFn,
+                                reloadFn: reloadFn,
+                              );
+                            },
                     ),
                     if (primaryAction.helperText != null) ...[
                       const SizedBox(height: 4),

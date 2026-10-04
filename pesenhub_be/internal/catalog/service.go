@@ -10,9 +10,10 @@ type Repository interface {
 	UpdateCategory(context.Context, Category, int64, MutationMeta) (Category, error)
 	CreateMenu(context.Context, Menu, MutationMeta) (Menu, error)
 	UpdateMenu(context.Context, Menu, int64, MutationMeta) (Menu, error)
-	SetMenuAvailability(context.Context, string, bool, int64, MutationMeta) (Menu, error)
-	ListPublic(context.Context, string) ([]Category, error)
-	ListAdmin(context.Context) ([]Category, error)
+	SetMenuAvailability(ctx context.Context, branchID, id string, available bool, version int64, meta MutationMeta) (Menu, error)
+	SetModifierOptionAvailability(ctx context.Context, branchID, id string, available bool, version int64, meta MutationMeta) (Option, error)
+	ListPublic(ctx context.Context, categoryID string, branchID ...string) ([]Category, error)
+	ListAdmin(ctx context.Context, branchID ...string) ([]Category, error)
 }
 
 type Service struct {
@@ -134,17 +135,32 @@ func (s *Service) prepareMenu(m *Menu, create bool) error {
 	return nil
 }
 
-func (s *Service) SetMenuAvailability(ctx context.Context, id string, available bool, version int64, actorID, requestID string) (Menu, error) {
+func (s *Service) SetMenuAvailability(ctx context.Context, branchID, id string, available bool, version int64, actorID, requestID string) (Menu, error) {
+	if branchID == "" {
+		return Menu{}, ErrBranchScopeRequired
+	}
 	if id == "" || version < 1 {
 		return Menu{}, ErrInvalidCatalog
 	}
-	return s.repo.SetMenuAvailability(ctx, id, available, version, s.meta(actorID, requestID))
+	return s.repo.SetMenuAvailability(ctx, branchID, id, available, version, s.meta(actorID, requestID))
 }
-func (s *Service) ListPublic(ctx context.Context, categoryID string) ([]Category, error) {
-	return s.repo.ListPublic(ctx, categoryID)
+
+func (s *Service) SetModifierOptionAvailability(ctx context.Context, branchID, id string, available bool, version int64, actorID, requestID string) (Option, error) {
+	if branchID == "" {
+		return Option{}, ErrBranchScopeRequired
+	}
+	if id == "" || version < 1 {
+		return Option{}, ErrInvalidCatalog
+	}
+	return s.repo.SetModifierOptionAvailability(ctx, branchID, id, available, version, s.meta(actorID, requestID))
 }
-func (s *Service) ListAdmin(ctx context.Context) ([]Category, error) {
-	return s.repo.ListAdmin(ctx)
+
+func (s *Service) ListPublic(ctx context.Context, categoryID string, branchID ...string) ([]Category, error) {
+	return s.repo.ListPublic(ctx, categoryID, branchID...)
+}
+
+func (s *Service) ListAdmin(ctx context.Context, branchID ...string) ([]Category, error) {
+	return s.repo.ListAdmin(ctx, branchID...)
 }
 
 func (s *Service) meta(actorID, requestID string) MutationMeta {

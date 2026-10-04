@@ -10,12 +10,14 @@ class CartItemTile extends StatelessWidget {
   final CartItem item;
   final ValueChanged<int> onUpdateQuantity;
   final VoidCallback onRemove;
+  final VoidCallback? onEdit;
 
   const CartItemTile({
     super.key,
     required this.item,
     required this.onUpdateQuantity,
     required this.onRemove,
+    this.onEdit,
   });
 
   @override
@@ -25,7 +27,7 @@ class CartItemTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Header: Name, Drink icon & Remove button
+          // 1. Header: Name, Drink icon, Edit & Remove buttons
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -45,6 +47,18 @@ class CartItemTile extends StatelessWidget {
                   ),
                 ),
               ),
+              if (onEdit != null) ...[
+                IconButton(
+                  key: Key('edit-cart-item-${item.id}'),
+                  icon: const Icon(Icons.edit_outlined, size: 19),
+                  color: AppColors.primary,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Ubah Pilihan Menu',
+                  onPressed: onEdit,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+              ],
               IconButton(
                 icon: const Icon(Icons.delete_outline_rounded, size: 20),
                 color: AppColors.error,

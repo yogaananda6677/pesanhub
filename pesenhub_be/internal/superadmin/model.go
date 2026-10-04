@@ -27,6 +27,8 @@ type UserSummary struct {
 	EmailMasked        string     `json:"email"`
 	DisplayName        string     `json:"display_name"`
 	Role               Role       `json:"role"`
+	BranchID           *string    `json:"branch_id,omitempty"`
+	BranchName         string     `json:"branch_name,omitempty"`
 	Status             Status     `json:"status"`
 	StatusReason       string     `json:"status_reason,omitempty"`
 	ApprovedAt         *time.Time `json:"approved_at,omitempty"`
@@ -38,6 +40,7 @@ type Invitation struct {
 	ID          string    `json:"id"`
 	EmailMasked string    `json:"email"`
 	OutletName  string    `json:"outlet_name"`
+	BranchID    *string   `json:"branch_id,omitempty"`
 	Role        Role      `json:"role"`
 	Status      string    `json:"status"`
 	InvitedBy   string    `json:"invited_by"`
@@ -48,6 +51,7 @@ type Invitation struct {
 type InviteRequest struct {
 	Email      string `json:"email"`
 	OutletName string `json:"outlet_name,omitempty"`
+	BranchID   string `json:"branch_id,omitempty"`
 }
 
 type StatusChangeRequest struct {

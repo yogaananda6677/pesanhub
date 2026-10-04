@@ -53,6 +53,7 @@ class OutboxMutation {
   final String? serverOrderId;
   final String? errorMessage;
   final DateTime createdAt;
+  final String? branchId;
 
   const OutboxMutation({
     required this.id,
@@ -67,6 +68,7 @@ class OutboxMutation {
     this.serverOrderId,
     this.errorMessage,
     required this.createdAt,
+    this.branchId,
   });
 
   /// True if the mutation is ready for processing.
@@ -98,6 +100,7 @@ class OutboxMutation {
       'server_order_id': serverOrderId,
       'error_message': errorMessage,
       'created_at': createdAt.toIso8601String(),
+      if (branchId != null) 'branch_id': branchId,
     };
   }
 
@@ -120,6 +123,7 @@ class OutboxMutation {
       errorMessage: map['error_message'] as String?,
       createdAt:
           DateTime.tryParse(map['created_at'] as String) ?? DateTime.now(),
+      branchId: map['branch_id'] as String?,
     );
   }
 
@@ -136,6 +140,7 @@ class OutboxMutation {
     String? serverOrderId,
     String? errorMessage,
     DateTime? createdAt,
+    String? branchId,
   }) {
     return OutboxMutation(
       id: id ?? this.id,
@@ -150,6 +155,7 @@ class OutboxMutation {
       serverOrderId: serverOrderId ?? this.serverOrderId,
       errorMessage: errorMessage ?? this.errorMessage,
       createdAt: createdAt ?? this.createdAt,
+      branchId: branchId ?? this.branchId,
     );
   }
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -35,7 +36,7 @@ func TestStoreIntegration(t *testing.T) {
 		ID:               newID(),
 		Session:          "default",
 		CustomerPhone:    "+6281234567890",
-		Model:            "hermes-3-llama-3.1-8b",
+		Model:            "hermes-agent",
 		PromptVersion:    "v1.0.0",
 		ConfidenceScore:  0.88,
 		IsAmbiguous:      false,
@@ -192,7 +193,7 @@ func TestHandoffAndAuditIntegration(t *testing.T) {
 
 	convStore := NewPGConversationStore(db)
 	session := "default"
-	phone := "+6281299990002"
+	phone := fmt.Sprintf("+62812%08d", time.Now().UnixNano()%100000000)
 	corrID := "corr-handoff-" + newID()
 
 	// 1. Pause

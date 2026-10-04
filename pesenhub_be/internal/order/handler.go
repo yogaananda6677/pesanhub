@@ -9,8 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"pesenhub/backend/internal/branch"
 	"pesenhub/backend/internal/catalog"
 	"pesenhub/backend/internal/customer"
+	"pesenhub/backend/internal/domain"
 	"pesenhub/backend/internal/httpapi"
 	"pesenhub/backend/internal/httpserver"
 	"pesenhub/backend/internal/ws"
@@ -90,6 +92,14 @@ func (h *Handler) CreateManual(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := d.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		h.writeError(w, r, ErrMalformedInput)
+		return
+	}
+	scope := branch.ScopeFromContext(r.Context())
+	if !scope.All && scope.BranchID != "" {
+		in.BranchID = scope.BranchID
+	}
+	if p.Role == "ADMIN" && scope.All && in.BranchID == "" {
+		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_SCOPE_REQUIRED", "Pilih cabang aktif terlebih dahulu sebelum membuat pesanan.", httpserver.RequestID(r.Context()), nil)
 		return
 	}
 	o, created, err := h.service.CreateManual(r.Context(), in, r.Header.Get("Idempotency-Key"), p.Subject, httpserver.RequestID(r.Context()))
@@ -181,6 +191,14 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		filter.CreatedTo = &t
 	}
 
+	if rawBranch := strings.TrimSpace(r.URL.Query().Get("branch_id")); rawBranch != "" {
+		if !domain.ValidUUID(rawBranch) {
+			h.writeError(w, r, &ValidationError{Field: "branch_id"})
+			return
+		}
+		filter.BranchID = rawBranch
+	}
+
 	res, err := h.service.List(r.Context(), p, filter)
 	if err != nil {
 		h.writeError(w, r, err)
@@ -229,13 +247,44 @@ func (h *Handler) WS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	scope := branch.ScopeFromContext(r.Context())
+	branchID := scope.BranchID
+	allBranches := scope.All
+
+	// Check query param ?branch_id=
+	queryBranchID := strings.TrimSpace(r.URL.Query().Get("branch_id"))
+	if queryBranchID != "" {
+		if p.Role == "CASHIER" && queryBranchID != p.BranchID {
+			h.writeError(w, r, customer.ErrUnauthorized)
+			return
+		}
+		if p.Role == "ADMIN" || p.Role == "KDS" {
+			branchID = queryBranchID
+			allBranches = false
+		}
+	}
+
+	if p.Role == "CASHIER" {
+		branchID = p.BranchID
+		allBranches = false
+	} else if (p.Role == "ADMIN" || p.Role == "KDS" || p.Role == "STAFF") && branchID == "" {
+		allBranches = true
+	}
+
 	conn, err := ws.Upgrade(w, r)
 	if err != nil {
 		h.writeError(w, r, ErrMalformedInput)
 		return
 	}
 
-	client := ws.NewClient(h.hub, conn, p.Role, p.Subject)
+	opts := []ws.ClientOption{}
+	if allBranches {
+		opts = append(opts, ws.WithAllBranches(true))
+	} else if branchID != "" {
+		opts = append(opts, ws.WithBranch(branchID))
+	}
+
+	client := ws.NewClient(h.hub, conn, p.Role, p.Subject, opts...)
 	h.hub.Register(client)
 
 	go client.WritePump(15 * time.Second)

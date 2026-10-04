@@ -52,6 +52,35 @@ func (e *ClarificationEngine) PlanClarification(draft *DraftCandidate, attempts 
 		}
 	}
 
+	// Filter out non-blocking confidence flags if all items have valid MenuIDs and no missing required modifiers
+	allItemsGrounded := len(draft.Items) > 0
+	for _, it := range draft.Items {
+		if it.MenuID == "" {
+			allItemsGrounded = false
+			break
+		}
+	}
+	hasHardAmbiguity := false
+	var hardReasons []string
+	for _, r := range draft.AmbiguityReasons {
+		if strings.HasPrefix(r, "menu_unavailable") || strings.HasPrefix(r, "menu_not_found") ||
+			strings.HasPrefix(r, "missing_required_modifier") || strings.HasPrefix(r, "invalid_quantity") ||
+			strings.HasPrefix(r, "unrecognized_modifier") || strings.HasPrefix(r, "modifier_limit_exceeded") ||
+			strings.HasPrefix(r, "empty_order_items") || strings.HasPrefix(r, "no_valid_items_resolved") {
+			hasHardAmbiguity = true
+			hardReasons = append(hardReasons, r)
+		} else if !allItemsGrounded {
+			hardReasons = append(hardReasons, r)
+		}
+	}
+
+	if allItemsGrounded && !hasHardAmbiguity {
+		draft.AmbiguityReasons = []string{}
+		draft.IsAmbiguous = false
+	} else if len(hardReasons) > 0 {
+		draft.AmbiguityReasons = hardReasons
+	}
+
 	// 3. Find highest priority ambiguity from list
 	chosenAmbiguity := e.pickPriorityAmbiguity(draft.AmbiguityReasons)
 
@@ -183,8 +212,22 @@ func (e *ClarificationEngine) buildQuestion(ambiguity string, draft *DraftCandid
 		plan.Options = []string{"Tunai / Cash", "QRIS"}
 		plan.QuestionText = "Untuk pembayarannya mau pakai Tunai (Cash) di kasir atau QRIS kak?"
 
+	case ambiguity == "empty_order_items" || ambiguity == "empty_draft" || ambiguity == "no_valid_items_resolved":
+		plan.QuestionText = "Halo kak! Selamat datang di Martabak & Terang Bulan Jenggirat. Saya Asisten Jenggirat AI, ada yang bisa kami bantu? Silakan sebutkan pesanan atau hal yang ingin ditanyakan ya kak 😊"
+
+	case strings.HasPrefix(ambiguity, "low_item_confidence") || strings.HasPrefix(ambiguity, "confidence_below_threshold") || ambiguity == "low_overall_confidence" || ambiguity == "uncertainty_detected":
+		if draft != nil && len(draft.Items) > 0 {
+			plan.QuestionText = fmt.Sprintf("Mohon maaf kak, kami ingin memastikan: apakah pesanan kakak adalah %d porsi %s? 😊", draft.Items[0].Quantity, draft.Items[0].Name)
+		} else {
+			plan.QuestionText = "Halo kak, boleh tolong sebutkan kembali nama menu dan jumlah porsi yang ingin dipesan agar tidak salah paham kak?"
+		}
+
 	default: // low confidence, uncertainty, or empty
-		plan.QuestionText = "Halo kak, boleh tolong sebutkan kembali nama menu dan jumlah porsi yang ingin dipesan agar tidak salah paham kak?"
+		if draft != nil && len(draft.Items) > 0 {
+			plan.QuestionText = fmt.Sprintf("Mohon maaf kak, kami ingin memastikan: apakah pesanan kakak adalah %d porsi %s? 😊", draft.Items[0].Quantity, draft.Items[0].Name)
+		} else {
+			plan.QuestionText = "Halo kak, boleh tolong sebutkan kembali nama menu dan jumlah porsi yang ingin dipesan agar tidak salah paham kak?"
+		}
 	}
 
 	return plan

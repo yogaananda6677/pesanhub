@@ -3,24 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PesenHub - Kasir & Manajemen Outlet</title>
+  <title>PesenHub — Martabak & Terang Bulan</title>
   <style>
 :root {
-  --green: #176b4d;
-  --green-dark: #104c38;
-  --green-50: #eaf6f0;
-  --ink: #18251f;
-  --muted: #6c7972;
-  --line: #dce4df;
-  --warm: #f7f6f2;
+  --primary: #7a321f;
+  --primary-dark: #4b2118;
+  --primary-50: #f7e8df;
+  --green: #7a321f;
+  --green-dark: #4b2118;
+  --green-50: #f7e8df;
+  --secondary: #f2a72b;
+  --secondary-50: #fff1d2;
+  --accent: #2f7d4a;
+  --ink: #2b1b16;
+  --muted: #75645d;
+  --line: #e9ddd3;
+  --warm: #fff8ee;
   --white: #ffffff;
-  --orange: #e98a15;
-  --orange-50: #fff5e7;
-  --red: #d7463e;
+  --orange: #f2a72b;
+  --orange-50: #fff1d2;
+  --red: #c63d32;
   --red-50: #fff0ee;
-  --blue: #3676c8;
+  --blue: #316fc3;
   --blue-50: #edf5ff;
-  --shadow: 0 8px 30px rgba(22, 49, 37, .08);
+  --shadow: 0 8px 30px rgba(75, 33, 24, .08);
   --radius: 16px;
 }
 
@@ -388,7 +394,7 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
   <main class="app-shell" id="app">
     <!-- Sidebar Navigation -->
     <aside class="side-nav" aria-label="Navigasi utama">
-      <div class="brand-mark">PH</div>
+      <div class="brand-mark" style="background:transparent;padding:2px;"><img src="assets/logo.png" alt="Logo" style="width:100%;height:100%;object-fit:contain;"></div>
       <div class="nav-stack" id="sideNavStack"></div>
       <button class="nav-item settings-item" onclick="openMore()">
         <i data-lucide="settings"></i>
@@ -400,10 +406,10 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
       <!-- Topbar -->
       <header class="topbar">
         <div class="topbar-title">
-          <div class="mobile-brand">PH</div>
+          <div class="mobile-brand" style="background:transparent;padding:2px;"><img src="assets/logo.png" alt="Logo" style="width:100%;height:100%;object-fit:contain;"></div>
           <div>
-            <strong>PesenHub</strong>
-            <span>Outlet Sudirman · Buka</span>
+            <strong>Jenggirat Martabak & Terang Bulan</strong>
+            <span>PesenHub Outlet #01 · Buka</span>
           </div>
         </div>
         <div class="topbar-actions">
@@ -466,6 +472,9 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
       category: "Semua",
       query: "",
       spicy: "Sedang",
+      baseCake: "Original",
+      selectedToppings: [],
+      toppingLimit: 1,
       selectedProduct: null,
       customer: "",
       orderNote: "",
@@ -480,32 +489,50 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
       moreOpen: false,
       availability: {},
       cart: [
-        { id: 1, name: "Nasi Goreng Spesial", price: 25000, category: "Nasi Goreng", icon: "🍳", available: true, qty: 1, spicy: "Sedang" },
-        { id: 6, name: "Es Teh Manis", price: 5000, category: "Minuman", icon: "🧋", available: true, qty: 1 }
+        { id: 2, name: "Martabak Telur Bebek", price: 38000, category: "Martabak Telur", icon: "🍳", available: true, qty: 1, modifier: "Spesial · Pedas · Acar dipisah" },
+        { id: 7, name: "2 Toping - Biasa", price: 23000, category: "Terang Bulan", icon: "🍫", available: true, qty: 1, modifier: "Original · Coklat, Keju" }
       ],
       orders: [
-        { id: "PH-1258", customer: "Rina", source: "WhatsApp", status: "Menunggu", time: "12:06", elapsed: 3, total: 49000, paid: false, items: ["2× Nasi Goreng Spesial", "1× Es Teh Manis"], note: "Satu tidak pedas, tanpa acar" },
-        { id: "PH-1257", customer: "Budi", source: "Web", status: "Sedang Dibuat", time: "11:54", elapsed: 15, total: 37000, paid: true, items: ["1× Nasi Goreng Mawut", "1× Jeruk Hangat", "1× Kerupuk"], note: "Pedas" },
-        { id: "PH-1256", customer: "Pelanggan umum", source: "Kasir", status: "Siap Diambil", time: "11:50", elapsed: 19, total: 24000, paid: true, items: ["1× Mie Goreng Jawa", "1× Es Teh Manis"] },
-        { id: "PH-1255", customer: "Ayu", source: "WhatsApp", status: "Diterima", time: "11:59", elapsed: 10, total: 43000, paid: false, items: ["2× Nasi Goreng Biasa", "1× Es Teh Manis"], note: "Bungkus, sendok 2" }
+        { id: "PH-1261", customer: "Dimas", source: "Web", status: "Sedang Dibuat", time: "11:42", elapsed: 18, total: 25000, paid: true, items: ["1× 2 Toping - Biasa"], note: "Base cake Red Velvet, Coklat & Keju" },
+        { id: "PH-1258", customer: "Rina", source: "WhatsApp", status: "Menunggu", time: "12:06", elapsed: 3, total: 82000, paid: false, items: ["2× Martabak Telur Bebek · Pedas", "1× Es Teh Manis"], note: "Satu tidak pedas, tanpa acar" },
+        { id: "PH-1257", customer: "Budi", source: "Web", status: "Sedang Dibuat", time: "11:54", elapsed: 15, total: 45000, paid: true, items: ["1× Cut Pizza All In One"], note: "Extra butter" },
+        { id: "PH-1256", customer: "Pelanggan umum", source: "Kasir", status: "Siap Diambil", time: "11:50", elapsed: 19, total: 37000, paid: true, items: ["1× Martabak Telur Ayam", "1× Teh Hangat"] },
+        { id: "PH-1255", customer: "Ayu", source: "WhatsApp", status: "Diterima", time: "11:59", elapsed: 10, total: 25000, paid: false, items: ["1× 1 Toping - Besar", "1× Es Teh Manis"], note: "Toping Keju, bungkus rapat" }
+      ],
+      importantToppings: [
+        { id: "t1", name: "Coklat", available: true },
+        { id: "t2", name: "Pisang", available: true },
+        { id: "t3", name: "Keju", available: true },
+        { id: "t4", name: "Oreo", available: true },
+        { id: "t5", name: "Kacang", available: true },
+        { id: "t6", name: "Selai Strawberry", available: true },
+        { id: "t7", name: "Selai Blueberry", available: true },
+        { id: "t8", name: "Goldenfill", available: true }
       ]
     };
 
     const products = [
-      { id: 1, name: "Nasi Goreng Spesial", price: 25000, category: "Nasi Goreng", icon: "🍳", available: true, popular: true },
-      { id: 2, name: "Nasi Goreng Biasa", price: 18000, category: "Nasi Goreng", icon: "🍚", available: true },
-      { id: 3, name: "Nasi Goreng Mawut", price: 22000, category: "Nasi Goreng", icon: "🥘", available: true },
-      { id: 4, name: "Mie Goreng Jawa", price: 19000, category: "Mie & Kwetiau", icon: "🍜", available: true, popular: true },
-      { id: 5, name: "Kwetiau Goreng", price: 21000, category: "Mie & Kwetiau", icon: "🥡", available: true },
-      { id: 6, name: "Es Teh Manis", price: 5000, category: "Minuman", icon: "🧋", available: true },
-      { id: 7, name: "Jeruk Hangat", price: 7000, category: "Minuman", icon: "🍊", available: true },
-      { id: 8, name: "Kerupuk", price: 3000, category: "Tambahan", icon: "🥠", available: true },
-      { id: 9, name: "Telur Mata Sapi", price: 5000, category: "Tambahan", icon: "🍳", available: true },
-      { id: 10, name: "Ati Ampela", price: 7000, category: "Tambahan", icon: "🍢", available: false }
+      { id: 1, name: "Martabak Telur Ayam", price: 32000, category: "Martabak Telur", icon: "🥞", available: true },
+      { id: 2, name: "Martabak Telur Bebek", price: 38000, category: "Martabak Telur", icon: "🍳", available: true, popular: true },
+      { id: 3, name: "Martabak Telur Spesial Daging", price: 48000, category: "Martabak Telur", icon: "🥩", available: true, popular: true },
+      { id: 4, name: "Martabak Telur Jumbo", price: 62000, category: "Martabak Telur", icon: "🥘", available: true },
+      { id: 5, name: "1 Toping - Biasa", price: 18000, category: "Terang Bulan", icon: "🥞", available: true },
+      { id: 6, name: "1 Toping - Besar", price: 25000, category: "Terang Bulan", icon: "🥞", available: true },
+      { id: 7, name: "2 Toping - Biasa", price: 23000, category: "Terang Bulan", icon: "🍫", available: true, popular: true },
+      { id: 8, name: "2 Toping - Besar", price: 30000, category: "Terang Bulan", icon: "🍫", available: true },
+      { id: 9, name: "3 Toping - Biasa", price: 28000, category: "Terang Bulan", icon: "🍰", available: true },
+      { id: 10, name: "3 Toping - Besar", price: 35000, category: "Terang Bulan", icon: "🍰", available: true },
+      { id: 16, name: "Cut Pizza All In One", price: 45000, category: "Terang Bulan", icon: "🍕", available: true, popular: true },
+      { id: 11, name: "Paket Berdua: Telur Ayam + 1 Toping", price: 48000, category: "Paket Hemat", icon: "🎁", available: true, popular: true },
+      { id: 12, name: "Paket Keluarga: Telur Spesial + 2 Toping", price: 68000, category: "Paket Hemat", icon: "🍱", available: true },
+      { id: 13, name: "Es Teh Manis", price: 6000, category: "Minuman", icon: "🧋", available: true },
+      { id: 14, name: "Teh Hangat", price: 5000, category: "Minuman", icon: "🍵", available: true },
+      { id: 15, name: "Es Jeruk", price: 9000, category: "Minuman", icon: "🍊", available: true }
     ];
 
     // Initialize Availability
     products.forEach(p => state.availability[p.id] = p.available);
+    state.importantToppings.forEach(t => state.availability[t.id] = t.available);
 
     const navItems = [
       { id: "home", label: "Beranda", icon: "layout-dashboard" },
@@ -593,21 +620,50 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
     function quickAdd(productId) {
       const product = products.find(p => p.id === productId);
       if (!product || !state.availability[product.id]) return;
-      if (["Nasi Goreng", "Mie & Kwetiau"].includes(product.category)) {
+      if (product.category === "Martabak Telur") {
         state.selectedProduct = product;
+        state.eggType = "Bebek";
         state.spicy = "Sedang";
+        state.extraMeat = false;
+        state.extraPickle = true;
         render();
         return;
       }
-      addToCart(product, "");
+      if (product.category === "Terang Bulan") {
+        state.selectedProduct = product;
+        state.baseCake = "Original";
+        let limit = 1;
+        let defaultToppings = ["Coklat"];
+        if (product.name.includes("2 Toping")) {
+          limit = 2;
+          defaultToppings = ["Coklat", "Keju"];
+        } else if (product.name.includes("3 Toping")) {
+          limit = 3;
+          defaultToppings = ["Coklat", "Keju", "Kacang"];
+        } else if (product.name.includes("Cut Pizza")) {
+          limit = 8;
+          defaultToppings = ["Coklat", "Keju", "Oreo", "Kacang", "Pisang", "Goldenfill", "Selai Strawberry", "Selai Blueberry"];
+        }
+        state.toppingLimit = limit;
+        state.selectedToppings = [...defaultToppings];
+        render();
+        return;
+      }
+      addToCart(product, "", 0);
     }
 
-    function addToCart(product, spicyLevel) {
-      const existing = state.cart.find(line => line.id === product.id && line.spicy === (spicyLevel || undefined));
+    function addToCart(product, modifierSummary, extraPrice = 0) {
+      const finalPrice = product.price + extraPrice;
+      const existing = state.cart.find(line => line.id === product.id && line.modifier === (modifierSummary || undefined));
       if (existing) {
         existing.qty += 1;
       } else {
-        state.cart.push({ ...product, qty: 1, spicy: spicyLevel || undefined });
+        state.cart.push({
+          ...product,
+          price: finalPrice,
+          qty: 1,
+          modifier: modifierSummary || undefined
+        });
       }
       state.selectedProduct = null;
       showToast(`${product.name} ditambahkan`);
@@ -624,11 +680,18 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
       }
     }
 
-    function updateAvailability(productId, available) {
-      const product = products.find((item) => item.id === productId);
-      if (!product) return;
-      state.availability[productId] = available;
-      showToast(`${product.name} berhasil diperbarui menjadi ${available ? 'Tersedia' : 'Habis'}`, "success");
+    function updateAvailability(itemId, available) {
+      let itemName = "";
+      const product = products.find((item) => item.id === itemId);
+      if (product) {
+        itemName = product.name;
+      } else {
+        const topping = state.importantToppings.find(t => t.id === itemId);
+        if (topping) itemName = topping.name;
+      }
+      state.availability[itemId] = available;
+      showToast(`${itemName || 'Item'} sekarang ditandai ${available ? 'Tersedia' : 'Habis'}`, "success");
+      render();
     }
 
     function demoFeedback(type) {
@@ -653,7 +716,7 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
         elapsed: 0,
         total: cartTotal,
         paid: true,
-        items: state.cart.map(line => `${line.qty}× ${line.name}${line.spicy ? ` · ${line.spicy}` : ""}`),
+        items: state.cart.map(line => `${line.qty}× ${line.name}${line.modifier ? ` · ${line.modifier}` : ""}`),
         note: state.orderNote.trim() || undefined
       };
       state.orders.unshift(newOrder);
@@ -674,10 +737,10 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
         status: "Diterima",
         time: "12:08",
         elapsed: 0,
-        total: 38000,
+        total: 44000,
         paid: false,
-        items: ["1× Nasi Goreng Spesial · Pedas", "1× Es Teh Manis", "1× Kerupuk"],
-        note: "Bungkus, tanpa acar"
+        items: ["1× Martabak Telur Ayam · Sedang", "2× Es Teh Manis"],
+        note: "Acar dan saus dipisah"
       };
       if (!state.orders.some(o => o.id === newOrder.id)) {
         state.orders.unshift(newOrder);
@@ -735,9 +798,9 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
           <div class="view-stack">
             <section class="welcome-row">
               <div>
-                <p class="eyebrow">Rabu, 2 September · Shift siang</p>
-                <h1>Halo, Yoga! 👋</h1>
-                <p>Fokus berikutnya sudah diurutkan untukmu.</p>
+                <p class="eyebrow">RINGKASAN OPERASIONAL</p>
+                <h1>Selamat malam, Yoga! 👋</h1>
+                <p>Pantau pesanan martabak dan terang bulan malam ini.</p>
               </div>
               <button class="primary-btn" onclick="setView('new')">
                 <i data-lucide="plus"></i> Buat pesanan
@@ -773,6 +836,10 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
                 <i data-lucide="chevron-right"></i>
               </button>
             </section>
+
+            <div style="padding:11px 16px;border-radius:12px;background:var(--orange-50);border:1px solid #f9d8a8;color:#854d0e;font-size:13px;font-weight:600;display:flex;align-items:center;gap:9px;">
+              <i data-lucide="info"></i> Pastikan acar, saus, dan topping tambahan ikut dikemas.
+            </div>
 
             <section class="home-grid">
               <div class="panel">
@@ -930,17 +997,17 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
                 <div>
                   <p class="eyebrow">PESANAN KASIR</p>
                   <h1>Buat pesanan</h1>
-                  <p>Pilih menu, cek ringkasan, lalu bayar.</p>
+                  <p>Pilih menu, atur topping, lalu proses pembayaran.</p>
                 </div>
               </div>
               <div class="catalog-tools">
                 <label class="search-box grow">
                   <i data-lucide="search"></i>
-                  <input value="${state.query}" oninput="state.query = this.value; renderView(); lucide.createIcons();" placeholder="Cari menu..." />
+                  <input value="${state.query}" oninput="state.query = this.value; renderView(); lucide.createIcons();" placeholder="Cari martabak atau topping..." />
                 </label>
               </div>
               <div class="category-tabs">
-                ${["Semua", "Nasi Goreng", "Mie & Kwetiau", "Minuman", "Tambahan"].map(item => `
+                ${["Semua", "Martabak Telur", "Terang Bulan", "Paket Hemat", "Minuman"].map(item => `
                   <button class="${state.category === item ? 'active' : ''}" onclick="setCategory('${item}')">${item}</button>
                 `).join('')}
               </div>
@@ -991,7 +1058,7 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
                     <div class="line-icon">${line.icon}</div>
                     <div class="line-copy">
                       <strong>${line.name}</strong>
-                      ${line.spicy ? `<span>Pedas: ${line.spicy}</span>` : ''}
+                      ${line.modifier ? `<span>${line.modifier}</span>` : line.spicy ? `<span>Pedas: ${line.spicy}</span>` : ''}
                       <b>${money(line.price * line.qty)}</b>
                     </div>
                     <div class="qty-control">
@@ -1029,8 +1096,8 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
             <section class="page-heading">
               <div>
                 <p class="eyebrow">MODE DAPUR</p>
-                <h1>Produksi pesanan</h1>
-                <p>Tampilan besar untuk dibaca sambil memasak dan menyiapkan minuman.</p>
+                <h1>Produksi martabak</h1>
+                <p>Tiket besar untuk produksi martabak telur dan terang bulan.</p>
               </div>
               <div class="kds-legend">
                 <span><i class="dot orange"></i> Baru</span>
@@ -1066,10 +1133,17 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
                             <b class="${order.elapsed >= 12 ? 'late-time' : ''}">${order.elapsed} mnt</b>
                           </div>
                           <h3>${order.customer}</h3>
-                          <ul>
-                            ${order.items.map(item => `<li>${item}</li>`).join('')}
+                          <ul style="list-style:none;padding:0;margin:8px 0;display:grid;gap:6px;">
+                            ${order.items.map(item => {
+                              const isMartabak = item.toLowerCase().includes("martabak") || item.toLowerCase().includes("telur");
+                              const isTerbul = item.toLowerCase().includes("terang bulan") || item.toLowerCase().includes("cokelat") || item.toLowerCase().includes("keju") || item.toLowerCase().includes("pandan") || item.toLowerCase().includes("oreo");
+                              const badgeText = isMartabak ? "MARTABAK TELUR" : isTerbul ? "TERANG BULAN" : "MINUMAN";
+                              const badgeBg = isMartabak ? "#f7e8df" : isTerbul ? "#fff1d2" : "#edf5ff";
+                              const badgeCol = isMartabak ? "#7a321f" : isTerbul ? "#8a520d" : "#316fc3";
+                              return `<li><span style="font-size:9px;font-weight:900;letter-spacing:.05em;background:${badgeBg};color:${badgeCol};padding:2px 6px;border-radius:4px;margin-right:5px;">${badgeText}</span> ${item}</li>`;
+                            }).join('')}
                           </ul>
-                          ${order.note ? `<p>⚠ ${order.note}</p>` : ''}
+                          ${order.note ? `<p style="padding:6px 9px;border-radius:7px;background:#fff3dc;color:#854d0e;font-weight:800;font-size:11.5px;margin:6px 0;">⚠ ${order.note.toUpperCase()}</p>` : ''}
                           ${nextStatus[order.status] ? `
                             <button onclick="advanceOrder('${order.id}')">
                               ${nextLabel[order.status]} <i data-lucide="chevron-right"></i>
@@ -1113,6 +1187,31 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
                   </label>
                   <b class="${state.availability[product.id] ? 'available' : 'unavailable'}">
                     ${state.availability[product.id] ? 'Tersedia' : 'Habis'}
+                  </b>
+                </article>
+              `).join('')}
+            </section>
+            <section class="page-heading" style="margin-top:20px;">
+              <div>
+                <p class="eyebrow">BAHAN BAKU & TOPPING</p>
+                <h2 style="font-size:18px;margin:0;">Stok topping penting</h2>
+                <p style="margin:4px 0 0;color:var(--muted);font-size:12px;">Kontrol ketersediaan bahan baku penting martabak telur dan terang bulan.</p>
+              </div>
+            </section>
+            <section class="menu-management">
+              ${state.importantToppings.map(topping => `
+                <article class="menu-row">
+                  <div class="menu-emoji">🧀</div>
+                  <div class="menu-copy">
+                    <strong>${topping.name}</strong>
+                    <span>Bahan Topping</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" aria-label="Ubah ketersediaan ${topping.name}" ${state.availability[topping.id] ? 'checked' : ''} onchange="updateAvailability('${topping.id}', this.checked)">
+                    <span></span>
+                  </label>
+                  <b class="${state.availability[topping.id] ? 'available' : 'unavailable'}">
+                    ${state.availability[topping.id] ? 'Tersedia' : 'Habis'}
                   </b>
                 </article>
               `).join('')}
@@ -1169,14 +1268,13 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
               <div class="incoming-body">
                 <div class="incoming-meta">
                   <span>#PH-1264 · 12:08</span>
-                  <strong>${money(38000)}</strong>
+                  <strong>${money(44000)}</strong>
                 </div>
                 <ul>
-                  <li><b>1×</b> Nasi Goreng Spesial · Pedas</li>
-                  <li><b>1×</b> Es Teh Manis</li>
-                  <li><b>1×</b> Kerupuk</li>
+                  <li><b>1×</b> Martabak Telur Ayam · Sedang</li>
+                  <li><b>2×</b> Es Teh Manis</li>
                 </ul>
-                <p class="incoming-note">Bungkus, tanpa acar</p>
+                <p class="incoming-note">Acar dan saus dipisah</p>
               </div>
               <div class="incoming-actions">
                 <button class="reject-btn" onclick="setIncoming(false)">Tolak</button>
@@ -1187,15 +1285,38 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
         `;
       }
 
-      // Spicy Option Modal
+      // Modifiers Modal for Martabak Telur & Terang Bulan
       if (state.selectedProduct) {
         const prod = state.selectedProduct;
+        const isMartabak = prod.category === "Martabak Telur";
+        
+        let extraPrice = 0;
+        let summaryParts = [];
+        
+        if (isMartabak) {
+          summaryParts.push(state.eggType || "Bebek");
+          summaryParts.push(state.spicy || "Sedang");
+          if (state.extraMeat) { extraPrice += 10000; summaryParts.push("Tambah Daging"); }
+          if (state.extraPickle) { extraPrice += 3000; summaryParts.push("Acar Ekstra"); }
+        } else {
+          summaryParts.push(state.baseCake || "Original");
+          if (state.baseCake && state.baseCake !== "Original") {
+            extraPrice += 2000;
+          }
+          if (state.selectedToppings && state.selectedToppings.length > 0) {
+            summaryParts.push(state.selectedToppings.join(", "));
+          }
+        }
+        
+        const finalPrice = prod.price + extraPrice;
+        const summaryText = summaryParts.join(" · ");
+
         html += `
           <div class="modal-backdrop" onclick="state.selectedProduct = null; render();">
             <section class="option-modal" onclick="event.stopPropagation();">
               <div class="modal-title">
                 <div>
-                  <p>TAMBAH KE PESANAN</p>
+                  <p>KUSTOMISASI MENU</p>
                   <h2>${prod.name}</h2>
                 </div>
                 <button class="close-btn" onclick="state.selectedProduct = null; render();"><i data-lucide="x"></i></button>
@@ -1203,23 +1324,103 @@ button.icon-btn, button.avatar, button.close-btn, .qty-control button, .feedback
               <div class="dish-preview">
                 <span>${prod.icon}</span>
                 <div>
-                  <b>${money(prod.price)}</b>
-                  <p>Pilih tingkat kepedasan sebelum menambahkan.</p>
+                  <b>${money(finalPrice)}</b>
+                  <p>${isMartabak ? 'Atur pilihan telur, kepedasan, dan isian ekstra.' : 'Atur pilihan base cake dan topping manis susu kenyal sampai pagi.'}</p>
                 </div>
               </div>
-              <fieldset>
-                <legend>Level pedas <span>Wajib</span></legend>
-                <div class="option-grid">
-                  ${["Tidak pedas", "Sedang", "Pedas", "Extra pedas"].map(level => `
-                    <button class="${state.spicy === level ? 'selected' : ''}" onclick="state.spicy = '${level}'; renderModals(); lucide.createIcons();">
-                      <span>${level}</span>
-                      ${state.spicy === level ? `<i data-lucide="check"></i>` : ''}
+
+              ${isMartabak ? `
+                <fieldset style="margin-bottom:12px;">
+                  <legend>Pilihan Telur <span>Wajib</span></legend>
+                  <div class="option-grid">
+                    ${["Telur Bebek", "Telur Ayam"].map(opt => `
+                      <button class="${state.eggType === opt ? 'selected' : ''}" onclick="state.eggType = '${opt}'; renderModals(); lucide.createIcons();">
+                        <span>${opt}</span>
+                        ${state.eggType === opt ? `<i data-lucide="check"></i>` : ''}
+                      </button>
+                    `).join('')}
+                  </div>
+                </fieldset>
+
+                <fieldset style="margin-bottom:12px;">
+                  <legend>Tingkat Pedas <span>Wajib</span></legend>
+                  <div class="option-grid">
+                    ${["Tidak pedas", "Sedang", "Pedas"].map(level => `
+                      <button class="${state.spicy === level ? 'selected' : ''}" onclick="state.spicy = '${level}'; renderModals(); lucide.createIcons();">
+                        <span>${level}</span>
+                        ${state.spicy === level ? `<i data-lucide="check"></i>` : ''}
+                      </button>
+                    `).join('')}
+                  </div>
+                </fieldset>
+
+                <fieldset style="margin-bottom:14px;">
+                  <legend>Tambahan (Ekstra)</legend>
+                  <div class="option-grid">
+                    <button class="${state.extraMeat ? 'selected' : ''}" onclick="state.extraMeat = !state.extraMeat; renderModals(); lucide.createIcons();">
+                      <span>Tambah Daging (+Rp10rb)</span>
+                      ${state.extraMeat ? `<i data-lucide="check"></i>` : ''}
                     </button>
-                  `).join('')}
-                </div>
-              </fieldset>
-              <button class="full-primary" onclick="addToCart(state.selectedProduct, state.spicy)">
-                <i data-lucide="plus"></i> Tambahkan · ${money(prod.price)}
+                    <button class="${state.extraPickle ? 'selected' : ''}" onclick="state.extraPickle = !state.extraPickle; renderModals(); lucide.createIcons();">
+                      <span>Acar Ekstra (+Rp3rb)</span>
+                      ${state.extraPickle ? `<i data-lucide="check"></i>` : ''}
+                    </button>
+                  </div>
+                </fieldset>
+              ` : `
+                <fieldset style="margin-bottom:12px;">
+                  <legend>Pilihan Base Cake <span>Wajib</span></legend>
+                  <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Original warna kuning alami tanpa pewarna. Varian aroma food grade istimewa +Rp 2.000:</p>
+                  <div class="option-grid">
+                    ${[
+                      { name: "Original", add: 0 },
+                      { name: "Red Velvet", add: 2000 },
+                      { name: "Pandan", add: 2000 },
+                      { name: "Black Forest", add: 2000 },
+                      { name: "Taro", add: 2000 },
+                      { name: "Mocca", add: 2000 },
+                      { name: "Green Tea", add: 2000 }
+                    ].map(bc => `
+                      <button class="${(state.baseCake || 'Original') === bc.name ? 'selected' : ''}" onclick="state.baseCake = '${bc.name}'; renderModals(); lucide.createIcons();">
+                        <span>${bc.name} ${bc.add ? `(+${money(bc.add)})` : ''}</span>
+                        ${(state.baseCake || 'Original') === bc.name ? `<i data-lucide="check"></i>` : ''}
+                      </button>
+                    `).join('')}
+                  </div>
+                </fieldset>
+
+                <fieldset style="margin-bottom:14px;">
+                  <legend>Pilihan Toping <span>${state.selectedProduct.name.includes("1 Toping") ? "Maks. 1 Pilihan" : state.selectedProduct.name.includes("2 Toping") ? "Maks. 2 Pilihan" : state.selectedProduct.name.includes("3 Toping") ? "Maks. 3 Pilihan" : "Kombinasi Pizza All In One"}</span></legend>
+                  <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Toping melimpah ruah manis susu kenyal sampai pagi:</p>
+                  <div class="option-grid">
+                    ${["Coklat", "Pisang", "Keju", "Oreo", "Kacang", "Selai Strawberry", "Selai Blueberry", "Goldenfill"].map(top => {
+                      const isSel = (state.selectedToppings || []).includes(top);
+                      return `
+                        <button class="${isSel ? 'selected' : ''}" onclick="
+                          if (!state.selectedToppings) state.selectedToppings = [];
+                          const idx = state.selectedToppings.indexOf('${top}');
+                          if (idx >= 0) {
+                            state.selectedToppings.splice(idx, 1);
+                          } else {
+                            if (state.selectedToppings.length >= (state.toppingLimit || 3)) {
+                              state.selectedToppings.shift();
+                            }
+                            state.selectedToppings.push('${top}');
+                          }
+                          renderModals();
+                          lucide.createIcons();
+                        ">
+                          <span>${top}</span>
+                          ${isSel ? `<i data-lucide="check"></i>` : ''}
+                        </button>
+                      `;
+                    }).join('')}
+                  </div>
+                </fieldset>
+              `}
+
+              <button class="full-primary" onclick="addToCart(state.selectedProduct, '${summaryText}', ${extraPrice})">
+                <i data-lucide="plus"></i> Tambah ke Pesanan · ${money(finalPrice)}
               </button>
             </section>
           </div>

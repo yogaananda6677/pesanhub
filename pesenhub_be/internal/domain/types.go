@@ -28,6 +28,9 @@ const (
 	OrderSourceWhatsApp       OrderSource   = "WHATSAPP"
 	OrderSourceCashierManual  OrderSource   = "CASHIER_MANUAL"
 	OrderSourceCustomerWeb    OrderSource   = "CUSTOMER_WEB"
+	OrderSourceGrabFood       OrderSource   = "GRABFOOD"
+	OrderSourceGoFood         OrderSource   = "GOFOOD"
+	OrderSourceShopeeFood     OrderSource   = "SHOPEEFOOD"
 	FulfillmentPickup         Fulfillment   = "PICKUP"
 	OrderStatusPending        OrderStatus   = "PENDING"
 	OrderStatusAccepted       OrderStatus   = "ACCEPTED"
@@ -47,7 +50,7 @@ const (
 )
 
 func (v OrderSource) Valid() bool {
-	return v == OrderSourceWhatsApp || v == OrderSourceCashierManual || v == OrderSourceCustomerWeb
+	return v == OrderSourceWhatsApp || v == OrderSourceCashierManual || v == OrderSourceCustomerWeb || v == OrderSourceGrabFood || v == OrderSourceGoFood || v == OrderSourceShopeeFood
 }
 func (v Fulfillment) Valid() bool { return v == FulfillmentPickup }
 func (v OrderStatus) Valid() bool {

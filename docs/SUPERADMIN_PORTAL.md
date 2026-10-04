@@ -112,18 +112,18 @@ Portal Superadmin memantau 6 komponen infrastruktur utama:
 
 ## 4. Runbook Operasional Superadmin
 
-### A. Bootstrap Akun Superadmin Pertama
-Gunakan CLI bootstrap berizin di server backend:
-```bash
-cd pesenhub_be
-go run ./cmd/bootstrap-superadmin --email admin.utama@pesenhub.id --name "Superadmin Utama"
-```
+### A. Kredensial Superadmin Tetap
+Akun Superadmin dikonfigurasi menggunakan username dan password tetap melalui environment variable:
+- `SUPERADMIN_USERNAME` (default: `superadmin`)
+- `SUPERADMIN_PASSWORD` (default: `superadmin`)
+
+Akun Superadmin di basis data akan dipastikan ketersediaannya secara otomatis (*auto-provisioned*). Perintah CLI `bootstrap-superadmin` tetap tersedia sebagai utilitas opsional.
 
 ### B. Mengakses Portal Web
 1. Buka peramban ke: `http://<host>:8080/superadmin/`
-2. Masukkan sesi token Superadmin yang valid pada halaman autentikasi.
+2. Masukkan **Username** dan **Password** Superadmin yang telah ditentukan.
 3. Klik **"Masuk ke Portal"**.
-4. Setelah terverifikasi, header akan menampilkan badge status sistem dan email Superadmin.
+4. Setelah terverifikasi, header akan menampilkan badge status sistem dan identitas Superadmin.
 
 ### C. Menyetujui Pendaftaran Owner Baru
 1. Masuk ke tab **"Pengguna & Approval"**.
@@ -142,23 +142,46 @@ go run ./cmd/bootstrap-superadmin --email admin.utama@pesenhub.id --name "Supera
 6. Backend secara transaksional mengubah status menjadi `SUSPENDED` dan mengubah `revoked_at = now()` pada seluruh baris aktif di `app_sessions`.
 7. Aplikasi mobile yang sedang berjalan akan menerima status unauthenticated / forbidden pada request berikutnya dan diarahkan ke layar login.
 
+### E. Memeriksa Status WhatsApp Gateway Akun Admin
+1. Pada tab **"Pengguna & Approval"**, perhatikan kolom **"WA Gateway"**.
+2. Kolom menampilkan status koneksi WhatsApp untuk setiap akun admin:
+   - `● Terhubung` (Hijau): Perangkat WhatsApp akun terhubung dan aktif (paired).
+   - `○ Belum Konek` (Kuning): Gateway aktif namun perangkat belum ditautkan/scan QR.
+   - `⚠ GOWA Down` (Merah): Layanan gateway GOWA tidak dapat dihubungi.
+3. Klik tombol status untuk membuka modal dialog rincian konfigurasi:
+   - Nama & Email Pengguna
+   - Nomor WhatsApp yang terdaftar (dimasker demi privasi, misal `62812****890`)
+   - Device ID / Session ID
+   - Keterangan status layanan
+   - Tombol **"Cek Ulang"** untuk memicu verifikasi langsung ke gateway.
+
+### F. Mode Tampilan Terang & Gelap (Light / Dark Mode)
+1. Portal menyediakan tombol toggle tema (`🌙` / `☀️`) di pojok kanan header.
+2. Pilihan tema disimpan otomatis di `localStorage` peramban.
+3. Menggunakan skrip anti-FOUC di `<head>` dan variabel CSS dinamis untuk transisi warna yang mulus dan bebas kedip (*flash-free*).
+
 ---
 
 ## 5. Matriks Endpoint API Superadmin
 
-Seluruh endpoint di bawah berada di bawah prefix `/api/v1/superadmin/` dan mewajibkan otorisasi `SUPERADMIN`:
+Seluruh endpoint di bawah berada di bawah prefix `/api/v1/superadmin/`:
 
-| Method | Path | Deskripsi | Status Respon |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/health/snapshot` | Snapshot kondisi seluruh 6 komponen sistem | `200 OK` |
-| `GET` | `/telemetry/traffic` | Metrik latensi, volume traffic, dan antrean | `200 OK` |
-| `GET` | `/users` | Daftar pengguna dengan filter status & search | `200 OK` |
-| `GET` | `/users/invitations` | Daftar undangan calon owner yang aktif | `200 OK` |
-| `POST` | `/users/invite` | Buat undangan calon owner Google | `201 Created` |
-| `DELETE` | `/users/invitations/{id}` | Batalkan/cabut undangan | `200 OK` |
-| `POST` | `/users/{id}/approve` | Setujui pendaftaran akun owner | `200 OK` |
-| `POST` | `/users/{id}/reject` | Tolak pendaftaran akun | `200 OK` |
-| `POST` | `/users/{id}/suspend` | Tangguhkan akun & cabut seluruh sesi aktif | `200 OK` |
-| `POST` | `/users/{id}/reactivate` | Aktifkan kembali akun yang ditangguhkan/ditolak | `200 OK` |
-| `POST` | `/users/{id}/revoke-sessions` | Cabut seluruh sesi tanpa mengubah status | `200 OK` |
-| `GET` | `/audits` | Riwayat audit aktivitas perubahan status | `200 OK` |
+| Method | Path | Deskripsi | Otorisasi | Status Respon |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/login` | Autentikasi dengan username & password tetap | Publik (Rate limited) | `200 OK`, `401 Unauthorized` |
+| `GET` | `/health/snapshot` | Snapshot kondisi seluruh 6 komponen sistem | `SUPERADMIN` | `200 OK` |
+| `GET` | `/telemetry/traffic` | Metrik latensi, volume traffic, dan antrean | `SUPERADMIN` | `200 OK` |
+| `GET` | `/users` | Daftar pengguna dengan filter status & search | `SUPERADMIN` | `200 OK` |
+| `GET` | `/users/invitations` | Daftar undangan calon owner yang aktif | `SUPERADMIN` | `200 OK` |
+| `POST` | `/users/invite` | Buat undangan calon owner Google | `SUPERADMIN` | `201 Created` |
+| `DELETE` | `/users/invitations/{id}` | Batalkan/cabut undangan | `SUPERADMIN` | `200 OK` |
+| `POST` | `/users/{id}/approve` | Setujui pendaftaran akun owner | `SUPERADMIN` | `200 OK` |
+| `POST` | `/users/{id}/reject` | Tolak pendaftaran akun | `SUPERADMIN` | `200 OK` |
+| `POST` | `/users/{id}/suspend` | Tangguhkan akun & cabut seluruh sesi aktif | `SUPERADMIN` | `200 OK` |
+| `POST` | `/users/{id}/reactivate` | Aktifkan kembali akun yang ditangguhkan/ditolak | `SUPERADMIN` | `200 OK` |
+| `POST` | `/users/{id}/revoke-sessions` | Cabut seluruh sesi tanpa mengubah status | `SUPERADMIN` | `200 OK` |
+| `GET` | `/users/{id}/whatsapp` | Cek status & konfigurasi WA gateway akun tertentu | `SUPERADMIN` | `200 OK` |
+| `GET` | `/whatsapp/status` | Ringkasan status WA gateway seluruh akun admin | `SUPERADMIN` | `200 OK` |
+| `GET` | `/audits` | Riwayat audit aktivitas perubahan status | `SUPERADMIN` | `200 OK` |
+
+

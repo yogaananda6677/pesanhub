@@ -6,7 +6,7 @@ abstract final class AppColors {
   // Brand Primary & Accent (Cocoa Brown & Butter Gold - Martabak & Terang Bulan)
   static const Color primary = Color(0xFF7A321F);
   static const Color primaryHover = Color(0xFF4B2118);
-  static const Color primaryContainer = Color(0xFFF7E8DF);
+  static const Color primaryContainer = Color(0xFFFEF3ED);
   static const Color onPrimary = Color(0xFFFFFFFF);
 
   static const Color secondary = Color(0xFFF2A72B);
@@ -14,10 +14,10 @@ abstract final class AppColors {
   static const Color onSecondary = Color(0xFFFFFFFF);
 
   // Surfaces & Backgrounds
-  static const Color background = Color(0xFFFFF8EE);
+  static const Color background = Color(0xFFF8F9FA);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFFFFCF7);
-  static const Color border = Color(0xFFE9DDD3);
+  static const Color surfaceVariant = Color(0xFFF1F5F9);
+  static const Color border = Color(0xFFE2E8F0);
   static const Color borderFocus = Color(0xFF7A321F);
 
   // Typography Colors
@@ -83,4 +83,13 @@ abstract final class AppColors {
 
   static const Color sourceWhatsApp = Color(0xFF047857);
   static const Color sourceWhatsAppBg = Color(0xFFD1FAE5);
+
+  static const Color sourceGrabFood = Color(0xFF00B14F);
+  static const Color sourceGrabFoodBg = Color(0xFFE8F8EE);
+
+  static const Color sourceGoFood = Color(0xFFEE2737);
+  static const Color sourceGoFoodBg = Color(0xFFFEECEE);
+
+  static const Color sourceShopeeFood = Color(0xFFEE4D2D);
+  static const Color sourceShopeeFoodBg = Color(0xFFFEF0ED);
 }

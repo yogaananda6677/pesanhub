@@ -4,20 +4,38 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PesenHub — Superadmin Control Plane</title>
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <script>
+    (function () {
+      try {
+        var savedTheme = localStorage.getItem('pesenhub_theme');
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = savedTheme || (prefersDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="app-header">
     <div class="header-brand">
-      <div class="brand-badge">CONTROL PLANE</div>
-      <h1 class="brand-title">PesenHub Superadmin</h1>
+      <img src="assets/logo.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;border-radius:6px;margin-right:12px;">
+      <div>
+        <div class="brand-badge">CONTROL PLANE</div>
+        <h1 class="brand-title">PesenHub Superadmin</h1>
+      </div>
     </div>
     <div class="header-status">
       <span id="system-quick-status" class="status-pill status-healthy" aria-live="polite">
         <span class="status-dot"></span> <span id="quick-status-text">Memeriksa sistem...</span>
       </span>
+      <button id="btn-theme-toggle" class="theme-toggle-btn" type="button" aria-label="Ganti mode tampilan terang/gelap" title="Ganti mode tampilan">
+        <span id="theme-toggle-icon" aria-hidden="true">🌙</span>
+        <span id="theme-toggle-text" class="sr-only">Mode Gelap</span>
+      </button>
       <div id="user-profile" class="user-profile hidden">
-        <span id="user-email" class="user-email">su***@pesenhub.id</span>
+        <span id="user-email" class="user-email">superadmin</span>
         <span class="role-tag">SUPERADMIN</span>
         <button id="btn-logout" class="btn btn-outline btn-sm" type="button">Keluar</button>
       </div>
@@ -28,15 +46,19 @@
     <!-- Auth Screen -->
     <section id="auth-section" class="auth-card">
       <h2>Autentikasi Superadmin</h2>
-      <p class="auth-desc">Portal ini khusus kendali sistem & approval pengguna. Masukkan sesi token Superadmin atau login Google yang telah di-bootstrap.</p>
+      <p class="auth-desc">Portal kendali sistem & approval pengguna. Masukkan username dan password Superadmin.</p>
       
       <form id="form-login" class="form-group">
-        <label for="input-token">Sesi Token / Bearer Token:</label>
-        <div class="input-with-action">
-          <input type="password" id="input-token" placeholder="Masukkan token sesi valid" required autocomplete="off">
-          <button type="submit" class="btn btn-primary" id="btn-submit-token">Masuk ke Portal</button>
+        <div style="margin-bottom: 1rem;">
+          <label for="input-username">Username:</label>
+          <input type="text" id="input-username" placeholder="Masukkan username" required autocomplete="username">
         </div>
-        <p class="help-text">Token diperoleh dari login Google akun Superadmin terdaftar atau CLI bootstrap.</p>
+        <div style="margin-bottom: 1.25rem;">
+          <label for="input-password">Password:</label>
+          <input type="password" id="input-password" placeholder="Masukkan password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary" id="btn-submit-login" style="width: 100%;">Masuk ke Portal</button>
+        <p class="help-text" style="text-align: center; margin-top: 1rem;">Gunakan username dan password tetap Superadmin (default: superadmin / superadmin).</p>
       </form>
       <div id="auth-error" class="alert alert-danger hidden" role="alert"></div>
     </section>
@@ -131,12 +153,12 @@
       <section id="panel-users" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-btn-users">
         <div class="panel-header">
           <div>
-            <h2>Kelola Pengguna & Akses Owner</h2>
-            <p class="panel-subtitle">Verifikasi pendaftaran akun, undang calon mitra, dan kelola sesi aktif.</p>
+            <h2>Kelola Pengguna & Akses Admin</h2>
+            <p class="panel-subtitle">Verifikasi pendaftaran akun, undang calon mitra, dan periksa konfigurasi WhatsApp gateway masing-masing akun.</p>
           </div>
           <div class="controls-row">
             <button type="button" id="btn-open-invite" class="btn btn-primary">
-              <span>➕</span> Undang Calon Owner
+              <span>➕</span> Undang Kasir
             </button>
             <button type="button" id="btn-refresh-users" class="btn btn-secondary">
               <span>🔄</span> Refresh
@@ -167,6 +189,7 @@
                 <th scope="col">Nama Tampilan</th>
                 <th scope="col">Role</th>
                 <th scope="col">Status Akun</th>
+                <th scope="col">WA Gateway</th>
                 <th scope="col">Sesi Aktif</th>
                 <th scope="col">Terdaftar</th>
                 <th scope="col" class="text-right">Aksi</th>
@@ -174,7 +197,7 @@
             </thead>
             <tbody id="users-table-body">
               <tr>
-                <td colspan="7" class="text-center py-4">Memuat data pengguna...</td>
+                <td colspan="8" class="text-center py-4">Memuat data pengguna...</td>
               </tr>
             </tbody>
           </table>
@@ -216,15 +239,61 @@
     </div>
   </main>
 
-  <!-- Native HTML5 Dialog: Invite Owner -->
+  <!-- Native HTML5 Dialog: WhatsApp Gateway Status Info -->
+  <dialog id="dialog-wa-info" class="modal-dialog" aria-labelledby="dialog-wa-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="dialog-wa-title">Status WhatsApp Gateway Akun</h3>
+        <button type="button" class="btn-close" id="btn-close-wa" aria-label="Tutup dialog">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="wa-info-loading" class="text-center py-3">
+          <span>Memeriksa status gateway WhatsApp...</span>
+        </div>
+        <div id="wa-info-content" class="hidden">
+          <div class="wa-status-banner mb-3" id="wa-status-banner">
+            <span class="status-dot" id="wa-modal-dot"></span>
+            <span id="wa-modal-status-text">Status: -</span>
+          </div>
+          <dl class="info-list">
+            <div class="info-item">
+              <dt>Akun Pengguna</dt>
+              <dd id="wa-info-user">-</dd>
+            </div>
+            <div class="info-item">
+              <dt>Nomor WhatsApp</dt>
+              <dd id="wa-info-phone">-</dd>
+            </div>
+            <div class="info-item">
+              <dt>Device / Session ID</dt>
+              <dd><code id="wa-info-device">-</code></dd>
+            </div>
+            <div class="info-item">
+              <dt>Keterangan Layanan</dt>
+              <dd id="wa-info-message">-</dd>
+            </div>
+          </dl>
+        </div>
+        <div id="wa-info-error" class="alert alert-danger hidden" role="alert"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-wa-single">
+          <span>🔄</span> Cek Ulang
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" id="btn-close-wa-footer">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Native HTML5 Dialog: Invite Cashier -->
   <dialog id="dialog-invite" class="modal-dialog" aria-labelledby="dialog-invite-title">
     <form method="dialog" id="form-invite" class="modal-content">
       <div class="modal-header">
-        <h3 id="dialog-invite-title">Undang Calon Owner Baru</h3>
+        <h3 id="dialog-invite-title">Undang Kasir Baru</h3>
         <button type="button" class="btn-close" id="btn-close-invite" aria-label="Tutup dialog">&times;</button>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">Calon Owner akan diizinkan mendaftar dan login dengan akun Google mereka.</p>
+        <p class="modal-desc">Kasir diaktifkan setelah login Google memakai alamat email undangan yang sama.</p>
         <div class="form-group mb-3">
           <label for="invite-email">Alamat Email Google *</label>
           <input type="email" id="invite-email" required placeholder="contoh: calon.mitra@gmail.com" class="form-input">

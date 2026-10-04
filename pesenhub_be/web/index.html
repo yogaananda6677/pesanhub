@@ -3,99 +3,791 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>PesenHub — Order Nasi Goreng & Minuman</title>
-  <meta name="description" content="Pesan makanan dan minuman favorit Anda secara cepat dan praktis tanpa antre.">
-  <link rel="stylesheet" href="style.css">
+  <title>Martabak Jenggirat Kediri — Martabak Telur Sambal Uleg & Terang Bulan Manis Susu</title>
+  <meta name="description" content="Martabak Jenggirat Kediri: Sensasi gurih krispi Martabak Telur Spesial Sambal Uleg & Acar Segar, serta Terang Bulan Manis Susu kenyal sampai pagi. 100% Halal Indonesia.">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="stylesheet" href="landing.css">
 </head>
 <body>
-  <header class="app-header" role="banner">
-    <div class="header-content">
-      <div class="brand">
-        <h1>PesenHub</h1>
-        <p>Outlet Nasi Goreng & Minuman</p>
+
+  <!-- ==========================================
+       SVG DEFINITIONS
+       ========================================== -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
+    <symbol id="icon-bag" viewBox="0 0 24 24">
+      <path class="svg-icon-stroke" d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+      <line class="svg-icon-stroke" x1="3" y1="6" x2="21" y2="6"></line>
+      <path class="svg-icon-stroke" d="M16 10a4 4 0 0 1-8 0"></path>
+    </symbol>
+    <symbol id="icon-whatsapp" viewBox="0 0 24 24">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </symbol>
+    <symbol id="icon-star" viewBox="0 0 24 24">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+    </symbol>
+    <symbol id="icon-shield-check" viewBox="0 0 24 24">
+      <path class="svg-icon-stroke" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+      <path class="svg-icon-stroke" d="M9 12l2 2 4-4"></path>
+    </symbol>
+    <symbol id="icon-flame" viewBox="0 0 24 24">
+      <path class="svg-icon-stroke" d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path>
+    </symbol>
+    <symbol id="icon-cheese" viewBox="0 0 24 24">
+      <path class="svg-icon-stroke" d="M3 11l18-5v13H3z"></path>
+      <circle class="svg-icon-stroke" cx="9" cy="14" r="1.5"></circle>
+      <circle class="svg-icon-stroke" cx="15" cy="15" r="1"></circle>
+      <path class="svg-icon-stroke" d="M3 11c5-2 13-2 18-5"></path>
+    </symbol>
+    <symbol id="icon-clock" viewBox="0 0 24 24">
+      <circle class="svg-icon-stroke" cx="12" cy="12" r="10"></circle>
+      <polyline class="svg-icon-stroke" points="12 6 12 12 16 14"></polyline>
+    </symbol>
+    <symbol id="icon-map-pin" viewBox="0 0 24 24">
+      <path class="svg-icon-stroke" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+      <circle class="svg-icon-stroke" cx="12" cy="10" r="3"></circle>
+    </symbol>
+    <symbol id="icon-phone" viewBox="0 0 24 24">
+      <path class="svg-icon-stroke" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+    </symbol>
+    <symbol id="icon-arrow-right" viewBox="0 0 24 24">
+      <line class="svg-icon-stroke" x1="5" y1="12" x2="19" y2="12"></line>
+      <polyline class="svg-icon-stroke" points="12 5 19 12 12 19"></polyline>
+    </symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24">
+      <polyline class="svg-icon-stroke" points="20 6 9 17 4 12"></polyline>
+    </symbol>
+    <symbol id="icon-photo" viewBox="0 0 24 24">
+      <rect class="svg-icon-stroke" x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+      <circle class="svg-icon-stroke" cx="8.5" cy="8.5" r="1.5"></circle>
+      <polyline class="svg-icon-stroke" points="21 15 16 10 5 21"></polyline>
+    </symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24">
+      <line class="svg-icon-stroke" x1="18" y1="6" x2="6" y2="18"></line>
+      <line class="svg-icon-stroke" x1="6" y1="6" x2="18" y2="18"></line>
+    </symbol>
+  </svg>
+
+  <!-- ==========================================
+       HEADER & NAVIGATION
+       ========================================== -->
+  <header class="site-header" role="banner">
+    <div class="container nav-container">
+      <a href="/" class="brand-link" aria-label="Beranda Martabak Jenggirat Kediri">
+        <img src="assets/logo.png" alt="Logo Martabak Jenggirat Kediri" class="brand-logo-img">
+        <div class="brand-titles">
+          <span class="brand-main-title">Martabak Jenggirat</span>
+          <span class="brand-sub-title">Kediri • 100% Halal</span>
+        </div>
+      </a>
+
+      <!-- Desktop Nav -->
+      <nav class="desktop-nav" aria-label="Navigasi Utama">
+        <a href="#hero" class="nav-link">Beranda</a>
+        <a href="#keunggulan" class="nav-link">Menu Unggulan</a>
+        <a href="#menu" class="nav-link">Daftar Menu</a>
+        <a href="#mitra" class="nav-link">Pesan Antar</a>
+        <a href="#lokasi" class="nav-link">Lokasi Outlet</a>
+      </nav>
+
+      <!-- Action Buttons -->
+      <div class="nav-actions">
+        <a href="/order/" class="btn btn-primary btn-sm">
+          <svg class="svg-icon"><use href="#icon-bag"/></svg> Pesan Online
+        </a>
+        <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20ingin%20pesan" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp btn-sm">
+          <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> WhatsApp
+        </a>
+        <button type="button" class="mobile-toggle" id="mobile-toggle" aria-label="Buka Menu Navigasi" aria-expanded="false">
+          <svg class="svg-icon" style="width:24px;height:24px;"><use href="#icon-bag"/></svg>
+        </button>
       </div>
-      <div id="active-order-badge-container"></div>
+    </div>
+
+    <!-- Mobile Dropdown Menu -->
+    <div class="mobile-menu" id="mobile-menu">
+      <a href="#hero" class="nav-link">Beranda</a>
+      <a href="#keunggulan" class="nav-link">Menu Unggulan</a>
+      <a href="#menu" class="nav-link">Daftar Menu</a>
+      <a href="#mitra" class="nav-link">Pesan Antar</a>
+      <a href="#lokasi" class="nav-link">Lokasi Outlet</a>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border-subtle)">
+        <a href="/order/" class="btn btn-primary">
+          <svg class="svg-icon"><use href="#icon-bag"/></svg> Pesan Online (Web Order)
+        </a>
+        <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20ingin%20pesan" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp">
+          <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> WhatsApp: 0822 4350 9775
+        </a>
+      </div>
     </div>
   </header>
 
-  <main class="container" role="main">
-    <div id="global-alert" class="alert-banner alert-error hidden" role="alert" aria-live="assertive"></div>
+  <main role="main">
+    <div id="status-announcer" aria-live="polite" class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;"></div>
 
-    <!-- VIEW 1: ORDER FORM -->
-    <div id="view-order">
-      <section class="card" aria-labelledby="section-identitas">
-        <h2 id="section-identitas" class="section-title">Data Pemesan</h2>
-        <div class="form-group">
-          <label for="input-customer-name" class="form-label">Nama Lengkap <span style="color:var(--error)">*</span></label>
-          <input type="text" id="input-customer-name" class="form-input" placeholder="contoh: Budi Santoso" maxlength="120" autocomplete="name" required>
-          <div id="err-customer-name" class="field-error" aria-live="polite">Nama pemesan wajib diisi</div>
-        </div>
-        <div class="form-group">
-          <label for="input-customer-phone" class="form-label">Nomor WhatsApp / HP <span style="color:var(--error)">*</span></label>
-          <input type="tel" id="input-customer-phone" class="form-input" placeholder="contoh: 081234567890" maxlength="16" autocomplete="tel" required>
-          <div id="err-customer-phone" class="field-error" aria-live="polite">Nomor WhatsApp wajib diisi (diawali 08 atau +628)</div>
-        </div>
-        <div class="form-group">
-          <label for="input-order-notes" class="form-label">Catatan Pesanan (opsional)</label>
-          <textarea id="input-order-notes" class="form-textarea" placeholder="contoh: Bungkus terpisah, sendok 2"></textarea>
-        </div>
-      </section>
+    <!-- ==========================================
+         HERO SECTION
+         ========================================== -->
+    <section class="hero-section" id="hero">
+      <div class="container hero-grid">
+        <div class="hero-text-col">
+          <div class="hero-badge-pill">
+            <svg class="svg-icon" style="color:var(--primary)"><use href="#icon-shield-check"/></svg>
+            <span>Kuliner Pilihan Kediri • 100% Halal Indonesia</span>
+          </div>
 
-      <section class="card" aria-labelledby="section-katalog">
-        <h2 id="section-katalog" class="section-title">Pilih Menu</h2>
-        <nav class="category-tabs" id="category-tabs" aria-label="Kategori Menu"></nav>
-        <div id="menu-list" role="region" aria-live="polite">
-          <p style="color:var(--text-muted);text-align:center;padding:1.5rem">Memuat menu...</p>
-        </div>
-        <div id="err-items" class="field-error" style="margin-top:0.5rem" aria-live="polite">Pilih minimal 1 menu untuk melanjutkan</div>
-      </section>
+          <h1 class="hero-title">
+            Sensasi Gurih <span class="title-accent-red">Martabak Telur</span> & Legit Lembut <span class="title-accent-gold">Terang Bulan</span>
+          </h1>
 
-      <section class="card" aria-labelledby="section-ringkasan">
-        <h2 id="section-ringkasan" class="section-title">Ringkasan Pesanan</h2>
-        <div id="cart-summary-items">
-          <p style="color:var(--text-muted);font-size:0.9rem">Belum ada menu yang dipilih.</p>
-        </div>
-        <div class="summary-row summary-total">
-          <span>Total Pembayaran:</span>
-          <span id="total-amount-display">Rp 0</span>
-        </div>
-        <div style="margin-top:1rem">
-          <button type="button" id="btn-submit-order" class="btn-primary" disabled>
-            <span>Kirim Pesanan</span>
-          </button>
-        </div>
-      </section>
-    </div>
+          <p class="hero-desc">
+            Kulit renyah gurih berlapis dipadu cincangan daging melimpah dan <strong>Spesial Sambal Uleg</strong> racikan segar, serta Terang Bulan manis susu yang super empuk dan <strong>dijamin kenyal sampai pagi</strong>.
+          </p>
 
-    <!-- VIEW 2: TRACKING STATUS -->
-    <div id="view-tracking" class="hidden">
-      <section class="card tracking-card" aria-labelledby="tracking-title">
-        <span id="tracking-status-badge" class="badge badge-pending">PENDING</span>
-        <h2 id="tracking-title" style="margin-top:0.75rem;font-size:1.1rem">Nomor Pesanan Anda</h2>
-        <div id="tracking-order-number" class="tracking-order-num">-</div>
-        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">
-          Pesanan atas nama: <strong id="tracking-customer-name" style="color:var(--text)">-</strong>
-        </p>
-        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem">
-          Halaman ini memperbarui status secara otomatis. Anda dapat menyimpan tautan ini untuk melacak proses pembuatan pesanan di dapur.
-        </p>
+          <div class="hero-cta-group">
+            <a href="/order/" class="btn btn-primary">
+              <svg class="svg-icon"><use href="#icon-bag"/></svg> Pesan Online Sekarang
+            </a>
+            <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20mau%20order" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp">
+              <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Order via WhatsApp
+            </a>
+            <a href="#menu" class="btn btn-outline">
+              <span>Daftar Menu & Harga</span>
+              <svg class="svg-icon"><use href="#icon-arrow-right"/></svg>
+            </a>
+          </div>
 
-        <div style="text-align:left;border-top:1px solid var(--border);padding-top:1rem">
-          <h3 style="font-size:0.95rem;margin-bottom:0.5rem">Detail Pesanan:</h3>
-          <div id="tracking-items-list"></div>
-          <div class="summary-row summary-total" style="margin-top:0.75rem">
-            <span>Total:</span>
-            <span id="tracking-total-amount">Rp 0</span>
+          <div class="hero-trust-bar">
+            <div class="trust-item">
+              <svg class="svg-icon trust-icon"><use href="#icon-shield-check"/></svg>
+              <span>100% Halal Indonesia</span>
+            </div>
+            <div class="trust-item">
+              <svg class="svg-icon trust-icon" style="color:var(--accent-red)"><use href="#icon-flame"/></svg>
+              <span>Sambal Uleg & Rawit Segar</span>
+            </div>
+            <div class="trust-item">
+              <svg class="svg-icon trust-icon"><use href="#icon-cheese"/></svg>
+              <span>Mozarella Lumer Melimpah</span>
+            </div>
           </div>
         </div>
 
-        <button type="button" id="btn-new-order" class="btn-primary" style="margin-top:1.5rem;background:#475569">
-          Buat Pesanan Baru
-        </button>
-      </section>
-    </div>
+        <!-- Hero Visual Showcase with Real Food Photography -->
+        <div class="hero-visual-wrap">
+          <div class="hero-card-featured">
+            <div class="hero-img-box">
+              <img src="assets/martabak-telur-crispy.jpg" alt="Martabak Telur Spesial Daging Sapi dan Sambal Uleg" loading="eager">
+              <div class="hero-img-overlay-badge">
+                <svg class="svg-icon" style="color:#f59e0b;"><use href="#icon-star"/></svg>
+                <span>Menu Terlaris</span>
+              </div>
+              <div class="hero-img-price-tag">
+                Mulai Rp 20.000
+              </div>
+            </div>
+          </div>
+
+          <!-- Secondary Overlapping Preview: Terang Bulan Honeycomb -->
+          <div class="hero-floating-card-sub">
+            <div class="hero-sub-img-wrap">
+              <img src="assets/terang-bulan-spesial.jpg" alt="Terang Bulan Manis Susu Kenyal Sampai Pagi" loading="lazy">
+            </div>
+            <div class="hero-sub-info">
+              <div class="hero-sub-title">Terang Bulan Keju Coklat</div>
+              <div class="hero-sub-meta">Kenyal Sampai Pagi</div>
+            </div>
+          </div>
+
+          <!-- Rating & Social Proof Floating Badge -->
+          <div class="hero-review-bubble">
+            <div class="icon-box icon-box-primary" style="width:38px;height:38px;">
+              <svg class="svg-icon"><use href="#icon-star"/></svg>
+            </div>
+            <div class="review-text-wrap">
+              <div class="review-score">4.9 / 5.0 Rating</div>
+              <div class="review-count">500+ Pelanggan Puas di Kediri</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         SIGNATURE HIGHLIGHTS WITH PHOTOS
+         ========================================== -->
+    <section class="section section-alt" id="keunggulan">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">
+            <svg class="svg-icon"><use href="#icon-shield-check"/></svg> Menu Andalan
+          </span>
+          <h2 class="section-title">Sensasi Kuliner yang Bikin Rindu</h2>
+          <p class="section-subtitle">
+            Kelezatan otentik yang diracik dari bahan-bahan segar pilihan tanpa bahan pengawet ataupun pewarna makanan berbahaya.
+          </p>
+        </div>
+
+        <div class="food-feature-grid">
+          <!-- Card 1: Martabak Telur Daging Sapi & Sambal Uleg -->
+          <div class="food-card">
+            <div class="food-card-img">
+              <img src="assets/martabak-telur-crispy.jpg" alt="Martabak Telur Spesial Sambal Uleg" loading="lazy">
+              <div class="food-card-badge food-card-badge-red">
+                <svg class="svg-icon"><use href="#icon-flame"/></svg>
+                <span>Free Sambal Uleg</span>
+              </div>
+            </div>
+            <div class="food-card-body">
+              <div>
+                <h3 class="food-card-title">Martel Pedas Sambal Uleg</h3>
+                <p class="food-card-desc">
+                  Kulit martabak renyah dengan isian daging sapi/ayam tebal dan telur pilihan. Dilengkapi racikan <strong>SAMBAL ULEG dan CABE RAWIT segar</strong> yang diuleg langsung ke adonan tanpa biaya tambahan!
+                </p>
+              </div>
+              <div class="food-card-footer">
+                <div class="food-card-price">
+                  <span class="price-small-label">Harga Mulai</span>
+                  <span class="price-main-val">Rp 20.000</span>
+                </div>
+                <a href="/order/" class="btn btn-primary btn-sm">
+                  <span>Pesan</span> <svg class="svg-icon"><use href="#icon-arrow-right"/></svg>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Martel Mozarella Lumer -->
+          <div class="food-card">
+            <div class="food-card-img">
+              <img src="assets/martabak-mozarella.jpg" alt="Martabak Mozarella Tarik Lumer" loading="lazy">
+              <div class="food-card-badge">
+                <svg class="svg-icon"><use href="#icon-cheese"/></svg>
+                <span>Mozarella Lumer</span>
+              </div>
+            </div>
+            <div class="food-card-body">
+              <div>
+                <h3 class="food-card-title">Martel Mozarella Melted</h3>
+                <p class="food-card-desc">
+                  Modifikasi favorit dengan <strong>tarikan keju mozarella bakar melimpah</strong> di atas martabak krispi gurih. Daging juicy berpadu creamy keju menciptakan sensasi makan yang tak terlupakan.
+                </p>
+              </div>
+              <div class="food-card-footer">
+                <div class="food-card-price">
+                  <span class="price-small-label">Harga Mulai</span>
+                  <span class="price-main-val">Rp 50.000</span>
+                </div>
+                <a href="/order/" class="btn btn-primary btn-sm">
+                  <span>Pesan</span> <svg class="svg-icon"><use href="#icon-arrow-right"/></svg>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Terang Bulan Kenyal Sampai Pagi -->
+          <div class="food-card">
+            <div class="food-card-img">
+              <img src="assets/terang-bulan-spesial.jpg" alt="Terang Bulan Manis Susu Kenyal Sampai Pagi" loading="lazy">
+              <div class="food-card-badge">
+                <svg class="svg-icon"><use href="#icon-star"/></svg>
+                <span>Kenyal Sampai Pagi</span>
+              </div>
+            </div>
+            <div class="food-card-body">
+              <div>
+                <h3 class="food-card-title">Terang Bulan Manis Susu</h3>
+                <p class="food-card-desc">
+                  Adonan bersarang sempurna dengan aroma mentega harum dan manis susu legit. Tekstur lembut dan <strong>kenyal nikmat walau dinikmati hingga keesokan paginya</strong>.
+                </p>
+              </div>
+              <div class="food-card-footer">
+                <div class="food-card-price">
+                  <span class="price-small-label">Harga Mulai</span>
+                  <span class="price-main-val">Rp 18.000</span>
+                </div>
+                <a href="/order/" class="btn btn-primary btn-sm">
+                  <span>Pesan</span> <svg class="svg-icon"><use href="#icon-arrow-right"/></svg>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         INTERACTIVE MENU & PRICING
+         ========================================== -->
+    <section class="section" id="menu">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">
+            <svg class="svg-icon"><use href="#icon-bag"/></svg> Daftar Menu & Harga
+          </span>
+          <h2 class="section-title">Pilihan Lengkap Martabak & Terang Bulan</h2>
+          <p class="section-subtitle">
+            Daftar harga resmi Martabak Jenggirat Kediri. Sesuaikan ukuran porsi dan topping sesuai selera keluarga Anda.
+          </p>
+        </div>
+
+        <!-- Menu Navigation Tabs -->
+        <div class="menu-tab-nav" role="tablist">
+          <button type="button" class="menu-tab-btn active" data-category="all">
+            Semua Menu
+          </button>
+          <button type="button" class="menu-tab-btn" data-category="martel">
+            <svg class="svg-icon"><use href="#icon-flame"/></svg> Martabak Telur
+          </button>
+          <button type="button" class="menu-tab-btn" data-category="terbul">
+            <svg class="svg-icon"><use href="#icon-star"/></svg> Terang Bulan Manis
+          </button>
+          <button type="button" class="menu-tab-btn" data-category="options">
+            <svg class="svg-icon"><use href="#icon-cheese"/></svg> Base Cake & Topping
+          </button>
+        </div>
+
+        <!-- CATEGORY 1: MARTABAK TELUR -->
+        <div class="menu-category-section" id="cat-martel" data-category="martel">
+          <div class="category-banner category-banner-martel">
+            <div class="category-banner-text">
+              <h3>Martabak Telur — Spesial Sambal Uleg dan Acar Segar</h3>
+              <p>Kulit krispi gurih, rempah daging meresap sempurna, plus kuah cuko dan acar timun wortel segar.</p>
+            </div>
+            <a href="/order/" class="btn btn-primary btn-sm">
+              <svg class="svg-icon"><use href="#icon-bag"/></svg> Order Martabak
+            </a>
+          </div>
+
+          <div class="catalog-cards-grid">
+            <!-- Sosis / Jamur -->
+            <div class="catalog-card">
+              <div>
+                <div class="catalog-card-header">
+                  <h4 class="catalog-card-title">Martabak Sosis / Jamur</h4>
+                  <span class="badge-tag badge-tag-amber">Pilihan Hemat</span>
+                </div>
+                <p class="catalog-card-desc">Isian sosis lezat atau irisan jamur gurih berpadu telur dan daun bawang segar.</p>
+                <div class="price-tier-box">
+                  <div class="price-tier-row"><span class="tier-label">Porsi Biasa:</span><span class="tier-price">Rp 20.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Porsi Spesial:</span><span class="tier-price">Rp 30.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Porsi Istimewa:</span><span class="tier-price">Rp 40.000</span></div>
+                </div>
+              </div>
+              <div class="catalog-card-footer">
+                <span class="footer-benefit"><svg class="svg-icon" style="color:var(--accent-green)"><use href="#icon-check"/></svg> Gratis Acar + Cuko</span>
+                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+              </div>
+            </div>
+
+            <!-- Daging Ayam -->
+            <div class="catalog-card">
+              <div>
+                <div class="catalog-card-header">
+                  <h4 class="catalog-card-title">Martabak Daging Ayam</h4>
+                  <span class="badge-tag badge-tag-red">Favorit</span>
+                </div>
+                <p class="catalog-card-desc">Cincangan daging ayam bumbu rempah gurih, tebal, harum, dan kaya gizi.</p>
+                <div class="price-tier-box">
+                  <div class="price-tier-row"><span class="tier-label">Porsi Biasa:</span><span class="tier-price">Rp 25.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Porsi Spesial:</span><span class="tier-price">Rp 35.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Porsi Istimewa:</span><span class="tier-price">Rp 45.000</span></div>
+                </div>
+              </div>
+              <div class="catalog-card-footer">
+                <span class="footer-benefit"><svg class="svg-icon" style="color:var(--accent-green)"><use href="#icon-check"/></svg> Gratis Acar + Cuko</span>
+                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+              </div>
+            </div>
+
+            <!-- Daging Sapi -->
+            <div class="catalog-card">
+              <div>
+                <div class="catalog-card-header">
+                  <h4 class="catalog-card-title">Martabak Daging Sapi</h4>
+                  <span class="badge-tag badge-tag-green">Best Seller</span>
+                </div>
+                <p class="catalog-card-desc">Daging sapi cincang pilihan racikan bumbu khas Jenggirat dengan rasa gurih mendalam.</p>
+                <div class="price-tier-box">
+                  <div class="price-tier-row"><span class="tier-label">Porsi Biasa:</span><span class="tier-price">Rp 30.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Porsi Spesial:</span><span class="tier-price">Rp 40.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Porsi Istimewa:</span><span class="tier-price">Rp 50.000</span></div>
+                </div>
+              </div>
+              <div class="catalog-card-footer">
+                <span class="footer-benefit"><svg class="svg-icon" style="color:var(--accent-green)"><use href="#icon-check"/></svg> Gratis Acar + Cuko</span>
+                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+              </div>
+            </div>
+
+            <!-- Martel Mozarella -->
+            <div class="catalog-card">
+              <div>
+                <div class="catalog-card-header">
+                  <h4 class="catalog-card-title">Martel Mozarella</h4>
+                  <span class="badge-tag badge-tag-purple">Keju Tarik Lumer</span>
+                </div>
+                <p class="catalog-card-desc">Martabak telur krispi topping keju mozarella leleh yang mulur panjang dan gurih mantap.</p>
+                <div class="price-tier-box">
+                  <div class="price-tier-row"><span class="tier-label">1 Isian + Moza:</span><span class="tier-price">Rp 50.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Mix 2 + Moza:</span><span class="tier-price">Rp 55.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Mix 3 + Moza:</span><span class="tier-price">Rp 60.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Mix 4 + Moza:</span><span class="tier-price">Rp 65.000</span></div>
+                </div>
+              </div>
+              <div class="catalog-card-footer">
+                <span class="footer-benefit"><svg class="svg-icon" style="color:var(--primary)"><use href="#icon-cheese"/></svg> Full Keju Mozarella</span>
+                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CATEGORY 2: TERANG BULAN MANIS -->
+        <div class="menu-category-section" id="cat-terbul" data-category="terbul">
+          <div class="category-banner category-banner-terbul">
+            <div class="category-banner-text">
+              <h3>Terang Bulan Manis — Manis Susu Kenyal Sampai Pagi</h3>
+              <p>Adonan lembut harum mentega wisman, bersarang rapat, susu manis kental dan taburan topping melimpah.</p>
+            </div>
+            <a href="/order/" class="btn btn-primary btn-sm">
+              <svg class="svg-icon"><use href="#icon-bag"/></svg> Order Terang Bulan
+            </a>
+          </div>
+
+          <div class="catalog-cards-grid">
+            <!-- 1 Toping -->
+            <div class="catalog-card">
+              <div>
+                <div class="catalog-card-header">
+                  <h4 class="catalog-card-title">Terang Bulan 1 Toping</h4>
+                  <span class="badge-tag badge-tag-amber">Klasik</span>
+                </div>
+                <p class="catalog-card-desc">1 pilihan topping favorit: Coklat mesis, Keju parut, Pisang, Oreo, Kacang, atau Selai buah.</p>
+                <div class="price-tier-box">
+                  <div class="price-tier-row"><span class="tier-label">Ukuran Biasa:</span><span class="tier-price">Rp 18.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Ukuran Besar:</span><span class="tier-price">Rp 25.000</span></div>
+                </div>
+              </div>
+              <div class="catalog-card-footer">
+                <span class="footer-benefit"><svg class="svg-icon" style="color:var(--accent-green)"><use href="#icon-check"/></svg> Manis Susu Gurih</span>
+                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+              </div>
+            </div>
+
+            <!-- 2 Toping -->
+            <div class="catalog-card">
+              <div>
+                <div class="catalog-card-header">
+                  <h4 class="catalog-card-title">Terang Bulan 2 Toping</h4>
+                  <span class="badge-tag badge-tag-red">Terfavorit</span>
+                </div>
+                <p class="catalog-card-desc">Paduan 2 topping nikmat seperti Coklat Keju, Pisang Coklat, atau Oreo Keju yang lezat.</p>
+                <div class="price-tier-box">
+                  <div class="price-tier-row"><span class="tier-label">Ukuran Biasa:</span><span class="tier-price">Rp 23.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Ukuran Besar:</span><span class="tier-price">Rp 30.000</span></div>
+                </div>
+              </div>
+              <div class="catalog-card-footer">
+                <span class="footer-benefit"><svg class="svg-icon" style="color:var(--accent-green)"><use href="#icon-check"/></svg> Kombinasi Pas</span>
+                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+              </div>
+            </div>
+
+            <!-- 3 Toping -->
+            <div class="catalog-card">
+              <div>
+                <div class="catalog-card-header">
+                  <h4 class="catalog-card-title">Terang Bulan 3 Toping</h4>
+                  <span class="badge-tag badge-tag-green">Mewah</span>
+                </div>
+                <p class="catalog-card-desc">Kombinasi 3 topping melimpah untuk sensasi rasa yang kaya dan sangat memuaskan.</p>
+                <div class="price-tier-box">
+                  <div class="price-tier-row"><span class="tier-label">Ukuran Biasa:</span><span class="tier-price">Rp 28.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Ukuran Besar:</span><span class="tier-price">Rp 35.000</span></div>
+                </div>
+              </div>
+              <div class="catalog-card-footer">
+                <span class="footer-benefit"><svg class="svg-icon" style="color:var(--accent-green)"><use href="#icon-check"/></svg> Porsi Super Puas</span>
+                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+              </div>
+            </div>
+
+            <!-- Cut Pizza All In One -->
+            <div class="catalog-card" style="border:2px solid var(--primary-border);">
+              <div>
+                <div class="catalog-card-header">
+                  <h4 class="catalog-card-title">Cut Pizza All In One</h4>
+                  <span class="badge-tag badge-tag-purple">Special Edition</span>
+                </div>
+                <p class="catalog-card-desc">Potongan kue pizza 8 slice aneka topping istimewa dalam 1 loyang pizza terang bulan.</p>
+                <div class="price-tier-box">
+                  <div class="price-tier-row"><span class="tier-label">1 Loyang All In One:</span><span class="tier-price" style="color:var(--accent-red);font-size:1.15rem;">Rp 45.000</span></div>
+                </div>
+              </div>
+              <div class="catalog-card-footer">
+                <span class="footer-benefit"><svg class="svg-icon" style="color:var(--primary)"><use href="#icon-star"/></svg> Pas untuk Ulang Tahun</span>
+                <a href="/order/" class="btn btn-primary btn-sm">Pilih Menu</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CATEGORY 3: BASE CAKE & EXTRA TOPPING -->
+        <div class="menu-category-section" id="cat-options" data-category="options">
+          <div class="section-header" style="margin-bottom:2.25rem;">
+            <h3 style="font-size:1.55rem;font-weight:850;color:var(--text-primary);">Pilihan Base Cake & Extra Isian</h3>
+            <p style="color:var(--text-muted);">Personalisasi adonan dan tambahan topping agar pesanan pas di lidah Anda.</p>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:1.75rem;">
+            <!-- Base Cake -->
+            <div class="catalog-card">
+              <div>
+                <h4 style="font-size:1.15rem;font-weight:800;margin-bottom:0.75rem;">Pilihan Base Cake Terang Bulan</h4>
+                <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:1rem;">Pilihan adonan berkualitas food grade dengan warna dan aroma istimewa:</p>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;font-size:0.875rem;">
+                  <div><strong>Original:</strong> Kuning alami menggunakan bahan alami tanpa pewarna makanan.</div>
+                  <div><strong>Red Velvet:</strong> Aroma harum lembut dengan warna merah pekat food grade.</div>
+                  <div><strong>Pandan:</strong> Rasa sedap dengan aroma sari pandan asli berwarna hijau segar.</div>
+                  <div style="padding:0.6rem 0.85rem;background:var(--primary-subtle);border-radius:var(--radius-sm);font-weight:700;color:#92400e;">
+                    Extra Base Cake (+Rp 2.000): Red Velvet, Pandan, Black Forest, Taro, Mocca, Green Tea.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Varian Topping -->
+            <div class="catalog-card">
+              <div>
+                <h4 style="font-size:1.15rem;font-weight:800;margin-bottom:0.75rem;">Varian Topping Terang Bulan</h4>
+                <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:1rem;">Pilihan topping premium yang melimpah ruah:</p>
+                <div style="display:flex;flex-wrap:wrap;gap:0.45rem;">
+                  <span style="background:var(--bg-surface-elevated);border:1px solid var(--border-default);padding:0.35rem 0.75rem;border-radius:var(--radius-full);font-size:0.8125rem;font-weight:700;">Coklat Mesis</span>
+                  <span style="background:var(--bg-surface-elevated);border:1px solid var(--border-default);padding:0.35rem 0.75rem;border-radius:var(--radius-full);font-size:0.8125rem;font-weight:700;">Keju Parut Melimpah</span>
+                  <span style="background:var(--bg-surface-elevated);border:1px solid var(--border-default);padding:0.35rem 0.75rem;border-radius:var(--radius-full);font-size:0.8125rem;font-weight:700;">Pisang Manis</span>
+                  <span style="background:var(--bg-surface-elevated);border:1px solid var(--border-default);padding:0.35rem 0.75rem;border-radius:var(--radius-full);font-size:0.8125rem;font-weight:700;">Oreo Crumble</span>
+                  <span style="background:var(--bg-surface-elevated);border:1px solid var(--border-default);padding:0.35rem 0.75rem;border-radius:var(--radius-full);font-size:0.8125rem;font-weight:700;">Kacang Sangrai</span>
+                  <span style="background:var(--bg-surface-elevated);border:1px solid var(--border-default);padding:0.35rem 0.75rem;border-radius:var(--radius-full);font-size:0.8125rem;font-weight:700;">Selai Strawberry</span>
+                  <span style="background:var(--bg-surface-elevated);border:1px solid var(--border-default);padding:0.35rem 0.75rem;border-radius:var(--radius-full);font-size:0.8125rem;font-weight:700;">Selai Blueberry</span>
+                  <span style="background:var(--bg-surface-elevated);border:1px solid var(--border-default);padding:0.35rem 0.75rem;border-radius:var(--radius-full);font-size:0.8125rem;font-weight:700;">Goldenfill Crunchy</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Extra Isian Martabak -->
+            <div class="catalog-card">
+              <div>
+                <h4 style="font-size:1.15rem;font-weight:800;margin-bottom:0.75rem;">Extra Isian Martabak Telur</h4>
+                <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:1rem;">Tambahan isian daging dan keju lebih puas:</p>
+                <div class="price-tier-box" style="margin-bottom:0;">
+                  <div class="price-tier-row"><span class="tier-label">Daging Sapi:</span><span class="tier-price">+ Rp 7.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Daging Ayam:</span><span class="tier-price">+ Rp 5.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Jamur Segar:</span><span class="tier-price">+ Rp 5.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Sosis Pilihan:</span><span class="tier-price">+ Rp 5.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Sambal Uleg Extra:</span><span class="tier-price">+ Rp 4.000</span></div>
+                  <div class="price-tier-row"><span class="tier-label">Keju Mozzarella:</span><span class="tier-price">+ Rp 20.000</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spotlight Banner: Poster Menu Resmi -->
+        <div class="flyer-spotlight-box">
+          <div class="spotlight-info">
+            <h3>Lihat Poster Menu Resmi Jenggirat</h3>
+            <p>
+              Periksa detail daftar varian rasa, harga paket, dan pilihan isian langsung dari poster resmi outlet kami.
+            </p>
+            <div class="spotlight-actions">
+              <button type="button" class="btn btn-outline" data-lightbox-src="assets/menu-martabak-telur.jpg" data-lightbox-alt="Poster Menu Martabak Telur">
+                <svg class="svg-icon"><use href="#icon-photo"/></svg> Poster Martabak Telur
+              </button>
+              <button type="button" class="btn btn-primary" data-lightbox-src="assets/menu-terang-bulan.png" data-lightbox-alt="Poster Menu Terang Bulan">
+                <svg class="svg-icon"><use href="#icon-photo"/></svg> Poster Terang Bulan
+              </button>
+            </div>
+          </div>
+
+          <div class="spotlight-previews">
+            <img src="assets/menu-martabak-telur.jpg" alt="Poster Martabak Telur" class="spotlight-thumb" data-lightbox-src="assets/menu-martabak-telur.jpg" title="Klik untuk memperbesar">
+            <img src="assets/menu-terang-bulan.png" alt="Poster Terang Bulan" class="spotlight-thumb" data-lightbox-src="assets/menu-terang-bulan.png" title="Klik untuk memperbesar">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         DELIVERY PARTNERS
+         ========================================== -->
+    <section class="delivery-section" id="mitra">
+      <div class="container">
+        <span class="section-tag">
+          <svg class="svg-icon"><use href="#icon-bag"/></svg> Pesan Antar Online
+        </span>
+        <h2 class="section-title">Tersedia di Platform Delivery Favorit Anda</h2>
+        <p class="section-subtitle">
+          Pesan praktis dari rumah dan nikmati kehangatan martabak langsung diantar ke depan pintu Anda.
+        </p>
+
+        <div class="delivery-badges-grid">
+          <div class="delivery-pill">
+            <span class="delivery-dot delivery-dot-gofood"></span> GoFood
+          </div>
+          <div class="delivery-pill">
+            <span class="delivery-dot delivery-dot-grabfood"></span> GrabFood
+          </div>
+          <div class="delivery-pill">
+            <span class="delivery-dot delivery-dot-shopeefood"></span> ShopeeFood
+          </div>
+          <div class="delivery-pill">
+            <span class="delivery-dot delivery-dot-maxim"></span> Maxim Food
+          </div>
+          <a href="/order/" class="delivery-pill" style="background:#fffbeb;border-color:var(--primary-border);">
+            <span class="delivery-dot delivery-dot-pesenhub"></span> Web Order PesenHub (Langsung)
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         LOCATION & OUTLET CONTACT
+         ========================================== -->
+    <section class="section" id="lokasi">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">
+            <svg class="svg-icon"><use href="#icon-map-pin"/></svg> Kunjungi Outlet
+          </span>
+          <h2 class="section-title">Lokasi & Jam Buka Outlet Kediri</h2>
+          <p class="section-subtitle">
+            Datang langsung dan saksikan proses pembuatan martabak telur krispi dan terang bulan bersarang kami.
+          </p>
+        </div>
+
+        <div class="location-grid">
+          <div class="location-card">
+            <div class="contact-row">
+              <div class="icon-box icon-box-lg icon-box-primary">
+                <svg class="svg-icon" style="width:24px;height:24px;"><use href="#icon-map-pin"/></svg>
+              </div>
+              <div class="contact-details">
+                <h4>Alamat Outlet</h4>
+                <p><strong>Martabak Jenggirat Kediri</strong><br>Timur Gg. Ketoprak Katang, Kediri, Jawa Timur</p>
+              </div>
+            </div>
+
+            <div class="contact-row">
+              <div class="icon-box icon-box-lg icon-box-primary">
+                <svg class="svg-icon" style="width:24px;height:24px;"><use href="#icon-clock"/></svg>
+              </div>
+              <div class="contact-details">
+                <h4>Jam Operasional</h4>
+                <p><strong>Buka Setiap Hari: 16.00 – 23.00 WIB</strong><br>Melayani dine-in, takeaway, & delivery order</p>
+              </div>
+            </div>
+
+            <div class="contact-row">
+              <div class="icon-box icon-box-lg icon-box-green">
+                <svg class="svg-icon" style="width:24px;height:24px;"><use href="#icon-phone"/></svg>
+              </div>
+              <div class="contact-details">
+                <h4>Hotline Pemesanan & WhatsApp</h4>
+                <p><strong>0822 4350 9775</strong><br>Menerima pesanan partai, hajatan, & ulang tahun</p>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:0.85rem;margin-top:2.25rem;flex-wrap:wrap;">
+              <a href="https://maps.google.com/?q=Timur+Gg.+Ketoprak+Katang+Kediri" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                <svg class="svg-icon"><use href="#icon-map-pin"/></svg> Buka Google Maps
+              </a>
+              <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%2C%20mau%20order" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp">
+                <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Chat WhatsApp
+              </a>
+            </div>
+          </div>
+
+          <div class="map-card-wrapper">
+            <div class="icon-box icon-box-lg icon-box-primary" style="width:64px;height:64px;">
+              <svg class="svg-icon" style="width:32px;height:32px;"><use href="#icon-map-pin"/></svg>
+            </div>
+            <h3>Martabak Jenggirat Kediri</h3>
+            <p>Timur Gg. Ketoprak Katang, Kediri, Jawa Timur</p>
+            <a href="https://maps.google.com/?q=Timur+Gg.+Ketoprak+Katang+Kediri" target="_blank" rel="noopener noreferrer" class="btn btn-outline">
+              <svg class="svg-icon"><use href="#icon-arrow-right"/></svg> Petunjuk Arah di Maps
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <script src="app.js"></script>
+  <!-- ==========================================
+       FOOTER
+       ========================================== -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="footer-brand-title">
+            <img src="assets/logo.png" alt="Logo Martabak Jenggirat" style="width:38px;height:38px;object-fit:contain;border-radius:4px;background:#fff;">
+            <span>Martabak Jenggirat Kediri</span>
+          </div>
+          <p>
+            Spesialis Martabak Telur renyah dengan Sambal Uleg segar dan Terang Bulan manis susu empuk kenyal sampai pagi. Pilihan rasa terbaik untuk keluarga Kediri. 100% Halal Indonesia.
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h5>Navigasi Halaman</h5>
+          <ul>
+            <li><a href="#hero">Beranda</a></li>
+            <li><a href="#keunggulan">Menu Unggulan</a></li>
+            <li><a href="#menu">Katalog Harga</a></li>
+            <li><a href="#lokasi">Lokasi & Kontak</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Layanan Pemesanan</h5>
+          <ul>
+            <li><a href="/order/">Pesan Online (PesenHub)</a></li>
+            <li><a href="https://wa.me/6282243509775" target="_blank" rel="noopener noreferrer">Order via WhatsApp</a></li>
+            <li><a href="/superadmin/">Superadmin Portal</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; 2026 Martabak Jenggirat Kediri. All rights reserved. Powered by PesenHub.</div>
+        <div style="display:flex;gap:1.5rem;">
+          <a href="/order/" style="color:var(--primary);font-weight:700;">Order Online</a>
+          <a href="/superadmin/">Control Plane</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==========================================
+       FLOATING WHATSAPP CTA
+       ========================================== -->
+  <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20ingin%20pesan" target="_blank" rel="noopener noreferrer" class="floating-wa-btn" aria-label="Chat WhatsApp Martabak Jenggirat">
+    <svg class="svg-icon" style="width:20px;height:20px;"><use href="#icon-whatsapp"/></svg>
+    <span>Pesan WhatsApp</span>
+  </a>
+
+  <!-- ==========================================
+       FLYER LIGHTBOX MODAL
+       ========================================== -->
+  <div class="lightbox-modal" id="lightbox-modal" role="dialog" aria-modal="true" aria-label="Lihat Poster Menu">
+    <div class="lightbox-content">
+      <button type="button" class="lightbox-close" id="lightbox-close" aria-label="Tutup Poster">
+        <svg class="svg-icon" style="width:28px;height:28px;"><use href="#icon-close"/></svg>
+      </button>
+      <img src="" alt="Poster Menu" class="lightbox-img" id="lightbox-img">
+    </div>
+  </div>
+
+  <script src="landing.js"></script>
 </body>
 </html>

@@ -59,3 +59,63 @@ func TestCreateManualHashDetectsPayloadChange(t *testing.T) {
 	in.Items[0].Quantity++
 	s.CreateManual(context.Background(), in, "key", "s", "r")
 }
+
+func TestCreateManualSource(t *testing.T) {
+	var capturedSource string
+	s := NewService(creatorFunc(func(_ context.Context, in CreateInput, _, _, _ string) (Order, bool, error) {
+		capturedSource = in.Source
+		return Order{ID: "order-1", Source: in.Source}, true, nil
+	}))
+
+	// Default empty source becomes CASHIER_MANUAL
+	in := validInput()
+	in.Source = ""
+	if _, _, err := s.CreateManual(context.Background(), in, "key-1", "s", "r"); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if capturedSource != "CASHIER_MANUAL" {
+		t.Fatalf("expected CASHIER_MANUAL, got %s", capturedSource)
+	}
+
+	// GRABFOOD source accepted
+	in.Source = "GRABFOOD"
+	if _, _, err := s.CreateManual(context.Background(), in, "key-2", "s", "r"); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if capturedSource != "GRABFOOD" {
+		t.Fatalf("expected GRABFOOD, got %s", capturedSource)
+	}
+
+	// WHATSAPP source accepted
+	in.Source = "WHATSAPP"
+	if _, _, err := s.CreateManual(context.Background(), in, "key-3", "s", "r"); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if capturedSource != "WHATSAPP" {
+		t.Fatalf("expected WHATSAPP, got %s", capturedSource)
+	}
+
+	// GOFOOD source accepted
+	in.Source = "GOFOOD"
+	if _, _, err := s.CreateManual(context.Background(), in, "key-4", "s", "r"); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if capturedSource != "GOFOOD" {
+		t.Fatalf("expected GOFOOD, got %s", capturedSource)
+	}
+
+	// SHOPEEFOOD source accepted
+	in.Source = "SHOPEEFOOD"
+	if _, _, err := s.CreateManual(context.Background(), in, "key-5", "s", "r"); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if capturedSource != "SHOPEEFOOD" {
+		t.Fatalf("expected SHOPEEFOOD, got %s", capturedSource)
+	}
+
+	// Invalid source rejected
+	in.Source = "UNKNOWN_SOURCE"
+	if _, _, err := s.CreateManual(context.Background(), in, "key-6", "s", "r"); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}

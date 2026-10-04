@@ -3,6 +3,7 @@
 
   // Configuration & State
   const STORAGE_KEY = 'pesenhub_superadmin_token';
+  const THEME_KEY = 'pesenhub_theme';
   let authToken = sessionStorage.getItem(STORAGE_KEY) || '';
   let currentUser = null;
   let autoRefreshTimer = null;
@@ -10,12 +11,21 @@
   let userStatusFilter = 'ALL';
   let userSearchQuery = '';
   let pendingAction = null; // { type, id, name, target }
+  let currentInspectingWAUserId = null;
+  let currentInspectingWAUserName = '';
 
-  // DOM Elements
+  // Theme Elements
+  const btnThemeToggle = document.getElementById('btn-theme-toggle');
+  const themeToggleIcon = document.getElementById('theme-toggle-icon');
+  const themeToggleText = document.getElementById('theme-toggle-text');
+
+  // DOM Elements - Auth & Navigation
   const authSection = document.getElementById('auth-section');
   const portalSection = document.getElementById('portal-section');
   const formLogin = document.getElementById('form-login');
-  const inputToken = document.getElementById('input-token');
+  const inputUsername = document.getElementById('input-username');
+  const inputPassword = document.getElementById('input-password');
+  const btnSubmitLogin = document.getElementById('btn-submit-login');
   const authError = document.getElementById('auth-error');
   const userProfile = document.getElementById('user-profile');
   const userEmail = document.getElementById('user-email');
@@ -25,6 +35,7 @@
   const tabPanels = document.querySelectorAll('.tab-panel');
   const pendingBadge = document.getElementById('pending-badge');
 
+  // Telemetry Elements
   const systemQuickStatus = document.getElementById('system-quick-status');
   const quickStatusText = document.getElementById('quick-status-text');
   const healthCardsContainer = document.getElementById('health-cards-container');
@@ -54,7 +65,23 @@
   const auditsTableBody = document.getElementById('audits-table-body');
   const btnRefreshAudits = document.getElementById('btn-refresh-audits');
 
-  // Dialog Elements
+  // Dialog Elements - WhatsApp Gateway Info
+  const dialogWaInfo = document.getElementById('dialog-wa-info');
+  const btnCloseWa = document.getElementById('btn-close-wa');
+  const btnCloseWaFooter = document.getElementById('btn-close-wa-footer');
+  const btnRefreshWaSingle = document.getElementById('btn-refresh-wa-single');
+  const waInfoLoading = document.getElementById('wa-info-loading');
+  const waInfoContent = document.getElementById('wa-info-content');
+  const waInfoError = document.getElementById('wa-info-error');
+  const waStatusBanner = document.getElementById('wa-status-banner');
+  const waModalDot = document.getElementById('wa-modal-dot');
+  const waModalStatusText = document.getElementById('wa-modal-status-text');
+  const waInfoUser = document.getElementById('wa-info-user');
+  const waInfoPhone = document.getElementById('wa-info-phone');
+  const waInfoDevice = document.getElementById('wa-info-device');
+  const waInfoMessage = document.getElementById('wa-info-message');
+
+  // Dialog Elements - Invite Cashier
   const dialogInvite = document.getElementById('dialog-invite');
   const formInvite = document.getElementById('form-invite');
   const inviteEmail = document.getElementById('invite-email');
@@ -63,6 +90,7 @@
   const btnCloseInvite = document.getElementById('btn-close-invite');
   const btnCancelInvite = document.getElementById('btn-cancel-invite');
 
+  // Dialog Elements - Action Confirmation
   const dialogAction = document.getElementById('dialog-action');
   const formAction = document.getElementById('form-action');
   const actionTargetDesc = document.getElementById('action-target-desc');
@@ -74,6 +102,42 @@
   const btnCancelAction = document.getElementById('btn-cancel-action');
 
   const toastContainer = document.getElementById('toast-container');
+
+  // ==========================================
+  // THEME MANAGEMENT (Light / Dark Mode)
+  // ==========================================
+  function getCurrentTheme() {
+    return document.documentElement.getAttribute('data-theme') || 'dark';
+  }
+
+  function updateThemeUI(theme) {
+    if (theme === 'light') {
+      if (themeToggleIcon) themeToggleIcon.textContent = '☀️';
+      if (themeToggleText) themeToggleText.textContent = 'Mode Terang';
+      if (btnThemeToggle) btnThemeToggle.setAttribute('title', 'Beralih ke Mode Gelap');
+    } else {
+      if (themeToggleIcon) themeToggleIcon.textContent = '🌙';
+      if (themeToggleText) themeToggleText.textContent = 'Mode Gelap';
+      if (btnThemeToggle) btnThemeToggle.setAttribute('title', 'Beralih ke Mode Terang');
+    }
+  }
+
+  function initTheme() {
+    const current = getCurrentTheme();
+    updateThemeUI(current);
+
+    if (btnThemeToggle) {
+      btnThemeToggle.addEventListener('click', () => {
+        const next = getCurrentTheme() === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        try {
+          localStorage.setItem(THEME_KEY, next);
+        } catch (_) {}
+        updateThemeUI(next);
+        showToast(`Tema diubah ke ${next === 'light' ? 'Mode Terang' : 'Mode Gelap'}.`, 'info');
+      });
+    }
+  }
 
   // Toast Notification
   function showToast(message, type = 'info') {
@@ -124,7 +188,7 @@
     try {
       const res = await apiFetch('/api/v1/auth/me');
       if (!res.ok) {
-        handleAuthFailure('Token sesi tidak valid.');
+        handleAuthFailure('Sesi kedaluwarsa. Silakan login kembali.');
         return;
       }
       const data = await res.json();
@@ -155,6 +219,7 @@
     authSection.classList.remove('hidden');
     portalSection.classList.add('hidden');
     userProfile.classList.add('hidden');
+    if (inputPassword) inputPassword.value = '';
   }
 
   function showPortalSection() {
@@ -168,14 +233,50 @@
 
   formLogin.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const token = inputToken.value.trim();
-    if (!token) return;
+    const username = inputUsername ? inputUsername.value.trim() : '';
+    const password = inputPassword ? inputPassword.value : '';
+    if (!username || !password) return;
 
-    authToken = token;
-    sessionStorage.setItem(STORAGE_KEY, token);
     authError.classList.add('hidden');
+    if (btnSubmitLogin) {
+      btnSubmitLogin.disabled = true;
+      btnSubmitLogin.textContent = 'Memverifikasi...';
+    }
 
-    await initAuth();
+    try {
+      const res = await fetch('/api/v1/superadmin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!res.ok) {
+        let errMsg = 'Username atau password salah.';
+        try {
+          const errData = await res.json();
+          if (errData.error && errData.error.message) {
+            errMsg = errData.error.message;
+          }
+        } catch (_) {}
+        handleAuthFailure(errMsg);
+        return;
+      }
+
+      const data = await res.json();
+      authToken = data.access_token;
+      sessionStorage.setItem(STORAGE_KEY, authToken);
+      currentUser = data.user || { role: 'SUPERADMIN', email: username };
+
+      showPortalSection();
+      loadActiveTab();
+    } catch (err) {
+      handleAuthFailure('Gagal terhubung ke server: ' + (err.message || 'Koneksi error'));
+    } finally {
+      if (btnSubmitLogin) {
+        btnSubmitLogin.disabled = false;
+        btnSubmitLogin.textContent = 'Masuk ke Portal';
+      }
+    }
   });
 
   btnLogout.addEventListener('click', async () => {
@@ -254,7 +355,9 @@
     });
   }
 
+  // ==========================================
   // TAB 1: System Health & Telemetry
+  // ==========================================
   async function fetchHealthSnapshot(isBackground = false) {
     try {
       const res = await apiFetch('/api/v1/superadmin/health/snapshot');
@@ -357,7 +460,9 @@
     });
   }
 
-  // TAB 2: Users Management
+  // ==========================================
+  // TAB 2: Users Management & WA Status
+  // ==========================================
   pillBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       pillBtns.forEach((b) => {
@@ -394,12 +499,33 @@
     }
 
     try {
-      const url = `/api/v1/superadmin/users?status=${userStatusFilter}&q=${encodeURIComponent(userSearchQuery)}`;
-      const res = await apiFetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = await res.json();
-      renderUsersTable(body.data || []);
-      updatePendingBadge(body.data || []);
+      const usersUrl = `/api/v1/superadmin/users?status=${userStatusFilter}&q=${encodeURIComponent(userSearchQuery)}`;
+      
+      // Parallel fetch users list and WA gateway overview status
+      const [usersRes, waRes] = await Promise.all([
+        apiFetch(usersUrl),
+        apiFetch('/api/v1/superadmin/whatsapp/status').catch(() => null)
+      ]);
+
+      if (!usersRes.ok) throw new Error(`HTTP ${usersRes.status}`);
+      const body = await usersRes.json();
+      const users = body.data || [];
+
+      // Build WA status lookup map
+      const waMap = new Map();
+      if (waRes && waRes.ok) {
+        try {
+          const waData = await waRes.json();
+          if (Array.isArray(waData.accounts)) {
+            waData.accounts.forEach((acc) => {
+              if (acc.user_id) waMap.set(acc.user_id, acc);
+            });
+          }
+        } catch (_) {}
+      }
+
+      renderUsersTable(users, waMap);
+      updatePendingBadge(users);
     } catch (err) {
       if (!isBackground) {
         showToast('Gagal memuat pengguna: ' + err.message, 'error');
@@ -430,10 +556,10 @@
     }
   }
 
-  function renderUsersTable(users) {
+  function renderUsersTable(users, waMap) {
     usersTableBody.innerHTML = '';
     if (users.length === 0) {
-      usersTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Tidak ada pengguna yang cocok dengan filter.</td></tr>';
+      usersTableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4">Tidak ada pengguna yang cocok dengan filter.</td></tr>';
       return;
     }
 
@@ -444,6 +570,39 @@
       if (user.status === 'APPROVED') statusBadgeClass = 'badge-approved';
       if (user.status === 'SUSPENDED') statusBadgeClass = 'badge-suspended';
       if (user.status === 'REJECTED') statusBadgeClass = 'badge-rejected';
+
+      // WhatsApp Gateway column rendering
+      let waHtml = '<span style="color:var(--text-muted);font-size:0.8125rem;">-</span>';
+      if (user.role === 'ADMIN') {
+        const waStatus = waMap ? waMap.get(user.id) : null;
+        if (waStatus) {
+          if (waStatus.status === 'CONNECTED') {
+            waHtml = `
+              <button type="button" class="btn-wa-status badge-wa-connected btn-inspect-wa" data-user-id="${user.id}" data-user-name="${escapeHtml(user.email)}" title="Klik untuk rincian konfigurasi WA">
+                <span class="status-dot" style="background-color: var(--success-color);"></span> Terhubung
+              </button>
+            `;
+          } else if (waStatus.status === 'GATEWAY_DOWN') {
+            waHtml = `
+              <button type="button" class="btn-wa-status badge-wa-down btn-inspect-wa" data-user-id="${user.id}" data-user-name="${escapeHtml(user.email)}" title="Klik untuk rincian konfigurasi WA">
+                <span class="status-dot" style="background-color: var(--danger-color);"></span> GOWA Down
+              </button>
+            `;
+          } else {
+            waHtml = `
+              <button type="button" class="btn-wa-status badge-wa-disconnected btn-inspect-wa" data-user-id="${user.id}" data-user-name="${escapeHtml(user.email)}" title="Klik untuk rincian konfigurasi WA">
+                <span class="status-dot" style="background-color: var(--warning-color);"></span> Belum Konek
+              </button>
+            `;
+          }
+        } else {
+          waHtml = `
+            <button type="button" class="btn-wa-status badge-wa-unknown btn-inspect-wa" data-user-id="${user.id}" data-user-name="${escapeHtml(user.email)}" title="Klik untuk periksa status WA">
+              <span>🔍</span> Cek WA
+            </button>
+          `;
+        }
+      }
 
       let actionsHtml = '';
       if (user.status === 'PENDING_APPROVAL') {
@@ -467,6 +626,7 @@
         <td>${escapeHtml(user.display_name || '-')}</td>
         <td><span class="role-tag">${escapeHtml(user.role)}</span></td>
         <td><span class="badge ${statusBadgeClass}">${escapeHtml(user.status)}</span></td>
+        <td>${waHtml}</td>
         <td>${user.active_session_count || 0} sesi</td>
         <td>${new Date(user.created_at).toLocaleDateString()}</td>
         <td class="text-right"><div class="action-buttons">${actionsHtml}</div></td>
@@ -475,12 +635,13 @@
     });
 
     bindActionButtons();
+    bindWhatsAppInspectButtons();
   }
 
   function renderInvitationsTable(invitations) {
     usersTableBody.innerHTML = '';
     if (invitations.length === 0) {
-      usersTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Belum ada undangan aktif.</td></tr>';
+      usersTableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4">Belum ada undangan aktif.</td></tr>';
       return;
     }
 
@@ -489,8 +650,9 @@
       tr.innerHTML = `
         <td><strong>${escapeHtml(inv.email)}</strong></td>
         <td>Outlet: ${escapeHtml(inv.outlet_name || '-')}</td>
-        <td><span class="role-tag">OWNER (CALON)</span></td>
+        <td><span class="role-tag">CASHIER (UNDANGAN)</span></td>
         <td><span class="badge badge-pending">UNDANGAN AKTIF</span></td>
+        <td><span style="color:var(--text-muted);font-size:0.8125rem;">-</span></td>
         <td>-</td>
         <td>Kadaluarsa: ${new Date(inv.expires_at).toLocaleDateString()}</td>
         <td class="text-right">
@@ -514,7 +676,94 @@
     });
   }
 
-  // Dialog Action Handlers
+  function bindWhatsAppInspectButtons() {
+    document.querySelectorAll('.btn-inspect-wa').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const userId = btn.getAttribute('data-user-id');
+        const userName = btn.getAttribute('data-user-name');
+        openWhatsAppInfoDialog(userId, userName);
+      });
+    });
+  }
+
+  // ==========================================
+  // WHATSAPP GATEWAY INFO MODAL
+  // ==========================================
+  async function openWhatsAppInfoDialog(userId, userName) {
+    currentInspectingWAUserId = userId;
+    currentInspectingWAUserName = userName;
+
+    waInfoLoading.classList.remove('hidden');
+    waInfoContent.classList.add('hidden');
+    waInfoError.classList.add('hidden');
+
+    dialogWaInfo.showModal();
+
+    await loadWhatsAppStatus(userId, userName);
+  }
+
+  async function loadWhatsAppStatus(userId, userName) {
+    waInfoLoading.classList.remove('hidden');
+    waInfoContent.classList.add('hidden');
+    waInfoError.classList.add('hidden');
+
+    try {
+      const res = await apiFetch(`/api/v1/superadmin/users/${userId}/whatsapp`);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error ? errJson.error.message : `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+
+      // Render modal content
+      waInfoUser.textContent = `${data.display_name || userName || '-'} (${data.email_masked || '-'})`;
+      waInfoPhone.textContent = data.phone_masked || '(Belum terdaftar)';
+      waInfoDevice.textContent = data.device_id || '(Default Device)';
+      waInfoMessage.textContent = data.message || '-';
+
+      // Set Banner
+      waStatusBanner.className = 'wa-status-banner mb-3';
+      if (data.status === 'CONNECTED') {
+        waStatusBanner.classList.add('status-healthy');
+        waModalDot.style.backgroundColor = 'var(--success-color)';
+        waModalStatusText.textContent = 'Status: Terhubung Aktif (Online)';
+      } else if (data.status === 'GATEWAY_DOWN') {
+        waStatusBanner.classList.add('status-down');
+        waModalDot.style.backgroundColor = 'var(--danger-color)';
+        waModalStatusText.textContent = 'Status: Gateway GOWA Tidak Dapat Dihubungi';
+      } else {
+        waStatusBanner.classList.add('status-degraded');
+        waModalDot.style.backgroundColor = 'var(--warning-color)';
+        waModalStatusText.textContent = 'Status: Belum Terhubung (Menunggu Scan QR)';
+      }
+
+      waInfoLoading.classList.add('hidden');
+      waInfoContent.classList.remove('hidden');
+    } catch (err) {
+      waInfoLoading.classList.add('hidden');
+      waInfoError.textContent = 'Gagal memeriksa status WhatsApp: ' + (err.message || 'Koneksi error');
+      waInfoError.classList.remove('hidden');
+    }
+  }
+
+  if (btnCloseWa) {
+    btnCloseWa.addEventListener('click', () => dialogWaInfo.close());
+  }
+  if (btnCloseWaFooter) {
+    btnCloseWaFooter.addEventListener('click', () => dialogWaInfo.close());
+  }
+  if (btnRefreshWaSingle) {
+    btnRefreshWaSingle.addEventListener('click', () => {
+      if (currentInspectingWAUserId) {
+        loadWhatsAppStatus(currentInspectingWAUserId, currentInspectingWAUserName);
+        showToast('Memeriksa ulang status WhatsApp...', 'info');
+      }
+    });
+  }
+
+  // ==========================================
+  // DIALOG ACTION HANDLERS
+  // ==========================================
   function openActionDialog(action, id, name) {
     pendingAction = { action, id, name };
     actionError.classList.add('hidden');
@@ -524,12 +773,12 @@
 
     if (action === 'approve') {
       actionTargetDesc.textContent = `Setujui Akun: ${name}`;
-      actionDetailText.textContent = 'Akun Owner ini akan disetujui untuk mengelola outlet dan login penuh ke aplikasi mobile.';
+      actionDetailText.textContent = 'Akun Admin ini akan disetujui untuk mengelola outlet dan login penuh ke aplikasi mobile.';
       btnConfirmAction.classList.add('btn-success');
       btnConfirmAction.textContent = 'Ya, Setujui Akun';
     } else if (action === 'reject') {
       actionTargetDesc.textContent = `Tolak Akun: ${name}`;
-      actionDetailText.textContent = 'Pendaftaran akun Owner ini akan ditolak. Seluruh sesi aktif akan segera dibatalkan.';
+      actionDetailText.textContent = 'Pendaftaran akun Admin ini akan ditolak. Seluruh sesi aktif akan segera dibatalkan.';
       btnConfirmAction.classList.add('btn-danger');
       btnConfirmAction.textContent = 'Tolak Pendaftaran';
     } else if (action === 'suspend') {
@@ -539,7 +788,7 @@
       btnConfirmAction.textContent = 'Tangguhkan Akun';
     } else if (action === 'reactivate') {
       actionTargetDesc.textContent = `Aktifkan Kembali: ${name}`;
-      actionDetailText.textContent = 'Akun ini akan dikembalikan ke status APPROVED sehingga Owner dapat login kembali.';
+      actionDetailText.textContent = 'Akun ini akan dikembalikan ke status APPROVED sehingga Admin dapat login kembali.';
       btnConfirmAction.classList.add('btn-primary');
       btnConfirmAction.textContent = 'Aktifkan Kembali';
     } else if (action === 'revoke_sessions') {
@@ -549,7 +798,7 @@
       btnConfirmAction.textContent = 'Cabut Sesi Sekarang';
     } else if (action === 'revoke_invitation') {
       actionTargetDesc.textContent = `Cabut Undangan: ${name}`;
-      actionDetailText.textContent = 'Undangan registrasi ini akan dibatalkan. Calon owner tidak akan dapat mendaftar tanpa undangan baru.';
+      actionDetailText.textContent = 'Undangan Kasir ini akan dibatalkan dan tidak dapat digunakan untuk aktivasi login.';
       btnConfirmAction.classList.add('btn-danger');
       btnConfirmAction.textContent = 'Batalkan Undangan';
     }
@@ -639,7 +888,9 @@
     }
   });
 
+  // ==========================================
   // TAB 3: Activity Audits
+  // ==========================================
   async function fetchAudits(isBackground = false) {
     try {
       const res = await apiFetch('/api/v1/superadmin/audits');
@@ -694,5 +945,6 @@
   }
 
   // Initialize
+  initTheme();
   initAuth();
 })();

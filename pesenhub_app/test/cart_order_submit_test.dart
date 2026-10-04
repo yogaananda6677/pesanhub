@@ -308,5 +308,48 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
+
+    testWidgets(
+      'Criteria #6: OrderReviewDialog allows selecting GrabFood, GoFood, ShopeeFood and WhatsApp sources',
+      (tester) async {
+        final controller = CartController();
+        final nasgor = SampleMenuData.sampleMenus.first;
+        final modifierState = ModifierSelectionState(menuItem: nasgor);
+        controller.addItemFromModifierState(nasgor, modifierState);
+        controller.setCustomerName('Budi Grab');
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: Scaffold(body: OrderReviewDialog(controller: controller)),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Default source is Kasir Manual
+        expect(controller.orderSource, equals('CASHIER_MANUAL'));
+        expect(find.text('Sumber Transaksi:'), findsOneWidget);
+
+        // Tap GoFood chip
+        await tester.tap(find.text('GoFood'));
+        await tester.pumpAndSettle();
+        expect(controller.orderSource, equals('GOFOOD'));
+
+        // Tap GrabFood chip
+        await tester.tap(find.text('GrabFood'));
+        await tester.pumpAndSettle();
+        expect(controller.orderSource, equals('GRABFOOD'));
+
+        // Tap ShopeeFood chip
+        await tester.tap(find.text('ShopeeFood'));
+        await tester.pumpAndSettle();
+        expect(controller.orderSource, equals('SHOPEEFOOD'));
+
+        // Tap WhatsApp chip
+        await tester.tap(find.text('WhatsApp'));
+        await tester.pumpAndSettle();
+        expect(controller.orderSource, equals('WHATSAPP'));
+      },
+    );
   });
 }

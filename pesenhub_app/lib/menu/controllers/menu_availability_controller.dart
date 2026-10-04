@@ -460,7 +460,13 @@ class MenuAvailabilityController extends ChangeNotifier {
         final matchesSku = item.sku.toLowerCase().contains(query);
         final matchesDesc =
             item.description?.toLowerCase().contains(query) ?? false;
-        if (!matchesName && !matchesSku && !matchesDesc) {
+        final categoryName = _categories
+            .where((c) => c.id == item.categoryId)
+            .firstOrNull
+            ?.name
+            .toLowerCase();
+        final matchesCategory = categoryName?.contains(query) ?? false;
+        if (!matchesName && !matchesSku && !matchesDesc && !matchesCategory) {
           return false;
         }
       }

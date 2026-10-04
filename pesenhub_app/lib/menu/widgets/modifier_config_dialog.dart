@@ -14,12 +14,14 @@ import '../models/menu_option.dart';
 class ModifierConfigDialog extends StatefulWidget {
   final MenuItem item;
   final ModifierSelectionState? initialState;
+  final bool isEditing;
   final void Function(ModifierSelectionState configuredState)? onConfirm;
 
   const ModifierConfigDialog({
     super.key,
     required this.item,
     this.initialState,
+    this.isEditing = false,
     this.onConfirm,
   });
 
@@ -28,6 +30,7 @@ class ModifierConfigDialog extends StatefulWidget {
     required BuildContext context,
     required MenuItem item,
     ModifierSelectionState? initialState,
+    bool isEditing = false,
   }) {
     final isTablet =
         MediaQuery.sizeOf(context).width >= AppSpacing.tabletBreakpoint;
@@ -36,6 +39,8 @@ class ModifierConfigDialog extends StatefulWidget {
       return showDialog<ModifierSelectionState>(
         context: context,
         builder: (ctx) => Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: AppSpacing.borderRadiusMd,
           ),
@@ -44,6 +49,7 @@ class ModifierConfigDialog extends StatefulWidget {
             child: ModifierConfigDialog(
               item: item,
               initialState: initialState,
+              isEditing: isEditing,
               onConfirm: (state) => Navigator.of(ctx).pop(state),
             ),
           ),
@@ -54,8 +60,9 @@ class ModifierConfigDialog extends StatefulWidget {
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
+        backgroundColor: Colors.white,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         builder: (ctx) => Padding(
           padding: EdgeInsets.only(
@@ -63,11 +70,12 @@ class ModifierConfigDialog extends StatefulWidget {
           ),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(ctx).height * 0.85,
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.88,
             ),
             child: ModifierConfigDialog(
               item: item,
               initialState: initialState,
+              isEditing: isEditing,
               onConfirm: (state) => Navigator.of(ctx).pop(state),
             ),
           ),
@@ -82,17 +90,20 @@ class ModifierConfigDialog extends StatefulWidget {
 
 class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
   late final ModifierSelectionState _state;
+  late final TextEditingController _notesController;
 
   @override
   void initState() {
     super.initState();
     _state =
         widget.initialState ?? ModifierSelectionState(menuItem: widget.item);
+    _notesController = TextEditingController(text: _state.notes);
     _state.addListener(_onStateChanged);
   }
 
   @override
   void dispose() {
+    _notesController.dispose();
     _state.removeListener(_onStateChanged);
     super.dispose();
   }
@@ -110,9 +121,27 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Top sheet drag handle
+        Center(
+          child: Container(
+            margin: const EdgeInsets.only(top: 10, bottom: 4),
+            width: 38,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFCBD5E1),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+
         // 1. Dialog Header
         Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.xs,
+            AppSpacing.lg,
+            AppSpacing.md,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -120,6 +149,28 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (widget.isEditing) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2.5,
+                        ),
+                        margin: const EdgeInsets.only(bottom: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3ED),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFFDBA74)),
+                        ),
+                        child: const Text(
+                          'Ubah Pilihan Menu',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFC2410C),
+                          ),
+                        ),
+                      ),
+                    ],
                     Text(
                       widget.item.name,
                       style: AppTypography.titleLarge.copyWith(
@@ -130,7 +181,10 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
                     const SizedBox(height: 2),
                     Text(
                       'Harga Dasar: Rp ${widget.item.priceAmount}',
-                      style: AppTypography.bodySmall,
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -142,7 +196,7 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
             ],
           ),
         ),
-        const Divider(height: 1),
+        const Divider(height: 1, color: AppColors.border),
 
         // 2. Scrollable Body with Modifiers & Notes
         Flexible(
@@ -156,10 +210,11 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
                   return _buildModifierGroupSection(group, groupError);
                 }),
 
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
                 const Text('Catatan Pesanan:', style: AppTypography.labelSmall),
                 const SizedBox(height: AppSpacing.xs),
                 AppTextField(
+                  controller: _notesController,
                   hintText: 'Misal: Pisah acar, sambal sedikit, dll...',
                   onChanged: _state.setNotes,
                 ),
@@ -167,9 +222,9 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
             ),
           ),
         ),
-        const Divider(height: 1),
+        const Divider(height: 1, color: AppColors.border),
 
-        // 3. Footer: Quantity, Total Price & Add Button
+        // 3. Footer: Quantity, Total Price & Confirm Button
         Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
@@ -179,36 +234,54 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   // Quantity Stepper
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline_rounded),
-                        color: _state.quantity > 1
-                            ? AppColors.primary
-                            : AppColors.textMuted,
-                        onPressed: _state.quantity > 1
-                            ? _state.decrementQuantity
-                            : null,
-                      ),
-                      Text(
-                        '${_state.quantity}',
-                        style: AppTypography.titleMedium.copyWith(
-                          fontWeight: FontWeight.w700,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F9FA),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline_rounded),
+                          color: _state.quantity > 1
+                              ? AppColors.primary
+                              : AppColors.textMuted,
+                          onPressed: _state.quantity > 1
+                              ? _state.decrementQuantity
+                              : null,
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline_rounded),
-                        color: AppColors.primary,
-                        onPressed: _state.incrementQuantity,
-                      ),
-                    ],
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            '${_state.quantity}',
+                            style: AppTypography.titleMedium.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle_outline_rounded),
+                          color: AppColors.primary,
+                          onPressed: _state.incrementQuantity,
+                        ),
+                      ],
+                    ),
                   ),
 
                   // Total Price
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Text('Total:', style: AppTypography.bodySmall),
+                      const Text(
+                        'Total:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                       Text(
                         'Rp ${_state.totalPrice}',
                         style: AppTypography.titleLarge.copyWith(
@@ -222,10 +295,16 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
               ),
               const SizedBox(height: AppSpacing.md),
 
-              // Add to Cart Button (Criteria #3: Disabled if required modifiers invalid)
+              // Confirm Button
               AppButton(
-                label: isValid ? 'Tambah ke Pesanan' : 'Lengkapi Pilihan Wajib',
-                icon: Icons.check_circle_outline_rounded,
+                label: widget.isEditing
+                    ? 'Simpan Perubahan'
+                    : (isValid
+                          ? 'Tambah ke Pesanan'
+                          : 'Lengkapi Pilihan Wajib'),
+                icon: widget.isEditing
+                    ? Icons.save_rounded
+                    : Icons.check_circle_outline_rounded,
                 isFullWidth: true,
                 onPressed: isValid
                     ? () {
@@ -248,6 +327,12 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
     MenuModifierGroup group,
     String? errorMessage,
   ) {
+    final isQuantityGroup =
+        group.code == 'extra_isian' ||
+        group.options.any(
+          (o) => o.priceDeltaAmount > 0 && !group.isSingleSelect,
+        );
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: Column(
@@ -268,17 +353,17 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.sm,
-                  vertical: 2,
+                  vertical: 3,
                 ),
                 decoration: BoxDecoration(
                   color: group.isRequired
-                      ? AppColors.errorBg
-                      : AppColors.surfaceVariant,
+                      ? const Color(0xFFFEF2F2)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: AppSpacing.borderRadiusSm,
                   border: Border.all(
                     color: group.isRequired
-                        ? AppColors.error.withValues(alpha: 0.3)
-                        : AppColors.border,
+                        ? const Color(0xFFFECACA)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
                 child: Text(
@@ -291,8 +376,8 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: group.isRequired
-                        ? AppColors.error
-                        : AppColors.textSecondary,
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFF475569),
                   ),
                 ),
               ),
@@ -311,16 +396,25 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
           ],
           const SizedBox(height: AppSpacing.sm),
 
-          // Options List
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: group.options.map((option) {
-              return group.code == 'extra_isian'
-                  ? _buildQuantityOption(group, option)
-                  : _buildOptionChip(group, option);
-            }).toList(),
-          ),
+          // Options List: vertical cards for quantity groups, chips for choice groups
+          if (isQuantityGroup)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: group.options.map((option) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                  child: _buildQuantityOption(group, option),
+                );
+              }).toList(),
+            )
+          else
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: group.options.map((option) {
+                return _buildOptionChip(group, option);
+              }).toList(),
+            ),
         ],
       ),
     );
@@ -328,51 +422,101 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
 
   Widget _buildQuantityOption(MenuModifierGroup group, MenuOption option) {
     final quantity = _state.optionQuantity(group.id, option.id);
+    final isSelected = quantity > 0;
+    final isAvailable = option.isAvailable;
+
     return Container(
-      constraints: const BoxConstraints(minWidth: 210),
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
+        horizontal: AppSpacing.md,
+        vertical: 10,
       ),
       decoration: BoxDecoration(
-        color: quantity > 0 ? AppColors.primaryContainer : AppColors.surface,
-        borderRadius: AppSpacing.borderRadiusMd,
+        color: isSelected ? const Color(0xFFFEF3ED) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: quantity > 0 ? AppColors.primary : AppColors.border,
+          color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0),
+          width: isSelected ? 1.5 : 1,
         ),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Expanded(
-            child: Text(
-              option.isAvailable
-                  ? '${option.name} (+Rp ${option.priceDeltaAmount})'
-                  : '${option.name} (Habis)',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: option.isAvailable
-                    ? AppColors.textPrimary
-                    : AppColors.textMuted,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  option.name,
+                  style: TextStyle(
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                    fontSize: 14,
+                    color: isAvailable
+                        ? (isSelected
+                              ? AppColors.primary
+                              : AppColors.textPrimary)
+                        : AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  !isAvailable
+                      ? 'Stok Habis'
+                      : (option.priceDeltaAmount > 0
+                            ? '+Rp ${option.priceDeltaAmount}'
+                            : 'Termasuk'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isAvailable
+                        ? (isSelected
+                              ? AppColors.primary
+                              : const Color(0xFFE5573F))
+                        : AppColors.textMuted,
+                  ),
+                ),
+              ],
             ),
           ),
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            tooltip: 'Kurangi ${option.name}',
-            onPressed: quantity > 0
-                ? () => _state.decrementOption(group, option)
-                : null,
-            icon: const Icon(Icons.remove_circle_outline_rounded),
-          ),
-          Text('$quantity', style: AppTypography.titleMedium),
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            tooltip: 'Tambah ${option.name}',
-            onPressed: option.isAvailable
-                ? () => _state.incrementOption(group, option)
-                : null,
-            icon: const Icon(Icons.add_circle_outline_rounded),
+          // Stepper
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Kurangi ${option.name}',
+                onPressed: quantity > 0
+                    ? () => _state.decrementOption(group, option)
+                    : null,
+                icon: Icon(
+                  Icons.remove_circle_outline_rounded,
+                  color: quantity > 0 ? AppColors.primary : AppColors.textMuted,
+                ),
+              ),
+              Container(
+                constraints: const BoxConstraints(minWidth: 24),
+                alignment: Alignment.center,
+                child: Text(
+                  '$quantity',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Tambah ${option.name}',
+                onPressed: isAvailable
+                    ? () => _state.incrementOption(group, option)
+                    : null,
+                icon: Icon(
+                  Icons.add_circle_outline_rounded,
+                  color: isAvailable ? AppColors.primary : AppColors.textMuted,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -393,27 +537,25 @@ class _ModifierConfigDialogState extends State<ModifierConfigDialog> {
     return FilterChip(
       selected: isSelected,
       label: Text(labelText),
-      selectedColor: AppColors.primaryContainer,
-      checkmarkColor: AppColors.primary,
-      backgroundColor: isAvailable
-          ? AppColors.surface
-          : AppColors.surfaceVariant,
+      selectedColor: AppColors.primary,
+      checkmarkColor: Colors.white,
+      backgroundColor: isAvailable ? Colors.white : const Color(0xFFF1F5F9),
       labelStyle: TextStyle(
         fontSize: 13,
         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
         color: !isAvailable
             ? AppColors.textMuted
-            : (isSelected ? AppColors.primary : AppColors.textPrimary),
+            : (isSelected ? Colors.white : AppColors.textPrimary),
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: AppSpacing.borderRadiusFull,
+        borderRadius: BorderRadius.circular(10),
         side: BorderSide(
           color: !isAvailable
-              ? AppColors.border
-              : (isSelected ? AppColors.primary : AppColors.border),
+              ? const Color(0xFFE2E8F0)
+              : (isSelected ? AppColors.primary : const Color(0xFFCBD5E1)),
+          width: isSelected ? 1.5 : 1,
         ),
       ),
-      // Criteria #2: Item/option unavailable cannot be selected
       onSelected: isAvailable
           ? (_) => _state.toggleOption(group, option)
           : null,

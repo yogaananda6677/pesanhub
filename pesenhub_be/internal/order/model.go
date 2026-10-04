@@ -31,10 +31,13 @@ type ItemInput struct {
 type CreateInput struct {
 	ClientOrderID string      `json:"client_order_id"`
 	CustomerID    string      `json:"customer_id,omitempty"`
+	BranchID      string      `json:"branch_id,omitempty"`
 	CustomerName  string      `json:"customer_name"`
 	CustomerPhone string      `json:"customer_phone,omitempty"`
+	Source        string      `json:"source,omitempty"`
 	Notes         string      `json:"notes,omitempty"`
 	Items         []ItemInput `json:"items"`
+	DiscountID    string      `json:"discount_id,omitempty"`
 }
 
 type Item struct {
@@ -48,15 +51,22 @@ type Item struct {
 }
 
 type Order struct {
-	ID            string    `json:"id"`
-	OrderNumber   string    `json:"order_number"`
-	ClientOrderID string    `json:"client_order_id"`
-	Source        string    `json:"source"`
-	Status        string    `json:"status"`
-	TotalAmount   int64     `json:"total_amount"`
-	Version       int64     `json:"version"`
-	CreatedAt     time.Time `json:"created_at"`
-	Items         []Item    `json:"items"`
+	ID             string    `json:"id"`
+	OrderNumber    string    `json:"order_number"`
+	ClientOrderID  string    `json:"client_order_id"`
+	BranchID       string    `json:"branch_id,omitempty"`
+	BranchCode     string    `json:"branch_code,omitempty"`
+	BranchName     string    `json:"branch_name,omitempty"`
+	Source         string    `json:"source"`
+	Status         string    `json:"status"`
+	SubtotalAmount int64     `json:"subtotal_amount"`
+	DiscountAmount int64     `json:"discount_amount"`
+	DiscountID     string    `json:"discount_id,omitempty"`
+	DiscountName   string    `json:"discount_name,omitempty"`
+	TotalAmount    int64     `json:"total_amount"`
+	Version        int64     `json:"version"`
+	CreatedAt      time.Time `json:"created_at"`
+	Items          []Item    `json:"items"`
 }
 
 type ValidationError struct {
@@ -87,6 +97,7 @@ type StatusResult struct {
 type OrderFilter struct {
 	Sources     []string
 	Statuses    []string
+	BranchID    string
 	CreatedFrom *time.Time
 	CreatedTo   *time.Time
 	Pagination  httpapi.Pagination
@@ -127,11 +138,18 @@ type OrderDetail struct {
 	OrderNumber         string                    `json:"order_number"`
 	ClientOrderID       string                    `json:"client_order_id,omitempty"`
 	CustomerID          string                    `json:"customer_id,omitempty"`
+	BranchID            string                    `json:"branch_id"`
+	BranchCode          string                    `json:"branch_code,omitempty"`
+	BranchName          string                    `json:"branch_name,omitempty"`
 	Source              string                    `json:"source"`
 	Status              string                    `json:"status"`
 	CustomerName        string                    `json:"customer_name"`
 	CustomerPhone       *string                   `json:"customer_phone,omitempty"`
 	Notes               string                    `json:"notes,omitempty"`
+	SubtotalAmount      int64                     `json:"subtotal_amount"`
+	DiscountAmount      int64                     `json:"discount_amount"`
+	DiscountID          string                    `json:"discount_id,omitempty"`
+	DiscountName        string                    `json:"discount_name,omitempty"`
 	TotalAmount         int64                     `json:"total_amount"`
 	Version             int64                     `json:"version"`
 	CreatedAt           time.Time                 `json:"created_at"`
@@ -181,25 +199,32 @@ func DecodeCursor(cursor string) (time.Time, string, error) {
 }
 
 type PublicOrderCreateInput struct {
+	BranchID      string      `json:"branch_id,omitempty"`
 	CustomerName  string      `json:"customer_name"`
 	CustomerPhone string      `json:"customer_phone"`
 	Notes         string      `json:"notes"`
 	Items         []ItemInput `json:"items"`
+	DiscountID    string      `json:"discount_id,omitempty"`
 }
 
 type PublicOrderResponse struct {
 	OrderNumber         string    `json:"order_number"`
 	PublicTrackingToken string    `json:"public_tracking_token"`
 	Status              string    `json:"status"`
+	SubtotalAmount      int64     `json:"subtotal_amount"`
+	DiscountAmount      int64     `json:"discount_amount"`
+	DiscountName        string    `json:"discount_name,omitempty"`
 	TotalAmount         int64     `json:"total_amount"`
 	CreatedAt           time.Time `json:"created_at"`
 }
 
 type WhatsAppOrderCreateInput struct {
+	BranchID      string      `json:"branch_id,omitempty"`
 	CustomerPhone string      `json:"customer_phone"`
 	CustomerName  string      `json:"customer_name"`
 	Notes         string      `json:"notes,omitempty"`
 	Items         []ItemInput `json:"items"`
+	DiscountID    string      `json:"discount_id,omitempty"`
 }
 
 type WhatsAppOrderResponse struct {
@@ -207,6 +232,9 @@ type WhatsAppOrderResponse struct {
 	OrderNumber         string    `json:"order_number"`
 	PublicTrackingToken string    `json:"public_tracking_token"`
 	Status              string    `json:"status"`
+	SubtotalAmount      int64     `json:"subtotal_amount"`
+	DiscountAmount      int64     `json:"discount_amount"`
+	DiscountName        string    `json:"discount_name,omitempty"`
 	TotalAmount         int64     `json:"total_amount"`
 	CreatedAt           time.Time `json:"created_at"`
 }
@@ -226,18 +254,23 @@ type PreviewItem struct {
 
 type PreviewResponse struct {
 	SubtotalAmount int64         `json:"subtotal_amount"`
+	DiscountAmount int64         `json:"discount_amount"`
+	DiscountName   string        `json:"discount_name,omitempty"`
 	TotalAmount    int64         `json:"total_amount"`
 	Items          []PreviewItem `json:"items"`
 }
 
 type PublicTrackingDetail struct {
-	OrderNumber  string            `json:"order_number"`
-	Status       string            `json:"status"`
-	CustomerName string            `json:"customer_name"`
-	TotalAmount  int64             `json:"total_amount"`
-	CreatedAt    time.Time         `json:"created_at"`
-	UpdatedAt    time.Time         `json:"updated_at"`
-	Items        []OrderItemDetail `json:"items"`
+	OrderNumber    string            `json:"order_number"`
+	Status         string            `json:"status"`
+	CustomerName   string            `json:"customer_name"`
+	SubtotalAmount int64             `json:"subtotal_amount"`
+	DiscountAmount int64             `json:"discount_amount"`
+	DiscountName   string            `json:"discount_name,omitempty"`
+	TotalAmount    int64             `json:"total_amount"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
+	Items          []OrderItemDetail `json:"items"`
 }
 
 type AuditLogEntry struct {

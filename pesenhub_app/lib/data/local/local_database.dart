@@ -6,7 +6,7 @@ import '../../core/utils/pii_sanitizer.dart';
 /// and relational storage for PesenHub POS and KDS.
 /// Fulfills Issue #32 Acceptance Criteria #1, #3, and #4.
 class LocalDatabase {
-  static const int currentVersion = 8;
+  static const int currentVersion = 10;
   static const String defaultDbName = 'pesenhub.db';
 
   final String? customPath;
@@ -67,6 +67,12 @@ class LocalDatabase {
           if (version >= 8) {
             await _migrateToV8(db);
           }
+          if (version >= 9) {
+            await _migrateToV9(db);
+          }
+          if (version >= 10) {
+            await _migrateToV10(db);
+          }
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2 && newVersion >= 2) {
@@ -89,6 +95,12 @@ class LocalDatabase {
           }
           if (oldVersion < 8 && newVersion >= 8) {
             await _migrateToV8(db);
+          }
+          if (oldVersion < 9 && newVersion >= 9) {
+            await _migrateToV9(db);
+          }
+          if (oldVersion < 10 && newVersion >= 10) {
+            await _migrateToV10(db);
           }
         },
       ),
@@ -244,13 +256,105 @@ class LocalDatabase {
     ''');
   }
 
+  static Future<void> _migrateToV9(Database db) async {
+    final queueCols = await db.rawQuery('PRAGMA table_info(queue_orders)');
+    final queueNames = queueCols.map((row) => row['name'] as String).toSet();
+    if (!queueNames.contains('branch_id')) {
+      await db.execute('ALTER TABLE queue_orders ADD COLUMN branch_id TEXT;');
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_queue_orders_branch 
+        ON queue_orders (branch_id);
+      ''');
+    }
+
+    final outboxCols = await db.rawQuery('PRAGMA table_info(outbox_mutations)');
+    final outboxNames = outboxCols.map((row) => row['name'] as String).toSet();
+    if (!outboxNames.contains('branch_id')) {
+      await db.execute(
+        'ALTER TABLE outbox_mutations ADD COLUMN branch_id TEXT;',
+      );
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_outbox_branch 
+        ON outbox_mutations (branch_id);
+      ''');
+    }
+  }
+
+  static Future<void> _migrateToV10(Database db) async {
+    // Recreate outbox_mutations without UNIQUE constraint on client_order_id.
+    // This allows an order to queue multiple sequential mutations (e.g. CREATE_ORDER, then UPDATE_STATUS).
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS outbox_mutations_new (
+        id TEXT PRIMARY KEY,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        client_order_id TEXT NOT NULL,
+        mutation_type TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        sync_status TEXT NOT NULL,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        last_attempted_at TEXT,
+        next_retry_at TEXT,
+        server_order_id TEXT,
+        error_message TEXT,
+        created_at TEXT NOT NULL,
+        branch_id TEXT
+      );
+    ''');
+    final cols = await db.rawQuery('PRAGMA table_info(outbox_mutations)');
+    final colNames = cols.map((row) => row['name'] as String).toSet();
+    final hasBranch = colNames.contains('branch_id');
+    if (hasBranch) {
+      await db.execute('''
+        INSERT OR IGNORE INTO outbox_mutations_new (
+          id, idempotency_key, client_order_id, mutation_type, payload_json,
+          sync_status, retry_count, last_attempted_at, next_retry_at,
+          server_order_id, error_message, created_at, branch_id
+        )
+        SELECT 
+          id, idempotency_key, client_order_id, mutation_type, payload_json,
+          sync_status, retry_count, last_attempted_at, next_retry_at,
+          server_order_id, error_message, created_at, branch_id
+        FROM outbox_mutations;
+      ''');
+    } else {
+      await db.execute('''
+        INSERT OR IGNORE INTO outbox_mutations_new (
+          id, idempotency_key, client_order_id, mutation_type, payload_json,
+          sync_status, retry_count, last_attempted_at, next_retry_at,
+          server_order_id, error_message, created_at
+        )
+        SELECT 
+          id, idempotency_key, client_order_id, mutation_type, payload_json,
+          sync_status, retry_count, last_attempted_at, next_retry_at,
+          server_order_id, error_message, created_at
+        FROM outbox_mutations;
+      ''');
+    }
+    await db.execute('DROP TABLE outbox_mutations;');
+    await db.execute(
+      'ALTER TABLE outbox_mutations_new RENAME TO outbox_mutations;',
+    );
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_outbox_status_retry 
+      ON outbox_mutations (sync_status, next_retry_at);
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_outbox_client_order_id 
+      ON outbox_mutations (client_order_id);
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_outbox_branch 
+      ON outbox_mutations (branch_id);
+    ''');
+  }
+
   /// v3 Schema migration: adds outbox_mutations table and sync indexes.
   static Future<void> _migrateToV3(Database db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS outbox_mutations (
         id TEXT PRIMARY KEY,
         idempotency_key TEXT NOT NULL UNIQUE,
-        client_order_id TEXT NOT NULL UNIQUE,
+        client_order_id TEXT NOT NULL,
         mutation_type TEXT NOT NULL,
         payload_json TEXT NOT NULL,
         sync_status TEXT NOT NULL,

@@ -5,6 +5,7 @@ import '../../core/utils/pii_sanitizer.dart';
 import '../../data/local/models/outbox_mutation.dart';
 import '../../data/local/outbox_repository.dart';
 import '../../data/local/queue_local_repository.dart';
+import '../../discount/models/discount.dart';
 import '../../menu/controllers/modifier_selection_state.dart';
 import '../../menu/models/menu_item.dart';
 import '../../queue/models/queue_order.dart';
@@ -19,8 +20,10 @@ class CartController extends ChangeNotifier {
   final List<CartItem> _items = [];
   String _customerName = '';
   String _customerPhone = '';
-  bool _isTakeaway = false;
+  String _orderSource = 'CASHIER_MANUAL';
+  bool _isTakeaway = true;
   String _takeawayNotes = '';
+  Discount? _appliedDiscount;
 
   late String _idempotencyKey;
   late String _clientOrderId;
@@ -29,6 +32,8 @@ class CartController extends ChangeNotifier {
   String? _errorMessage;
   String? _discrepancyMessage;
   QueueOrder? _lastCreatedOrder;
+  String _paymentStatus = 'UNPAID';
+  String? _paymentMethod;
 
   CartController() {
     _generateFreshKeys();
@@ -42,13 +47,17 @@ class CartController extends ChangeNotifier {
   static String _generateId() {
     final random = Random();
     final hexDigits = '0123456789abcdef';
-    return List.generate(32, (_) => hexDigits[random.nextInt(16)]).join();
+    final chars = List.generate(32, (_) => hexDigits[random.nextInt(16)]);
+    chars[12] = '4';
+    chars[16] = hexDigits[(random.nextInt(4)) + 8];
+    return '${chars.sublist(0, 8).join()}-${chars.sublist(8, 12).join()}-${chars.sublist(12, 16).join()}-${chars.sublist(16, 20).join()}-${chars.sublist(20, 32).join()}';
   }
 
   // Getters
   List<CartItem> get items => List.unmodifiable(_items);
   String get customerName => _customerName;
   String get customerPhone => _customerPhone;
+  String get orderSource => _orderSource;
   bool get isTakeaway => _isTakeaway;
   String get takeawayNotes => _takeawayNotes;
   String get idempotencyKey => _idempotencyKey;
@@ -57,10 +66,33 @@ class CartController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get discrepancyMessage => _discrepancyMessage;
   QueueOrder? get lastCreatedOrder => _lastCreatedOrder;
+  String get paymentStatus => _paymentStatus;
+  String? get paymentMethod => _paymentMethod;
+
+  Discount? get appliedDiscount => _appliedDiscount;
 
   int get totalItemCount => _items.fold(0, (sum, i) => sum + i.quantity);
   int get subtotalAmount => _items.fold(0, (sum, i) => sum + i.lineTotal);
-  int get totalAmount => subtotalAmount;
+
+  int get discountAmount {
+    if (_appliedDiscount == null) return 0;
+    final itemTotals = <String, int>{};
+    for (final i in _items) {
+      itemTotals[i.menuItem.id] =
+          (itemTotals[i.menuItem.id] ?? 0) + i.lineTotal;
+    }
+    return _appliedDiscount!.calculateDiscountAmount(
+      subtotal: subtotalAmount,
+      itemLineTotals: itemTotals,
+      orderSource: _orderSource,
+    );
+  }
+
+  int get totalAmount {
+    final res = subtotalAmount - discountAmount;
+    return res < 0 ? 0 : res;
+  }
+
   bool get isEmpty => _items.isEmpty;
 
   CartOrderDraft get currentDraft => CartOrderDraft(
@@ -68,12 +100,39 @@ class CartController extends ChangeNotifier {
     clientOrderId: _clientOrderId,
     customerName: _customerName,
     customerPhone: _customerPhone.isEmpty ? null : _customerPhone,
+    source: _orderSource,
     isTakeaway: _isTakeaway,
     takeawayNotes: _takeawayNotes.isEmpty ? null : _takeawayNotes,
+    paymentStatus: _paymentStatus,
+    paymentMethod: _paymentMethod,
+    discountId: _appliedDiscount?.id,
+    discountAmount: discountAmount,
+    discountName: _appliedDiscount?.name,
     items: List.unmodifiable(_items),
   );
 
+  void applyDiscount(Discount? discount) {
+    _appliedDiscount = discount;
+    notifyListeners();
+  }
+
+  void removeDiscount() {
+    _appliedDiscount = null;
+    notifyListeners();
+  }
+
   // Mutations
+  void setPaymentInfo({required String paymentStatus, String? paymentMethod}) {
+    _paymentStatus = paymentStatus;
+    _paymentMethod = paymentMethod;
+    notifyListeners();
+  }
+
+  void setOrderSource(String source) {
+    _orderSource = source;
+    notifyListeners();
+  }
+
   void setCustomerName(String name) {
     _customerName = name;
     notifyListeners();
@@ -151,6 +210,27 @@ class CartController extends ChangeNotifier {
     }
   }
 
+  /// Updates an existing cart item configured from ModifierSelectionState.
+  void updateItemFromModifierState({
+    required String cartItemId,
+    required MenuItem menuItem,
+    required ModifierSelectionState state,
+  }) {
+    final index = _items.indexWhere((i) => i.id == cartItemId);
+    if (index != -1) {
+      _items[index] = _items[index].copyWith(
+        menuItem: menuItem,
+        modifierSummary: state.formattedModifierSummary,
+        selectedOptionIds: state.selectedOptionIds,
+        selectedOptionQuantities: state.selectedOptionQuantities,
+        quantity: state.quantity,
+        unitPrice: state.unitPrice,
+        notes: state.notes,
+      );
+      notifyListeners();
+    }
+  }
+
   /// Removes an item from the cart.
   void removeItem(String cartItemId) {
     _items.removeWhere((i) => i.id == cartItemId);
@@ -162,8 +242,9 @@ class CartController extends ChangeNotifier {
     _items.clear();
     _customerName = '';
     _customerPhone = '';
-    _isTakeaway = false;
+    _isTakeaway = true;
     _takeawayNotes = '';
+    _appliedDiscount = null;
     _errorMessage = null;
     _discrepancyMessage = null;
     _generateFreshKeys();
@@ -208,11 +289,15 @@ class CartController extends ChangeNotifier {
           orderNumber: orderNumber,
           customerName: draft.customerName,
           customerPhone: draft.customerPhone ?? '',
-          source: 'CASHIER_MANUAL',
+          source: draft.source,
           orderStatus: 'PENDING',
-          paymentStatus: 'UNPAID',
+          paymentStatus: draft.paymentStatus,
           isTakeaway: draft.isTakeaway,
           takeawayNotes: draft.takeawayNotes,
+          subtotalAmount: draft.subtotalAmount,
+          discountAmount: draft.discountAmount,
+          discountId: draft.discountId,
+          discountName: draft.discountName,
           items: draft.items.map((i) {
             return QueueOrderItem(
               name: i.menuItem.name,
@@ -232,8 +317,12 @@ class CartController extends ChangeNotifier {
       _items.clear();
       _customerName = '';
       _customerPhone = '';
-      _isTakeaway = false;
+      _orderSource = 'CASHIER_MANUAL';
+      _isTakeaway = true;
       _takeawayNotes = '';
+      _appliedDiscount = null;
+      _paymentStatus = 'UNPAID';
+      _paymentMethod = null;
       _generateFreshKeys();
       _isSubmitting = false;
       notifyListeners();
@@ -279,20 +368,30 @@ class CartController extends ChangeNotifier {
     required CartOrderDraft draft,
     required OutboxRepository outboxRepo,
     required QueueLocalRepository queueRepo,
+    String? branchId,
   }) async {
-    final orderNumber =
-        'ORD-${draft.idempotencyKey.substring(0, 8).toUpperCase()}';
+    final effectiveBranchId = branchId ?? draft.branchId;
+    final seq = await queueRepo.getNextDailySequence();
+    final now = DateTime.now();
+    final dateCompact =
+        '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+    final orderNumber = 'ORD-$dateCompact-${seq.toString().padLeft(4, '0')}';
     final maskedPhone = PiiSanitizer.maskPhone(draft.customerPhone);
     final localOrder = QueueOrder(
       id: 'ord-${draft.clientOrderId}',
       orderNumber: orderNumber,
       customerName: draft.customerName,
       customerPhone: maskedPhone,
-      source: 'CASHIER_MANUAL',
+      source: draft.source,
       orderStatus: 'PENDING',
-      paymentStatus: 'UNPAID',
+      paymentStatus: draft.paymentStatus,
       isTakeaway: draft.isTakeaway,
       takeawayNotes: draft.takeawayNotes,
+      branchId: effectiveBranchId,
+      subtotalAmount: draft.subtotalAmount,
+      discountAmount: draft.discountAmount,
+      discountId: draft.discountId,
+      discountName: draft.discountName,
       items: draft.items.map((i) {
         return QueueOrderItem(
           name: i.menuItem.name,
@@ -306,7 +405,10 @@ class CartController extends ChangeNotifier {
       version: 1,
     );
 
-    final sanitizedDraft = draft.copyWith(customerPhone: maskedPhone);
+    final sanitizedDraft = draft.copyWith(
+      customerPhone: maskedPhone,
+      branchId: effectiveBranchId,
+    );
     final mutation = OutboxMutation(
       id: 'mut-${draft.clientOrderId}',
       idempotencyKey: draft.idempotencyKey,
@@ -315,6 +417,7 @@ class CartController extends ChangeNotifier {
       payloadJson: jsonEncode(sanitizedDraft.toJson()),
       syncStatus: OutboxSyncStatus.pending,
       createdAt: DateTime.now(),
+      branchId: effectiveBranchId,
     );
     await queueRepo.persistOrderWithMutation(
       order: localOrder,

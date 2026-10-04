@@ -135,7 +135,7 @@ Seluruh endpoint memerlukan kredensial staf (`STAFF` atau `ADMIN`) melalui conte
 {
   "session": "default",
   "customer_phone": "+6281234567890",
-  "resolution": "Pelanggan memilih ganti menu Nasi Goreng Spesial Pedas",
+  "resolution": "Pelanggan memilih ganti menu Martabak Telur Spesial Pedas",
   "resume_automation": true
 }
 ```

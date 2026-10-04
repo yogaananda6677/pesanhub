@@ -1,0 +1,16 @@
+# Copy the relevant sections into ~/.hermes/config.yaml.
+# Prefer running `hermes model` and selecting a custom OpenAI-compatible endpoint.
+providers:
+  nine-router:
+    name: 9Router
+    api: https://9router.com/v1
+    key_env: NINE_ROUTER_API_KEY
+    transport: chat_completions
+    # `auto` lets 9Router use the fallback/combo configured in its dashboard.
+    # Replace it with an exact model ID when deterministic routing is required.
+    default_model: auto
+    context_length: 128000
+
+# The repository ships project-local files under .hermes/skills and
+# .hermes/plugins. Run Hermes from the repository root and trust it once with:
+#   hermes skills trust /absolute/path/to/pesenhub_be

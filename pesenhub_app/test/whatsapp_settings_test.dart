@@ -117,12 +117,14 @@ void main() {
           phoneMasked: '-',
           privacyNotice: '',
         ),
-        customPair: ({deviceId}) async {
+        customPair: ({deviceId, method, phone}) async {
           paired = true;
           return WhatsAppPairResult(
             isAlreadyLoggedIn: false,
             status: 'SUCCESS',
             deviceId: deviceId ?? 'dev-test',
+            method: method ?? 'qr',
+            phone: phone,
             qrDuration: 30,
             qrLink: 'http://test/qr',
             qrProxyUrl: 'http://test/qr.png',
@@ -293,11 +295,13 @@ void main() {
           phoneMasked: '-',
           privacyNotice: '',
         ),
-        customPair: ({deviceId}) async {
-          return const WhatsAppPairResult(
+        customPair: ({deviceId, method, phone}) async {
+          return WhatsAppPairResult(
             isAlreadyLoggedIn: false,
             status: 'SUCCESS',
             deviceId: 'dev-qr-test',
+            method: method ?? 'qr',
+            phone: phone,
             qrDuration: 30,
             qrLink: 'http://test/qr',
             qrProxyUrl: 'http://test/qr.png',
@@ -315,7 +319,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Hubungkan WhatsApp'), findsOneWidget);
+      expect(find.textContaining('Hubungkan WhatsApp'), findsOneWidget);
       expect(
         find.textContaining('Buka aplikasi WhatsApp di HP outlet'),
         findsOneWidget,

@@ -12,13 +12,22 @@ class ApiFailure implements Exception {
   final ApiFailureKind kind;
   final int? statusCode;
   final String? requestId;
+  final String? serverMessage;
 
-  const ApiFailure(this.kind, {this.statusCode, this.requestId});
+  const ApiFailure(
+    this.kind, {
+    this.statusCode,
+    this.requestId,
+    this.serverMessage,
+  });
 
   bool get isTransient =>
       kind == ApiFailureKind.server || kind == ApiFailureKind.network;
 
   String get presentationMessage {
+    if (serverMessage != null && serverMessage!.trim().isNotEmpty) {
+      return serverMessage!.trim();
+    }
     switch (kind) {
       case ApiFailureKind.unauthenticated:
         return 'Sesi tidak valid. Silakan autentikasi ulang.';

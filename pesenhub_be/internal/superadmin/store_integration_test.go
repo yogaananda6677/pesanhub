@@ -30,8 +30,12 @@ func TestSuperadminStoreIntegration(t *testing.T) {
 	invitedEmail := "invited-itest@pesenhub.id"
 
 	cleanup := func() {
-		_, _ = pool.Exec(context.Background(), `DELETE FROM user_invitations WHERE email_normalized = ANY($1::text[])`, []string{invitedEmail, targetEmail})
-		_, _ = pool.Exec(context.Background(), `DELETE FROM app_users WHERE email_normalized = ANY($1::text[])`, []string{actorEmail, targetEmail})
+		_, _ = pool.Exec(context.Background(), `UPDATE app_users SET approved_by = NULL WHERE email_normalized IN ($1, $2, $3)`, actorEmail, targetEmail, invitedEmail)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM app_sessions WHERE user_id IN (SELECT id FROM app_users WHERE email_normalized IN ($1, $2, $3))`, actorEmail, targetEmail, invitedEmail)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM external_identities WHERE user_id IN (SELECT id FROM app_users WHERE email_normalized IN ($1, $2, $3))`, actorEmail, targetEmail, invitedEmail)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM user_status_audits WHERE user_id IN (SELECT id FROM app_users WHERE email_normalized IN ($1, $2, $3)) OR actor_user_id IN (SELECT id FROM app_users WHERE email_normalized IN ($1, $2, $3))`, actorEmail, targetEmail, invitedEmail)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM user_invitations WHERE email_normalized IN ($1, $2, $3) OR invited_by IN (SELECT id FROM app_users WHERE email_normalized IN ($1, $2, $3))`, actorEmail, targetEmail, invitedEmail)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM app_users WHERE email_normalized IN ($1, $2, $3)`, actorEmail, targetEmail, invitedEmail)
 	}
 	cleanup()
 	defer cleanup()
@@ -56,7 +60,7 @@ func TestSuperadminStoreIntegration(t *testing.T) {
 
 	// 2. Test CreateInvitation & ListInvitations & RevokeInvitation
 	t.Run("InvitationLifecycle", func(t *testing.T) {
-		inv, err := store.CreateInvitation(ctx, superadminID, invitedEmail, "Outlet Barat", 24*time.Hour)
+		inv, err := store.CreateInvitation(ctx, superadminID, invitedEmail, "Outlet Barat", "", 24*time.Hour)
 		if err != nil {
 			t.Fatalf("CreateInvitation failed: %v", err)
 		}
@@ -80,7 +84,7 @@ func TestSuperadminStoreIntegration(t *testing.T) {
 		}
 
 		// Try creating invitation for existing registered user -> should error ErrUserAlreadyExists
-		_, err = store.CreateInvitation(ctx, superadminID, targetEmail, "Outlet Timur", 24*time.Hour)
+		_, err = store.CreateInvitation(ctx, superadminID, targetEmail, "Outlet Timur", "", 24*time.Hour)
 		if err != ErrUserAlreadyExists {
 			t.Fatalf("expected ErrUserAlreadyExists, got: %v", err)
 		}

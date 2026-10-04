@@ -192,7 +192,7 @@ func TestService_ProcessTurn_DynamicStockChangeRevalidation(t *testing.T) {
 				{
 					MenuName:   "Nasi Goreng Spesial",
 					Quantity:   1,
-					Modifiers:  []string{"Pedas"},
+					Modifiers:  []string{},
 					Confidence: 0.95,
 				},
 			},
@@ -212,27 +212,27 @@ func TestService_ProcessTurn_DynamicStockChangeRevalidation(t *testing.T) {
 
 	phone := "+628555666777"
 
-	// Turn 1: User ordered Nasi Goreng Pedas but forgot fulfillment
+	// Turn 1: User ordered Nasi Goreng missing required Level Pedas
 	resp1, err := svc.ProcessTurn(context.Background(), TurnRequest{
 		Session:     "default",
 		SenderPhone: phone,
-		MessageText: "Pesan nasi goreng spesial pedas 1",
+		MessageText: "Pesan nasi goreng spesial 1",
 	})
 	if err != nil {
 		t.Fatalf("turn 1 failed: %v", err)
 	}
-	if !strings.Contains(resp1.ReplyText, "Takeaway/Pickup") {
-		t.Errorf("expected question to ask fulfillment, got %s", resp1.ReplyText)
+	if !strings.Contains(resp1.ReplyText, "Level Pedas") {
+		t.Errorf("expected question to ask Level Pedas, got %s", resp1.ReplyText)
 	}
 
 	// Now suddenly Nasi Goreng runs out of stock in backend catalog!
 	catProvider.categories[0].Menus[0].Available = false
 
-	// Turn 2: User answers "takeaway ya"
+	// Turn 2: User answers "pedas ya"
 	resp2, err := svc.ProcessTurn(context.Background(), TurnRequest{
 		Session:     "default",
 		SenderPhone: phone,
-		MessageText: "takeaway",
+		MessageText: "pedas",
 	})
 	if err != nil {
 		t.Fatalf("turn 2 failed: %v", err)
@@ -244,5 +244,73 @@ func TestService_ProcessTurn_DynamicStockChangeRevalidation(t *testing.T) {
 	}
 	if !strings.Contains(resp2.ReplyText, "Nasi Goreng Spesial saat ini sedang habis") {
 		t.Errorf("expected notification about out-of-stock menu, got %s", resp2.ReplyText)
+	}
+}
+
+func TestService_ProcessTurn_GreetingThenOrder(t *testing.T) {
+	mockClient := &MockLLMClient{
+		// First call (turn 1): empty order (greeting)
+		Response: &RawExtractedOrder{
+			Items:      []RawExtractedItem{},
+			Confidence: 0.2,
+		},
+	}
+
+	cats := sampleCatalog()
+	catProvider := &mockCatalogProvider{categories: cats}
+	convStore := NewMemoryConversationStore()
+
+	svc := NewService(Config{
+		Client:            mockClient,
+		CatalogProvider:   catProvider,
+		ConversationStore: convStore,
+	})
+
+	phone := "+62811223344"
+
+	// Turn 1: Customer says "Halo"
+	resp1, err := svc.ProcessTurn(context.Background(), TurnRequest{
+		Session:     "default",
+		SenderPhone: phone,
+		MessageText: "Halo",
+	})
+	if err != nil {
+		t.Fatalf("turn 1 failed: %v", err)
+	}
+	if resp1.State.Status != ConversationAwaitingClarification {
+		t.Fatalf("expected state AWAITING_CLARIFICATION, got %s", resp1.State.Status)
+	}
+	if !strings.Contains(resp1.ReplyText, "Martabak & Terang Bulan Jenggirat") {
+		t.Fatalf("expected welcome text, got %s", resp1.ReplyText)
+	}
+
+	// Prepare mock response for Turn 2: Customer orders 2 es teh
+	mockClient.Response = &RawExtractedOrder{
+		Items: []RawExtractedItem{
+			{
+				MenuName:   "esteh",
+				Quantity:   2,
+				Confidence: 0.95,
+			},
+		},
+		FulfillmentType: "PICKUP",
+		PaymentMethod:   "CASH",
+		Confidence:      0.95,
+	}
+
+	// Turn 2: Customer responds with order
+	resp2, err := svc.ProcessTurn(context.Background(), TurnRequest{
+		Session:     "default",
+		SenderPhone: phone,
+		MessageText: "Pesan es teh 2 bungkus bayar tunai",
+	})
+	if err != nil {
+		t.Fatalf("turn 2 failed: %v", err)
+	}
+	if resp2.State.Status != ConversationReadyForConfirmation {
+		t.Fatalf("expected state READY_FOR_CONFIRMATION, got %s", resp2.State.Status)
+	}
+	if !strings.Contains(resp2.ReplyText, "Es Teh Manis") || !strings.Contains(resp2.ReplyText, "Ringkasan") && !strings.Contains(resp2.ReplyText, "ringkasan") {
+		t.Fatalf("expected order summary, got: %s", resp2.ReplyText)
 	}
 }

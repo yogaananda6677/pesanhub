@@ -7,8 +7,9 @@ import 'package:pesenhub_app/menu/models/menu_option.dart';
 abstract final class SampleMenuData {
   static const List<MenuCategory> sampleCategories = [
     MenuCategory(id: 'cat-makanan', name: 'Makanan', sortOrder: 0),
-    MenuCategory(id: 'cat-minuman', name: 'Minuman', sortOrder: 1),
-    MenuCategory(id: 'cat-tambahan', name: 'Tambahan', sortOrder: 2),
+    terangBulanCategory,
+    MenuCategory(id: 'cat-minuman', name: 'Minuman', sortOrder: 2),
+    MenuCategory(id: 'cat-tambahan', name: 'Tambahan', sortOrder: 3),
   ];
 
   static const MenuModifierGroup spiceLevelGroup = MenuModifierGroup(
@@ -163,6 +164,7 @@ abstract final class SampleMenuData {
       isAvailable: false, // Criteria #2: unavailable item
       modifierGroups: [spiceLevelGroup],
     ),
+    ...sampleTerangBulanMenus,
     const MenuItem(
       id: 'm-es-teh',
       categoryId: 'cat-minuman',
@@ -192,6 +194,190 @@ abstract final class SampleMenuData {
       description: 'Acar mentimun segar dan kuah cuka asam manis gurih.',
       priceAmount: 2000,
       isAvailable: true,
+    ),
+  ];
+
+  static const MenuCategory terangBulanCategory = MenuCategory(
+    id: 'cat-terang-bulan',
+    name: 'Terang Bulan Manis',
+    sortOrder: 50,
+  );
+
+  static const MenuModifierGroup baseCakeGroup = MenuModifierGroup(
+    id: 'grp-base-cake',
+    code: 'base_cake',
+    name: 'Pilihan Base Cake',
+    minSelect: 1,
+    maxSelect: 1,
+    sortOrder: 10,
+    options: [
+      MenuOption(
+        id: 'opt-bc-original',
+        code: 'original',
+        name: 'Original',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-bc-redvelvet',
+        code: 'red_velvet',
+        name: 'Red Velvet',
+        priceDeltaAmount: 2000,
+      ),
+      MenuOption(
+        id: 'opt-bc-pandan',
+        code: 'pandan',
+        name: 'Pandan',
+        priceDeltaAmount: 2000,
+      ),
+      MenuOption(
+        id: 'opt-bc-blackforest',
+        code: 'black_forest',
+        name: 'Black Forest',
+        priceDeltaAmount: 2000,
+      ),
+      MenuOption(
+        id: 'opt-bc-taro',
+        code: 'taro',
+        name: 'Taro',
+        priceDeltaAmount: 2000,
+      ),
+      MenuOption(
+        id: 'opt-bc-mocca',
+        code: 'mocca',
+        name: 'Mocca',
+        priceDeltaAmount: 2000,
+      ),
+      MenuOption(
+        id: 'opt-bc-greentea',
+        code: 'green_tea',
+        name: 'Green Tea',
+        priceDeltaAmount: 2000,
+      ),
+    ],
+  );
+
+  static const MenuModifierGroup terangBulanToppingGroup = MenuModifierGroup(
+    id: 'grp-tb-topping',
+    code: 'pilihan_toping',
+    name: 'Pilihan Toping',
+    minSelect: 1,
+    maxSelect: 8,
+    sortOrder: 20,
+    options: [
+      MenuOption(
+        id: 'opt-tb-coklat',
+        code: 'coklat',
+        name: 'Coklat',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-pisang',
+        code: 'pisang',
+        name: 'Pisang',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-keju',
+        code: 'keju',
+        name: 'Keju',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-oreo',
+        code: 'oreo',
+        name: 'Oreo',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-kacang',
+        code: 'kacang',
+        name: 'Kacang',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-strawberry',
+        code: 'selai_strawberry',
+        name: 'Selai Strawberry',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-blueberry',
+        code: 'selai_blueberry',
+        name: 'Selai Blueberry',
+        priceDeltaAmount: 0,
+      ),
+      MenuOption(
+        id: 'opt-tb-goldenfill',
+        code: 'goldenfill',
+        name: 'Goldenfill',
+        priceDeltaAmount: 0,
+      ),
+    ],
+  );
+
+  static List<MenuItem> get sampleTerangBulanMenus => [
+    const MenuItem(
+      id: 'm-tb-1t-biasa',
+      categoryId: 'cat-terang-bulan',
+      sku: 'TB-1TOPING-BIASA',
+      name: '1 Toping - Biasa',
+      priceAmount: 18000,
+      isAvailable: true,
+      modifierGroups: [baseCakeGroup, terangBulanToppingGroup],
+    ),
+    const MenuItem(
+      id: 'm-tb-1t-besar',
+      categoryId: 'cat-terang-bulan',
+      sku: 'TB-1TOPING-BESAR',
+      name: '1 Toping - Besar',
+      priceAmount: 25000,
+      isAvailable: true,
+      modifierGroups: [baseCakeGroup, terangBulanToppingGroup],
+    ),
+    const MenuItem(
+      id: 'm-tb-2t-biasa',
+      categoryId: 'cat-terang-bulan',
+      sku: 'TB-2TOPING-BIASA',
+      name: '2 Toping - Biasa',
+      priceAmount: 23000,
+      isAvailable: true,
+      modifierGroups: [baseCakeGroup, terangBulanToppingGroup],
+    ),
+    const MenuItem(
+      id: 'm-tb-2t-besar',
+      categoryId: 'cat-terang-bulan',
+      sku: 'TB-2TOPING-BESAR',
+      name: '2 Toping - Besar',
+      priceAmount: 30000,
+      isAvailable: true,
+      modifierGroups: [baseCakeGroup, terangBulanToppingGroup],
+    ),
+    const MenuItem(
+      id: 'm-tb-3t-biasa',
+      categoryId: 'cat-terang-bulan',
+      sku: 'TB-3TOPING-BIASA',
+      name: '3 Toping - Biasa',
+      priceAmount: 28000,
+      isAvailable: true,
+      modifierGroups: [baseCakeGroup, terangBulanToppingGroup],
+    ),
+    const MenuItem(
+      id: 'm-tb-3t-besar',
+      categoryId: 'cat-terang-bulan',
+      sku: 'TB-3TOPING-BESAR',
+      name: '3 Toping - Besar',
+      priceAmount: 35000,
+      isAvailable: true,
+      modifierGroups: [baseCakeGroup, terangBulanToppingGroup],
+    ),
+    const MenuItem(
+      id: 'm-tb-pizza',
+      categoryId: 'cat-terang-bulan',
+      sku: 'TB-PIZZA-ALLINONE',
+      name: 'Cut Pizza All In One',
+      priceAmount: 45000,
+      isAvailable: true,
+      modifierGroups: [baseCakeGroup, terangBulanToppingGroup],
     ),
   ];
 }

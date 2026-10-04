@@ -75,8 +75,9 @@ void main() {
         expect(find.byType(ConnectivityBadge), findsOneWidget);
 
         // Horizontal category tabs are displayed
-        expect(find.text('Semua (6)'), findsOneWidget);
+        expect(find.text('Semua (13)'), findsOneWidget);
         expect(find.text('Makanan (3)'), findsOneWidget);
+        expect(find.text('Terang Bulan Manis (7)'), findsOneWidget);
         expect(find.text('Minuman (2)'), findsOneWidget);
 
         // Minimum 48dp touch target on category tab
@@ -157,14 +158,14 @@ void main() {
 
         // Return to Semua
         await tester.scrollUntilVisible(
-          find.text('Semua (6)'),
+          find.text('Semua (13)'),
           -50.0,
           scrollable: find.descendant(
             of: find.byType(MenuCategoryFilter),
             matching: find.byType(Scrollable),
           ),
         );
-        await tester.tap(find.text('Semua (6)'));
+        await tester.tap(find.text('Semua (13)'));
         await tester.pumpAndSettle();
 
         expect(cartController.totalItemCount, equals(1));
@@ -257,7 +258,6 @@ void main() {
         expect(find.text('Identitas Pelanggan'), findsOneWidget);
         expect(find.text('Nama Pelanggan *'), findsOneWidget);
         expect(find.text('Nomor WhatsApp (Opsional)'), findsOneWidget);
-        expect(find.text('Bungkus / Takeaway'), findsOneWidget);
         expect(find.text('Daftar Menu Pesanan'), findsOneWidget);
         expect(find.text('Review & Proses Pesanan'), findsOneWidget);
       },
@@ -319,21 +319,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // 3. Toggle takeaway
-        await tester.tap(find.text('Bungkus / Takeaway'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Catatan Kemasan Bungkus'), findsOneWidget);
-        await tester.enterText(
-          find.widgetWithText(
-            TextField,
-            'Misal: Pisah kuah, sambal dipisah...',
-          ),
-          'Pisah sambal',
-        );
-        await tester.pumpAndSettle();
-
-        // 4. Submit now succeeds
+        // 3. Submit succeeds with default takeaway
         await tester.tap(find.text('Review & Proses Pesanan'));
         await tester.pumpAndSettle();
 
@@ -353,6 +339,57 @@ void main() {
 
         // Cart is cleared
         expect(cartController.totalItemCount, equals(0));
+      },
+    );
+
+    testWidgets(
+      '5b. Cart Item Edit Flow: Cashier can tap edit to modify toppings and notes in place',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final cartController = CartController();
+        final nasgor = SampleMenuData.sampleMenus.first;
+        final modState = ModifierSelectionState(menuItem: nasgor);
+        cartController.addItemFromModifierState(nasgor, modState);
+
+        await tester.pumpWidget(buildPosApp(cartController: cartController));
+        await tester.pumpAndSettle();
+
+        // Open bottom sheet
+        await tester.tap(find.byKey(const Key('sticky-cart-summary')));
+        await tester.pumpAndSettle();
+
+        final cartItemId = cartController.items.first.id;
+        // Verify edit button exists
+        expect(find.byKey(Key('edit-cart-item-$cartItemId')), findsOneWidget);
+
+        // Tap edit button to open ModifierConfigDialog in edit mode
+        await tester.tap(find.byKey(Key('edit-cart-item-$cartItemId')));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Ubah Pilihan Menu'), findsOneWidget);
+        expect(find.text('Simpan Perubahan'), findsOneWidget);
+
+        // Enter notes
+        await tester.enterText(
+          find.widgetWithText(
+            TextField,
+            'Misal: Pisah acar, sambal sedikit, dll...',
+          ),
+          'Jangan terlalu asin',
+        );
+        await tester.pumpAndSettle();
+
+        // Tap Simpan Perubahan
+        await tester.tap(find.text('Simpan Perubahan'));
+        await tester.pumpAndSettle();
+
+        // Check that item notes got updated in cartController
+        expect(cartController.items.first.notes, equals('Jangan terlalu asin'));
+        expect(find.text('Catatan: Jangan terlalu asin'), findsOneWidget);
       },
     );
 
@@ -382,7 +419,7 @@ void main() {
         // Split view elements are visible simultaneously
         expect(find.text('Keranjang (0)'), findsOneWidget);
         expect(find.text('Identitas Pelanggan'), findsOneWidget);
-        expect(find.text('Semua (6)'), findsOneWidget);
+        expect(find.text('Semua (13)'), findsOneWidget);
 
         // Add item
         final nasgor = SampleMenuData.sampleMenus.first;

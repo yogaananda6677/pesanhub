@@ -52,6 +52,10 @@ services:
   gowa:
     image: aldinokemal2104/go-whatsapp-web-multidevice:v9.3.0
     restart: unless-stopped
+    command:
+      - rest
+      - --auto-mark-read=true
+      - --presence-on-connect=available
     environment:
       APP_BASIC_AUTH: ${GOWA_BASIC_AUTH_USERNAME:?GOWA_BASIC_AUTH_USERNAME is required}:${GOWA_BASIC_AUTH_PASSWORD:?GOWA_BASIC_AUTH_PASSWORD is required}
       APP_UI_ENABLED: "true"

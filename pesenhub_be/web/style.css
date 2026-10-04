@@ -52,11 +52,25 @@ header.app-header {
   justify-content: space-between;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
 .brand h1 {
   font-size: 1.35rem;
   font-weight: 800;
   color: var(--primary);
   letter-spacing: -0.5px;
+  line-height: 1.2;
 }
 
 .brand p {

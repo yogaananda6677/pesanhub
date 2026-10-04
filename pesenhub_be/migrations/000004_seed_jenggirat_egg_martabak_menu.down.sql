@@ -1,5 +1,2 @@
-DELETE FROM menus WHERE id LIKE '20000000-0000-4000-8000-0000000000%';
-
-DELETE FROM menu_categories
-WHERE id LIKE '10000000-0000-4000-8000-00000000000%'
-  AND NOT EXISTS (SELECT 1 FROM menus WHERE menus.category_id=menu_categories.id);
+-- 000004_seed_jenggirat_egg_martabak_menu.down.sql
+SELECT 1;

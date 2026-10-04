@@ -36,7 +36,10 @@ type OrderSummary struct {
 	ID, OrderNumber, Status string
 	TotalAmount             int64
 }
-type Principal struct{ Subject, Role, CustomerID, SessionID string }
+type Principal struct {
+	Subject, Role, CustomerID, SessionID, BranchID string
+	AllBranches                                    bool
+}
 
 // CanOperateOutlet permits day-to-day outlet work. STAFF remains supported for
 // service credentials; interactive users receive ADMIN or CASHIER.
@@ -51,6 +54,8 @@ func CanManageOutlet(p Principal) bool {
 
 type Repository interface {
 	CreateOrGet(context.Context, Profile, string) (Profile, bool, error)
+	GetByPhone(context.Context, string) (*Profile, error)
+	UpsertName(context.Context, string, string) (*Profile, error)
 	Update(context.Context, string, UpdateInput) (Profile, error)
 	OrderHistory(context.Context, string) ([]OrderSummary, error)
 }
@@ -89,6 +94,26 @@ func (s *Service) Update(ctx context.Context, principal Principal, id string, in
 	}
 	in.DisplayName, in.Preferences = strings.TrimSpace(in.DisplayName), normalizePreferences(in.Preferences)
 	return s.repo.Update(ctx, id, in)
+}
+
+func (s *Service) GetByPhone(ctx context.Context, phone string) (*Profile, error) {
+	phone, err := NormalizeIndonesia(phone)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetByPhone(ctx, phone)
+}
+
+func (s *Service) UpsertName(ctx context.Context, phone, name string) (*Profile, error) {
+	normPhone, err := NormalizeIndonesia(phone)
+	if err != nil {
+		return nil, err
+	}
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > 120 {
+		return nil, ErrInvalidProfile
+	}
+	return s.repo.UpsertName(ctx, normPhone, name)
 }
 
 func (s *Service) History(ctx context.Context, principal Principal, id string) ([]OrderSummary, error) {

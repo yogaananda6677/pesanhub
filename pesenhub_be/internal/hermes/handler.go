@@ -290,6 +290,7 @@ func (h *Handler) Turn(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Session       string `json:"session"`
 		CustomerPhone string `json:"customer_phone"`
+		CustomerName  string `json:"customer_name"`
 		MessageText   string `json:"message_text"`
 		CorrelationID string `json:"correlation_id"`
 	}
@@ -313,11 +314,11 @@ func (h *Handler) Turn(w http.ResponseWriter, r *http.Request) {
 		correlationID = reqID
 	}
 
-	msgID := newID()
 	resp, err := h.service.ProcessTurn(r.Context(), TurnRequest{
-		InboundMessageID: &msgID,
+		InboundMessageID: nil,
 		Session:          session,
 		SenderPhone:      body.CustomerPhone,
+		CustomerName:     body.CustomerName,
 		MessageText:      body.MessageText,
 		CorrelationID:    correlationID,
 	})

@@ -20,12 +20,15 @@ const (
 )
 
 type User struct {
-	ID          string     `json:"id"`
-	EmailMasked string     `json:"email"`
-	DisplayName string     `json:"display_name"`
-	Role        Role       `json:"role"`
-	Status      Status     `json:"status"`
-	ApprovedAt  *time.Time `json:"approved_at,omitempty"`
+	ID           string     `json:"id"`
+	EmailMasked  string     `json:"email"`
+	DisplayName  string     `json:"display_name"`
+	Role         Role       `json:"role"`
+	Status       Status     `json:"status"`
+	ApprovedAt   *time.Time `json:"approved_at,omitempty"`
+	BranchID     *string    `json:"branch_id,omitempty"`
+	BranchName   string     `json:"branch_name,omitempty"`
+	StatusReason string     `json:"-"`
 }
 
 type GoogleIdentity struct {

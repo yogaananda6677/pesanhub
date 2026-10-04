@@ -2,10 +2,11 @@ package customer
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 
-	"database/sql"
 	dbx "pesenhub/backend/internal/database"
 )
 
@@ -27,6 +28,58 @@ func (s *Store) CreateOrGet(ctx context.Context, p Profile, key string) (Profile
 	row = s.db.QueryRow(ctx, `SELECT id::text, phone_e164, display_name, preferences, version FROM customers WHERE create_idempotency_key=$1 OR phone_e164=$2 ORDER BY (create_idempotency_key=$1) DESC LIMIT 1`, key, p.PhoneE164)
 	got, err = scanProfile(row)
 	return got, false, err
+}
+
+func (s *Store) GetByPhone(ctx context.Context, phone string) (*Profile, error) {
+	row := s.db.QueryRow(ctx, `SELECT id::text, phone_e164, display_name, preferences, version FROM customers WHERE phone_e164=$1 LIMIT 1`, phone)
+	got, err := scanProfile(row)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &got, nil
+}
+
+func (s *Store) UpsertName(ctx context.Context, phone, displayName string) (*Profile, error) {
+	phone = strings.TrimSpace(phone)
+	displayName = strings.TrimSpace(displayName)
+	if phone == "" || displayName == "" {
+		return nil, errors.New("phone and displayName required")
+	}
+
+	existing, err := s.GetByPhone(ctx, phone)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		newProf := Profile{
+			ID:          NewID(),
+			PhoneE164:   phone,
+			DisplayName: displayName,
+			Preferences: json.RawMessage("{}"),
+		}
+		saved, _, err := s.CreateOrGet(ctx, newProf, "cust-"+newProf.ID)
+		if err != nil {
+			return nil, err
+		}
+		return &saved, nil
+	}
+
+	if existing.DisplayName != displayName {
+		updated, err := s.Update(ctx, existing.ID, UpdateInput{
+			DisplayName:     displayName,
+			Preferences:     existing.Preferences,
+			ExpectedVersion: existing.Version,
+		})
+		if err != nil {
+			return existing, nil // non-fatal version conflict fallback
+		}
+		return &updated, nil
+	}
+
+	return existing, nil
 }
 
 func (s *Store) Update(ctx context.Context, id string, in UpdateInput) (Profile, error) {

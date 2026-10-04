@@ -95,7 +95,7 @@ sequenceDiagram
       "items": [
         {
           "menu_id": "b2000000-0000-4000-8000-000000000001",
-          "name": "Nasi Goreng Web",
+          "name": "Martabak Telur Spesial",
           "quantity": 2,
           "unit_price_amount": 22000,
           "line_total_amount": 44000,

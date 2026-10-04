@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"database/sql"
@@ -65,6 +66,11 @@ func (s *Store) CreateMenu(ctx context.Context, m Menu, meta MutationMeta) (Menu
 	if err = audit(ctx, tx, meta, "CATALOG_MENU", m.ID, "MENU_CREATED"); err != nil {
 		return Menu{}, err
 	}
+	if _, err = tx.Exec(ctx, `
+		INSERT IGNORE INTO branch_menu_availability (branch_id, menu_id, is_available, version)
+		SELECT id, $1, $2, 1 FROM branches`, m.ID, m.Available); err != nil {
+		return Menu{}, err
+	}
 	return m, tx.Commit(ctx)
 }
 
@@ -96,27 +102,120 @@ func (s *Store) UpdateMenu(ctx context.Context, m Menu, expectedVersion int64, m
 	return m, tx.Commit(ctx)
 }
 
-func (s *Store) SetMenuAvailability(ctx context.Context, id string, available bool, version int64, meta MutationMeta) (Menu, error) {
+func (s *Store) SetMenuAvailability(ctx context.Context, branchID, id string, available bool, version int64, meta MutationMeta) (Menu, error) {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		return Menu{}, err
 	}
 	defer tx.Rollback(ctx)
-	var m Menu
-	err = tx.QueryRow(ctx, `UPDATE menus SET is_available=$2,version=version+1,updated_at=now() WHERE id=$1 AND version=$3 RETURNING id::text,category_id::text,sku,name,COALESCE(description,''),product_type,COALESCE(image_url,''),price_amount,hpp_amount,is_available,version,sort_order`, id, available, version).Scan(&m.ID, &m.CategoryID, &m.SKU, &m.Name, &m.Description, &m.ProductType, &m.ImageURL, &m.PriceAmount, &m.HPPAmount, &m.Available, &m.Version, &m.SortOrder)
-	if err == sql.ErrNoRows {
-		return Menu{}, fmt.Errorf("%w", ErrVersionConflict)
-	}
+
+	// Ensure branch row exists
+	_, err = tx.Exec(ctx, `
+		INSERT INTO branch_menu_availability (branch_id, menu_id, is_available, version)
+		SELECT $1, id, is_available, version FROM menus WHERE id = $2
+		ON DUPLICATE KEY UPDATE branch_id = branch_id`, branchID, id)
 	if err != nil {
 		return Menu{}, err
 	}
+
+	res, err := tx.Exec(ctx, `
+		UPDATE branch_menu_availability
+		SET is_available = $3, version = GREATEST(version, $4) + 1, updated_at = now()
+		WHERE branch_id = $1 AND menu_id = $2
+		  AND (version = $4 OR (SELECT m.version FROM menus m WHERE m.id = $2) = $4)`,
+		branchID, id, available, version)
+	if err != nil {
+		return Menu{}, err
+	}
+	if res.RowsAffected() == 0 {
+		var exists bool
+		_ = tx.QueryRow(ctx, `SELECT true FROM menus WHERE id = $1`, id).Scan(&exists)
+		if !exists {
+			return Menu{}, ErrInvalidCatalog
+		}
+		return Menu{}, fmt.Errorf("%w", ErrVersionConflict)
+	}
+
+	var isDefault bool
+	_ = tx.QueryRow(ctx, `SELECT is_default FROM branches WHERE id = $1`, branchID).Scan(&isDefault)
+	if isDefault {
+		_, _ = tx.Exec(ctx, `UPDATE menus SET is_available = $1, updated_at = now() WHERE id = $2`, available, id)
+	}
+
+	var m Menu
+	err = tx.QueryRow(ctx, `
+		SELECT m.id::text, m.category_id::text, m.sku, m.name, COALESCE(m.description,''), m.product_type, COALESCE(m.image_url,''), m.price_amount, m.hpp_amount, bma.is_available, bma.version, m.sort_order
+		FROM menus m
+		JOIN branch_menu_availability bma ON bma.menu_id = m.id AND bma.branch_id = $1
+		WHERE m.id = $2`, branchID, id).Scan(&m.ID, &m.CategoryID, &m.SKU, &m.Name, &m.Description, &m.ProductType, &m.ImageURL, &m.PriceAmount, &m.HPPAmount, &m.Available, &m.Version, &m.SortOrder)
+	if err != nil {
+		return Menu{}, err
+	}
+
 	if m.ChannelPrices, err = loadChannelPricesTx(ctx, tx, m.ID); err != nil {
 		return Menu{}, err
 	}
-	if err = audit(ctx, tx, meta, "CATALOG_MENU", m.ID, "MENU_AVAILABILITY_UPDATED"); err != nil {
+	availMeta, _ := json.Marshal(map[string]any{"branch_id": branchID, "menu_id": id, "is_available": available})
+	if err = audit(ctx, tx, meta, "CATALOG_MENU", m.ID, "MENU_AVAILABILITY_UPDATED", availMeta); err != nil {
 		return Menu{}, err
 	}
 	return m, tx.Commit(ctx)
+}
+
+func (s *Store) SetModifierOptionAvailability(ctx context.Context, branchID, id string, available bool, version int64, meta MutationMeta) (Option, error) {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return Option{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	// Ensure branch row exists
+	_, err = tx.Exec(ctx, `
+		INSERT INTO branch_modifier_option_availability (branch_id, modifier_option_id, is_available, version)
+		SELECT $1, id, is_available, 1 FROM modifier_options WHERE id = $2
+		ON DUPLICATE KEY UPDATE branch_id = branch_id`, branchID, id)
+	if err != nil {
+		return Option{}, err
+	}
+
+	res, err := tx.Exec(ctx, `
+		UPDATE branch_modifier_option_availability
+		SET is_available = $3, version = version + 1, updated_at = now()
+		WHERE branch_id = $1 AND modifier_option_id = $2 AND version = $4`,
+		branchID, id, available, version)
+	if err != nil {
+		return Option{}, err
+	}
+	if res.RowsAffected() == 0 {
+		var exists bool
+		_ = tx.QueryRow(ctx, `SELECT true FROM modifier_options WHERE id = $1`, id).Scan(&exists)
+		if !exists {
+			return Option{}, ErrInvalidCatalog
+		}
+		return Option{}, fmt.Errorf("%w", ErrVersionConflict)
+	}
+
+	var isDefault bool
+	_ = tx.QueryRow(ctx, `SELECT is_default FROM branches WHERE id = $1`, branchID).Scan(&isDefault)
+	if isDefault {
+		_, _ = tx.Exec(ctx, `UPDATE modifier_options SET is_available = $1, updated_at = now() WHERE id = $2`, available, id)
+	}
+
+	var o Option
+	err = tx.QueryRow(ctx, `
+		SELECT o.id::text, o.code, o.name, o.price_delta_amount, bmoa.is_available, o.sort_order
+		FROM modifier_options o
+		JOIN branch_modifier_option_availability bmoa ON bmoa.modifier_option_id = o.id AND bmoa.branch_id = $1
+		WHERE o.id = $2`, branchID, id).Scan(&o.ID, &o.Code, &o.Name, &o.PriceDeltaAmount, &o.Available, &o.SortOrder)
+	if err != nil {
+		return Option{}, err
+	}
+
+	modAvailMeta, _ := json.Marshal(map[string]any{"branch_id": branchID, "modifier_option_id": id, "is_available": available})
+	if err = audit(ctx, tx, meta, "CATALOG_MODIFIER_OPTION", o.ID, "MODIFIER_OPTION_AVAILABILITY_UPDATED", modAvailMeta); err != nil {
+		return Option{}, err
+	}
+	return o, tx.Commit(ctx)
 }
 
 func insertGroups(ctx context.Context, tx *dbx.Tx, m Menu) error {
@@ -126,6 +225,11 @@ func insertGroups(ctx context.Context, tx *dbx.Tx, m Menu) error {
 		}
 		for _, o := range g.Options {
 			if _, err := tx.Exec(ctx, `INSERT INTO modifier_options(id,group_id,code,name,price_delta_amount,is_available,sort_order) VALUES($1,$2,$3,$4,$5,$6,$7)`, o.ID, g.ID, o.Code, o.Name, o.PriceDeltaAmount, o.Available, o.SortOrder); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `
+				INSERT IGNORE INTO branch_modifier_option_availability (branch_id, modifier_option_id, is_available, version)
+				SELECT id, $1, $2, 1 FROM branches`, o.ID, o.Available); err != nil {
 				return err
 			}
 		}
@@ -162,17 +266,37 @@ func loadChannelPricesTx(ctx context.Context, tx *dbx.Tx, menuID string) ([]Chan
 	return prices, rows.Err()
 }
 
-func audit(ctx context.Context, tx *dbx.Tx, meta MutationMeta, aggregateType, aggregateID, action string) error {
-	_, err := tx.Exec(ctx, `INSERT INTO audit_logs(id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES($1,$2,$3,$4,'STAFF',$5,$6,'{}'::jsonb)`, meta.AuditID, aggregateType, aggregateID, action, meta.ActorID, meta.RequestID)
+func audit(ctx context.Context, tx *dbx.Tx, meta MutationMeta, aggregateType, aggregateID, action string, payload ...[]byte) error {
+	p := []byte("{}")
+	if len(payload) > 0 && len(payload[0]) > 0 {
+		p = payload[0]
+	}
+	_, err := tx.Exec(ctx, `INSERT INTO audit_logs(id,aggregate_type,aggregate_id,action,actor_type,actor_id,request_id,metadata_redacted) VALUES($1,$2,$3,$4,'STAFF',$5,$6,$7)`, meta.AuditID, aggregateType, aggregateID, action, meta.ActorID, meta.RequestID, p)
 	return err
 }
 
-func (s *Store) ListPublic(ctx context.Context, categoryID string) ([]Category, error) {
-	return s.list(ctx, categoryID, false)
+func (s *Store) ListPublic(ctx context.Context, categoryID string, branchID ...string) ([]Category, error) {
+	bID := ""
+	if len(branchID) > 0 {
+		bID = branchID[0]
+	}
+	if bID == "" {
+		_ = s.db.QueryRow(ctx, `SELECT id::text FROM branches WHERE is_default = true LIMIT 1`).Scan(&bID)
+	}
+	return s.list(ctx, categoryID, bID, false)
 }
-func (s *Store) ListAdmin(ctx context.Context) ([]Category, error) { return s.list(ctx, "", true) }
+func (s *Store) ListAdmin(ctx context.Context, branchID ...string) ([]Category, error) {
+	bID := ""
+	if len(branchID) > 0 {
+		bID = branchID[0]
+	}
+	if bID == "" {
+		_ = s.db.QueryRow(ctx, `SELECT id::text FROM branches WHERE is_default = true LIMIT 1`).Scan(&bID)
+	}
+	return s.list(ctx, "", bID, true)
+}
 
-func (s *Store) list(ctx context.Context, categoryID string, admin bool) ([]Category, error) {
+func (s *Store) list(ctx context.Context, categoryID, branchID string, admin bool) ([]Category, error) {
 	categorySQL := `SELECT id::text,name,sort_order,is_active,version FROM menu_categories WHERE ($1='' OR id::text=$1)`
 	if !admin {
 		categorySQL += ` AND is_active`
@@ -198,12 +322,15 @@ func (s *Store) list(ctx context.Context, categoryID string, admin bool) ([]Cate
 		return nil, err
 	}
 	for ci := range categories {
-		menuSQL := `SELECT id::text,category_id::text,sku,name,COALESCE(description,''),product_type,COALESCE(image_url,''),price_amount,hpp_amount,is_available,version,sort_order FROM menus WHERE category_id=$1`
+		menuSQL := `SELECT m.id::text,m.category_id::text,m.sku,m.name,COALESCE(m.description,''),m.product_type,COALESCE(m.image_url,''),m.price_amount,m.hpp_amount,COALESCE(bma.is_available, m.is_available),COALESCE(bma.version, m.version),m.sort_order 
+FROM menus m 
+LEFT JOIN branch_menu_availability bma ON bma.menu_id = m.id AND bma.branch_id = $2 
+WHERE m.category_id=$1`
 		if !admin {
-			menuSQL += ` AND is_available`
+			menuSQL += ` AND COALESCE(bma.is_available, m.is_available) = true`
 		}
-		menuSQL += ` ORDER BY sort_order,name,id`
-		menuRows, err := s.db.Query(ctx, menuSQL, categories[ci].ID)
+		menuSQL += ` ORDER BY m.sort_order,m.name,m.id`
+		menuRows, err := s.db.Query(ctx, menuSQL, categories[ci].ID, branchID)
 		if err != nil {
 			return nil, err
 		}
@@ -244,7 +371,7 @@ func (s *Store) list(ctx context.Context, categoryID string, admin bool) ([]Cate
 			if !admin {
 				categories[ci].Menus[mi].HPPAmount = nil
 			}
-			if err := s.loadGroups(ctx, &categories[ci].Menus[mi], admin); err != nil {
+			if err := s.loadGroups(ctx, &categories[ci].Menus[mi], branchID, admin); err != nil {
 				return nil, err
 			}
 		}
@@ -252,7 +379,7 @@ func (s *Store) list(ctx context.Context, categoryID string, admin bool) ([]Cate
 	return categories, nil
 }
 
-func (s *Store) loadGroups(ctx context.Context, menu *Menu, admin bool) error {
+func (s *Store) loadGroups(ctx context.Context, menu *Menu, branchID string, admin bool) error {
 	groupSQL := `SELECT id::text,code,name,min_select,max_select,sort_order,is_active FROM modifier_groups WHERE menu_id=$1`
 	if !admin {
 		groupSQL += ` AND is_active`
@@ -278,12 +405,15 @@ func (s *Store) loadGroups(ctx context.Context, menu *Menu, admin bool) error {
 		return err
 	}
 	for gi := range groups {
-		optionSQL := `SELECT id::text,code,name,price_delta_amount,is_available,sort_order FROM modifier_options WHERE group_id=$1`
+		optionSQL := `SELECT o.id::text,o.code,o.name,o.price_delta_amount,COALESCE(bmoa.is_available, o.is_available),o.sort_order 
+FROM modifier_options o 
+LEFT JOIN branch_modifier_option_availability bmoa ON bmoa.modifier_option_id = o.id AND bmoa.branch_id = $2 
+WHERE o.group_id=$1`
 		if !admin {
-			optionSQL += ` AND is_available`
+			optionSQL += ` AND COALESCE(bmoa.is_available, o.is_available) = true`
 		}
-		optionSQL += ` ORDER BY sort_order,name,id`
-		optionRows, err := s.db.Query(ctx, optionSQL, groups[gi].ID)
+		optionSQL += ` ORDER BY o.sort_order,o.name,o.id`
+		optionRows, err := s.db.Query(ctx, optionSQL, groups[gi].ID, branchID)
 		if err != nil {
 			return err
 		}

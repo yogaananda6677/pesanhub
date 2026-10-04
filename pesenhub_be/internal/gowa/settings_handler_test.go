@@ -201,3 +201,67 @@ func TestSettingsHandler_ProxyQRImage(t *testing.T) {
 		t.Errorf("expected body fake-png-bytes, got %s", rr.Body.String())
 	}
 }
+
+func TestSettingsHandler_PairDevice_Code(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/devices" && r.Method == http.MethodGet:
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"results":[]}`))
+		case r.URL.Path == "/devices" && r.Method == http.MethodPost:
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"code":"SUCCESS","results":{"id":"dev1","state":"disconnected"}}`))
+		case r.URL.Path == "/devices/dev1/login/code":
+			phone := r.URL.Query().Get("phone")
+			if phone != "628123456789" {
+				t.Errorf("expected query phone 628123456789, got %s", phone)
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"code":"SUCCESS","results":{"device_id":"dev1","pair_code":"TEST-PAIR"}}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	client := New(server.URL, "user", "pass", "dev1", time.Second)
+	handler := NewSettingsHandler(client)
+
+	req := httptest.NewRequest("POST", "/api/v1/settings/whatsapp/pair", strings.NewReader(`{"device_id":"dev1","method":"code","phone":"08123456789"}`))
+	rr := httptest.NewRecorder()
+	handler.PairDevice(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp struct {
+		Data map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode json: %v", err)
+	}
+
+	if resp.Data["status"] != "WAITING_PAIR_CODE" {
+		t.Errorf("expected status WAITING_PAIR_CODE, got %v", resp.Data["status"])
+	}
+	if resp.Data["pair_code"] != "TEST-PAIR" {
+		t.Errorf("expected pair_code TEST-PAIR, got %v", resp.Data["pair_code"])
+	}
+	if resp.Data["phone"] != "+628123456789" {
+		t.Errorf("expected phone +628123456789, got %v", resp.Data["phone"])
+	}
+}
+
+func TestSettingsHandler_PairDevice_Code_InvalidPhone(t *testing.T) {
+	client := New("http://localhost:3000", "user", "pass", "dev1", time.Second)
+	handler := NewSettingsHandler(client)
+
+	req := httptest.NewRequest("POST", "/api/v1/settings/whatsapp/pair", strings.NewReader(`{"device_id":"dev1","method":"code","phone":"invalid"}`))
+	rr := httptest.NewRecorder()
+	handler.PairDevice(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid phone, got %d: %s", rr.Code, rr.Body.String())
+	}
+}

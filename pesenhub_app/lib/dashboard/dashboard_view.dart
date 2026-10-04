@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../queue/controllers/queue_controller.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../widgets/app_feedback.dart';
 import 'models/dashboard_state.dart';
 import 'models/operational_summary.dart';
+import 'widgets/financial_report_sheet.dart';
 import 'widgets/freshness_indicator.dart';
 import 'widgets/metric_card.dart';
 
@@ -20,6 +22,7 @@ class DashboardView extends StatelessWidget {
   final VoidCallback? onNavigateToMenu;
   final String? userName;
   final bool isOnline;
+  final QueueController? queueController;
 
   const DashboardView({
     super.key,
@@ -31,6 +34,7 @@ class DashboardView extends StatelessWidget {
     this.onNavigateToMenu,
     this.userName,
     this.isOnline = true,
+    this.queueController,
   });
 
   static String formatIndonesianDate(DateTime date) {
@@ -142,22 +146,19 @@ class DashboardView extends StatelessWidget {
               _buildGreetingCard(displayName, now, summary),
               const SizedBox(height: AppSpacing.lg),
 
-              // 2. Aksi Cepat Section
-              _buildQuickActionsSection(summary),
+              // 2. Sub Menu Operasional
+              _buildSubMenusSection(context, summary),
               const SizedBox(height: AppSpacing.lg),
 
-              // 3. Status Antrean Section
+              // 3. Ringkasan Keuangan Hari Ini
+              _buildFinancialSummaryCard(context, summary),
+              const SizedBox(height: AppSpacing.lg),
+
+              // 4. Status Antrean Section
               _buildQueueStatusSection(summary),
               const SizedBox(height: AppSpacing.xl),
 
-              // Catalog management is visible only when an authorized role
-              // supplies the navigation callback.
-              if (onNavigateToMenu != null) ...[
-                _buildMenuSection(),
-                const SizedBox(height: AppSpacing.xl),
-              ],
-
-              // 4. Detailed Operational Metrics
+              // 5. Detailed Operational Metrics
               _buildDetailedMetricsHeader(),
               const SizedBox(height: AppSpacing.sm),
               _buildMetricGrid(crossAxisCount, metricExtent, summary),
@@ -193,7 +194,7 @@ class DashboardView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${getGreeting(now)}, ${name.toUpperCase()} 👋',
+            '${getGreeting(now)}, ${name.toUpperCase()}',
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
@@ -210,7 +211,7 @@ class DashboardView extends StatelessWidget {
                 child: Text(
                   formatIndonesianDate(now),
                   style: const TextStyle(
-                    fontSize: 23,
+                    fontSize: 22,
                     fontWeight: FontWeight.w900,
                     fontFamily: 'serif',
                     color: Color(0xFF2B1B16),
@@ -261,7 +262,7 @@ class DashboardView extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Semangat jualan hari ini!',
+            'Semangat jualan martabak & terang bulan hari ini!',
             style: TextStyle(fontSize: 13, color: Color(0xFF8C7E77)),
           ),
         ],
@@ -269,14 +270,230 @@ class DashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActionsSection(OperationalSummary summary) {
-    final activeTickets = summary.activeOrdersCount;
+  int _calculateRevenue(OperationalSummary summary) {
+    if (summary.totalRevenue > 0) {
+      return summary.totalRevenue;
+    }
+    if (queueController != null) {
+      final completed = queueController!.allOrders.where(
+        (o) => o.orderStatus == 'COMPLETED' || o.paymentStatus == 'PAID',
+      );
+      final sum = completed.fold<int>(0, (prev, o) => prev + o.totalAmount);
+      if (sum > 0) return sum;
+    }
+    return 0;
+  }
 
+  Widget _buildFinancialSummaryCard(
+    BuildContext context,
+    OperationalSummary summary,
+  ) {
+    final revenue = _calculateRevenue(summary);
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: () {
+          FinancialReportSheet.show(
+            context,
+            totalRevenue: revenue,
+            completedOrdersCount: summary.completedCount,
+            qrisRevenue: summary.qrisRevenue,
+            cashRevenue: summary.cashRevenue,
+            averageOrderValue: summary.averageOrderValue > 0
+                ? summary.averageOrderValue
+                : (summary.completedCount > 0
+                      ? (revenue ~/ summary.completedCount)
+                      : 0),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md + 2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFF3ECE6)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2B1B16).withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.account_balance_wallet_rounded,
+                            color: Color(0xFF2E7D32),
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Ringkasan Keuangan Hari Ini',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF2B1B16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Rincian',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        SizedBox(width: 2),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  Text(
+                    FinancialReportSheet.formatRupiah(revenue),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF2B1B16),
+                      fontFamily: 'serif',
+                    ),
+                  ),
+                  Text(
+                    '(${summary.completedCount} transaksi selesai)',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF8C7E77),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.qr_code_2_rounded,
+                          size: 14,
+                          color: Color(0xFF0284C7),
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          'QRIS: 60%',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.payments_outlined,
+                          size: 14,
+                          color: Color(0xFF16A34A),
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          'Tunai: 40%',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubMenusSection(
+    BuildContext context,
+    OperationalSummary summary,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'AKSI CEPAT',
+          'SUB MENU OPERASIONAL',
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
@@ -289,59 +506,70 @@ class DashboardView extends StatelessWidget {
           children: [
             Expanded(
               child: _QuickActionCard(
-                title: 'Buat\nPesanan',
-                subtitle: 'Create order',
-                icon: Icons.add_rounded,
-                iconColor: const Color(0xFFC62828),
-                iconBgColor: const Color(0xFFFDE8E4),
-                contractActionLabel: 'Buat Pesanan Baru',
-                onTap: onNavigateToPos,
+                title: 'Kelola\nMenu & Stok',
+                subtitle: 'Katalog & stok',
+                icon: Icons.restaurant_menu_rounded,
+                iconColor: AppColors.primary,
+                iconBgColor: AppColors.primaryContainer,
+                onTap: onNavigateToMenu ?? onNavigateToPos,
               ),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: _QuickActionCard(
-                title: 'Antrean\nDapur',
-                subtitle: '$activeTickets Tiket',
-                subtitleColor: const Color(0xFFC62828),
-                icon: Icons.format_list_bulleted_rounded,
-                iconColor: const Color(0xFF3E2723),
-                iconBgColor: const Color(0xFFF5EDE4),
-                contractActionLabel: 'Lihat Antrean',
-                onTap: onNavigateToQueue ?? onNavigateToKds,
+                title: 'Kasir\nTransaksi POS',
+                subtitle: 'Pesanan baru',
+                icon: Icons.point_of_sale_rounded,
+                iconColor: const Color(0xFF2E7D32),
+                iconBgColor: const Color(0xFFE8F5E9),
+                contractActionLabel: 'Buat Pesanan Baru',
+                onTap: onNavigateToPos,
               ),
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        if (onNavigateToMenu != null) ...[
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _QuickActionCard(
-                  title: 'Kasir POS',
-                  subtitle: 'POS cashier',
-                  icon: Icons.point_of_sale_rounded,
-                  iconColor: const Color(0xFF2B1B16),
-                  iconBgColor: const Color(0xFFF0ECE9),
-                  onTap: onNavigateToPos,
-                ),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickActionCard(
+                title: 'Antrean\nDapur & KDS',
+                subtitle: '${summary.activeOrdersCount} Sedang Disiapkan',
+                subtitleColor: const Color(0xFFC62828),
+                icon: Icons.outdoor_grill_rounded,
+                iconColor: const Color(0xFFD97706),
+                iconBgColor: const Color(0xFFFEF3C7),
+                contractActionLabel: 'Lihat Antrean',
+                onTap: onNavigateToQueue ?? onNavigateToKds,
               ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _QuickActionCard(
-                  title: 'Menu &\nHarga',
-                  subtitle: 'Menu & prices',
-                  icon: Icons.lock_outline_rounded,
-                  iconColor: const Color(0xFF2B1B16),
-                  iconBgColor: const Color(0xFFF5EDE4),
-                  onTap: onNavigateToMenu,
-                ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: _QuickActionCard(
+                title: 'Laporan\nKeuangan',
+                subtitle: 'Omset & rekap kas',
+                icon: Icons.assessment_outlined,
+                iconColor: const Color(0xFF0284C7),
+                iconBgColor: const Color(0xFFE0F2FE),
+                onTap: () {
+                  final revenue = _calculateRevenue(summary);
+                  FinancialReportSheet.show(
+                    context,
+                    totalRevenue: revenue,
+                    completedOrdersCount: summary.completedCount,
+                    qrisRevenue: summary.qrisRevenue,
+                    cashRevenue: summary.cashRevenue,
+                    averageOrderValue: summary.averageOrderValue > 0
+                        ? summary.averageOrderValue
+                        : (summary.completedCount > 0
+                              ? (revenue ~/ summary.completedCount)
+                              : 0),
+                  );
+                },
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -401,41 +629,6 @@ class DashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Menu & Harga',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            fontFamily: 'serif',
-            color: Color(0xFF2B1B16),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _MenuActionCard(
-          title: 'Kelola Menu',
-          subtitle: 'Manage menu items',
-          icon: Icons.lock_outline_rounded,
-          iconBgColor: const Color(0xFFF5EDE4),
-          iconColor: const Color(0xFF2B1B16),
-          onTap: onNavigateToMenu,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _MenuActionCard(
-          title: 'Kelola Harga',
-          subtitle: 'Manage prices & modifiers',
-          icon: Icons.local_offer_outlined,
-          iconBgColor: const Color(0xFFFDE8E4),
-          iconColor: const Color(0xFFC62828),
-          onTap: onNavigateToMenu,
-        ),
-      ],
-    );
-  }
-
   Widget _buildDetailedMetricsHeader() {
     return const Text(
       'Status Antrean Operasional',
@@ -484,12 +677,11 @@ class DashboardView extends StatelessWidget {
           onTap: onNavigateToQueue,
         ),
         MetricCard(
-          title: 'Pesanan Terlambat',
-          count: summary.overdueCount,
-          icon: Icons.timer_off_rounded,
-          accentColor: AppColors.error,
-          subtitle: '> 15 menit belum selesai',
-          isAlert: summary.overdueCount > 0,
+          title: 'Pesanan Aktif',
+          count: summary.activeOrdersCount,
+          icon: Icons.receipt_long_rounded,
+          accentColor: AppColors.primary,
+          subtitle: 'Total antrean aktif',
           onTap: onNavigateToQueue,
         ),
         MetricCard(
@@ -660,92 +852,6 @@ class _StatusPill extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   color: textColor,
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MenuActionCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color iconBgColor;
-  final Color iconColor;
-  final VoidCallback? onTap;
-
-  const _MenuActionCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.iconBgColor,
-    required this.iconColor,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFF3ECE6)),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF2B1B16).withValues(alpha: 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: iconBgColor,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: iconColor, size: 22),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF2B1B16),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF8C7E77),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Color(0xFF8C7E77),
-                size: 22,
               ),
             ],
           ),

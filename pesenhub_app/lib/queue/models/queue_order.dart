@@ -16,6 +16,13 @@ class QueueOrder {
   final List<QueueOrderItem> items;
   final DateTime createdAt;
   final int version;
+  final String? branchId;
+  final String? branchCode;
+  final String? branchName;
+  final int? subtotalAmount;
+  final int? discountAmount;
+  final String? discountId;
+  final String? discountName;
 
   const QueueOrder({
     required this.id,
@@ -30,10 +37,25 @@ class QueueOrder {
     this.items = const [],
     required this.createdAt,
     this.version = 1,
+    this.branchId,
+    this.branchCode,
+    this.branchName,
+    this.subtotalAmount,
+    this.discountAmount,
+    this.discountId,
+    this.discountName,
   });
 
-  /// Total sum of items in the order.
-  int get totalAmount => items.fold(0, (sum, item) => sum + item.subtotal);
+  /// Total sum of items in the order before discounts.
+  int get subtotal =>
+      subtotalAmount ?? items.fold(0, (sum, item) => sum + item.subtotal);
+
+  /// Final total amount after applying discounts.
+  int get totalAmount {
+    final disc = discountAmount ?? 0;
+    final res = subtotal - disc;
+    return res < 0 ? 0 : res;
+  }
 
   /// True if the order is still active in the kitchen/queue lifecycle.
   bool get isActive =>
@@ -77,6 +99,15 @@ class QueueOrder {
 
   /// Extract numeric queue identifier from order number or fallback.
   String get displayQueueNumber {
+    // Match trailing sequence number, e.g. "BWX-20261003-0001" -> "1", "ORD-0042" -> "42", "#05" -> "5"
+    final match = RegExp(r'(?:-(\d+)|#?(\d+))$').firstMatch(orderNumber.trim());
+    if (match != null) {
+      final digits = match.group(1) ?? match.group(2);
+      if (digits != null) {
+        final numVal = int.tryParse(digits);
+        return numVal != null ? '$numVal' : digits;
+      }
+    }
     final digits = RegExp(r'\d+').firstMatch(orderNumber);
     if (digits != null) {
       final numVal = int.tryParse(digits.group(0)!);
@@ -105,6 +136,13 @@ class QueueOrder {
     List<QueueOrderItem>? items,
     DateTime? createdAt,
     int? version,
+    String? branchId,
+    String? branchCode,
+    String? branchName,
+    int? subtotalAmount,
+    int? discountAmount,
+    String? discountId,
+    String? discountName,
   }) {
     return QueueOrder(
       id: id ?? this.id,
@@ -119,6 +157,13 @@ class QueueOrder {
       items: items ?? this.items,
       createdAt: createdAt ?? this.createdAt,
       version: version ?? this.version,
+      branchId: branchId ?? this.branchId,
+      branchCode: branchCode ?? this.branchCode,
+      branchName: branchName ?? this.branchName,
+      subtotalAmount: subtotalAmount ?? this.subtotalAmount,
+      discountAmount: discountAmount ?? this.discountAmount,
+      discountId: discountId ?? this.discountId,
+      discountName: discountName ?? this.discountName,
     );
   }
 }

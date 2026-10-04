@@ -63,14 +63,32 @@ class QueueController extends ChangeNotifier {
 
   /// Ingests a full server snapshot (e.g. on initial load or recovery reconnect).
   /// Replaces collection idempotently without creating duplicates.
+  /// Protects local terminal orders against regression by stale server snapshots.
   void setSnapshot(
     List<QueueOrder> orders, {
     bool isStale = false,
     bool isOffline = false,
   }) {
+    const finalStatuses = {'COMPLETED', 'CANCELLED', 'REJECTED'};
+    // Preserve local terminal orders to prevent stale server snapshots from regressing them
+    final preservedTerminalOrders = <String, QueueOrder>{};
+    for (final entry in _ordersMap.entries) {
+      if (finalStatuses.contains(entry.value.orderStatus)) {
+        preservedTerminalOrders[entry.key] = entry.value;
+      }
+    }
+
     _ordersMap.clear();
     for (final order in orders) {
-      _ordersMap[order.id] = order;
+      final terminal = preservedTerminalOrders[order.id];
+      if (terminal != null &&
+          order.version <= terminal.version &&
+          !finalStatuses.contains(order.orderStatus)) {
+        // Protect terminal status against stale snapshot regression
+        _ordersMap[terminal.id] = terminal;
+      } else {
+        _ordersMap[order.id] = order;
+      }
     }
 
     if (_ordersMap.isEmpty) {
@@ -79,6 +97,23 @@ class QueueController extends ChangeNotifier {
       _state = QueueState.success(isStale: isStale, isOffline: isOffline);
     }
     notifyListeners();
+  }
+
+  /// Rolls back status of an existing order locally when a server transition is rejected.
+  bool rollbackOrderStatus(
+    String orderId,
+    String previousStatus,
+    int previousVersion,
+  ) {
+    final existing = _ordersMap[orderId];
+    if (existing == null) return false;
+
+    _ordersMap[orderId] = existing.copyWith(
+      orderStatus: previousStatus,
+      version: previousVersion,
+    );
+    notifyListeners();
+    return true;
   }
 
   EventDeduplicator get deduplicator => _deduplicator;
@@ -142,10 +177,16 @@ class QueueController extends ChangeNotifier {
   }
 
   /// Updates status of an existing order locally with version bump.
-  /// Returns false if prevented by server-wins terminal state guard.
+  /// Updates status of an existing order locally with version bump.
+  /// Returns false if prevented by server-wins terminal state guard or if completing an unpaid order.
   bool updateOrderStatus(String orderId, String newStatus) {
     final existing = _ordersMap[orderId];
     if (existing == null) return false;
+
+    // Strict Rule: Unpaid order cannot be completed
+    if (newStatus == 'COMPLETED' && existing.paymentStatus != 'PAID') {
+      return false;
+    }
 
     // Server-wins protection: cannot modify already terminal orders
     const finalStatuses = {'COMPLETED', 'CANCELLED', 'REJECTED'};
@@ -157,6 +198,17 @@ class QueueController extends ChangeNotifier {
       orderStatus: newStatus,
       version: existing.version + 1,
     );
+    notifyListeners();
+    return true;
+  }
+
+  /// Updates payment status of an existing order locally.
+  /// Preserves version to avoid 409 Version Conflict with backend transitions.
+  bool updatePaymentStatus(String orderId, String newPaymentStatus) {
+    final existing = _ordersMap[orderId];
+    if (existing == null) return false;
+
+    _ordersMap[orderId] = existing.copyWith(paymentStatus: newPaymentStatus);
     notifyListeners();
     return true;
   }

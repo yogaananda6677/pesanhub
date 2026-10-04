@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"pesenhub/backend/internal/branch"
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/httpapi"
 	"pesenhub/backend/internal/httpserver"
@@ -27,7 +28,12 @@ func NewHandlerWithUploadDir(s *Service, uploadDir string) *Handler {
 	return &Handler{service: s, uploadDir: uploadDir}
 }
 func (h *Handler) Public(w http.ResponseWriter, r *http.Request) {
-	items, err := h.service.ListPublic(r.Context(), r.URL.Query().Get("filter[category_id]"))
+	scope := branch.ScopeFromContext(r.Context())
+	branchID := scope.BranchID
+	if branchID == "" {
+		branchID = strings.TrimSpace(r.URL.Query().Get("branch_id"))
+	}
+	items, err := h.service.ListPublic(r.Context(), r.URL.Query().Get("filter[category_id]"), branchID)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
@@ -41,14 +47,19 @@ func (h *Handler) Admin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	principal := customer.PrincipalFromRequest(r)
+	scope := branch.ScopeFromContext(r.Context())
+	branchID := scope.BranchID
+	if branchID == "" && principal.Role == "ADMIN" {
+		branchID = strings.TrimSpace(r.URL.Query().Get("branch_id"))
+	}
 	var items []Category
 	var err error
 	if customer.CanManageOutlet(principal) {
-		items, err = h.service.ListAdmin(r.Context())
+		items, err = h.service.ListAdmin(r.Context(), branchID)
 	} else {
 		// Cashiers can operate the POS, but cost price and inactive catalog
 		// records remain an administrator-only concern.
-		items, err = h.service.ListPublic(r.Context(), "")
+		items, err = h.service.ListPublic(r.Context(), "", branchID)
 	}
 	if err != nil {
 		h.writeError(w, r, err)
@@ -189,8 +200,22 @@ func (h *Handler) UpdateMenu(w http.ResponseWriter, r *http.Request) {
 	httpapi.WriteJSON(w, http.StatusOK, result)
 }
 func (h *Handler) Availability(w http.ResponseWriter, r *http.Request) {
-	if !staff(r) {
+	if !operator(r) {
 		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+	principal := customer.PrincipalFromRequest(r)
+	scope := branch.ScopeFromContext(r.Context())
+	branchID := scope.BranchID
+	if branchID == "" && principal.Role == "ADMIN" {
+		branchID = strings.TrimSpace(r.URL.Query().Get("branch_id"))
+	}
+	if principal.Role == "ADMIN" && branchID == "" {
+		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_SCOPE_REQUIRED", "Admin harus memilih cabang aktif (header X-Branch-ID) untuk mengubah ketersediaan menu.", httpserver.RequestID(r.Context()), nil)
+		return
+	}
+	if branchID == "" {
+		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_SCOPE_REQUIRED", "Cabang aktif harus ditentukan untuk mengubah ketersediaan menu.", httpserver.RequestID(r.Context()), nil)
 		return
 	}
 	var body struct {
@@ -201,13 +226,49 @@ func (h *Handler) Availability(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, ErrInvalidCatalog)
 		return
 	}
-	result, err := h.service.SetMenuAvailability(r.Context(), r.PathValue("id"), body.Available, body.Version, actorID(r), httpserver.RequestID(r.Context()))
+	result, err := h.service.SetMenuAvailability(r.Context(), branchID, r.PathValue("id"), body.Available, body.Version, actorID(r), httpserver.RequestID(r.Context()))
 	if err != nil {
 		h.writeError(w, r, err)
 		return
 	}
 	httpapi.WriteJSON(w, http.StatusOK, result)
 }
+
+func (h *Handler) OptionAvailability(w http.ResponseWriter, r *http.Request) {
+	if !operator(r) {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+	principal := customer.PrincipalFromRequest(r)
+	scope := branch.ScopeFromContext(r.Context())
+	branchID := scope.BranchID
+	if branchID == "" && principal.Role == "ADMIN" {
+		branchID = strings.TrimSpace(r.URL.Query().Get("branch_id"))
+	}
+	if principal.Role == "ADMIN" && branchID == "" {
+		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_SCOPE_REQUIRED", "Admin harus memilih cabang aktif (header X-Branch-ID) untuk mengubah ketersediaan opsi menu.", httpserver.RequestID(r.Context()), nil)
+		return
+	}
+	if branchID == "" {
+		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_SCOPE_REQUIRED", "Cabang aktif harus ditentukan untuk mengubah ketersediaan opsi menu.", httpserver.RequestID(r.Context()), nil)
+		return
+	}
+	var body struct {
+		Available bool  `json:"is_available"`
+		Version   int64 `json:"version"`
+	}
+	if decode(r, &body) != nil {
+		h.writeError(w, r, ErrInvalidCatalog)
+		return
+	}
+	result, err := h.service.SetModifierOptionAvailability(r.Context(), branchID, r.PathValue("id"), body.Available, body.Version, actorID(r), httpserver.RequestID(r.Context()))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, result)
+}
+
 func actorID(r *http.Request) string { return customer.PrincipalFromRequest(r).Subject }
 func staff(r *http.Request) bool {
 	p := customer.PrincipalFromRequest(r)
@@ -233,6 +294,8 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 	switch {
 	case errors.Is(err, customer.ErrUnauthorized):
 		status, code, message = http.StatusForbidden, "FORBIDDEN", "Catalog administration requires staff authorization."
+	case errors.Is(err, ErrBranchScopeRequired):
+		status, code, message = http.StatusBadRequest, "BRANCH_SCOPE_REQUIRED", "Cabang aktif harus ditentukan untuk operasi ini."
 	case errors.Is(err, ErrInvalidCatalog), errors.Is(err, ErrInvalidModifier):
 		status, code, message = http.StatusUnprocessableEntity, "VALIDATION_FAILED", "Catalog validation failed."
 	case errors.Is(err, ErrUnavailable):

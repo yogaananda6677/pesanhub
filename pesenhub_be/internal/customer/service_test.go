@@ -25,6 +25,17 @@ func (f *fakeRepo) Update(_ context.Context, _ string, in UpdateInput) (Profile,
 	f.profile.DisplayName, f.profile.Preferences, f.profile.Version = in.DisplayName, in.Preferences, in.ExpectedVersion+1
 	return f.profile, nil
 }
+func (f *fakeRepo) GetByPhone(_ context.Context, phone string) (*Profile, error) {
+	if f.profile.PhoneE164 == phone {
+		return &f.profile, nil
+	}
+	return nil, nil
+}
+func (f *fakeRepo) UpsertName(_ context.Context, phone, name string) (*Profile, error) {
+	f.profile.PhoneE164 = phone
+	f.profile.DisplayName = name
+	return &f.profile, nil
+}
 func (f *fakeRepo) OrderHistory(context.Context, string) ([]OrderSummary, error) {
 	f.historyCalls++
 	return []OrderSummary{{ID: "o1"}}, nil

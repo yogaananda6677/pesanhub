@@ -11,7 +11,7 @@ type mockBroadcaster struct {
 	kdsPayloads   [][]byte
 }
 
-func (m *mockBroadcaster) Broadcast(staffPayload, kdsPayload []byte) {
+func (m *mockBroadcaster) Broadcast(staffPayload, kdsPayload []byte, branchID ...string) {
 	m.staffPayloads = append(m.staffPayloads, staffPayload)
 	m.kdsPayloads = append(m.kdsPayloads, kdsPayload)
 }

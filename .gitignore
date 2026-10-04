@@ -10,3 +10,6 @@ pesenhub_be/.sessions/
 pesenhub_be/qr/
 pesenhub_be/storages/
 pesenhub_be/gowa_storage/
+backups/
+pesenhub_be/uploads/*
+!pesenhub_be/uploads/.gitkeep

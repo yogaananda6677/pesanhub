@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"pesenhub/backend/internal/branch"
 	"pesenhub/backend/internal/customer"
 	"pesenhub/backend/internal/domain"
 	"pesenhub/backend/internal/httpapi"
@@ -75,6 +76,13 @@ func (s *Service) CreateManual(ctx context.Context, in CreateInput, key, actorID
 	in.CustomerName = strings.TrimSpace(in.CustomerName)
 	in.CustomerPhone = strings.TrimSpace(in.CustomerPhone)
 	in.Notes = strings.TrimSpace(in.Notes)
+	in.Source = strings.TrimSpace(in.Source)
+	if in.Source == "" {
+		in.Source = "CASHIER_MANUAL"
+	}
+	if in.Source != "CASHIER_MANUAL" && in.Source != "WHATSAPP" && in.Source != "GRABFOOD" && in.Source != "GOFOOD" && in.Source != "SHOPEEFOOD" {
+		return Order{}, false, &ValidationError{Field: "source"}
+	}
 	if !validIdempotencyKey(key) {
 		return Order{}, false, &ValidationError{Field: "Idempotency-Key"}
 	}
@@ -111,6 +119,19 @@ func (s *Service) CreateManual(ctx context.Context, in CreateInput, key, actorID
 	}
 	payload, _ := json.Marshal(in)
 	sum := sha256.Sum256(payload)
+	scope := branch.ScopeFromContext(ctx)
+	if in.BranchID == "" {
+		if scope.BranchID != "" {
+			in.BranchID = scope.BranchID
+		}
+	} else {
+		if !scope.All && scope.BranchID != "" {
+			in.BranchID = scope.BranchID
+		}
+	}
+	if in.BranchID == "" {
+		in.BranchID = "b0000000-0000-0000-0000-000000000001"
+	}
 	return s.store.Create(ctx, in, key, hex.EncodeToString(sum[:]), actorID+"|"+requestID)
 }
 
@@ -125,7 +146,8 @@ func (s *Service) Transition(ctx context.Context, orderID string, in TransitionI
 	if s.transitions == nil {
 		return StatusResult{}, false, errors.New("transition store unavailable")
 	}
-	if err := validateUUID(strings.TrimSpace(orderID)); err != nil {
+	orderID = strings.TrimPrefix(strings.TrimSpace(orderID), "ord-")
+	if err := validateUUID(orderID); err != nil {
 		return StatusResult{}, false, ErrNotFound
 	}
 	in.TargetStatus = strings.TrimSpace(in.TargetStatus)
@@ -157,7 +179,7 @@ func (s *Service) Transition(ctx context.Context, orderID string, in TransitionI
 func ValidTransition(from, to domain.OrderStatus) bool {
 	switch from {
 	case domain.OrderStatusPending:
-		return to == domain.OrderStatusAccepted || to == domain.OrderStatusRejected || to == domain.OrderStatusCancelled
+		return to == domain.OrderStatusAccepted || to == domain.OrderStatusPreparing || to == domain.OrderStatusRejected || to == domain.OrderStatusCancelled
 	case domain.OrderStatusAccepted:
 		return to == domain.OrderStatusPreparing || to == domain.OrderStatusCancelled
 	case domain.OrderStatusPreparing:
@@ -197,13 +219,17 @@ func (s *Service) List(ctx context.Context, p customer.Principal, filter OrderFi
 	for i, src := range filter.Sources {
 		filter.Sources[i] = strings.TrimSpace(src)
 		switch filter.Sources[i] {
-		case "WHATSAPP", "CASHIER_MANUAL", "CUSTOMER_WEB":
+		case "WHATSAPP", "CASHIER_MANUAL", "CUSTOMER_WEB", "GRABFOOD", "GOFOOD", "SHOPEEFOOD":
 		default:
 			return OrderCollection{}, &ValidationError{Field: "source"}
 		}
 	}
 	if filter.CreatedFrom != nil && filter.CreatedTo != nil && filter.CreatedFrom.After(*filter.CreatedTo) {
 		return OrderCollection{}, &ValidationError{Field: "created_from"}
+	}
+	scope := branch.ScopeFromContext(ctx)
+	if !scope.All && scope.BranchID != "" {
+		filter.BranchID = scope.BranchID
 	}
 	orders, nextCursor, err := s.reader.List(ctx, filter)
 	if err != nil {
@@ -235,13 +261,17 @@ func (s *Service) GetByID(ctx context.Context, p customer.Principal, id string) 
 	if !customer.CanOperateOutlet(p) && (p.Subject == "" || p.Role != "KDS") {
 		return OrderDetail{}, customer.ErrUnauthorized
 	}
-	id = strings.TrimSpace(id)
+	id = strings.TrimPrefix(strings.TrimSpace(id), "ord-")
 	if err := validateUUID(id); err != nil {
 		return OrderDetail{}, ErrNotFound
 	}
 	order, err := s.reader.GetByID(ctx, id)
 	if err != nil {
 		return OrderDetail{}, err
+	}
+	scope := branch.ScopeFromContext(ctx)
+	if !scope.All && scope.BranchID != "" && order.BranchID != scope.BranchID {
+		return OrderDetail{}, ErrNotFound
 	}
 	order.RedactForRole(p.Role)
 	return order, nil
@@ -255,11 +285,15 @@ func (s *Service) QueueSnapshot(ctx context.Context, p customer.Principal) ([]Or
 		return nil, customer.ErrUnauthorized
 	}
 	filter := OrderFilter{
-		Statuses: []string{"ACCEPTED", "PREPARING", "READY_FOR_PICKUP"},
+		Statuses: []string{"PENDING", "ACCEPTED", "PREPARING", "READY_FOR_PICKUP"},
 		Pagination: httpapi.Pagination{
 			Size:  httpapi.MaxPageSize,
 			Order: "asc",
 		},
+	}
+	scope := branch.ScopeFromContext(ctx)
+	if !scope.All && scope.BranchID != "" {
+		filter.BranchID = scope.BranchID
 	}
 	orders, _, err := s.reader.List(ctx, filter)
 	if err != nil {
@@ -379,7 +413,7 @@ func (s *Service) GetAuditLogs(ctx context.Context, orderID string, p customer.P
 	if !customer.CanOperateOutlet(p) {
 		return nil, customer.ErrUnauthorized
 	}
-	orderID = strings.TrimSpace(orderID)
+	orderID = strings.TrimPrefix(strings.TrimSpace(orderID), "ord-")
 	if orderID == "" {
 		return nil, ErrNotFound
 	}

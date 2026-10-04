@@ -95,6 +95,7 @@ class QueueLocalRepository {
       'takeaway_notes': order.takeawayNotes,
       'created_at': order.createdAt.toIso8601String(),
       'version': order.version,
+      'branch_id': order.branchId,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     await txn.delete(
@@ -126,10 +127,35 @@ class QueueLocalRepository {
     }
   }
 
-  /// Retrieves all cached orders along with their nested line items.
-  Future<List<QueueOrder>> getOrders() async {
+  /// Retrieves cached orders along with their nested line items.
+  /// If [activeOnly] is true, terminal orders ('COMPLETED', 'CANCELLED', 'REJECTED')
+  /// are filtered out so they do not reappear in the active queue.
+  Future<List<QueueOrder>> getOrders({
+    String? branchId,
+    bool activeOnly = false,
+  }) async {
     final db = await _localDb.database;
-    final orderRows = await db.query('queue_orders', orderBy: 'created_at ASC');
+    final List<String> conditions = [];
+    final List<Object?> whereArgs = [];
+
+    if (activeOnly) {
+      conditions.add(
+        "order_status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED')",
+      );
+    }
+
+    if (branchId != null && branchId.isNotEmpty) {
+      conditions.add('(branch_id = ? OR branch_id IS NULL)');
+      whereArgs.add(branchId);
+    }
+
+    final where = conditions.isEmpty ? null : conditions.join(' AND ');
+    final orderRows = await db.query(
+      'queue_orders',
+      where: where,
+      whereArgs: whereArgs.isEmpty ? null : whereArgs,
+      orderBy: 'created_at ASC',
+    );
 
     final List<QueueOrder> result = [];
 
@@ -169,6 +195,7 @@ class QueueLocalRepository {
           createdAt:
               DateTime.tryParse(row['created_at'] as String) ?? DateTime.now(),
           version: row['version'] as int? ?? 1,
+          branchId: row['branch_id'] as String?,
         ),
       );
     }
@@ -191,11 +218,36 @@ class QueueLocalRepository {
     );
   }
 
+  /// Updates payment status for a specific order in local database.
+  Future<void> updatePaymentStatus(String id, String paymentStatus) async {
+    final db = await _localDb.database;
+    await db.update(
+      'queue_orders',
+      {'payment_status': paymentStatus},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Returns the next order sequence number for today (reset daily starting at 1).
+  Future<int> getNextDailySequence() async {
+    final db = await _localDb.database;
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day).toIso8601String();
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM queue_orders WHERE created_at >= ?',
+      [todayStart],
+    );
+    final count = (result.first['count'] as num?)?.toInt() ?? 0;
+    return count + 1;
+  }
+
   /// Loads cached queue snapshot with cache timestamp and stale marker.
   Future<CachedResult<List<QueueOrder>>> getOrdersWithFreshness({
+    String? branchId,
     Duration staleThreshold = const Duration(minutes: 15),
   }) async {
-    final orders = await getOrders();
+    final orders = await getOrders(branchId: branchId);
     final lastCachedStr = await _localDb.getMetadata(metadataKeyLastCached);
     DateTime? cachedAt;
     if (lastCachedStr != null) {
@@ -211,5 +263,25 @@ class QueueLocalRepository {
       cachedAt: cachedAt,
       isStale: isStale,
     );
+  }
+
+  /// Clears cached queue rows without losing unsynced local mutations.
+  Future<void> clearQueueCache() async {
+    final db = await _localDb.database;
+    await db.transaction((txn) async {
+      await txn.rawDelete('''
+        DELETE FROM queue_orders
+        WHERE id NOT IN (
+          SELECT 'ord-' || client_order_id
+          FROM outbox_mutations
+          WHERE sync_status != 'SYNCED'
+        )
+      ''');
+      await txn.delete(
+        'sync_metadata',
+        where: 'key = ?',
+        whereArgs: [metadataKeyLastCached],
+      );
+    });
   }
 }
