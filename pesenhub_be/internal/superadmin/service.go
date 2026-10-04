@@ -32,6 +32,7 @@ type ServiceStore interface {
 	ListAudits(ctx context.Context, targetUserID string, limit, offset int) ([]AuditEntry, error)
 	GetTrafficMetrics(ctx context.Context, timeRange string) (TrafficMetrics, error)
 	ListEmployees(ctx context.Context, search string) ([]EmployeeSummary, error)
+	GetEmployeeRole(ctx context.Context, id string) (string, error)
 	CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID, password string) (EmployeeSummary, error)
 	UpdateEmployee(ctx context.Context, targetUserID string, displayName, role, status, branchID *string) (EmployeeSummary, error)
 	DeleteEmployee(ctx context.Context, targetUserID string) error
@@ -403,6 +404,10 @@ func (s *Service) UpdateCashierBranch(ctx context.Context, actorPrincipal custom
 
 func (s *Service) ListEmployees(ctx context.Context, search string) ([]EmployeeSummary, error) {
 	return s.store.ListEmployees(ctx, search)
+}
+
+func (s *Service) GetEmployeeRole(ctx context.Context, id string) (string, error) {
+	return s.store.GetEmployeeRole(ctx, id)
 }
 
 func (s *Service) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID, password string) (EmployeeSummary, error) {

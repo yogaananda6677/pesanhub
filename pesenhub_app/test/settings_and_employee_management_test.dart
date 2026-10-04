@@ -194,10 +194,32 @@ void main() {
 
         expect(find.text('Undang Kasir'), findsNothing);
         expect(
-          find.text('Fitur undang kasir hanya dapat diakses oleh Admin Outlet.'),
+          find.text(
+            'Fitur undang kasir hanya dapat diakses oleh Admin Outlet.',
+          ),
           findsOneWidget,
         );
         expect(find.byType(PopupMenuButton<String>), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'EmployeeManagementView: admin cannot manage fellow admin, but can manage cashier',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: const EmployeeManagementView(isAdmin: true),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // There should be a "Terkunci" indicator for fellow Admin
+        expect(find.text('Terkunci'), findsAtLeastNWidgets(1));
+
+        // Cashiers should have action menus (PopupMenuButton), but not fellow Admins
+        // In fallback list: 3 cashiers (Siti, Ahmad, Rizky) have menus; Admin (Yoga) and Manager (Dewi) are locked
+        expect(find.byType(PopupMenuButton<String>), findsNWidgets(3));
       },
     );
 
@@ -272,7 +294,8 @@ void main() {
             home: Scaffold(
               body: Builder(
                 builder: (ctx) => ElevatedButton(
-                  onPressed: () => WhatsAppQrDialog.show(ctx, controller: mockController),
+                  onPressed: () =>
+                      WhatsAppQrDialog.show(ctx, controller: mockController),
                   child: const Text('Open Dialog'),
                 ),
               ),

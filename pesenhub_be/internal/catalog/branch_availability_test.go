@@ -410,3 +410,69 @@ func TestDatabaseMultiBranchMenuAvailabilityIsolationIntegration(t *testing.T) {
 		t.Fatalf("Menu was not found in Admin Branch A catalog!")
 	}
 }
+
+func TestDatabaseMenuAvailabilityVersionDesyncTolerance(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL is not set")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	db, err := dbx.Open(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	branchID := "b0000000-0000-0000-0000-000000000001"
+	catID := fmt.Sprintf("c%d", time.Now().UnixNano())
+	menuID := fmt.Sprintf("m%d", time.Now().UnixNano())
+	menuSKU := fmt.Sprintf("sku-%d", time.Now().UnixNano())
+
+	_, err = db.Exec(ctx, `INSERT INTO menu_categories(id, name, sort_order, is_active, version) VALUES ($1, 'Desync Cat', 1, true, 1)`, catID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = db.Exec(context.Background(), `DELETE FROM menus WHERE id=$1`, menuID)
+		_, _ = db.Exec(context.Background(), `DELETE FROM menu_categories WHERE id=$1`, catID)
+	})
+
+	// Seed menu with version = 4 and is_available = false
+	_, err = db.Exec(ctx, `INSERT INTO menus(id, category_id, sku, name, product_type, price_amount, is_available, version, sort_order) VALUES ($1, $2, $3, 'Desync Menu', 'MARTABAK_TELUR', 20000, false, 4, 1)`, menuID, catID, menuSKU)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Seed branch_menu_availability with version = 1 and is_available = false
+	_, err = db.Exec(ctx, `INSERT INTO branch_menu_availability(branch_id, menu_id, is_available, version) VALUES ($1, $2, false, 1)`, branchID, menuID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	store := NewStore(db)
+	meta := MutationMeta{ActorID: "tester", RequestID: "req-desync-test", AuditID: fmt.Sprintf("a%d", time.Now().UnixNano())}
+
+	// Client passes version = 4 (from menus.version). Must succeed!
+	updated, err := store.SetMenuAvailability(ctx, branchID, menuID, true, 4, meta)
+	if err != nil {
+		t.Fatalf("SetMenuAvailability with version=4 failed: %v", err)
+	}
+	if !updated.Available {
+		t.Fatalf("expected menu to be available")
+	}
+	if updated.Version < 5 {
+		t.Fatalf("expected updated version >= 5, got %d", updated.Version)
+	}
+
+	// Verify menus table was also synchronized to is_available = true
+	var menuAvailInBase bool
+	err = db.QueryRow(ctx, `SELECT is_available FROM menus WHERE id=$1`, menuID).Scan(&menuAvailInBase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !menuAvailInBase {
+		t.Fatalf("expected menus.is_available to be true after default branch update")
+	}
+}

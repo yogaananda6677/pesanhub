@@ -70,7 +70,9 @@ class WhatsAppPairResult {
       isAlreadyLoggedIn: json['is_already_logged_in'] as bool? ?? false,
       status: json['status'] as String? ?? '',
       deviceId: json['device_id'] as String? ?? '',
-      method: json['method'] as String? ?? (json.containsKey('pair_code') ? 'code' : 'qr'),
+      method:
+          json['method'] as String? ??
+          (json.containsKey('pair_code') ? 'code' : 'qr'),
       pairCode: json['pair_code'] as String?,
       phone: json['phone'] as String?,
       qrDuration: (json['qr_duration'] as num?)?.toInt() ?? 30,

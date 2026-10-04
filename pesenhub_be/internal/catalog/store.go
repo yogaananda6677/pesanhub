@@ -112,7 +112,7 @@ func (s *Store) SetMenuAvailability(ctx context.Context, branchID, id string, av
 	// Ensure branch row exists
 	_, err = tx.Exec(ctx, `
 		INSERT INTO branch_menu_availability (branch_id, menu_id, is_available, version)
-		SELECT $1, id, is_available, 1 FROM menus WHERE id = $2
+		SELECT $1, id, is_available, version FROM menus WHERE id = $2
 		ON DUPLICATE KEY UPDATE branch_id = branch_id`, branchID, id)
 	if err != nil {
 		return Menu{}, err
@@ -120,8 +120,9 @@ func (s *Store) SetMenuAvailability(ctx context.Context, branchID, id string, av
 
 	res, err := tx.Exec(ctx, `
 		UPDATE branch_menu_availability
-		SET is_available = $3, version = version + 1, updated_at = now()
-		WHERE branch_id = $1 AND menu_id = $2 AND version = $4`,
+		SET is_available = $3, version = GREATEST(version, $4) + 1, updated_at = now()
+		WHERE branch_id = $1 AND menu_id = $2
+		  AND (version = $4 OR (SELECT m.version FROM menus m WHERE m.id = $2) = $4)`,
 		branchID, id, available, version)
 	if err != nil {
 		return Menu{}, err
@@ -133,6 +134,12 @@ func (s *Store) SetMenuAvailability(ctx context.Context, branchID, id string, av
 			return Menu{}, ErrInvalidCatalog
 		}
 		return Menu{}, fmt.Errorf("%w", ErrVersionConflict)
+	}
+
+	var isDefault bool
+	_ = tx.QueryRow(ctx, `SELECT is_default FROM branches WHERE id = $1`, branchID).Scan(&isDefault)
+	if isDefault {
+		_, _ = tx.Exec(ctx, `UPDATE menus SET is_available = $1, updated_at = now() WHERE id = $2`, available, id)
 	}
 
 	var m Menu
@@ -186,6 +193,12 @@ func (s *Store) SetModifierOptionAvailability(ctx context.Context, branchID, id 
 			return Option{}, ErrInvalidCatalog
 		}
 		return Option{}, fmt.Errorf("%w", ErrVersionConflict)
+	}
+
+	var isDefault bool
+	_ = tx.QueryRow(ctx, `SELECT is_default FROM branches WHERE id = $1`, branchID).Scan(&isDefault)
+	if isDefault {
+		_, _ = tx.Exec(ctx, `UPDATE modifier_options SET is_available = $1, updated_at = now() WHERE id = $2`, available, id)
 	}
 
 	var o Option
@@ -276,6 +289,9 @@ func (s *Store) ListAdmin(ctx context.Context, branchID ...string) ([]Category, 
 	bID := ""
 	if len(branchID) > 0 {
 		bID = branchID[0]
+	}
+	if bID == "" {
+		_ = s.db.QueryRow(ctx, `SELECT id::text FROM branches WHERE is_default = true LIMIT 1`).Scan(&bID)
 	}
 	return s.list(ctx, "", bID, true)
 }

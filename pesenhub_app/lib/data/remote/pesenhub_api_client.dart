@@ -11,6 +11,9 @@ import 'api_failure.dart';
 import 'catalog_dto.dart';
 import 'catalog_gateway.dart';
 import 'order_dto.dart';
+import '../../contact/models/whatsapp_contact.dart';
+import '../../evaluation/models/ai_evaluation.dart';
+import '../../discount/models/discount.dart';
 import '../../menu/models/menu_category.dart';
 import '../../menu/models/menu_item.dart';
 import '../../settings/models/employee.dart';
@@ -556,24 +559,34 @@ class PesenHubApiClient
 
   ApiFailure _failureForStatus(http.Response response, String fallbackId) {
     final requestId = response.headers['x-request-id'] ?? fallbackId;
+    String? serverMessage;
+    try {
+      final body = jsonDecode(response.body);
+      if (body is Map && body['error'] is Map) {
+        serverMessage = body['error']['message'] as String?;
+      }
+    } catch (_) {}
     switch (response.statusCode) {
       case 401:
         return ApiFailure(
           ApiFailureKind.unauthenticated,
           statusCode: response.statusCode,
           requestId: requestId,
+          serverMessage: serverMessage,
         );
       case 403:
         return ApiFailure(
           ApiFailureKind.forbidden,
           statusCode: response.statusCode,
           requestId: requestId,
+          serverMessage: serverMessage,
         );
       case 409:
         return ApiFailure(
           ApiFailureKind.conflict,
           statusCode: response.statusCode,
           requestId: requestId,
+          serverMessage: serverMessage,
         );
       case 400:
       case 422:
@@ -581,6 +594,7 @@ class PesenHubApiClient
           ApiFailureKind.validation,
           statusCode: response.statusCode,
           requestId: requestId,
+          serverMessage: serverMessage,
         );
       default:
         return ApiFailure(
@@ -589,6 +603,7 @@ class PesenHubApiClient
               : ApiFailureKind.invalidResponse,
           statusCode: response.statusCode,
           requestId: requestId,
+          serverMessage: serverMessage,
         );
     }
   }
@@ -664,6 +679,234 @@ class PesenHubApiClient
     final response = await _send('GET', config.resolve('branches'));
     final json = _decodeObject(response);
     final rawList = json['branches'];
+    if (rawList is List) {
+      return rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    return [];
+  }
+
+  Future<List<Discount>> fetchDiscounts({
+    String? channel,
+    String? branchId,
+    String? scope,
+    bool? activeOnly,
+    String? query,
+  }) async {
+    final queryParams = <String, String>{
+      if (channel != null && channel.isNotEmpty) 'channel': channel,
+      if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+      if (scope != null && scope.isNotEmpty) 'scope': scope,
+      if (activeOnly == true) 'active_only': 'true',
+      if (query != null && query.isNotEmpty) 'q': query,
+    };
+    final uri = config
+        .resolve('admin/discounts')
+        .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await _send('GET', uri);
+    final json = _decodeObject(response);
+    final rawList = json['data'];
+    if (rawList is List) {
+      return rawList
+          .map((e) => Discount.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+    return [];
+  }
+
+  Future<List<Discount>> fetchApplicableDiscounts({
+    String? branchId,
+    String? channel,
+    int? subtotal,
+  }) async {
+    final queryParams = <String, String>{
+      if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+      if (channel != null && channel.isNotEmpty) 'channel': channel,
+      if (subtotal != null) 'subtotal': subtotal.toString(),
+    };
+    final uri = config
+        .resolve('admin/discounts/applicable')
+        .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await _send('GET', uri);
+    final json = _decodeObject(response);
+    final rawList = json['data'];
+    if (rawList is List) {
+      return rawList
+          .map((e) => Discount.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+    return [];
+  }
+
+  Future<Discount> createDiscount(Map<String, dynamic> data) async {
+    final response = await _send(
+      'POST',
+      config.resolve('admin/discounts'),
+      body: jsonEncode(data),
+    );
+    final json = _decodeObject(response);
+    return Discount.fromJson(Map<String, dynamic>.from(json['data'] as Map));
+  }
+
+  Future<Discount> updateDiscount(String id, Map<String, dynamic> data) async {
+    final response = await _send(
+      'PUT',
+      config.resolve('admin/discounts/$id'),
+      body: jsonEncode(data),
+    );
+    final json = _decodeObject(response);
+    return Discount.fromJson(Map<String, dynamic>.from(json['data'] as Map));
+  }
+
+  Future<Discount> toggleDiscount(String id) async {
+    final response = await _send(
+      'PATCH',
+      config.resolve('admin/discounts/$id/toggle'),
+    );
+    final json = _decodeObject(response);
+    return Discount.fromJson(Map<String, dynamic>.from(json['data'] as Map));
+  }
+
+  Future<void> deleteDiscount(String id) async {
+    await _send('DELETE', config.resolve('admin/discounts/$id'));
+  }
+
+  // ==========================================
+  // WhatsApp Contacts & Chat Filter Rules API
+  // ==========================================
+  Future<List<WhatsAppContact>> fetchContacts({
+    String? branchId,
+    String? type,
+    String? search,
+    int? limit,
+  }) async {
+    final queryParams = <String, String>{
+      if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+      if (type != null && type.isNotEmpty) 'type': type,
+      if (search != null && search.isNotEmpty) 'q': search,
+      if (limit != null) 'limit': limit.toString(),
+    };
+    final uri = config
+        .resolve('contacts')
+        .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await _send('GET', uri);
+    final json = _decodeObject(response);
+    final rawList = json['data'];
+    if (rawList is List) {
+      return rawList
+          .map(
+            (e) =>
+                WhatsAppContact.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
+          .toList();
+    }
+    return [];
+  }
+
+  Future<WhatsAppContact> upsertContact(Map<String, dynamic> data) async {
+    final response = await _send(
+      'POST',
+      config.resolve('contacts'),
+      body: jsonEncode(data),
+    );
+    final json = _decodeObject(response);
+    return WhatsAppContact.fromJson(Map<String, dynamic>.from(json));
+  }
+
+  Future<WhatsAppContact> toggleContactAutoReply(
+    String id,
+    bool enabled,
+  ) async {
+    final response = await _send(
+      'POST',
+      config.resolve('contacts/$id/toggle-reply'),
+      body: jsonEncode({'auto_reply_enabled': enabled}),
+    );
+    final json = _decodeObject(response);
+    return WhatsAppContact.fromJson(Map<String, dynamic>.from(json));
+  }
+
+  Future<WhatsAppContact> markContactNonCustomer(
+    String id, {
+    String? contactType,
+    String? notes,
+  }) async {
+    final response = await _send(
+      'POST',
+      config.resolve('contacts/$id/mark-non-customer'),
+      body: jsonEncode({'contact_type': ?contactType, 'notes': ?notes}),
+    );
+    final json = _decodeObject(response);
+    return WhatsAppContact.fromJson(Map<String, dynamic>.from(json));
+  }
+
+  // ==========================================
+  // AI Evaluations & Training Dataset API
+  // ==========================================
+  Future<List<AiEvaluation>> fetchAiEvaluations({
+    String? branchId,
+    String? rating,
+    bool? isReviewed,
+    String? search,
+    int? limit,
+  }) async {
+    final queryParams = <String, String>{
+      if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+      if (rating != null && rating.isNotEmpty) 'rating': rating,
+      if (isReviewed != null) 'is_reviewed': isReviewed ? 'true' : 'false',
+      if (search != null && search.isNotEmpty) 'q': search,
+      if (limit != null) 'limit': limit.toString(),
+    };
+    final uri = config
+        .resolve('agent/evaluations')
+        .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await _send('GET', uri);
+    final json = _decodeObject(response);
+    final rawList = json['data'];
+    if (rawList is List) {
+      return rawList
+          .map(
+            (e) => AiEvaluation.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
+          .toList();
+    }
+    return [];
+  }
+
+  Future<AiEvaluation> submitAiEvaluationReview(
+    String id, {
+    required String rating,
+    String? feedbackCategory,
+    String? correctionNotes,
+    String? expectedReply,
+  }) async {
+    final response = await _send(
+      'POST',
+      config.resolve('agent/evaluations/$id/review'),
+      body: jsonEncode({
+        'rating': rating,
+        'feedback_category': ?feedbackCategory,
+        'correction_notes': ?correctionNotes,
+        'expected_reply': ?expectedReply,
+      }),
+    );
+    final json = _decodeObject(response);
+    return AiEvaluation.fromJson(Map<String, dynamic>.from(json));
+  }
+
+  Future<List<Map<String, dynamic>>> exportAiTrainingDataset({
+    String? branchId,
+    bool? reviewedOnly,
+  }) async {
+    final queryParams = <String, String>{
+      if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+      if (reviewedOnly == true) 'reviewed_only': 'true',
+    };
+    final uri = config
+        .resolve('agent/evaluations/export')
+        .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await _send('GET', uri);
+    final json = _decodeObject(response);
+    final rawList = json['data'];
     if (rawList is List) {
       return rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
     }

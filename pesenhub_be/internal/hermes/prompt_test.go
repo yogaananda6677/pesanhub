@@ -115,7 +115,7 @@ func TestWrapUntrustedMessage(t *testing.T) {
 
 func TestBuildExtractionPrompt(t *testing.T) {
 	sys, user := BuildExtractionPrompt("Nasi Goreng 1")
-	if !strings.Contains(sys, "Hermes") {
+	if !strings.Contains(sys, "Asisten Jenggirat AI") {
 		t.Errorf("system prompt missing agent name")
 	}
 	if !strings.Contains(user, "<untrusted_customer_message>") {

@@ -31,13 +31,29 @@ func DetectConfirmationIntent(text string) ConfirmationIntent {
 	}
 	normalized := strings.Join(fields, " ")
 
-	// 1. Explicit cancellation takes priority
+	foodTerms := []string{
+		"martabak", "terang bulan", "terbul", "sosis", "jamur", "ayam", "sapi",
+		"moza", "mozarella", "keju", "coklat", "kacang", "pizza", "topping", "toping",
+		"biasa", "spesial", "istimewa",
+	}
+	hasFoodTerm := false
+	for _, f := range foodTerms {
+		if strings.Contains(normalized, f) {
+			hasFoodTerm = true
+			break
+		}
+	}
+
+	// 1. Explicit cancellation takes priority (unless combined with ordering a replacement item)
 	cancelPhrases := []string{
-		"batal", "batalkan", "batalin", "gak jadi", "ga jadi", "enggak jadi",
-		"cancel", "tidak jadi", "ndak jadi", "salah", "jangan",
+		"batal", "batalkan", "batalin", "gak jadi", "ga jadi", "enggak jadi", "gajadi",
+		"cancel", "tidak jadi", "ndak jadi", "salah", "jangan", "tunda", "nanti aja", "jangan dulu",
 	}
 	for _, p := range cancelPhrases {
-		if normalized == p || strings.HasPrefix(normalized, p+" ") || strings.HasSuffix(normalized, " "+p) {
+		if normalized == p || strings.HasPrefix(normalized, p+" ") || strings.HasSuffix(normalized, " "+p) || strings.Contains(normalized, p) {
+			if hasFoodTerm {
+				return IntentModify
+			}
 			return IntentCancel
 		}
 	}
@@ -54,58 +70,77 @@ func DetectConfirmationIntent(text string) ConfirmationIntent {
 
 	// 3. Explicit confirmation
 	exactConfirms := map[string]struct{}{
-		"ya":             {},
-		"iya":            {},
-		"oke":            {},
-		"ok":             {},
-		"setuju":         {},
-		"benar":          {},
-		"betul":          {},
-		"siap":           {},
-		"lanjut":         {},
-		"deal":           {},
-		"confirm":        {},
-		"yes":            {},
-		"y":              {},
-		"sudah benar":    {},
-		"sudah sesuai":   {},
-		"pas":            {},
-		"fix":            {},
-		"pesan sekarang": {},
-		"gas":            {},
-		"bungkus":        {},
-		"ok kak":         {},
-		"ya kak":         {},
-		"iya kak":        {},
-		"oke kak":        {},
-		"baik kak":       {},
-		"baik":           {},
-		"sudah":          {},
-		"acc":            {},
-		"sip":            {},
-		"yoi":            {},
-		"yep":            {},
-		"yap":            {},
-		"ok min":         {},
-		"ya min":         {},
-		"iya min":        {},
-		"oke min":        {},
-		"siap kak":       {},
-		"siap min":       {},
-		"lanjut kak":     {},
-		"lanjutkan":      {},
-		"proses":         {},
-		"proses kak":     {},
+		"ya":               {},
+		"iya":              {},
+		"oke":              {},
+		"ok":               {},
+		"setuju":           {},
+		"benar":            {},
+		"betul":            {},
+		"bener":            {},
+		"siap":             {},
+		"lanjut":           {},
+		"deal":             {},
+		"confirm":          {},
+		"yes":              {},
+		"y":                {},
+		"sudah benar":      {},
+		"sudah sesuai":     {},
+		"sudah bener":      {},
+		"sudah pas":        {},
+		"pas":              {},
+		"pas kok":          {},
+		"pas kak":          {},
+		"fix":              {},
+		"pesan sekarang":   {},
+		"gas":              {},
+		"gas bungkus":      {},
+		"bungkus":          {},
+		"bungkus ya":       {},
+		"ok kak":           {},
+		"ya kak":           {},
+		"iya kak":          {},
+		"oke kak":          {},
+		"baik kak":         {},
+		"baik":             {},
+		"sudah":            {},
+		"acc":              {},
+		"sip":              {},
+		"yoi":              {},
+		"yep":              {},
+		"yap":              {},
+		"ok min":           {},
+		"ya min":           {},
+		"iya min":          {},
+		"oke min":          {},
+		"siap kak":         {},
+		"siap min":         {},
+		"lanjut kak":       {},
+		"lanjutkan":        {},
+		"proses":           {},
+		"proses kak":       {},
+		"kuy":              {},
+		"mantap":           {},
+		"tolong dibuatkan": {},
+		"buatkan ya":       {},
+		"bikin ya":         {},
+		"iya betul":        {},
+		"iya benar":        {},
+		"iya bener":        {},
 	}
 
 	if _, ok := exactConfirms[normalized]; ok {
 		return IntentConfirm
 	}
 
+	if strings.Contains(normalized, "sudah pas") || strings.Contains(normalized, "pas kok") || strings.Contains(normalized, "sudah benar") || strings.Contains(normalized, "sudah betul") || strings.Contains(normalized, "tolong dibuatkan") || strings.Contains(normalized, "bikin ya") || strings.Contains(normalized, "buatkan ya") || strings.Contains(normalized, "siap bungkus") {
+		return IntentConfirm
+	}
+
 	// Check if first word is a clear affirmative (e.g. "ya proses", "oke tolong dibuatkan")
 	if len(fields) > 1 {
 		first := fields[0]
-		if first == "ya" || first == "iya" || first == "oke" || first == "ok" || first == "siap" || first == "setuju" {
+		if first == "ya" || first == "iya" || first == "oke" || first == "ok" || first == "siap" || first == "setuju" || first == "bener" || first == "betul" || first == "pas" || first == "gas" || first == "bungkus" || first == "mantap" {
 			return IntentConfirm
 		}
 	}
@@ -203,16 +238,22 @@ func ValidateDraftFreshness(ctx context.Context, draft *DraftCandidate, categori
 }
 
 // FormatOrderSuccessMessage builds the final customer WhatsApp message after order is created.
-func FormatOrderSuccessMessage(orderNumber, trackingToken string, totalAmount int64) string {
+func FormatOrderSuccessMessage(orderNumber, trackingToken string, totalAmount int64, customerName ...string) string {
 	trackingURL := "https://pesenhub.id/orders/track/" + trackingToken
 	var sb strings.Builder
-	sb.WriteString("Terima kasih kak! Pesanan kakak berhasil dibuat dengan nomor pesanan:\n")
+	nameSuffix := ""
+	if len(customerName) > 0 && strings.TrimSpace(customerName[0]) != "" {
+		nameSuffix = " kak " + strings.TrimSpace(customerName[0])
+	} else {
+		nameSuffix = " kak"
+	}
+	sb.WriteString(fmt.Sprintf("Terima kasih%s! Pesanan berhasil kami buat dengan nomor:\n", nameSuffix))
 	sb.WriteString(fmt.Sprintf("*%s*\n\n", orderNumber))
 	sb.WriteString(fmt.Sprintf("Total: Rp %d\n", totalAmount))
 	sb.WriteString("Pengambilan: PICKUP\n")
 	sb.WriteString("Status: Menunggu konfirmasi outlet (PENDING)\n\n")
-	sb.WriteString("Pantau status pesanan kakak secara berkala di tautan berikut:\n")
+	sb.WriteString("Pantau status pesanan secara berkala di tautan berikut:\n")
 	sb.WriteString(fmt.Sprintf("%s\n\n", trackingURL))
-	sb.WriteString("Pembayaran dapat dilakukan secara Tunai atau QRIS saat pengambilan pesanan di outlet kasir.")
+	sb.WriteString(fmt.Sprintf("Pesanan sedang disiapkan. Pembayaran dapat dilakukan secara Tunai atau QRIS saat pengambilan di kasir ya%s. Sampai jumpa! 😊", nameSuffix))
 	return sb.String()
 }

@@ -11,5 +11,6 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
+	github.com/go-pdf/fpdf v0.9.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 )

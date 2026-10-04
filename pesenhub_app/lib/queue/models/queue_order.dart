@@ -19,6 +19,10 @@ class QueueOrder {
   final String? branchId;
   final String? branchCode;
   final String? branchName;
+  final int? subtotalAmount;
+  final int? discountAmount;
+  final String? discountId;
+  final String? discountName;
 
   const QueueOrder({
     required this.id,
@@ -36,10 +40,22 @@ class QueueOrder {
     this.branchId,
     this.branchCode,
     this.branchName,
+    this.subtotalAmount,
+    this.discountAmount,
+    this.discountId,
+    this.discountName,
   });
 
-  /// Total sum of items in the order.
-  int get totalAmount => items.fold(0, (sum, item) => sum + item.subtotal);
+  /// Total sum of items in the order before discounts.
+  int get subtotal =>
+      subtotalAmount ?? items.fold(0, (sum, item) => sum + item.subtotal);
+
+  /// Final total amount after applying discounts.
+  int get totalAmount {
+    final disc = discountAmount ?? 0;
+    final res = subtotal - disc;
+    return res < 0 ? 0 : res;
+  }
 
   /// True if the order is still active in the kitchen/queue lifecycle.
   bool get isActive =>
@@ -123,6 +139,10 @@ class QueueOrder {
     String? branchId,
     String? branchCode,
     String? branchName,
+    int? subtotalAmount,
+    int? discountAmount,
+    String? discountId,
+    String? discountName,
   }) {
     return QueueOrder(
       id: id ?? this.id,
@@ -140,6 +160,10 @@ class QueueOrder {
       branchId: branchId ?? this.branchId,
       branchCode: branchCode ?? this.branchCode,
       branchName: branchName ?? this.branchName,
+      subtotalAmount: subtotalAmount ?? this.subtotalAmount,
+      discountAmount: discountAmount ?? this.discountAmount,
+      discountId: discountId ?? this.discountId,
+      discountName: discountName ?? this.discountName,
     );
   }
 }

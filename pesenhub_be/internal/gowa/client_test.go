@@ -115,3 +115,79 @@ func TestSendMessageErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestSendImageUsesOfficialGOWAContract(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/send/image" || r.Header.Get("X-Device-Id") != "pesenhub-dev" {
+			t.Fatalf("request=%s device=%s", r.URL.Path, r.Header.Get("X-Device-Id"))
+		}
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			t.Fatalf("failed to parse multipart form: %v", err)
+		}
+		if r.FormValue("phone") != "628123456789@s.whatsapp.net" {
+			t.Errorf("phone=%s", r.FormValue("phone"))
+		}
+		if r.FormValue("caption") != "Katalog Martabak" {
+			t.Errorf("caption=%s", r.FormValue("caption"))
+		}
+		file, header, err := r.FormFile("image")
+		if err != nil {
+			t.Fatalf("missing image file: %v", err)
+		}
+		defer file.Close()
+		if header.Filename != "katalog.jpg" {
+			t.Errorf("filename=%s", header.Filename)
+		}
+		_, _ = w.Write([]byte(`{"code":"SUCCESS","results":{"message_id":"IMG-123"}}`))
+	}))
+	defer server.Close()
+
+	id, err := New(server.URL, "user", "pass", "pesenhub-dev", time.Second).SendImage(
+		context.Background(),
+		"+628123456789",
+		"Katalog Martabak",
+		[]byte("fake-image-bytes"),
+		"katalog.jpg",
+	)
+	if err != nil || id != "IMG-123" {
+		t.Fatalf("id=%q err=%v", id, err)
+	}
+}
+
+func TestSendFileUsesOfficialGOWAContract(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/send/file" || r.Header.Get("X-Device-Id") != "pesenhub-dev" {
+			t.Fatalf("request=%s device=%s", r.URL.Path, r.Header.Get("X-Device-Id"))
+		}
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			t.Fatalf("failed to parse multipart form: %v", err)
+		}
+		if r.FormValue("phone") != "628123456789@s.whatsapp.net" {
+			t.Errorf("phone=%s", r.FormValue("phone"))
+		}
+		if r.FormValue("caption") != "Struk Pesanan" {
+			t.Errorf("caption=%s", r.FormValue("caption"))
+		}
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			t.Fatalf("missing file: %v", err)
+		}
+		defer file.Close()
+		if header.Filename != "struk.pdf" {
+			t.Errorf("filename=%s", header.Filename)
+		}
+		_, _ = w.Write([]byte(`{"code":"SUCCESS","results":{"message_id":"FILE-123"}}`))
+	}))
+	defer server.Close()
+
+	id, err := New(server.URL, "user", "pass", "pesenhub-dev", time.Second).SendFile(
+		context.Background(),
+		"+628123456789",
+		"Struk Pesanan",
+		[]byte("%PDF-fake-bytes"),
+		"struk.pdf",
+	)
+	if err != nil || id != "FILE-123" {
+		t.Fatalf("id=%q err=%v", id, err)
+	}
+}

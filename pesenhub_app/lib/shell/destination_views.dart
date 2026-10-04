@@ -16,8 +16,11 @@ import '../queue/models/queue_order.dart';
 import '../queue/queue_view.dart';
 import '../data/remote/pesenhub_api_client.dart';
 import '../settings/controllers/whatsapp_settings_controller.dart';
+import '../settings/views/ai_evaluation_view.dart';
 import '../settings/views/app_policy_view.dart';
+import '../settings/views/contact_rules_view.dart';
 import '../settings/views/device_printer_view.dart';
+import '../settings/views/discount_management_view.dart';
 import '../settings/views/employee_management_view.dart';
 import '../settings/views/integration_services_view.dart';
 import '../settings/views/outlet_operational_view.dart';
@@ -31,6 +34,7 @@ class PosDestinationView extends StatelessWidget {
   final VoidCallback? onNavigateToQueue;
   final Future<QueueOrder> Function(CartOrderDraft draft)? submitOrder;
   final ConnectivityController? connectivityController;
+  final PesenHubApiClient? apiClient;
 
   const PosDestinationView({
     super.key,
@@ -39,6 +43,7 @@ class PosDestinationView extends StatelessWidget {
     this.onNavigateToQueue,
     this.submitOrder,
     this.connectivityController,
+    this.apiClient,
   });
 
   @override
@@ -49,6 +54,7 @@ class PosDestinationView extends StatelessWidget {
       onNavigateToQueue: onNavigateToQueue,
       submitOrder: submitOrder,
       connectivityController: connectivityController,
+      apiClient: apiClient,
     );
   }
 }
@@ -262,7 +268,8 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
         ? widget.userEmail!.trim()
         : 'admin@jenggirat.com';
     final rawRole = widget.userRole?.trim() ?? '';
-    final effectiveRole = (widget.isAdmin ||
+    final effectiveRole =
+        (widget.isAdmin ||
             rawRole.toUpperCase() == 'SUPERADMIN' ||
             rawRole.toUpperCase() == 'ADMIN')
         ? 'Admin'
@@ -675,7 +682,52 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
           ),
           const Divider(height: 1, indent: 64, color: Color(0xFFF4EEEA)),
 
-          // 4. Integrasi & Layanan (includes badge for test compatibility)
+          // 4. Kelola Diskon & Promo
+          _buildNavigationTile(
+            icon: Icons.local_offer_outlined,
+            iconBg: const Color(0xFFFCE4EC),
+            iconColor: const Color(0xFFC2185B),
+            title: 'Kelola Diskon & Promo',
+            badgeText: 'Diskon & Promo',
+            badgeBg: const Color(0xFFFCE4EC),
+            badgeColor: const Color(0xFFC2185B),
+            subtitle:
+                'Atur diskon menu, promo merchant (GoFood, GrabFood), & min belanja.',
+            onTap: () => _openDiscountManagement(context),
+          ),
+          const Divider(height: 1, indent: 64, color: Color(0xFFF4EEEA)),
+
+          // 5. Aturan Kontak & Filter CS
+          _buildNavigationTile(
+            icon: Icons.contact_phone_outlined,
+            iconBg: const Color(0xFFEDE7F6),
+            iconColor: const Color(0xFF5E35B1),
+            title: 'Aturan Kontak & Filter CS',
+            badgeText: 'Filter Chat & Auto-Reply',
+            badgeBg: const Color(0xFFEDE7F6),
+            badgeColor: const Color(0xFF5E35B1),
+            subtitle:
+                'Daftar kontak WhatsApp, tandai bukan pelanggan, dan batasi balasan AI.',
+            onTap: () => _openContactRules(context),
+          ),
+          const Divider(height: 1, indent: 64, color: Color(0xFFF4EEEA)),
+
+          // 6. Evaluasi & Training AI
+          _buildNavigationTile(
+            icon: Icons.psychology_outlined,
+            iconBg: const Color(0xFFE0F2F1),
+            iconColor: const Color(0xFF00796B),
+            title: 'Evaluasi & Training AI',
+            badgeText: 'Asisten Jenggirat AI',
+            badgeBg: const Color(0xFFE0F2F1),
+            badgeColor: const Color(0xFF00796B),
+            subtitle:
+                'Review akurasi balasan Asisten Jenggirat, berikan koreksi, dan ekspor dataset.',
+            onTap: () => _openAiEvaluation(context),
+          ),
+          const Divider(height: 1, indent: 64, color: Color(0xFFF4EEEA)),
+
+          // 7. Integrasi & Layanan (includes badge for test compatibility)
           _buildNavigationTile(
             icon: Icons.hub_outlined,
             iconBg: const Color(0xFFE8F5E9),
@@ -689,7 +741,7 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
           ),
           const Divider(height: 1, indent: 64, color: Color(0xFFF4EEEA)),
 
-          // 5. Informasi & Kebijakan
+          // 8. Informasi & Kebijakan
           _buildNavigationTile(
             icon: Icons.shield_outlined,
             iconBg: const Color(0xFFECEFF1),
@@ -873,6 +925,30 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const DevicePrinterView()));
+  }
+
+  void _openDiscountManagement(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DiscountManagementView(apiClient: widget.apiClient),
+      ),
+    );
+  }
+
+  void _openContactRules(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ContactRulesView(apiClient: widget.apiClient),
+      ),
+    );
+  }
+
+  void _openAiEvaluation(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AiEvaluationView(apiClient: widget.apiClient),
+      ),
+    );
   }
 
   void _openIntegrationServices(BuildContext context) {

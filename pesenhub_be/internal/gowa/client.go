@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"strings"
 	"sync"
@@ -47,6 +49,12 @@ var (
 
 type Sender interface {
 	SendMessage(context.Context, string, string) (string, error)
+}
+
+type MediaSender interface {
+	Sender
+	SendImage(ctx context.Context, toPhone, caption string, imageData []byte, filename string) (string, error)
+	SendFile(ctx context.Context, toPhone, caption string, fileData []byte, filename string) (string, error)
 }
 
 type DeviceInfo struct {
@@ -193,7 +201,7 @@ func (c *Client) SendMessage(ctx context.Context, toPhone, text string) (string,
 	responseBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 	switch {
 	case resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusUnprocessableEntity:
-		return "", fmt.Errorf("%w: status %d", ErrValidation, resp.StatusCode)
+		return "", fmt.Errorf("%w: status %d (body: %s)", ErrValidation, resp.StatusCode, strings.TrimSpace(string(responseBody)))
 	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
 		return "", ErrAuthentication
 	case resp.StatusCode == http.StatusNotFound || responseMentionsDeviceAbsent(responseBody):
@@ -212,6 +220,144 @@ func (c *Client) SendMessage(ctx context.Context, toPhone, text string) (string,
 	}
 	if json.Unmarshal(responseBody, &result) != nil || strings.TrimSpace(result.Results.MessageID) == "" {
 		return "", fmt.Errorf("%w: missing message id", ErrProvider)
+	}
+	return result.Results.MessageID, nil
+}
+
+// SendChatPresence sends a typing indicator ("start") or stops it ("stop") for a given WhatsApp recipient.
+func (c *Client) SendChatPresence(ctx context.Context, toPhone, action string) error {
+	phone, quarantined, reason := NormalizeSenderPhone(toPhone)
+	if quarantined {
+		return fmt.Errorf("%w: invalid phone %s: %s", ErrValidation, MaskPhone(toPhone), reason)
+	}
+	action = strings.ToLower(strings.TrimSpace(action))
+	if action != "start" && action != "stop" {
+		return fmt.Errorf("%w: invalid action %s, must be start or stop", ErrValidation, action)
+	}
+	cleanPhone := strings.TrimPrefix(phone, "+")
+	payload, _ := json.Marshal(map[string]string{
+		"phone":  cleanPhone,
+		"action": action,
+	})
+	resp, err := c.request(ctx, http.MethodPost, c.baseURL+"/send/chat-presence", bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
+// SendImage sends an image file with an optional caption to a WhatsApp number.
+func (c *Client) SendImage(ctx context.Context, toPhone, caption string, imageData []byte, filename string) (string, error) {
+	if len(imageData) == 0 {
+		return "", fmt.Errorf("%w: empty image data", ErrValidation)
+	}
+	if filename == "" {
+		filename = "image.jpg"
+	}
+	return c.sendMedia(ctx, "/send/image", toPhone, caption, imageData, filename, "image")
+}
+
+// SendFile sends a document or file with an optional caption to a WhatsApp number.
+func (c *Client) SendFile(ctx context.Context, toPhone, caption string, fileData []byte, filename string) (string, error) {
+	if len(fileData) == 0 {
+		return "", fmt.Errorf("%w: empty file data", ErrValidation)
+	}
+	if filename == "" {
+		filename = "document.pdf"
+	}
+	return c.sendMedia(ctx, "/send/file", toPhone, caption, fileData, filename, "file")
+}
+
+func (c *Client) sendMedia(ctx context.Context, endpoint, toPhone, caption string, fileData []byte, filename, formFieldName string) (string, error) {
+	phone, quarantined, reason := NormalizeSenderPhone(toPhone)
+	if quarantined {
+		return "", fmt.Errorf("%w: invalid phone %s: %s", ErrValidation, MaskPhone(toPhone), reason)
+	}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	targetJID := strings.TrimPrefix(phone, "+") + "@s.whatsapp.net"
+	if err := writer.WriteField("phone", targetJID); err != nil {
+		return "", fmt.Errorf("failed to write phone field: %w", err)
+	}
+
+	if caption != "" {
+		if err := writer.WriteField("caption", caption); err != nil {
+			return "", fmt.Errorf("failed to write caption field: %w", err)
+		}
+	}
+
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, formFieldName, filename))
+	contentType := "application/octet-stream"
+	lowerName := strings.ToLower(filename)
+	if strings.HasSuffix(lowerName, ".jpg") || strings.HasSuffix(lowerName, ".jpeg") {
+		contentType = "image/jpeg"
+	} else if strings.HasSuffix(lowerName, ".png") {
+		contentType = "image/png"
+	} else if strings.HasSuffix(lowerName, ".pdf") {
+		contentType = "application/pdf"
+	}
+	h.Set("Content-Type", contentType)
+
+	part, err := writer.CreatePart(h)
+	if err != nil {
+		return "", fmt.Errorf("failed to create form file: %w", err)
+	}
+	if _, err := part.Write(fileData); err != nil {
+		return "", fmt.Errorf("failed to write file data: %w", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		return "", fmt.Errorf("failed to close multipart writer: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+endpoint, body)
+	if err != nil {
+		return "", err
+	}
+	if c.username != "" || c.password != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
+	if devID := c.DeviceID(); devID != "" {
+		req.Header.Set("X-Device-Id", devID)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return "", ErrTimeout
+		}
+		return "", fmt.Errorf("%w: %v", ErrProvider, err)
+	}
+	defer resp.Body.Close()
+
+	responseBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	switch {
+	case resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusUnprocessableEntity:
+		return "", fmt.Errorf("%w: status %d", ErrValidation, resp.StatusCode)
+	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+		return "", ErrAuthentication
+	case resp.StatusCode == http.StatusNotFound || responseMentionsDeviceAbsent(responseBody):
+		return "", ErrDeviceAbsent
+	case responseMentionsDeviceNotReady(responseBody):
+		return "", ErrDeviceNotReady
+	case resp.StatusCode >= 500:
+		return "", fmt.Errorf("%w: status %d", ErrProvider, resp.StatusCode)
+	case resp.StatusCode < 200 || resp.StatusCode >= 300:
+		return "", fmt.Errorf("%w: unexpected status %d", ErrProvider, resp.StatusCode)
+	}
+
+	var result struct {
+		Results struct {
+			MessageID string `json:"message_id"`
+		} `json:"results"`
+	}
+	if json.Unmarshal(responseBody, &result) != nil || strings.TrimSpace(result.Results.MessageID) == "" {
+		return "sent", nil
 	}
 	return result.Results.MessageID, nil
 }

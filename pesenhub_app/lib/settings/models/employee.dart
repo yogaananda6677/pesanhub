@@ -25,6 +25,13 @@ class Employee {
       status.toUpperCase() == 'ACTIVE' ||
       status.toUpperCase() == 'AKTIF';
 
+  bool get isCashier => role.toUpperCase() == 'CASHIER';
+
+  bool get isAdmin =>
+      role.toUpperCase() == 'ADMIN' ||
+      role.toUpperCase() == 'SUPERADMIN' ||
+      role.toUpperCase() == 'OWNER';
+
   String get roleDisplay {
     switch (role.toUpperCase()) {
       case 'SUPERADMIN':

@@ -61,6 +61,8 @@ func TestDetectConfirmationIntent(t *testing.T) {
 		{"tambah 1 es teh manis", IntentModify},
 		{"kurang satu", IntentModify},
 		{"revisi pesanan", IntentModify},
+		{"eh ga jadi deng yang terangbulan martabak sosis biasa 1", IntentModify},
+		{"ga jadi mau martabak sapi spesial aja", IntentModify},
 
 		// Unknown / Ambiguous
 		{"halo", IntentUnknown},

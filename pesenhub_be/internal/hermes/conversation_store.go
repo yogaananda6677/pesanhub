@@ -197,6 +197,26 @@ func (s *PGConversationStore) Save(ctx context.Context, state *ConversationState
 		draftVersion = 1
 	}
 
+	var lastInboundID *string
+	if state.LastInboundMessageID != nil && strings.TrimSpace(*state.LastInboundMessageID) != "" {
+		id := strings.TrimSpace(*state.LastInboundMessageID)
+		var exists int
+		_ = s.db.QueryRow(ctx, "SELECT 1 FROM whatsapp_inbound_messages WHERE id = ?", id).Scan(&exists)
+		if exists == 1 {
+			lastInboundID = &id
+		}
+	}
+
+	var lastOrderID *string
+	if state.LastOrderID != nil && strings.TrimSpace(*state.LastOrderID) != "" {
+		id := strings.TrimSpace(*state.LastOrderID)
+		var exists int
+		_ = s.db.QueryRow(ctx, "SELECT 1 FROM orders WHERE id = ?", id).Scan(&exists)
+		if exists == 1 {
+			lastOrderID = &id
+		}
+	}
+
 	query := `
 		UPDATE agent_conversations
 		SET status = $3,
@@ -234,7 +254,7 @@ func (s *PGConversationStore) Save(ctx context.Context, state *ConversationState
 		pendingAmb,
 		state.ClarificationAttempts,
 		lastQ,
-		state.LastInboundMessageID,
+		lastInboundID,
 		state.CorrelationID,
 		state.IsPaused,
 		state.PausedBy,
@@ -251,7 +271,7 @@ func (s *PGConversationStore) Save(ctx context.Context, state *ConversationState
 		state.ToolFailureCount,
 		confToken,
 		draftVersion,
-		state.LastOrderID,
+		lastOrderID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to save conversation: %w", err)

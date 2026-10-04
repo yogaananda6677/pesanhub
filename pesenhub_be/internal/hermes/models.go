@@ -65,6 +65,7 @@ type ExtractionRequest struct {
 	InboundMessageID *string `json:"inbound_message_id,omitempty"`
 	MessageText      string  `json:"message_text"`
 	SenderPhone      string  `json:"sender_phone"`
+	CustomerName     string  `json:"customer_name,omitempty"`
 	CorrelationID    string  `json:"correlation_id"`
 	Session          string  `json:"session"`
 }
@@ -80,6 +81,7 @@ type RawExtractedItem struct {
 
 // RawExtractedOrder is the JSON response schema produced by the LLM.
 type RawExtractedOrder struct {
+	CustomerName    string             `json:"customer_name,omitempty"`
 	Items           []RawExtractedItem `json:"items"`
 	Notes           string             `json:"notes,omitempty"`
 	FulfillmentType string             `json:"fulfillment_type,omitempty"`
@@ -114,6 +116,7 @@ type ExtractedItem struct {
 // DraftCandidate is the verified candidate draft produced by the Hermes extraction pipeline.
 type DraftCandidate struct {
 	CustomerPhone     string          `json:"customer_phone"`
+	CustomerName      string          `json:"customer_name,omitempty"`
 	Items             []ExtractedItem `json:"items"`
 	SubtotalAmount    int64           `json:"subtotal_amount"`
 	TotalAmount       int64           `json:"total_amount"`
@@ -159,6 +162,7 @@ type ConversationState struct {
 	ID                    string          `json:"id"`
 	Session               string          `json:"session"`
 	CustomerPhone         string          `json:"customer_phone"`
+	CustomerName          string          `json:"customer_name,omitempty"`
 	Status                string          `json:"status"`
 	CurrentDraft          *DraftCandidate `json:"current_draft,omitempty"`
 	PendingAmbiguity      string          `json:"pending_ambiguity,omitempty"`
@@ -212,8 +216,18 @@ type TurnRequest struct {
 	InboundMessageID *string `json:"inbound_message_id,omitempty"`
 	Session          string  `json:"session"`
 	SenderPhone      string  `json:"sender_phone"`
+	CustomerName     string  `json:"customer_name,omitempty"`
 	MessageText      string  `json:"message_text"`
 	CorrelationID    string  `json:"correlation_id"`
+}
+
+// MediaAttachment represents an image or document attachment to be sent with a turn response.
+type MediaAttachment struct {
+	Type     string `json:"type"` // "image" or "document"
+	Filename string `json:"filename"`
+	Caption  string `json:"caption,omitempty"`
+	Data     []byte `json:"data,omitempty"`
+	FilePath string `json:"file_path,omitempty"`
 }
 
 // TurnResponse represents the agent's turn output including reply text and updated conversation state.
@@ -226,6 +240,7 @@ type TurnResponse struct {
 	AutomationPaused bool                  `json:"automation_paused"`
 	Run              *AgentRun             `json:"run,omitempty"`
 	Order            *WhatsAppOrderSummary `json:"order,omitempty"`
+	MediaAttachments []MediaAttachment     `json:"media_attachments,omitempty"`
 }
 
 // ConversationAuditEvent records an audit trail entry for handoff and pause lifecycle events.

@@ -256,3 +256,185 @@ func TestCatalogResolver_MenuNotFound(t *testing.T) {
 		t.Errorf("expected 'menu_not_found:Pizza Super Supreme', got %v", result.AmbiguityReasons)
 	}
 }
+
+func TestCatalogResolver_JenggiratMenus(t *testing.T) {
+	jenggiratCatalog := []catalog.Category{
+		{
+			ID:     "cat-sj",
+			Name:   "Sosis / Jamur",
+			Active: true,
+			Menus: []catalog.Menu{
+				{ID: "m-sj-biasa", SKU: "MT-SJ-BIASA", Name: "Biasa", PriceAmount: 20000, Available: true},
+				{ID: "m-sj-spesial", SKU: "MT-SJ-SPESIAL", Name: "Spesial", PriceAmount: 30000, Available: true},
+			},
+		},
+		{
+			ID:     "cat-sapi",
+			Name:   "Daging Sapi",
+			Active: true,
+			Menus: []catalog.Menu{
+				{ID: "m-sapi-biasa", SKU: "MT-SAPI-BIASA", Name: "Biasa", PriceAmount: 30000, Available: true},
+				{ID: "m-sapi-spesial", SKU: "MT-SAPI-SPESIAL", Name: "Spesial", PriceAmount: 40000, Available: true},
+			},
+		},
+		{
+			ID:     "cat-tb",
+			Name:   "Terang Bulan Manis",
+			Active: true,
+			Menus: []catalog.Menu{
+				{
+					ID:          "m-tb-1-biasa",
+					SKU:         "TB-1TOPING-BIASA",
+					Name:        "1 Toping - Biasa",
+					PriceAmount: 18000,
+					Available:   true,
+					Groups: []catalog.Group{
+						{
+							ID:        "grp-base",
+							Name:      "Pilihan Base Cake",
+							MinSelect: 1,
+							MaxSelect: 1,
+							Active:    true,
+							Options: []catalog.Option{
+								{ID: "opt-orig", Code: "original", Name: "Original", PriceDeltaAmount: 0, Available: true},
+								{ID: "opt-pandan", Code: "pandan", Name: "Pandan", PriceDeltaAmount: 0, Available: true},
+							},
+						},
+						{
+							ID:        "grp-top",
+							Name:      "Pilihan Toping",
+							MinSelect: 1,
+							MaxSelect: 8,
+							Active:    true,
+							Options: []catalog.Option{
+								{ID: "opt-coklat", Code: "coklat", Name: "Coklat", PriceDeltaAmount: 0, Available: true},
+								{ID: "opt-keju", Code: "keju", Name: "Keju", PriceDeltaAmount: 0, Available: true},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	resolver := NewCatalogResolver(&mockCatalogProvider{categories: jenggiratCatalog})
+
+	// 1. Test "martabak sosis biasa 1"
+	raw1 := &RawExtractedOrder{
+		Items: []RawExtractedItem{
+			{MenuName: "martabak sosis biasa", Quantity: 1, Confidence: 0.95},
+		},
+	}
+	res1, err := resolver.ResolveOrder(context.Background(), raw1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res1.IsAmbiguous {
+		t.Fatalf("expected unambiguous for martabak sosis biasa, got: %v", res1.AmbiguityReasons)
+	}
+	if len(res1.Items) != 1 || res1.Items[0].SKU != "MT-SJ-BIASA" {
+		t.Errorf("expected SKU MT-SJ-BIASA, got %+v", res1.Items)
+	}
+
+	// 2. Test "terang bulan 1 topping coklat" -> should auto-default Base Cake to Original!
+	raw2 := &RawExtractedOrder{
+		Items: []RawExtractedItem{
+			{MenuName: "terang bulan 1 topping", Modifiers: []string{"coklat"}, Quantity: 1, Confidence: 0.95},
+		},
+	}
+	res2, err := resolver.ResolveOrder(context.Background(), raw2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res2.IsAmbiguous {
+		t.Fatalf("expected unambiguous with auto-defaulted Original base cake, got: %v", res2.AmbiguityReasons)
+	}
+	if len(res2.Items) != 1 || res2.Items[0].SKU != "TB-1TOPING-BIASA" {
+		t.Errorf("expected SKU TB-1TOPING-BIASA, got %+v", res2.Items)
+	}
+	hasOriginal := false
+	hasCoklat := false
+	for _, mod := range res2.Items[0].SelectedModifiers {
+		if mod.OptionName == "Original" {
+			hasOriginal = true
+		}
+		if mod.OptionName == "Coklat" {
+			hasCoklat = true
+		}
+	}
+	if !hasOriginal || !hasCoklat {
+		t.Errorf("expected both Original and Coklat selected, got: %+v", res2.Items[0].SelectedModifiers)
+	}
+
+	// 3. Test "martabak telur daging sapi biasa 1" with Modifiers: ["Biasa"] (redundant modifier)
+	raw3 := &RawExtractedOrder{
+		Items: []RawExtractedItem{
+			{MenuName: "martabak telur daging sapi", Modifiers: []string{"Biasa"}, Quantity: 1, Confidence: 0.95},
+		},
+	}
+	res3, err := resolver.ResolveOrder(context.Background(), raw3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res3.IsAmbiguous {
+		t.Fatalf("expected unambiguous for martabak telur daging sapi with redundant modifier 'Biasa', got: %v", res3.AmbiguityReasons)
+	}
+	if len(res3.Items) != 1 || res3.Items[0].SKU != "MT-SAPI-BIASA" {
+		t.Errorf("expected SKU MT-SAPI-BIASA, got %+v", res3.Items)
+	}
+
+	// 4. Test "terangbulan 2 topping biasa rasa coklat dan keju" with Modifiers: ["2 Toping - Biasa", "coklat", "keju"]
+	jenggiratCatalogWith2Toping := append(jenggiratCatalog, catalog.Category{
+		ID:     "cat-tb2",
+		Name:   "Terang Bulan Manis",
+		Active: true,
+		Menus: []catalog.Menu{
+			{
+				ID:          "m-tb-2-biasa",
+				SKU:         "TB-2TOPING-BIASA",
+				Name:        "2 Toping - Biasa",
+				PriceAmount: 23000,
+				Available:   true,
+				Groups: []catalog.Group{
+					{
+						ID:        "grp-base",
+						Name:      "Pilihan Base Cake",
+						MinSelect: 1,
+						MaxSelect: 1,
+						Active:    true,
+						Options: []catalog.Option{
+							{ID: "opt-orig", Code: "original", Name: "Original", PriceDeltaAmount: 0, Available: true},
+						},
+					},
+					{
+						ID:        "grp-top",
+						Name:      "Pilihan Toping",
+						MinSelect: 1,
+						MaxSelect: 8,
+						Active:    true,
+						Options: []catalog.Option{
+							{ID: "opt-coklat", Code: "coklat", Name: "Coklat", PriceDeltaAmount: 0, Available: true},
+							{ID: "opt-keju", Code: "keju", Name: "Keju", PriceDeltaAmount: 0, Available: true},
+						},
+					},
+				},
+			},
+		},
+	})
+	resolver2 := NewCatalogResolver(&mockCatalogProvider{categories: jenggiratCatalogWith2Toping})
+	raw4 := &RawExtractedOrder{
+		Items: []RawExtractedItem{
+			{MenuName: "terangbulan 2 topping biasa", Modifiers: []string{"2 Toping - Biasa", "coklat", "keju"}, Quantity: 1, Confidence: 0.95},
+		},
+	}
+	res4, err := resolver2.ResolveOrder(context.Background(), raw4)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res4.IsAmbiguous {
+		t.Fatalf("expected unambiguous for 2 toping terangbulan, got: %v", res4.AmbiguityReasons)
+	}
+	if len(res4.Items) != 1 || res4.Items[0].SKU != "TB-2TOPING-BIASA" {
+		t.Errorf("expected SKU TB-2TOPING-BIASA, got %+v", res4.Items)
+	}
+}

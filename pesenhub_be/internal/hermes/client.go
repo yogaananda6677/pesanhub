@@ -87,12 +87,22 @@ func (m *MockLLMClient) ExtractOrder(ctx context.Context, systemPrompt, userProm
 // CleanJSONOutput removes markdown codeblock delimiters if present.
 func CleanJSONOutput(raw string) string {
 	trimmed := strings.TrimSpace(raw)
-	if strings.HasPrefix(trimmed, "```json") {
-		trimmed = strings.TrimPrefix(trimmed, "```json")
-		trimmed = strings.TrimSuffix(trimmed, "```")
-	} else if strings.HasPrefix(trimmed, "```") {
-		trimmed = strings.TrimPrefix(trimmed, "```")
-		trimmed = strings.TrimSuffix(trimmed, "```")
+	if idx := strings.Index(trimmed, "```json"); idx != -1 {
+		trimmed = trimmed[idx+len("```json"):]
+		if endIdx := strings.LastIndex(trimmed, "```"); endIdx != -1 {
+			trimmed = trimmed[:endIdx]
+		}
+	} else if idx := strings.Index(trimmed, "```"); idx != -1 {
+		trimmed = trimmed[idx+len("```"):]
+		if endIdx := strings.LastIndex(trimmed, "```"); endIdx != -1 {
+			trimmed = trimmed[:endIdx]
+		}
+	} else {
+		start := strings.Index(trimmed, "{")
+		end := strings.LastIndex(trimmed, "}")
+		if start != -1 && end != -1 && end > start {
+			trimmed = trimmed[start : end+1]
+		}
 	}
 	return strings.TrimSpace(trimmed)
 }
@@ -134,6 +144,7 @@ type chatCompletionRequest struct {
 	Model       string        `json:"model"`
 	Messages    []chatMessage `json:"messages"`
 	Temperature float64       `json:"temperature"`
+	Stream      bool          `json:"stream"`
 }
 
 type chatCompletionChoice struct {
@@ -156,6 +167,7 @@ func (c *AgentClient) ExtractOrder(ctx context.Context, systemPrompt, userPrompt
 			{Role: "user", Content: userPrompt},
 		},
 		Temperature: 0.1,
+		Stream:      false,
 	}
 
 	payloadBytes, err := json.Marshal(reqBody)

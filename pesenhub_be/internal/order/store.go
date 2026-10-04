@@ -15,6 +15,7 @@ import (
 	"pesenhub/backend/internal/branch"
 	"pesenhub/backend/internal/catalog"
 	"pesenhub/backend/internal/customer"
+	"pesenhub/backend/internal/discount"
 	"pesenhub/backend/internal/domain"
 	"pesenhub/backend/internal/httpapi"
 )
@@ -168,6 +169,57 @@ func nextDailyOrderNumber(ctx context.Context, tx *dbx.Tx, branchID, branchCode 
 	return fmt.Sprintf("%s-%s-%04d", branchCode, dateCompact, seq), nil
 }
 
+func loadDiscountForOrder(ctx context.Context, tx *dbx.Tx, discountID string) (*discount.Discount, error) {
+	q := `SELECT id, name, code, scope, channel, type, value, max_discount_amount, min_order_amount,
+	             branch_id, is_active, start_time, end_time, version, created_at, updated_at
+	      FROM discounts
+	      WHERE id = $1 FOR SHARE`
+
+	var d discount.Discount
+	var code, branchID sql.NullString
+	var startTime, endTime sql.NullTime
+
+	err := tx.QueryRow(ctx, q, discountID).Scan(
+		&d.ID, &d.Name, &code, &d.Scope, &d.Channel, &d.Type, &d.Value,
+		&d.MaxDiscountAmount, &d.MinOrderAmount, &branchID,
+		&d.IsActive, &startTime, &endTime, &d.Version, &d.CreatedAt, &d.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, discount.ErrDiscountNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if code.Valid {
+		d.Code = &code.String
+	}
+	if branchID.Valid {
+		d.BranchID = &branchID.String
+	}
+	if startTime.Valid {
+		d.StartTime = &startTime.Time
+	}
+	if endTime.Valid {
+		d.EndTime = &endTime.Time
+	}
+
+	rows, err := tx.Query(ctx, `SELECT menu_id FROM discount_menus WHERE discount_id = $1`, discountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	d.MenuIDs = []string{}
+	for rows.Next() {
+		var mID string
+		if err := rows.Scan(&mID); err != nil {
+			return nil, err
+		}
+		d.MenuIDs = append(d.MenuIDs, mID)
+	}
+	return &d, rows.Err()
+}
+
 func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequest string) (Order, bool, error) {
 	tx, err := s.db.BeginTx(ctx, dbx.TxOptions{})
 	if err != nil {
@@ -214,12 +266,52 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 		total += line
 		items = append(items, Item{ID: customer.NewID(), MenuID: menu.ID, Name: menu.Name, SKU: menu.SKU, UnitPriceAmount: unit, Quantity: requested.Quantity, LineTotalAmount: line})
 	}
+
+	bID, bCode, bName, _ := resolveBranchForOrder(ctx, tx, in.BranchID)
+
+	subtotal := total
+	var discountAmount int64
+	var discountIDRef any
+	var discountNameRef any
+	var discountIDStr, discountNameStr string
+
+	if strings.TrimSpace(in.DiscountID) != "" {
+		disc, err := loadDiscountForOrder(ctx, tx, strings.TrimSpace(in.DiscountID))
+		if err != nil {
+			return Order{}, false, fmt.Errorf("%w: %s", ErrInvalidInput, err.Error())
+		}
+		calcItems := make([]discount.ItemForDiscount, len(items))
+		for i, it := range items {
+			calcItems[i] = discount.ItemForDiscount{
+				MenuID:    it.MenuID,
+				UnitPrice: it.UnitPriceAmount,
+				Quantity:  it.Quantity,
+				LineTotal: it.LineTotalAmount,
+			}
+		}
+		calcRes := discount.Calculate(disc, discount.CalculationInput{
+			Channel:        orderSource,
+			BranchID:       bID,
+			SubtotalAmount: subtotal,
+			Items:          calcItems,
+			DiscountID:     disc.ID,
+		})
+		if !calcRes.Eligible {
+			return Order{}, false, fmt.Errorf("%w: %s", ErrInvalidInput, calcRes.IneligibleReason)
+		}
+		discountAmount = calcRes.DiscountAmount
+		discountIDRef = disc.ID
+		discountNameRef = disc.Name
+		discountIDStr = disc.ID
+		discountNameStr = disc.Name
+		total = calcRes.FinalTotalAmount
+	}
+
 	parts := strings.SplitN(actorRequest, "|", 2)
 	actorID, requestID := parts[0], "unknown"
 	if len(parts) == 2 && parts[1] != "" {
 		requestID = parts[1]
 	}
-	bID, bCode, bName, _ := resolveBranchForOrder(ctx, tx, in.BranchID)
 	orderNum, err := nextDailyOrderNumber(ctx, tx, bID, bCode)
 	if err != nil {
 		return Order{}, false, err
@@ -229,23 +321,27 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 		orderID = in.ClientOrderID
 	}
 	o := Order{
-		ID:            orderID,
-		OrderNumber:   orderNum,
-		ClientOrderID: in.ClientOrderID,
-		BranchID:      bID,
-		BranchCode:    bCode,
-		BranchName:    bName,
-		Source:        orderSource,
-		Status:        "PENDING",
-		TotalAmount:   total,
-		Version:       1,
-		Items:         items,
+		ID:             orderID,
+		OrderNumber:    orderNum,
+		ClientOrderID:  in.ClientOrderID,
+		BranchID:       bID,
+		BranchCode:     bCode,
+		BranchName:     bName,
+		Source:         orderSource,
+		Status:         "PENDING",
+		SubtotalAmount: subtotal,
+		DiscountAmount: discountAmount,
+		DiscountID:     discountIDStr,
+		DiscountName:   discountNameStr,
+		TotalAmount:    total,
+		Version:        1,
+		Items:          items,
 	}
 	var customerRef any
 	if in.CustomerID != "" {
 		customerRef = in.CustomerID
 	}
-	err = tx.QueryRow(ctx, `INSERT INTO orders (id,order_number,customer_id,branch_id,source,status,customer_name_snapshot,customer_phone_snapshot,notes,subtotal_amount,total_amount,idempotency_key,client_order_id,request_hash) VALUES ($1,$2,$3,$4::uuid,$5,'PENDING',$6,NULLIF($7,''),NULLIF($8,''),$9,$9,$10,$11,$12) RETURNING created_at`, o.ID, o.OrderNumber, customerRef, bID, orderSource, in.CustomerName, in.CustomerPhone, in.Notes, total, key, in.ClientOrderID, hash).Scan(&o.CreatedAt)
+	err = tx.QueryRow(ctx, `INSERT INTO orders (id,order_number,customer_id,branch_id,source,status,customer_name_snapshot,customer_phone_snapshot,notes,subtotal_amount,discount_amount,discount_id,discount_name_snapshot,total_amount,idempotency_key,client_order_id,request_hash) VALUES ($1,$2,$3,$4::uuid,$5,'PENDING',$6,NULLIF($7,''),NULLIF($8,''),$9,$10,$11,$12,$13,$14,$15,$16) RETURNING created_at`, o.ID, o.OrderNumber, customerRef, bID, orderSource, in.CustomerName, in.CustomerPhone, in.Notes, subtotal, discountAmount, discountIDRef, discountNameRef, total, key, in.ClientOrderID, hash).Scan(&o.CreatedAt)
 	if err != nil {
 		var dbErr *mysql.MySQLError
 		if errors.As(err, &dbErr) && dbErr.Number == 1062 {
@@ -307,7 +403,7 @@ func (s *Store) Create(ctx context.Context, in CreateInput, key, hash, actorRequ
 func loadExisting(ctx context.Context, tx *dbx.Tx, source, key, hash string) (Order, bool, error) {
 	var o Order
 	var stored string
-	err := tx.QueryRow(ctx, `SELECT o.id::text,o.order_number,COALESCE(o.client_order_id::text, ''),o.branch_id::text,COALESCE(b.code, ''),COALESCE(b.name, ''),o.source,o.status,o.total_amount,o.version,o.created_at,o.request_hash FROM orders o LEFT JOIN branches b ON b.id = o.branch_id WHERE o.source=$1 AND o.idempotency_key=$2`, source, key).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.BranchID, &o.BranchCode, &o.BranchName, &o.Source, &o.Status, &o.TotalAmount, &o.Version, &o.CreatedAt, &stored)
+	err := tx.QueryRow(ctx, `SELECT o.id::text,o.order_number,COALESCE(o.client_order_id::text, ''),o.branch_id::text,COALESCE(b.code, ''),COALESCE(b.name, ''),o.source,o.status,o.subtotal_amount,o.discount_amount,COALESCE(o.discount_id::text, ''),COALESCE(o.discount_name_snapshot, ''),o.total_amount,o.version,o.created_at,o.request_hash FROM orders o LEFT JOIN branches b ON b.id = o.branch_id WHERE o.source=$1 AND o.idempotency_key=$2`, source, key).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.BranchID, &o.BranchCode, &o.BranchName, &o.Source, &o.Status, &o.SubtotalAmount, &o.DiscountAmount, &o.DiscountID, &o.DiscountName, &o.TotalAmount, &o.Version, &o.CreatedAt, &stored)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Order{}, false, nil
 	}
@@ -475,7 +571,8 @@ func (s *Store) List(ctx context.Context, filter OrderFilter) ([]OrderDetail, st
 	query := fmt.Sprintf(`SELECT o.id::text, o.order_number, COALESCE(o.client_order_id::text, ''), COALESCE(o.customer_id::text, ''),
 		o.branch_id::text, COALESCE(b.code, ''), COALESCE(b.name, ''),
 		o.source, o.status, o.customer_name_snapshot, o.customer_phone_snapshot,
-		COALESCE(o.notes, ''), o.total_amount, o.version, o.created_at, o.updated_at
+		COALESCE(o.notes, ''), o.subtotal_amount, o.discount_amount, COALESCE(o.discount_id::text, ''), COALESCE(o.discount_name_snapshot, ''),
+		o.total_amount, o.version, o.created_at, o.updated_at
 		FROM orders o
 		LEFT JOIN branches b ON b.id = o.branch_id
 		%s %s %s`, whereClause, orderClause, limitClause)
@@ -490,7 +587,7 @@ func (s *Store) List(ctx context.Context, filter OrderFilter) ([]OrderDetail, st
 	for rows.Next() {
 		var o OrderDetail
 		var phone *string
-		if err = rows.Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.BranchID, &o.BranchCode, &o.BranchName, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt); err != nil {
+		if err = rows.Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.BranchID, &o.BranchCode, &o.BranchName, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.SubtotalAmount, &o.DiscountAmount, &o.DiscountID, &o.DiscountName, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt); err != nil {
 			return nil, "", err
 		}
 		o.CustomerPhone = phone
@@ -519,11 +616,12 @@ func (s *Store) GetByID(ctx context.Context, orderID string) (OrderDetail, error
 	err := s.db.QueryRow(ctx, `SELECT o.id::text, o.order_number, COALESCE(o.client_order_id::text, ''), COALESCE(o.customer_id::text, ''),
 		o.branch_id::text, COALESCE(b.code, ''), COALESCE(b.name, ''),
 		o.source, o.status, o.customer_name_snapshot, o.customer_phone_snapshot,
-		COALESCE(o.notes, ''), o.total_amount, o.version, o.created_at, o.updated_at,
+		COALESCE(o.notes, ''), o.subtotal_amount, o.discount_amount, COALESCE(o.discount_id::text, ''), COALESCE(o.discount_name_snapshot, ''),
+		o.total_amount, o.version, o.created_at, o.updated_at,
 		COALESCE(o.public_tracking_token, '')
 		FROM orders o
 		LEFT JOIN branches b ON b.id = o.branch_id
-		WHERE o.id = $1 OR o.client_order_id = $1`, orderID).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.BranchID, &o.BranchCode, &o.BranchName, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt, &o.PublicTrackingToken)
+		WHERE o.id = $1 OR o.client_order_id = $1`, orderID).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.BranchID, &o.BranchCode, &o.BranchName, &o.Source, &o.Status, &o.CustomerName, &phone, &o.Notes, &o.SubtotalAmount, &o.DiscountAmount, &o.DiscountID, &o.DiscountName, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt, &o.PublicTrackingToken)
 	if errors.Is(err, sql.ErrNoRows) {
 		return OrderDetail{}, ErrNotFound
 	}
@@ -558,6 +656,43 @@ func (s *Store) GetByID(ctx context.Context, orderID string) (OrderDetail, error
 		return OrderDetail{}, err
 	}
 	return o, nil
+}
+
+func (s *Store) GetLatestByPhone(ctx context.Context, phone string) (OrderDetail, error) {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return OrderDetail{}, ErrNotFound
+	}
+
+	normPhone, err := NormalizePhone(phone)
+	if err != nil {
+		normPhone = phone
+	}
+
+	var o OrderDetail
+	var phoneSnapshot *string
+	err = s.db.QueryRow(ctx, `SELECT o.id::text, o.order_number, COALESCE(o.client_order_id::text, ''), COALESCE(o.customer_id::text, ''),
+		o.branch_id::text, COALESCE(b.code, ''), COALESCE(b.name, ''),
+		o.source, o.status, o.customer_name_snapshot, o.customer_phone_snapshot,
+		COALESCE(o.notes, ''), o.subtotal_amount, o.discount_amount, COALESCE(o.discount_id::text, ''), COALESCE(o.discount_name_snapshot, ''),
+		o.total_amount, o.version, o.created_at, o.updated_at,
+		COALESCE(o.public_tracking_token, '')
+		FROM orders o
+		LEFT JOIN branches b ON b.id = o.branch_id
+		WHERE o.customer_phone_snapshot = $1 OR o.customer_phone_snapshot = $2
+		ORDER BY o.created_at DESC LIMIT 1`, normPhone, phone).Scan(&o.ID, &o.OrderNumber, &o.ClientOrderID, &o.CustomerID, &o.BranchID, &o.BranchCode, &o.BranchName, &o.Source, &o.Status, &o.CustomerName, &phoneSnapshot, &o.Notes, &o.SubtotalAmount, &o.DiscountAmount, &o.DiscountID, &o.DiscountName, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt, &o.PublicTrackingToken)
+	if errors.Is(err, sql.ErrNoRows) {
+		return OrderDetail{}, ErrNotFound
+	}
+	if err != nil {
+		return OrderDetail{}, err
+	}
+	o.CustomerPhone = phoneSnapshot
+	orders := []OrderDetail{o}
+	if err = s.populateItems(ctx, orders); err != nil {
+		return OrderDetail{}, err
+	}
+	return orders[0], nil
 }
 
 func (s *Store) populateItems(ctx context.Context, orders []OrderDetail) error {
@@ -644,11 +779,15 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 
 	var existing PublicOrderResponse
 	var storedHash string
-	err = tx.QueryRow(ctx, `SELECT order_number, COALESCE(public_tracking_token, ''), status, total_amount, created_at, request_hash
+	var discName sql.NullString
+	err = tx.QueryRow(ctx, `SELECT order_number, COALESCE(public_tracking_token, ''), status, subtotal_amount, discount_amount, discount_name_snapshot, total_amount, created_at, request_hash
 		FROM orders
 		WHERE source = 'CUSTOMER_WEB' AND idempotency_key = $1`, key).Scan(
-		&existing.OrderNumber, &existing.PublicTrackingToken, &existing.Status, &existing.TotalAmount, &existing.CreatedAt, &storedHash,
+		&existing.OrderNumber, &existing.PublicTrackingToken, &existing.Status, &existing.SubtotalAmount, &existing.DiscountAmount, &discName, &existing.TotalAmount, &existing.CreatedAt, &storedHash,
 	)
+	if discName.Valid {
+		existing.DiscountName = discName.String
+	}
 	if err == nil {
 		if storedHash != hash {
 			return PublicOrderResponse{}, false, ErrIdempotencyConflict
@@ -700,6 +839,44 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 	}
 
 	bID, bCode, _, _ := resolveBranchForOrder(ctx, tx, in.BranchID)
+
+	subtotal := total
+	var discountAmount int64
+	var discountIDRef any
+	var discountNameRef any
+	var discountNameStr string
+
+	if strings.TrimSpace(in.DiscountID) != "" {
+		disc, err := loadDiscountForOrder(ctx, tx, strings.TrimSpace(in.DiscountID))
+		if err != nil {
+			return PublicOrderResponse{}, false, fmt.Errorf("%w: %s", ErrInvalidInput, err.Error())
+		}
+		calcItems := make([]discount.ItemForDiscount, len(items))
+		for i, it := range items {
+			calcItems[i] = discount.ItemForDiscount{
+				MenuID:    it.MenuID,
+				UnitPrice: it.UnitPriceAmount,
+				Quantity:  it.Quantity,
+				LineTotal: it.LineTotalAmount,
+			}
+		}
+		calcRes := discount.Calculate(disc, discount.CalculationInput{
+			Channel:        "CUSTOMER_WEB",
+			BranchID:       bID,
+			SubtotalAmount: subtotal,
+			Items:          calcItems,
+			DiscountID:     disc.ID,
+		})
+		if !calcRes.Eligible {
+			return PublicOrderResponse{}, false, fmt.Errorf("%w: %s", ErrInvalidInput, calcRes.IneligibleReason)
+		}
+		discountAmount = calcRes.DiscountAmount
+		discountIDRef = disc.ID
+		discountNameRef = disc.Name
+		discountNameStr = disc.Name
+		total = calcRes.FinalTotalAmount
+	}
+
 	orderID := customer.NewID()
 	orderNumber, err := nextDailyOrderNumber(ctx, tx, bID, bCode)
 	if err != nil {
@@ -711,12 +888,15 @@ func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, h
 		OrderNumber:         orderNumber,
 		PublicTrackingToken: trackingToken,
 		Status:              "PENDING",
+		SubtotalAmount:      subtotal,
+		DiscountAmount:      discountAmount,
+		DiscountName:        discountNameStr,
 		TotalAmount:         total,
 	}
 
-	err = tx.QueryRow(ctx, `INSERT INTO orders (id, order_number, customer_id, branch_id, source, fulfillment, status, customer_name_snapshot, customer_phone_snapshot, notes, subtotal_amount, total_amount, idempotency_key, version, request_hash, public_tracking_token)
-		VALUES ($1, $2, $3, $4::uuid, 'CUSTOMER_WEB', 'PICKUP', 'PENDING', $5, $6, NULLIF($7, ''), $8, $8, $9, 1, $10, $11)
-		RETURNING created_at`, orderID, orderNumber, customerID, bID, in.CustomerName, in.CustomerPhone, in.Notes, total, key, hash, trackingToken).Scan(&res.CreatedAt)
+	err = tx.QueryRow(ctx, `INSERT INTO orders (id, order_number, customer_id, branch_id, source, fulfillment, status, customer_name_snapshot, customer_phone_snapshot, notes, subtotal_amount, discount_amount, discount_id, discount_name_snapshot, total_amount, idempotency_key, version, request_hash, public_tracking_token)
+		VALUES ($1, $2, $3, $4::uuid, 'CUSTOMER_WEB', 'PICKUP', 'PENDING', $5, $6, NULLIF($7, ''), $8, $9, $10, $11, $12, $13, 1, $14, $15)
+		RETURNING created_at`, orderID, orderNumber, customerID, bID, in.CustomerName, in.CustomerPhone, in.Notes, subtotal, discountAmount, discountIDRef, discountNameRef, total, key, hash, trackingToken).Scan(&res.CreatedAt)
 	if err != nil {
 		var dbErr *mysql.MySQLError
 		if errors.As(err, &dbErr) && dbErr.Number == 1062 {
@@ -797,11 +977,15 @@ func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput,
 
 	var existing WhatsAppOrderResponse
 	var storedHash string
-	err = tx.QueryRow(ctx, `SELECT id::text, order_number, COALESCE(public_tracking_token, ''), status, total_amount, created_at, request_hash
+	var discName sql.NullString
+	err = tx.QueryRow(ctx, `SELECT id::text, order_number, COALESCE(public_tracking_token, ''), status, subtotal_amount, discount_amount, discount_name_snapshot, total_amount, created_at, request_hash
 		FROM orders
 		WHERE source = 'WHATSAPP' AND idempotency_key = $1`, key).Scan(
-		&existing.ID, &existing.OrderNumber, &existing.PublicTrackingToken, &existing.Status, &existing.TotalAmount, &existing.CreatedAt, &storedHash,
+		&existing.ID, &existing.OrderNumber, &existing.PublicTrackingToken, &existing.Status, &existing.SubtotalAmount, &existing.DiscountAmount, &discName, &existing.TotalAmount, &existing.CreatedAt, &storedHash,
 	)
+	if discName.Valid {
+		existing.DiscountName = discName.String
+	}
 	if err == nil {
 		if storedHash != hash {
 			return WhatsAppOrderResponse{}, false, ErrIdempotencyConflict
@@ -858,6 +1042,44 @@ func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput,
 	}
 
 	bID, bCode, _, _ := resolveBranchForOrder(ctx, tx, in.BranchID)
+
+	subtotal := total
+	var discountAmount int64
+	var discountIDRef any
+	var discountNameRef any
+	var discountNameStr string
+
+	if strings.TrimSpace(in.DiscountID) != "" {
+		disc, err := loadDiscountForOrder(ctx, tx, strings.TrimSpace(in.DiscountID))
+		if err != nil {
+			return WhatsAppOrderResponse{}, false, fmt.Errorf("%w: %s", ErrInvalidInput, err.Error())
+		}
+		calcItems := make([]discount.ItemForDiscount, len(items))
+		for i, it := range items {
+			calcItems[i] = discount.ItemForDiscount{
+				MenuID:    it.MenuID,
+				UnitPrice: it.UnitPriceAmount,
+				Quantity:  it.Quantity,
+				LineTotal: it.LineTotalAmount,
+			}
+		}
+		calcRes := discount.Calculate(disc, discount.CalculationInput{
+			Channel:        "WHATSAPP",
+			BranchID:       bID,
+			SubtotalAmount: subtotal,
+			Items:          calcItems,
+			DiscountID:     disc.ID,
+		})
+		if !calcRes.Eligible {
+			return WhatsAppOrderResponse{}, false, fmt.Errorf("%w: %s", ErrInvalidInput, calcRes.IneligibleReason)
+		}
+		discountAmount = calcRes.DiscountAmount
+		discountIDRef = disc.ID
+		discountNameRef = disc.Name
+		discountNameStr = disc.Name
+		total = calcRes.FinalTotalAmount
+	}
+
 	orderID := customer.NewID()
 	orderNumber, err := nextDailyOrderNumber(ctx, tx, bID, bCode)
 	if err != nil {
@@ -870,12 +1092,15 @@ func (s *Store) CreateWhatsApp(ctx context.Context, in WhatsAppOrderCreateInput,
 		OrderNumber:         orderNumber,
 		PublicTrackingToken: trackingToken,
 		Status:              "PENDING",
+		SubtotalAmount:      subtotal,
+		DiscountAmount:      discountAmount,
+		DiscountName:        discountNameStr,
 		TotalAmount:         total,
 	}
 
-	err = tx.QueryRow(ctx, `INSERT INTO orders (id, order_number, customer_id, branch_id, source, fulfillment, status, customer_name_snapshot, customer_phone_snapshot, notes, subtotal_amount, total_amount, idempotency_key, version, request_hash, public_tracking_token)
-		VALUES ($1, $2, $3, $4::uuid, 'WHATSAPP', 'PICKUP', 'PENDING', $5, $6, NULLIF($7, ''), $8, $8, $9, 1, $10, $11)
-		RETURNING created_at`, orderID, orderNumber, customerID, bID, custName, in.CustomerPhone, in.Notes, total, key, hash, trackingToken).Scan(&res.CreatedAt)
+	err = tx.QueryRow(ctx, `INSERT INTO orders (id, order_number, customer_id, branch_id, source, fulfillment, status, customer_name_snapshot, customer_phone_snapshot, notes, subtotal_amount, discount_amount, discount_id, discount_name_snapshot, total_amount, idempotency_key, version, request_hash, public_tracking_token)
+		VALUES ($1, $2, $3, $4::uuid, 'WHATSAPP', 'PICKUP', 'PENDING', $5, $6, NULLIF($7, ''), $8, $9, $10, $11, $12, $13, 1, $14, $15)
+		RETURNING created_at`, orderID, orderNumber, customerID, bID, custName, in.CustomerPhone, in.Notes, subtotal, discountAmount, discountIDRef, discountNameRef, total, key, hash, trackingToken).Scan(&res.CreatedAt)
 	if err != nil {
 		var dbErr *mysql.MySQLError
 		if errors.As(err, &dbErr) && dbErr.Number == 1062 {
@@ -1013,16 +1238,20 @@ func (s *Store) GetByPublicToken(ctx context.Context, token string) (PublicTrack
 	}
 
 	var o OrderDetail
-	err := s.db.QueryRow(ctx, `SELECT id::text, order_number, source, status, customer_name_snapshot, total_amount, version, created_at, updated_at
+	var discName sql.NullString
+	err := s.db.QueryRow(ctx, `SELECT id::text, order_number, source, status, customer_name_snapshot, subtotal_amount, discount_amount, discount_name_snapshot, total_amount, version, created_at, updated_at
 		FROM orders
 		WHERE public_tracking_token = $1`, token).Scan(
-		&o.ID, &o.OrderNumber, &o.Source, &o.Status, &o.CustomerName, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt,
+		&o.ID, &o.OrderNumber, &o.Source, &o.Status, &o.CustomerName, &o.SubtotalAmount, &o.DiscountAmount, &discName, &o.TotalAmount, &o.Version, &o.CreatedAt, &o.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return PublicTrackingDetail{}, ErrNotFound
 	}
 	if err != nil {
 		return PublicTrackingDetail{}, err
+	}
+	if discName.Valid {
+		o.DiscountName = discName.String
 	}
 
 	orders := []OrderDetail{o}
@@ -1032,13 +1261,16 @@ func (s *Store) GetByPublicToken(ctx context.Context, token string) (PublicTrack
 	o = orders[0]
 
 	return PublicTrackingDetail{
-		OrderNumber:  o.OrderNumber,
-		Status:       o.Status,
-		CustomerName: o.CustomerName,
-		TotalAmount:  o.TotalAmount,
-		CreatedAt:    o.CreatedAt,
-		UpdatedAt:    o.UpdatedAt,
-		Items:        o.Items,
+		OrderNumber:    o.OrderNumber,
+		Status:         o.Status,
+		CustomerName:   o.CustomerName,
+		SubtotalAmount: o.SubtotalAmount,
+		DiscountAmount: o.DiscountAmount,
+		DiscountName:   o.DiscountName,
+		TotalAmount:    o.TotalAmount,
+		CreatedAt:      o.CreatedAt,
+		UpdatedAt:      o.UpdatedAt,
+		Items:          o.Items,
 	}, nil
 }
 

@@ -205,3 +205,32 @@ func TestDraftMerger_RevalidateAgainstCatalog_ItemBecomesUnavailable(t *testing.
 		t.Errorf("expected 'menu_unavailable:Nasi Goreng Spesial' in reasons, got %v", updatedDraft.AmbiguityReasons)
 	}
 }
+
+func TestDraftMerger_UnrecognizedModifier_NoCoklatCollision(t *testing.T) {
+	provider := &mockCatalogProvider{categories: sampleCatalog()}
+	merger := NewDraftMerger(provider)
+	cats := sampleCatalog()
+
+	draft := &DraftCandidate{
+		Items: []ExtractedItem{
+			{Name: "1 Toping - Biasa", MenuID: "menu-tb", Quantity: 1, LineTotalAmount: 18000},
+		},
+		AmbiguityReasons: []string{"unrecognized_modifier:2 Toping - Biasa"},
+		IsAmbiguous:      true,
+	}
+
+	// Customer answers "1 topping besar aja rasa coklat" - contains "coklat" which has "ok" substring
+	_, resolved, err := merger.MergeClarification(
+		context.Background(),
+		draft,
+		"unrecognized_modifier:2 Toping - Biasa",
+		"1 topping besar aja rasa coklat",
+		cats,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolved {
+		t.Fatalf("expected resolved = false because 'coklat' is food and must not trigger 'ok' skip confirmation")
+	}
+}

@@ -350,7 +350,11 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
         ),
         child: const Row(
           children: [
-            Icon(Icons.lock_outline_rounded, size: 20, color: Color(0xFF64748B)),
+            Icon(
+              Icons.lock_outline_rounded,
+              size: 20,
+              color: Color(0xFF64748B),
+            ),
             SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -488,67 +492,107 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
             ),
           ),
 
-          // 3-dots Action Menu (only for Admin)
-          if (widget.isAdmin)
+          // Action Menu: Admin can ONLY manage Cashiers. Fellow Admins cannot be modified.
+          if (widget.isAdmin && emp.isCashier)
             PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF94A3B8)),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              icon: const Icon(
+                Icons.more_vert_rounded,
+                color: Color(0xFF94A3B8),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              onSelected: (action) => _handleEmployeeAction(emp, action),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'edit_name',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.edit_outlined,
+                        size: 18,
+                        color: Color(0xFF475569),
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        'Ubah Nama Karyawan',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'toggle_status',
+                  child: Row(
+                    children: [
+                      Icon(
+                        emp.isActive
+                            ? Icons.block_outlined
+                            : Icons.check_circle_outline_rounded,
+                        size: 18,
+                        color: emp.isActive ? Colors.red : Colors.green,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        emp.isActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline_rounded,
+                        size: 18,
+                        color: Colors.red,
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        'Hapus Karyawan',
+                        style: TextStyle(fontSize: 13, color: Colors.red),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else if (widget.isAdmin && !emp.isCashier)
+            Tooltip(
+              message: 'Sesama admin tidak dapat diubah atau dikelola',
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lock_outline_rounded,
+                      size: 13,
+                      color: Color(0xFF64748B),
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Terkunci',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            onSelected: (action) => _handleEmployeeAction(emp, action),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'edit_name',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.edit_outlined,
-                      size: 18,
-                      color: Color(0xFF475569),
-                    ),
-                    SizedBox(width: 10),
-                    Text('Ubah Nama Karyawan', style: TextStyle(fontSize: 13)),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'toggle_status',
-                child: Row(
-                  children: [
-                    Icon(
-                      emp.isActive
-                          ? Icons.block_outlined
-                          : Icons.check_circle_outline_rounded,
-                      size: 18,
-                      color: emp.isActive ? Colors.red : Colors.green,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      emp.isActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.delete_outline_rounded,
-                      size: 18,
-                      color: Colors.red,
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      'Hapus Karyawan',
-                      style: TextStyle(fontSize: 13, color: Colors.red),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -585,6 +629,15 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
   }
 
   void _handleEmployeeAction(Employee emp, String action) {
+    if (!emp.isCashier) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sesama admin tidak dapat diubah atau dikelola.'),
+          backgroundColor: Color(0xFFD32F2F),
+        ),
+      );
+      return;
+    }
     switch (action) {
       case 'edit_name':
         _showEditNameDialog(emp);
@@ -599,6 +652,15 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
   }
 
   void _showEditNameDialog(Employee emp) {
+    if (!emp.isCashier) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sesama admin tidak dapat diubah namanya.'),
+          backgroundColor: Color(0xFFD32F2F),
+        ),
+      );
+      return;
+    }
     final controller = TextEditingController(text: emp.displayName);
     showDialog(
       context: context,
@@ -679,6 +741,15 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
   }
 
   Future<void> _toggleEmployeeStatus(Employee emp) async {
+    if (!emp.isCashier) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sesama admin tidak dapat diubah statusnya.'),
+          backgroundColor: Color(0xFFD32F2F),
+        ),
+      );
+      return;
+    }
     final newStatus = emp.isActive ? 'SUSPENDED' : 'APPROVED';
     final statusLabel = emp.isActive ? 'dinonaktifkan' : 'diaktifkan';
 
@@ -705,6 +776,15 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
   }
 
   void _confirmDeleteEmployee(Employee emp) {
+    if (!emp.isCashier) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sesama admin tidak dapat dihapus.'),
+          backgroundColor: Color(0xFFD32F2F),
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -803,7 +883,11 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                     const SizedBox(height: 4),
                     const Text(
                       'Pilih metode penambahan kasir sesuai kebutuhan outlet Anda.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                        height: 1.4,
+                      ),
                     ),
                     const SizedBox(height: 16),
 
@@ -812,15 +896,23 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                       children: [
                         Expanded(
                           child: InkWell(
-                            onTap: () => setSheetState(() => selectedMethod = 0),
+                            onTap: () =>
+                                setSheetState(() => selectedMethod = 0),
                             borderRadius: BorderRadius.circular(12),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 8,
+                              ),
                               decoration: BoxDecoration(
-                                color: selectedMethod == 0 ? const Color(0xFFF9EFE7) : const Color(0xFFF8FAFC),
+                                color: selectedMethod == 0
+                                    ? const Color(0xFFF9EFE7)
+                                    : const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: selectedMethod == 0 ? const Color(0xFF8D321F) : const Color(0xFFE2E8F0),
+                                  color: selectedMethod == 0
+                                      ? const Color(0xFF8D321F)
+                                      : const Color(0xFFE2E8F0),
                                   width: selectedMethod == 0 ? 1.5 : 1,
                                 ),
                               ),
@@ -829,15 +921,21 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                                   Icon(
                                     Icons.mark_email_read_rounded,
                                     size: 22,
-                                    color: selectedMethod == 0 ? const Color(0xFF8D321F) : const Color(0xFF64748B),
+                                    color: selectedMethod == 0
+                                        ? const Color(0xFF8D321F)
+                                        : const Color(0xFF64748B),
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
                                     'Undang via Google',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      fontWeight: selectedMethod == 0 ? FontWeight.w800 : FontWeight.w600,
-                                      color: selectedMethod == 0 ? const Color(0xFF8D321F) : const Color(0xFF64748B),
+                                      fontWeight: selectedMethod == 0
+                                          ? FontWeight.w800
+                                          : FontWeight.w600,
+                                      color: selectedMethod == 0
+                                          ? const Color(0xFF8D321F)
+                                          : const Color(0xFF64748B),
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -846,7 +944,9 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                                     'Login via Akun Google',
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: selectedMethod == 0 ? const Color(0xFF8D321F) : const Color(0xFF94A3B8),
+                                      color: selectedMethod == 0
+                                          ? const Color(0xFF8D321F)
+                                          : const Color(0xFF94A3B8),
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -858,15 +958,23 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: InkWell(
-                            onTap: () => setSheetState(() => selectedMethod = 1),
+                            onTap: () =>
+                                setSheetState(() => selectedMethod = 1),
                             borderRadius: BorderRadius.circular(12),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 8,
+                              ),
                               decoration: BoxDecoration(
-                                color: selectedMethod == 1 ? const Color(0xFFF9EFE7) : const Color(0xFFF8FAFC),
+                                color: selectedMethod == 1
+                                    ? const Color(0xFFF9EFE7)
+                                    : const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: selectedMethod == 1 ? const Color(0xFF8D321F) : const Color(0xFFE2E8F0),
+                                  color: selectedMethod == 1
+                                      ? const Color(0xFF8D321F)
+                                      : const Color(0xFFE2E8F0),
                                   width: selectedMethod == 1 ? 1.5 : 1,
                                 ),
                               ),
@@ -875,15 +983,21 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                                   Icon(
                                     Icons.lock_person_rounded,
                                     size: 22,
-                                    color: selectedMethod == 1 ? const Color(0xFF8D321F) : const Color(0xFF64748B),
+                                    color: selectedMethod == 1
+                                        ? const Color(0xFF8D321F)
+                                        : const Color(0xFF64748B),
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
                                     'Buatkan Akun',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      fontWeight: selectedMethod == 1 ? FontWeight.w800 : FontWeight.w600,
-                                      color: selectedMethod == 1 ? const Color(0xFF8D321F) : const Color(0xFF64748B),
+                                      fontWeight: selectedMethod == 1
+                                          ? FontWeight.w800
+                                          : FontWeight.w600,
+                                      color: selectedMethod == 1
+                                          ? const Color(0xFF8D321F)
+                                          : const Color(0xFF64748B),
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -892,7 +1006,9 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                                     'Email & Kata Sandi',
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: selectedMethod == 1 ? const Color(0xFF8D321F) : const Color(0xFF94A3B8),
+                                      color: selectedMethod == 1
+                                          ? const Color(0xFF8D321F)
+                                          : const Color(0xFF94A3B8),
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -921,8 +1037,12 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                       controller: emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
-                        labelText: selectedMethod == 0 ? 'Email Akun Google' : 'Email / Username Kasir',
-                        hintText: selectedMethod == 0 ? 'kasir@gmail.com' : 'kasir1 / kasir@outlet.com',
+                        labelText: selectedMethod == 0
+                            ? 'Email Akun Google'
+                            : 'Email / Username Kasir',
+                        hintText: selectedMethod == 0
+                            ? 'kasir@gmail.com'
+                            : 'kasir1 / kasir@outlet.com',
                         border: const OutlineInputBorder(),
                       ),
                     ),
@@ -939,10 +1059,14 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
                               size: 20,
                             ),
-                            onPressed: () => setSheetState(() => obscurePassword = !obscurePassword),
+                            onPressed: () => setSheetState(
+                              () => obscurePassword = !obscurePassword,
+                            ),
                           ),
                         ),
                       ),
@@ -950,9 +1074,17 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: TextButton.icon(
-                          onPressed: () => setSheetState(() => passwordCtrl.text = 'kasir123'),
-                          icon: const Icon(Icons.auto_fix_high_rounded, size: 14),
-                          label: const Text('Gunakan Sandi Standar (kasir123)', style: TextStyle(fontSize: 11)),
+                          onPressed: () => setSheetState(
+                            () => passwordCtrl.text = 'kasir123',
+                          ),
+                          icon: const Icon(
+                            Icons.auto_fix_high_rounded,
+                            size: 14,
+                          ),
+                          label: const Text(
+                            'Gunakan Sandi Standar (kasir123)',
+                            style: TextStyle(fontSize: 11),
+                          ),
                           style: TextButton.styleFrom(
                             foregroundColor: const Color(0xFF8D321F),
                             visualDensity: VisualDensity.compact,
@@ -965,7 +1097,10 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
 
                     // Field 4: Peran Terkunci (Khusus Kasir)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(12),
@@ -1010,7 +1145,10 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(6),
@@ -1033,19 +1171,27 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: selectedMethod == 0 ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF),
+                        color: selectedMethod == 0
+                            ? const Color(0xFFF0FDF4)
+                            : const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: selectedMethod == 0 ? const Color(0xFFBBF7D0) : const Color(0xFFBFDBFE),
+                          color: selectedMethod == 0
+                              ? const Color(0xFFBBF7D0)
+                              : const Color(0xFFBFDBFE),
                         ),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(
-                            selectedMethod == 0 ? Icons.info_outline_rounded : Icons.vpn_key_outlined,
+                            selectedMethod == 0
+                                ? Icons.info_outline_rounded
+                                : Icons.vpn_key_outlined,
                             size: 18,
-                            color: selectedMethod == 0 ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+                            color: selectedMethod == 0
+                                ? const Color(0xFF16A34A)
+                                : const Color(0xFF2563EB),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -1055,7 +1201,9 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                                   : 'Akun langsung aktif. Beritahukan email dan kata sandi ini kepada kasir untuk login manual pada aplikasi.',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: selectedMethod == 0 ? Colors.green.shade900 : Colors.blue.shade900,
+                                color: selectedMethod == 0
+                                    ? Colors.green.shade900
+                                    : Colors.blue.shade900,
                                 height: 1.35,
                               ),
                             ),
@@ -1076,7 +1224,9 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                         if (name.isEmpty || !email.contains('@')) {
                           messenger.showSnackBar(
                             const SnackBar(
-                              content: Text('Nama dan email wajib diisi dengan benar.'),
+                              content: Text(
+                                'Nama dan email wajib diisi dengan benar.',
+                              ),
                             ),
                           );
                           return;
@@ -1085,7 +1235,9 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                         if (selectedMethod == 1 && password.isEmpty) {
                           messenger.showSnackBar(
                             const SnackBar(
-                              content: Text('Kata sandi wajib diisi untuk pembuatan akun langsung.'),
+                              content: Text(
+                                'Kata sandi wajib diisi untuk pembuatan akun langsung.',
+                              ),
                             ),
                           );
                           return;
@@ -1093,7 +1245,9 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
 
                         Navigator.of(sheetCtx).pop();
 
-                        if (selectedMethod == 0 && widget.inviteCashier != null && selectedRole == 'CASHIER') {
+                        if (selectedMethod == 0 &&
+                            widget.inviteCashier != null &&
+                            selectedRole == 'CASHIER') {
                           try {
                             await widget.inviteCashier!(email);
                           } catch (_) {}
@@ -1155,7 +1309,11 @@ class _EmployeeManagementViewState extends State<EmployeeManagementView> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: Text(selectedMethod == 0 ? 'Kirim Undangan Google' : 'Buatkan Akun Kasir'),
+                      child: Text(
+                        selectedMethod == 0
+                            ? 'Kirim Undangan Google'
+                            : 'Buatkan Akun Kasir',
+                      ),
                     ),
                   ],
                 ),

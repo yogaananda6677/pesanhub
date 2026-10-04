@@ -82,11 +82,19 @@ func (h *Handler) CreateEmployee(w http.ResponseWriter, r *http.Request) {
 	}
 
 	role := strings.ToUpper(strings.TrimSpace(req.Role))
-	if role == "" {
+	if p.Role == "ADMIN" {
+		if role != "" && role != "CASHIER" {
+			httpapi.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Admin hanya dapat membuat atau mengundang kasir, bukan sesama admin.", httpserver.RequestID(r.Context()), nil)
+			return
+		}
 		role = "CASHIER"
-	}
-	if role != "CASHIER" && role != "ADMIN" && role != "MANAGER" {
-		role = "CASHIER"
+	} else {
+		if role == "" {
+			role = "CASHIER"
+		}
+		if role != "CASHIER" && role != "ADMIN" && role != "MANAGER" {
+			role = "CASHIER"
+		}
 	}
 
 	branchID := strings.TrimSpace(req.BranchID)
@@ -117,10 +125,28 @@ func (h *Handler) UpdateEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Sesama admin tidak bisa mengelola satu sama lain; admin hanya bisa mengelola kasir.
+	if p.Role == "ADMIN" {
+		if p.Subject == targetID {
+			httpapi.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Admin tidak dapat mengubah akunnya sendiri melalui manajemen karyawan.", httpserver.RequestID(r.Context()), nil)
+			return
+		}
+		targetRole, err := h.service.GetEmployeeRole(r.Context(), targetID)
+		if err == nil && targetRole != "CASHIER" {
+			httpapi.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Sesama admin tidak dapat mengelola satu sama lain. Admin hanya dapat mengelola kasir.", httpserver.RequestID(r.Context()), nil)
+			return
+		}
+	}
+
 	var req UpdateEmployeeRequest
 	d := json.NewDecoder(io.LimitReader(r.Body, (1<<20)+1))
 	if err := d.Decode(&req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "INVALID_REQUEST", "Format JSON tidak valid.", httpserver.RequestID(r.Context()), nil)
+		return
+	}
+
+	if p.Role == "ADMIN" && req.Role != nil && strings.ToUpper(strings.TrimSpace(*req.Role)) != "CASHIER" {
+		httpapi.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Admin tidak dapat mengubah peran karyawan menjadi admin.", httpserver.RequestID(r.Context()), nil)
 		return
 	}
 
@@ -145,6 +171,19 @@ func (h *Handler) DeleteEmployee(w http.ResponseWriter, r *http.Request) {
 	if targetID == "" {
 		httpapi.WriteError(w, http.StatusBadRequest, "ID_REQUIRED", "ID karyawan wajib disertakan.", httpserver.RequestID(r.Context()), nil)
 		return
+	}
+
+	// Sesama admin tidak bisa menghapus satu sama lain; admin hanya bisa menghapus kasir.
+	if p.Role == "ADMIN" {
+		if p.Subject == targetID {
+			httpapi.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Admin tidak dapat menghapus akunnya sendiri.", httpserver.RequestID(r.Context()), nil)
+			return
+		}
+		targetRole, err := h.service.GetEmployeeRole(r.Context(), targetID)
+		if err == nil && targetRole != "CASHIER" {
+			httpapi.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Sesama admin tidak dapat menghapus satu sama lain. Admin hanya dapat mengelola kasir.", httpserver.RequestID(r.Context()), nil)
+			return
+		}
 	}
 
 	if err := h.service.DeleteEmployee(r.Context(), targetID); err != nil {

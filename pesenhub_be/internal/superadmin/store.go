@@ -679,6 +679,23 @@ func (s *Store) ListEmployees(ctx context.Context, search string) ([]EmployeeSum
 	return employees, nil
 }
 
+func (s *Store) GetEmployeeRole(ctx context.Context, id string) (string, error) {
+	var role string
+	err := s.pool.QueryRow(ctx, `
+		SELECT role FROM app_users WHERE id = $1
+		UNION ALL
+		SELECT role FROM user_invitations WHERE id = $1
+		LIMIT 1
+	`, id).Scan(&role)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ErrUserNotFound
+		}
+		return "", err
+	}
+	return strings.ToUpper(strings.TrimSpace(role)), nil
+}
+
 func (s *Store) CreateEmployee(ctx context.Context, actorID, email, displayName, role, branchID, password string) (EmployeeSummary, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if displayName == "" {

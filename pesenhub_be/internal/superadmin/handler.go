@@ -202,6 +202,14 @@ func (h *Handler) UpdateCashierBranch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if principal.Role == "ADMIN" {
+		targetRole, err := h.service.GetEmployeeRole(r.Context(), targetUserID)
+		if err == nil && targetRole != "CASHIER" {
+			httpapi.WriteError(w, http.StatusForbidden, "FORBIDDEN", "Admin tidak dapat memindahkan cabang sesama admin. Hanya kasir yang dapat dipindahkan.", requestID, nil)
+			return
+		}
+	}
+
 	var body UpdateBranchRequest
 	if err := decode(r, &body); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "BAD_REQUEST", "Invalid JSON request body.", requestID, nil)

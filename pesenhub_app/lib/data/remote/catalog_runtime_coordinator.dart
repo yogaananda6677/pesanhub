@@ -17,6 +17,7 @@ class CatalogRuntimeCoordinator {
   final Duration pollingInterval;
 
   bool _refreshing = false;
+  bool _pendingRefresh = false;
   bool _disposed = false;
   bool _hasCatalog = false;
   Timer? _pollingTimer;
@@ -50,8 +51,13 @@ class CatalogRuntimeCoordinator {
   }
 
   Future<void> refresh() async {
-    if (_refreshing || _disposed) return;
+    if (_disposed) return;
+    if (_refreshing) {
+      _pendingRefresh = true;
+      return;
+    }
     _refreshing = true;
+    _pendingRefresh = false;
     if (!_hasCatalog) menuController.setLoading();
     if (!_hasCatalog) {
       managementController.setLoading();
@@ -118,6 +124,10 @@ class CatalogRuntimeCoordinator {
       _handleFailure('Katalog terbaru belum dapat dimuat.');
     } finally {
       _refreshing = false;
+      if (_pendingRefresh && !_disposed) {
+        _pendingRefresh = false;
+        unawaited(refresh());
+      }
     }
   }
 

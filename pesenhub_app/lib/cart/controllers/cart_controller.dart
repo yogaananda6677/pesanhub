@@ -5,6 +5,7 @@ import '../../core/utils/pii_sanitizer.dart';
 import '../../data/local/models/outbox_mutation.dart';
 import '../../data/local/outbox_repository.dart';
 import '../../data/local/queue_local_repository.dart';
+import '../../discount/models/discount.dart';
 import '../../menu/controllers/modifier_selection_state.dart';
 import '../../menu/models/menu_item.dart';
 import '../../queue/models/queue_order.dart';
@@ -22,6 +23,7 @@ class CartController extends ChangeNotifier {
   String _orderSource = 'CASHIER_MANUAL';
   bool _isTakeaway = true;
   String _takeawayNotes = '';
+  Discount? _appliedDiscount;
 
   late String _idempotencyKey;
   late String _clientOrderId;
@@ -67,9 +69,30 @@ class CartController extends ChangeNotifier {
   String get paymentStatus => _paymentStatus;
   String? get paymentMethod => _paymentMethod;
 
+  Discount? get appliedDiscount => _appliedDiscount;
+
   int get totalItemCount => _items.fold(0, (sum, i) => sum + i.quantity);
   int get subtotalAmount => _items.fold(0, (sum, i) => sum + i.lineTotal);
-  int get totalAmount => subtotalAmount;
+
+  int get discountAmount {
+    if (_appliedDiscount == null) return 0;
+    final itemTotals = <String, int>{};
+    for (final i in _items) {
+      itemTotals[i.menuItem.id] =
+          (itemTotals[i.menuItem.id] ?? 0) + i.lineTotal;
+    }
+    return _appliedDiscount!.calculateDiscountAmount(
+      subtotal: subtotalAmount,
+      itemLineTotals: itemTotals,
+      orderSource: _orderSource,
+    );
+  }
+
+  int get totalAmount {
+    final res = subtotalAmount - discountAmount;
+    return res < 0 ? 0 : res;
+  }
+
   bool get isEmpty => _items.isEmpty;
 
   CartOrderDraft get currentDraft => CartOrderDraft(
@@ -82,8 +105,21 @@ class CartController extends ChangeNotifier {
     takeawayNotes: _takeawayNotes.isEmpty ? null : _takeawayNotes,
     paymentStatus: _paymentStatus,
     paymentMethod: _paymentMethod,
+    discountId: _appliedDiscount?.id,
+    discountAmount: discountAmount,
+    discountName: _appliedDiscount?.name,
     items: List.unmodifiable(_items),
   );
+
+  void applyDiscount(Discount? discount) {
+    _appliedDiscount = discount;
+    notifyListeners();
+  }
+
+  void removeDiscount() {
+    _appliedDiscount = null;
+    notifyListeners();
+  }
 
   // Mutations
   void setPaymentInfo({required String paymentStatus, String? paymentMethod}) {
@@ -208,6 +244,7 @@ class CartController extends ChangeNotifier {
     _customerPhone = '';
     _isTakeaway = true;
     _takeawayNotes = '';
+    _appliedDiscount = null;
     _errorMessage = null;
     _discrepancyMessage = null;
     _generateFreshKeys();
@@ -257,6 +294,10 @@ class CartController extends ChangeNotifier {
           paymentStatus: draft.paymentStatus,
           isTakeaway: draft.isTakeaway,
           takeawayNotes: draft.takeawayNotes,
+          subtotalAmount: draft.subtotalAmount,
+          discountAmount: draft.discountAmount,
+          discountId: draft.discountId,
+          discountName: draft.discountName,
           items: draft.items.map((i) {
             return QueueOrderItem(
               name: i.menuItem.name,
@@ -279,6 +320,7 @@ class CartController extends ChangeNotifier {
       _orderSource = 'CASHIER_MANUAL';
       _isTakeaway = true;
       _takeawayNotes = '';
+      _appliedDiscount = null;
       _paymentStatus = 'UNPAID';
       _paymentMethod = null;
       _generateFreshKeys();
@@ -346,6 +388,10 @@ class CartController extends ChangeNotifier {
       isTakeaway: draft.isTakeaway,
       takeawayNotes: draft.takeawayNotes,
       branchId: effectiveBranchId,
+      subtotalAmount: draft.subtotalAmount,
+      discountAmount: draft.discountAmount,
+      discountId: draft.discountId,
+      discountName: draft.discountName,
       items: draft.items.map((i) {
         return QueueOrderItem(
           name: i.menuItem.name,

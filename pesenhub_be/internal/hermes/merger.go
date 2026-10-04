@@ -139,6 +139,16 @@ func RevalidateAgainstCatalog(draft *DraftCandidate, categories []catalog.Catego
 }
 
 func (m *DraftMerger) applyModifierAnswer(draft *DraftCandidate, groupName, answerNorm string, categories []catalog.Category) bool {
+	// If the customer message indicates a different menu tier or item, don't force it as a modifier on the existing item
+	isDifferentItemTier := strings.Contains(answerNorm, "2 toping") || strings.Contains(answerNorm, "2 topping") ||
+		strings.Contains(answerNorm, "3 toping") || strings.Contains(answerNorm, "3 topping") ||
+		strings.Contains(answerNorm, "besar") || strings.Contains(answerNorm, "martabak") ||
+		strings.Contains(answerNorm, "sosis") || strings.Contains(answerNorm, "sapi") ||
+		strings.Contains(answerNorm, "ayam")
+	if isDifferentItemTier {
+		return false
+	}
+
 	groupNameLower := strings.ToLower(groupName)
 
 	// Find the item with this modifier group
@@ -297,14 +307,20 @@ func (m *DraftMerger) applyQuantityAnswer(draft *DraftCandidate, menuName, rawAn
 	return false
 }
 
+var skipConfirmRegex = regexp.MustCompile(`(?i)\b(iya|ya|oke|ok|tanpa|skip|gapapa|gak apa|nggak apa)\b`)
+
 func (m *DraftMerger) applyUnrecognizedModifierAnswer(draft *DraftCandidate, answerNorm string) bool {
-	acceptSkip := []string{"iya", "ya", "oke", "ok", "tanpa", "skip", "gapapa", "gak apa"}
-	for _, kw := range acceptSkip {
-		if strings.Contains(answerNorm, kw) {
-			return true
-		}
+	// If the customer message mentions substantive food terms, this is an amendment or different item, NOT a skip confirmation!
+	hasFood := strings.Contains(answerNorm, "coklat") || strings.Contains(answerNorm, "keju") ||
+		strings.Contains(answerNorm, "terang") || strings.Contains(answerNorm, "martabak") ||
+		strings.Contains(answerNorm, "sapi") || strings.Contains(answerNorm, "ayam") ||
+		strings.Contains(answerNorm, "sosis") || strings.Contains(answerNorm, "topping") ||
+		strings.Contains(answerNorm, "toping") || strings.Contains(answerNorm, "besar")
+	if hasFood {
+		return false
 	}
-	return false
+
+	return skipConfirmRegex.MatchString(answerNorm)
 }
 
 func (m *DraftMerger) applyFulfillmentAnswer(draft *DraftCandidate, answerNorm string) bool {

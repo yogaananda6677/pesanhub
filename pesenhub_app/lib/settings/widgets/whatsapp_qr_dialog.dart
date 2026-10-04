@@ -87,7 +87,8 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
     setState(() {
       _isRequestingCode = false;
       if (res == null || res.pairCode == null || res.pairCode!.isEmpty) {
-        _codeErrorMessage = widget.controller.errorMessage ??
+        _codeErrorMessage =
+            widget.controller.errorMessage ??
             'Gagal mendapatkan kode pairing. Pastikan format nomor benar (contoh: 08123456789).';
       }
     });
@@ -113,7 +114,10 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
     final pairResult = widget.controller.currentPairResult;
     final isPairing = widget.controller.isPairing;
     final remainingSeconds = widget.controller.remainingSeconds;
-    final isExpired = remainingSeconds <= 0 && pairResult != null && pairResult.method == 'qr';
+    final isExpired =
+        remainingSeconds <= 0 &&
+        pairResult != null &&
+        pairResult.method == 'qr';
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -168,7 +172,10 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Color(0xFF64748B),
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -216,7 +223,10 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
                       const SizedBox(height: 8),
                       const Text(
                         'Menutup jendela pairing...',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF94A3B8),
+                        ),
                       ),
                     ],
                   ),
@@ -243,12 +253,16 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
-                              color: _selectedTab == 0 ? Colors.white : Colors.transparent,
+                              color: _selectedTab == 0
+                                  ? Colors.white
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(10),
                               boxShadow: _selectedTab == 0
                                   ? [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.05),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.05,
+                                        ),
                                         blurRadius: 4,
                                         offset: const Offset(0, 1),
                                       ),
@@ -297,12 +311,16 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
-                              color: _selectedTab == 1 ? Colors.white : Colors.transparent,
+                              color: _selectedTab == 1
+                                  ? Colors.white
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(10),
                               boxShadow: _selectedTab == 1
                                   ? [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.05),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.05,
+                                        ),
                                         blurRadius: 4,
                                         offset: const Offset(0, 1),
                                       ),
@@ -401,7 +419,8 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
                                 errorBuilder: (context, error, stackTrace) {
                                   return const Center(
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Icon(
                                           Icons.broken_image_outlined,
@@ -425,7 +444,10 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
                             const Center(
                               child: Text(
                                 'Meminta kode QR...',
-                                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
+                                ),
                               ),
                             ),
                           ],
@@ -533,7 +555,10 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
                       hintText: 'Contoh: 08123456789 atau 62812...',
                       prefixIcon: Icon(Icons.phone_iphone_rounded, size: 20),
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -548,12 +573,19 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline_rounded, color: Colors.red, size: 16),
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            color: Colors.red,
+                            size: 16,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _codeErrorMessage!,
-                              style: const TextStyle(fontSize: 11, color: Colors.red),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.red,
+                              ),
                             ),
                           ),
                         ],
@@ -569,15 +601,24 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Icon(Icons.key_rounded, size: 18),
-                    label: Text(_isRequestingCode ? 'Memproses...' : 'Dapatkan Kode Tautan'),
+                    label: Text(
+                      _isRequestingCode
+                          ? 'Memproses...'
+                          : 'Dapatkan Kode Tautan',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF8D321F),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -592,7 +633,10 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFF9EFE7),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFF8D321F), width: 1.5),
+                        border: Border.all(
+                          color: const Color(0xFF8D321F),
+                          width: 1.5,
+                        ),
                       ),
                       child: Column(
                         children: [
@@ -623,19 +667,28 @@ class _WhatsAppQrDialogState extends State<WhatsAppQrDialog> {
                             children: [
                               OutlinedButton.icon(
                                 onPressed: () {
-                                  Clipboard.setData(ClipboardData(text: pairResult.pairCode!));
+                                  Clipboard.setData(
+                                    ClipboardData(text: pairResult.pairCode!),
+                                  );
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Kode pairing disalin ke clipboard!'),
+                                      content: Text(
+                                        'Kode pairing disalin ke clipboard!',
+                                      ),
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
                                 },
                                 icon: const Icon(Icons.copy_rounded, size: 14),
-                                label: const Text('Salin Kode', style: TextStyle(fontSize: 11)),
+                                label: const Text(
+                                  'Salin Kode',
+                                  style: TextStyle(fontSize: 11),
+                                ),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: const Color(0xFF8D321F),
-                                  side: const BorderSide(color: Color(0xFF8D321F)),
+                                  side: const BorderSide(
+                                    color: Color(0xFF8D321F),
+                                  ),
                                   visualDensity: VisualDensity.compact,
                                 ),
                               ),

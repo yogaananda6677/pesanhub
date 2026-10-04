@@ -11,7 +11,12 @@ class WhatsAppSettingsController extends ChangeNotifier {
   final Future<String?> Function()? getAuthToken;
 
   final Future<WhatsAppSettingsData> Function()? customFetchSettings;
-  final Future<WhatsAppPairResult> Function({String? deviceId, String? method, String? phone})? customPair;
+  final Future<WhatsAppPairResult> Function({
+    String? deviceId,
+    String? method,
+    String? phone,
+  })?
+  customPair;
   final Future<void> Function({String? deviceId})? customDisconnect;
 
   WhatsAppSettingsData _data = WhatsAppSettingsData.initial;
