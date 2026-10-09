@@ -18,12 +18,12 @@ import (
 	"pesenhub/backend/internal/httpserver"
 )
 
-func TestAdminWithoutBranchScopeCannotToggleAvailability(t *testing.T) {
+func TestAdminWithoutBranchScopeCanToggleAvailability(t *testing.T) {
 	repo := &fakeRepo{}
 	svc := NewService(repo, func() string { return "id" })
 	h := NewHandler(svc)
 
-	// Admin with AllBranches mode (no X-Branch-ID)
+	// Admin with AllBranches mode (no X-Branch-ID) can toggle menu availability directly
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/menus/m1/availability", strings.NewReader(`{"is_available":false,"version":1}`))
 	req.SetPathValue("id", "m1")
 	req = req.WithContext(customer.WithPrincipal(req.Context(), customer.Principal{Subject: "admin-1", Role: "ADMIN"}))
@@ -32,11 +32,11 @@ func TestAdminWithoutBranchScopeCannotToggleAvailability(t *testing.T) {
 	rr := httptest.NewRecorder()
 	httpserver.Middleware(slog.New(slog.NewTextHandler(io.Discard, nil)), http.HandlerFunc(h.Availability)).ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest || !strings.Contains(rr.Body.String(), `"code":"BRANCH_SCOPE_REQUIRED"`) {
-		t.Fatalf("expected 400 BRANCH_SCOPE_REQUIRED, got %d %s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for admin toggle without branch scope, got %d %s", rr.Code, rr.Body.String())
 	}
 
-	// Also for modifier option availability
+	// Also for modifier option availability without branch scope
 	reqOpt := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/modifier-options/o1/availability", strings.NewReader(`{"is_available":false,"version":1}`))
 	reqOpt.SetPathValue("id", "o1")
 	reqOpt = reqOpt.WithContext(customer.WithPrincipal(reqOpt.Context(), customer.Principal{Subject: "admin-1", Role: "ADMIN"}))
@@ -45,8 +45,8 @@ func TestAdminWithoutBranchScopeCannotToggleAvailability(t *testing.T) {
 	rrOpt := httptest.NewRecorder()
 	httpserver.Middleware(slog.New(slog.NewTextHandler(io.Discard, nil)), http.HandlerFunc(h.OptionAvailability)).ServeHTTP(rrOpt, reqOpt)
 
-	if rrOpt.Code != http.StatusBadRequest || !strings.Contains(rrOpt.Body.String(), `"code":"BRANCH_SCOPE_REQUIRED"`) {
-		t.Fatalf("expected 400 BRANCH_SCOPE_REQUIRED for option, got %d %s", rrOpt.Code, rrOpt.Body.String())
+	if rrOpt.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for option toggle without branch scope, got %d %s", rrOpt.Code, rrOpt.Body.String())
 	}
 }
 

@@ -286,8 +286,8 @@ void main() {
       expect(find.text('20.000'), findsOneWidget);
       // Online channels are 22.000
       expect(find.text('22.000'), findsNWidgets(3));
-      // Default markup percentage is 20
-      expect(find.text('20'), findsOneWidget);
+      // Default markup percentage is 20 for each online channel
+      expect(find.text('20'), findsNWidgets(3));
     });
 
     testWidgets(
@@ -324,11 +324,12 @@ void main() {
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
 
-        // Tap "Generate Harga Online" button
+        // Tap "Generate" button
         final generateBtn = find.byKey(
           const Key('generate-online-prices-button'),
         );
         expect(generateBtn, findsOneWidget);
+        await tester.ensureVisible(generateBtn);
         await tester.tap(generateBtn);
         await tester.pumpAndSettle();
 
@@ -337,6 +338,7 @@ void main() {
 
         // Manually edit GoFood to 25.000 while GrabFood and ShopeeFood remain 24.000
         final gofoodField = find.byKey(const Key('menu-gofood-price-field'));
+        await tester.ensureVisible(gofoodField);
         await tester.enterText(gofoodField, '25000');
         await tester.pumpAndSettle();
 
@@ -348,6 +350,7 @@ void main() {
 
         // Tap "Simpan harga"
         final saveBtn = find.byKey(const Key('save-price-button'));
+        await tester.ensureVisible(saveBtn);
         await tester.tap(saveBtn);
         await tester.pumpAndSettle();
 
@@ -362,6 +365,89 @@ void main() {
             'GOFOOD': 25000,
             'GRABFOOD': 24000,
             'SHOPEEFOOD': 24000,
+          }),
+        );
+      },
+    );
+
+    testWidgets(
+      'Custom per-channel markup rates (GoFood 11%, GrabFood 15%, ShopeeFood 12%) calculate distinct online prices',
+      (tester) async {
+        MenuItem? savedMenu;
+        final controller = MenuAvailabilityController(
+          initialCategories: const [],
+          initialMenus: const [testMenu],
+          updateMenuFn: (menu) async {
+            savedMenu = menu;
+            return menu;
+          },
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () => showPriceEditor(
+                    context,
+                    controller: controller,
+                    menu: testMenu,
+                  ),
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+
+        // Configure custom rates: GoFood 11%, GrabFood 15%, ShopeeFood 12%
+        final gofoodMarkup = find.byKey(const Key('menu-gofood-markup-field'));
+        final grabfoodMarkup = find.byKey(
+          const Key('menu-grabfood-markup-field'),
+        );
+        final shopeefoodMarkup = find.byKey(
+          const Key('menu-shopeefood-markup-field'),
+        );
+
+        await tester.ensureVisible(gofoodMarkup);
+        await tester.enterText(gofoodMarkup, '11');
+        await tester.enterText(grabfoodMarkup, '15');
+        await tester.enterText(shopeefoodMarkup, '12');
+        await tester.pumpAndSettle();
+
+        // Tap Generate
+        final generateBtn = find.byKey(
+          const Key('generate-online-prices-button'),
+        );
+        await tester.ensureVisible(generateBtn);
+        await tester.tap(generateBtn);
+        await tester.pumpAndSettle();
+
+        // 20.000 + 11% = 22.200 (GoFood)
+        // 20.000 + 15% = 23.000 (GrabFood)
+        // 20.000 + 12% = 22.400 (ShopeeFood)
+        expect(find.text('22.200'), findsOneWidget);
+        expect(find.text('23.000'), findsOneWidget);
+        expect(find.text('22.400'), findsOneWidget);
+
+        // Tap save
+        final saveBtn = find.byKey(const Key('save-price-button'));
+        await tester.ensureVisible(saveBtn);
+        await tester.tap(saveBtn);
+        await tester.pumpAndSettle();
+
+        expect(savedMenu, isNotNull);
+        expect(
+          savedMenu!.channelPrices,
+          equals({
+            'OFFLINE': 20000,
+            'GOFOOD': 22200,
+            'GRABFOOD': 23000,
+            'SHOPEEFOOD': 22400,
           }),
         );
       },
@@ -398,13 +484,16 @@ void main() {
 
         // Clear OFFLINE price
         final offlineField = find.byKey(const Key('menu-offline-price-field'));
+        await tester.ensureVisible(offlineField);
         await tester.enterText(offlineField, '');
         await tester.pumpAndSettle();
 
         // Click generate
-        await tester.tap(
-          find.byKey(const Key('generate-online-prices-button')),
+        final generateBtn = find.byKey(
+          const Key('generate-online-prices-button'),
         );
+        await tester.ensureVisible(generateBtn);
+        await tester.tap(generateBtn);
         await tester.pumpAndSettle();
 
         expect(
@@ -415,13 +504,77 @@ void main() {
         );
 
         // Click save with empty offline price
-        await tester.tap(find.byKey(const Key('save-price-button')));
+        final saveBtn = find.byKey(const Key('save-price-button'));
+        await tester.ensureVisible(saveBtn);
+        await tester.tap(saveBtn);
         await tester.pumpAndSettle();
 
         expect(
           find.text('HPP dan seluruh harga channel wajib diisi.'),
           findsOneWidget,
         );
+      },
+    );
+
+    testWidgets(
+      'Channel generator master data dialog can configure and reset channel rates',
+      (tester) async {
+        ChannelGeneratorConfig.resetToDefaults();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () => showChannelGeneratorDialog(context),
+                  child: const Text('Open Master'),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Open Master'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Master Data Generator Harga Kanal'), findsOneWidget);
+
+        // Set GoFood to 11% and ShopeeFood to 12%
+        final gofoodMasterField = find.byKey(
+          const Key('master-markup-gofood-field'),
+        );
+        final shopeeMasterField = find.byKey(
+          const Key('master-markup-shopeefood-field'),
+        );
+
+        await tester.enterText(gofoodMasterField, '11');
+        await tester.enterText(shopeeMasterField, '12');
+        await tester.pumpAndSettle();
+
+        // Save
+        await tester.tap(find.byKey(const Key('save-master-generator-button')));
+        await tester.pumpAndSettle();
+
+        expect(ChannelGeneratorConfig.getRate('GOFOOD'), equals(11.0));
+        expect(ChannelGeneratorConfig.getRate('GRABFOOD'), equals(20.0));
+        expect(ChannelGeneratorConfig.getRate('SHOPEEFOOD'), equals(12.0));
+
+        // Re-open and reset
+        await tester.tap(find.text('Open Master'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const Key('reset-master-generator-button')),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const Key('save-master-generator-button')));
+        await tester.pumpAndSettle();
+
+        expect(ChannelGeneratorConfig.getRate('GOFOOD'), equals(20.0));
+        expect(ChannelGeneratorConfig.getRate('GRABFOOD'), equals(20.0));
+        expect(ChannelGeneratorConfig.getRate('SHOPEEFOOD'), equals(20.0));
       },
     );
   });

@@ -52,6 +52,12 @@ Future<bool?> showGlobalExtraEditor(
   builder: (_) => _GlobalExtraEditor(controller: controller),
 );
 
+Future<bool?> showChannelGeneratorDialog(BuildContext context) =>
+    showDialog<bool>(
+      context: context,
+      builder: (_) => const _ChannelGeneratorDialog(),
+    );
+
 class _CategoryEditor extends StatefulWidget {
   final MenuAvailabilityController controller;
   final MenuCategory? category;
@@ -426,7 +432,7 @@ class _PriceEditor extends StatefulWidget {
 class _PriceEditorState extends State<_PriceEditor> {
   late final Map<String, TextEditingController> _prices;
   late final TextEditingController _hpp;
-  late final TextEditingController _markupPercent;
+  late final Map<String, TextEditingController> _channelMarkups;
   String? _error;
 
   @override
@@ -437,7 +443,14 @@ class _PriceEditorState extends State<_PriceEditor> {
           ? CurrencyFormatter.formatThousands(widget.menu.hppAmount)
           : '',
     );
-    _markupPercent = TextEditingController(text: '20');
+    _channelMarkups = {
+      for (final channel in ChannelGeneratorConfig.onlineChannels)
+        channel: TextEditingController(
+          text: ChannelGeneratorConfig.formatRate(
+            ChannelGeneratorConfig.getRate(channel),
+          ),
+        ),
+    };
     _prices = {
       for (final channel in const [
         'OFFLINE',
@@ -459,7 +472,9 @@ class _PriceEditorState extends State<_PriceEditor> {
   @override
   void dispose() {
     _hpp.dispose();
-    _markupPercent.dispose();
+    for (final controller in _channelMarkups.values) {
+      controller.dispose();
+    }
     for (final controller in _prices.values) {
       controller.dispose();
     }
@@ -477,23 +492,30 @@ class _PriceEditorState extends State<_PriceEditor> {
       return;
     }
 
-    final percentText = _markupPercent.text.trim().replaceAll(',', '.');
-    final percent = double.tryParse(percentText);
-    if (percent == null || percent < 0) {
-      setState(() => _error = 'Persentase markup tidak valid.');
-      return;
+    final parsedRates = <String, double>{};
+    for (final channel in ChannelGeneratorConfig.onlineChannels) {
+      final text =
+          _channelMarkups[channel]?.text.trim().replaceAll(',', '.') ?? '';
+      final percent = double.tryParse(text);
+      if (percent == null || percent < 0) {
+        final label = ChannelGeneratorConfig.channelLabels[channel] ?? channel;
+        setState(() => _error = 'Persentase markup untuk $label tidak valid.');
+        return;
+      }
+      parsedRates[channel] = percent;
     }
 
-    final onlinePrice = CurrencyFormatter.calculateOnlinePrice(
-      offlinePrice,
-      percent,
-    );
-    final formattedPrice = CurrencyFormatter.formatThousands(onlinePrice);
-
     setState(() {
-      _prices['GOFOOD']?.text = formattedPrice;
-      _prices['GRABFOOD']?.text = formattedPrice;
-      _prices['SHOPEEFOOD']?.text = formattedPrice;
+      for (final entry in parsedRates.entries) {
+        final channel = entry.key;
+        final percent = entry.value;
+        final onlinePrice = CurrencyFormatter.calculateOnlinePrice(
+          offlinePrice,
+          percent,
+        );
+        _prices[channel]?.text = CurrencyFormatter.formatThousands(onlinePrice);
+        ChannelGeneratorConfig.setRate(channel, percent);
+      }
       _error = null;
     });
   }
@@ -557,7 +579,10 @@ class _PriceEditorState extends State<_PriceEditor> {
               ),
               const SizedBox(height: AppSpacing.md),
               Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceVariant,
                   borderRadius: AppSpacing.borderRadiusMd,
@@ -566,35 +591,71 @@ class _PriceEditorState extends State<_PriceEditor> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Generator Harga Online',
-                      style: AppTypography.labelLarge.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Generator Harga Online',
+                          style: AppTypography.labelLarge.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        TextButton.icon(
+                          key: const Key('open-master-generator-button'),
+                          icon: const Icon(Icons.settings_outlined, size: 16),
+                          label: const Text(
+                            'Master Data',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          onPressed: () async {
+                            final changed = await showChannelGeneratorDialog(
+                              context,
+                            );
+                            if (mounted && changed == true) {
+                              setState(() {
+                                for (final ch
+                                    in ChannelGeneratorConfig.onlineChannels) {
+                                  _channelMarkups[ch]?.text =
+                                      ChannelGeneratorConfig.formatRate(
+                                        ChannelGeneratorConfig.getRate(ch),
+                                      );
+                                }
+                              });
+                            }
+                          },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Hitung harga GoFood, GrabFood, dan ShopeeFood otomatis berdasarkan acuan harga OFFLINE.',
+                      'Hitung harga GoFood, GrabFood, dan ShopeeFood otomatis dari acuan harga OFFLINE.',
                       style: AppTypography.bodySmall,
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Expanded(
-                          child: AppTextField(
-                            key: const Key('menu-markup-percent-field'),
-                            label: 'Markup online (%)',
-                            controller: _markupPercent,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
+                        for (final channel
+                            in ChannelGeneratorConfig.onlineChannels) ...[
+                          Expanded(
+                            child: AppTextField(
+                              key: Key(
+                                'menu-${channel.toLowerCase()}-markup-field',
+                              ),
+                              label:
+                                  '${ChannelGeneratorConfig.channelLabels[channel] ?? channel} (%)',
+                              controller: _channelMarkups[channel],
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
+                          const SizedBox(width: 6),
+                        ],
                         AppButton(
                           key: const Key('generate-online-prices-button'),
-                          label: 'Generate Harga Online',
+                          label: 'Generate',
                           icon: Icons.auto_fix_high_rounded,
                           onPressed: _generateOnlinePrices,
                         ),
@@ -1018,5 +1079,128 @@ class _OptionDraft {
     code.dispose();
     name.dispose();
     price.dispose();
+  }
+}
+
+class _ChannelGeneratorDialog extends StatefulWidget {
+  const _ChannelGeneratorDialog();
+
+  @override
+  State<_ChannelGeneratorDialog> createState() =>
+      _ChannelGeneratorDialogState();
+}
+
+class _ChannelGeneratorDialogState extends State<_ChannelGeneratorDialog> {
+  late final Map<String, TextEditingController> _controllers;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = {
+      for (final channel in ChannelGeneratorConfig.onlineChannels)
+        channel: TextEditingController(
+          text: ChannelGeneratorConfig.formatRate(
+            ChannelGeneratorConfig.getRate(channel),
+          ),
+        ),
+    };
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _reset() {
+    setState(() {
+      for (final channel in ChannelGeneratorConfig.onlineChannels) {
+        final def = ChannelGeneratorConfig.defaultPercentages[channel] ?? 20.0;
+        _controllers[channel]?.text = ChannelGeneratorConfig.formatRate(def);
+      }
+      _error = null;
+    });
+  }
+
+  void _save() {
+    for (final entry in _controllers.entries) {
+      final text = entry.value.text.trim().replaceAll(',', '.');
+      final val = double.tryParse(text);
+      if (val == null || val < 0) {
+        setState(
+          () => _error = 'Persentase untuk seluruh kanal wajib valid (>= 0).',
+        );
+        return;
+      }
+    }
+
+    for (final entry in _controllers.entries) {
+      final text = entry.value.text.trim().replaceAll(',', '.');
+      final val = double.parse(text);
+      ChannelGeneratorConfig.setRate(entry.key, val);
+    }
+
+    Navigator.pop(context, true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Master Data Generator Harga Kanal'),
+      content: SizedBox(
+        width: 440,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Atur persentase markup acuan untuk masing-masing kanal online (GoFood, GrabFood, ShopeeFood). Harga acuan adalah harga OFFLINE.',
+                style: AppTypography.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              for (final channel in ChannelGeneratorConfig.onlineChannels) ...[
+                AppTextField(
+                  key: Key('master-markup-${channel.toLowerCase()}-field'),
+                  label:
+                      'Markup ${ChannelGeneratorConfig.channelLabels[channel] ?? channel} (%)',
+                  controller: _controllers[channel],
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const Key('reset-master-generator-button'),
+          onPressed: _reset,
+          child: const Text('Reset default (20%)'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        AppButton(
+          key: const Key('save-master-generator-button'),
+          label: 'Simpan',
+          onPressed: _save,
+        ),
+      ],
+    );
   }
 }

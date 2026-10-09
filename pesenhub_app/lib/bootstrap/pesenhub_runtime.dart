@@ -235,7 +235,7 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
     _catalogConnectivityListener = catalogConnectivityListener;
     unawaited(coordinator.start());
     unawaited(catalogCoordinator.start());
-    if (session.user?.role == 'ADMIN') {
+    if (session.canAccessAllBranches) {
       unawaited(_loadBranches());
     }
   }
@@ -249,12 +249,15 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
         setState(() {
           _branches = branches;
         });
-        if (_session?.activeBranchId == null && branches.isNotEmpty) {
+        if (branches.isNotEmpty) {
           final defaultBranch = branches.firstWhere(
             (b) => b['is_default'] == true,
             orElse: () => branches.first,
           );
-          await _switchBranch(defaultBranch['id'] as String?);
+          final defaultId = defaultBranch['id'] as String?;
+          if (_session?.activeBranchId != defaultId) {
+            await _switchBranch(defaultId);
+          }
         }
       }
     } catch (_) {}

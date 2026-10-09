@@ -60,6 +60,74 @@ class CurrencyFormatter {
     final markup = (offlinePrice * markupPercent / 100.0).round();
     return offlinePrice + markup;
   }
+
+  /// Calculates online price for a specific channel using custom or master generator rate.
+  static int calculateChannelPrice(
+    int offlinePrice,
+    String channel, {
+    double? customPercent,
+  }) {
+    final percent = customPercent ?? ChannelGeneratorConfig.getRate(channel);
+    return calculateOnlinePrice(offlinePrice, percent);
+  }
+}
+
+/// Master data / configuration for online channel markup generator rates.
+class ChannelGeneratorConfig {
+  ChannelGeneratorConfig._();
+
+  static const List<String> onlineChannels = [
+    'GOFOOD',
+    'GRABFOOD',
+    'SHOPEEFOOD',
+  ];
+
+  static const Map<String, String> channelLabels = {
+    'OFFLINE': 'Offline/Kasir',
+    'GOFOOD': 'GoFood',
+    'GRABFOOD': 'GrabFood',
+    'SHOPEEFOOD': 'ShopeeFood',
+  };
+
+  static final Map<String, double> defaultPercentages = {
+    'GOFOOD': 20.0,
+    'GRABFOOD': 20.0,
+    'SHOPEEFOOD': 20.0,
+  };
+
+  static final Map<String, double> _currentPercentages = Map.from(
+    defaultPercentages,
+  );
+
+  /// Formats rate as integer string if whole number, else string with decimal.
+  static String formatRate(double rate) {
+    if (rate == rate.roundToDouble()) {
+      return rate.toInt().toString();
+    }
+    return rate.toString();
+  }
+
+  /// Returns active markup percentage rate for given channel.
+  static double getRate(String channel) {
+    return _currentPercentages[channel.toUpperCase()] ?? 20.0;
+  }
+
+  /// Sets active markup percentage rate for given channel.
+  static void setRate(String channel, double rate) {
+    _currentPercentages[channel.toUpperCase()] = rate;
+  }
+
+  /// Returns a copy of all channel rates.
+  static Map<String, double> getAllRates() {
+    return Map.unmodifiable(_currentPercentages);
+  }
+
+  /// Resets all channel rates to system defaults.
+  static void resetToDefaults() {
+    _currentPercentages
+      ..clear()
+      ..addAll(defaultPercentages);
+  }
 }
 
 /// A [TextInputFormatter] that automatically formats numeric input with thousands separators (dots)
