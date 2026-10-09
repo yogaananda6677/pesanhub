@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/utils/currency_formatter.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/app_typography.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../controllers/menu_availability_controller.dart';
@@ -423,12 +426,18 @@ class _PriceEditor extends StatefulWidget {
 class _PriceEditorState extends State<_PriceEditor> {
   late final Map<String, TextEditingController> _prices;
   late final TextEditingController _hpp;
+  late final TextEditingController _markupPercent;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _hpp = TextEditingController(text: widget.menu.hppAmount?.toString() ?? '');
+    _hpp = TextEditingController(
+      text: widget.menu.hppAmount != null
+          ? CurrencyFormatter.formatThousands(widget.menu.hppAmount)
+          : '',
+    );
+    _markupPercent = TextEditingController(text: '20');
     _prices = {
       for (final channel in const [
         'OFFLINE',
@@ -437,10 +446,12 @@ class _PriceEditorState extends State<_PriceEditor> {
         'SHOPEEFOOD',
       ])
         channel: TextEditingController(
-          text:
-              (widget.menu.channelPrices[channel] ??
-                      (channel == 'OFFLINE' ? widget.menu.priceAmount : null))
-                  ?.toString(),
+          text: () {
+            final raw =
+                widget.menu.channelPrices[channel] ??
+                (channel == 'OFFLINE' ? widget.menu.priceAmount : null);
+            return raw != null ? CurrencyFormatter.formatThousands(raw) : '';
+          }(),
         ),
     };
   }
@@ -448,17 +459,50 @@ class _PriceEditorState extends State<_PriceEditor> {
   @override
   void dispose() {
     _hpp.dispose();
+    _markupPercent.dispose();
     for (final controller in _prices.values) {
       controller.dispose();
     }
     super.dispose();
   }
 
+  void _generateOnlinePrices() {
+    final offlineText = _prices['OFFLINE']?.text ?? '';
+    final offlinePrice = CurrencyFormatter.parseThousands(offlineText);
+    if (offlinePrice == null || offlinePrice <= 0) {
+      setState(
+        () => _error =
+            'Harga OFFLINE wajib diisi dengan benar sebelum generate harga online.',
+      );
+      return;
+    }
+
+    final percentText = _markupPercent.text.trim().replaceAll(',', '.');
+    final percent = double.tryParse(percentText);
+    if (percent == null || percent < 0) {
+      setState(() => _error = 'Persentase markup tidak valid.');
+      return;
+    }
+
+    final onlinePrice = CurrencyFormatter.calculateOnlinePrice(
+      offlinePrice,
+      percent,
+    );
+    final formattedPrice = CurrencyFormatter.formatThousands(onlinePrice);
+
+    setState(() {
+      _prices['GOFOOD']?.text = formattedPrice;
+      _prices['GRABFOOD']?.text = formattedPrice;
+      _prices['SHOPEEFOOD']?.text = formattedPrice;
+      _error = null;
+    });
+  }
+
   Future<void> _save() async {
-    final hpp = int.tryParse(_hpp.text.trim());
+    final hpp = CurrencyFormatter.parseThousands(_hpp.text);
     final values = <String, int>{};
     for (final entry in _prices.entries) {
-      final amount = int.tryParse(entry.value.text.trim());
+      final amount = CurrencyFormatter.parseThousands(entry.value.text);
       if (amount == null || amount < 0) {
         setState(() => _error = 'HPP dan seluruh harga channel wajib diisi.');
         return;
@@ -494,20 +538,83 @@ class _PriceEditorState extends State<_PriceEditor> {
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               AppTextField(
                 key: const Key('menu-hpp-field'),
                 label: 'HPP (rupiah)',
                 controller: _hpp,
                 keyboardType: TextInputType.number,
+                inputFormatters: const [ThousandsSeparatorInputFormatter()],
               ),
-              for (final entry in _prices.entries) ...[
+              const SizedBox(height: AppSpacing.md),
+              AppTextField(
+                key: const Key('menu-offline-price-field'),
+                label: 'Harga ${labels['OFFLINE']}',
+                controller: _prices['OFFLINE'],
+                keyboardType: TextInputType.number,
+                inputFormatters: const [ThousandsSeparatorInputFormatter()],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: AppSpacing.borderRadiusMd,
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Generator Harga Online',
+                      style: AppTypography.labelLarge.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Hitung harga GoFood, GrabFood, dan ShopeeFood otomatis berdasarkan acuan harga OFFLINE.',
+                      style: AppTypography.bodySmall,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: AppTextField(
+                            key: const Key('menu-markup-percent-field'),
+                            label: 'Markup online (%)',
+                            controller: _markupPercent,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        AppButton(
+                          key: const Key('generate-online-prices-button'),
+                          label: 'Generate Harga Online',
+                          icon: Icons.auto_fix_high_rounded,
+                          onPressed: _generateOnlinePrices,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              for (final channel in const [
+                'GOFOOD',
+                'GRABFOOD',
+                'SHOPEEFOOD',
+              ]) ...[
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
-                  key: Key('menu-${entry.key.toLowerCase()}-price-field'),
-                  label: 'Harga ${labels[entry.key]}',
-                  controller: entry.value,
+                  key: Key('menu-${channel.toLowerCase()}-price-field'),
+                  label: 'Harga ${labels[channel]}',
+                  controller: _prices[channel],
                   keyboardType: TextInputType.number,
+                  inputFormatters: const [ThousandsSeparatorInputFormatter()],
                 ),
               ],
               if (_error != null) ...[
@@ -527,6 +634,7 @@ class _PriceEditorState extends State<_PriceEditor> {
           child: const Text('Batal'),
         ),
         AppButton(
+          key: const Key('save-price-button'),
           label: 'Simpan harga',
           isLoading: widget.controller.isSaving,
           onPressed: _save,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/currency_formatter.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
@@ -148,7 +149,7 @@ class MenuItemCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Rp ${item.priceAmount}',
+                CurrencyFormatter.formatRupiah(item.priceAmount),
                 style: AppTypography.bodyLarge.copyWith(
                   color: isAvailable ? AppColors.primary : AppColors.textMuted,
                   fontWeight: FontWeight.w800,
@@ -324,13 +325,5 @@ class MenuItemCard extends StatelessWidget {
     );
   }
 
-  String _formatRupiah(int amount) {
-    final digits = amount.toString();
-    final buffer = StringBuffer();
-    for (var index = 0; index < digits.length; index++) {
-      if (index > 0 && (digits.length - index) % 3 == 0) buffer.write('.');
-      buffer.write(digits[index]);
-    }
-    return 'Rp ${buffer.toString()}';
-  }
+  String _formatRupiah(int amount) => CurrencyFormatter.formatRupiah(amount);
 }

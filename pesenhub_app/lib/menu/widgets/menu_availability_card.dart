@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/currency_formatter.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
@@ -242,7 +243,7 @@ class MenuAvailabilityCard extends StatelessWidget {
               // Price
               Expanded(
                 child: Text(
-                  'Rp ${item.priceAmount}',
+                  CurrencyFormatter.formatRupiah(item.priceAmount),
                   style: AppTypography.titleMedium.copyWith(
                     fontWeight: FontWeight.w900,
                     fontSize: 16,
@@ -408,7 +409,10 @@ class _PriceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Chip(
       visualDensity: VisualDensity.compact,
-      label: Text('$label · Rp $amount', style: AppTypography.bodySmall),
+      label: Text(
+        '$label · ${CurrencyFormatter.formatRupiah(amount)}',
+        style: AppTypography.bodySmall,
+      ),
     );
   }
 }
