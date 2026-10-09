@@ -248,18 +248,22 @@ class SessionController extends ChangeNotifier {
 
   AuthUser? get user => _credential?.user;
 
+  static const String defaultOutletBranchId =
+      'b0000000-0000-0000-0000-000000000001';
+  static const String defaultOutletBranchName = 'Outlet Banyuwangi';
+
   String? get activeBranchId {
     if (user?.canAccessAllBranches == true) {
-      return _activeBranchId;
+      return _activeBranchId ?? user?.branchId ?? defaultOutletBranchId;
     }
-    return user?.branchId;
+    return user?.branchId ?? defaultOutletBranchId;
   }
 
   String? get activeBranchName {
     if (user?.canAccessAllBranches == true) {
-      return _activeBranchName ?? 'Semua Cabang';
+      return _activeBranchName ?? user?.branchName ?? defaultOutletBranchName;
     }
-    return user?.branchName;
+    return user?.branchName ?? defaultOutletBranchName;
   }
 
   bool get isAllBranches =>

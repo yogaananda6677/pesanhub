@@ -190,7 +190,7 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                               : null,
                           icon: const Icon(Icons.tune_rounded, size: 16),
                           label: const Text(
-                            'Kelola topping global',
+                            'Kelola topping',
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 11.5,
@@ -201,7 +201,7 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                             foregroundColor: AppColors.textPrimary,
                             side: const BorderSide(color: Color(0xFFE2E8F0)),
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
+                              horizontal: 6,
                               vertical: 10,
                             ),
                             shape: RoundedRectangleBorder(
@@ -218,7 +218,7 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                               : null,
                           icon: const Icon(Icons.category_outlined, size: 16),
                           label: const Text(
-                            'Kelola kategori',
+                            'Kategori',
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 11.5,
@@ -229,7 +229,36 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                             foregroundColor: AppColors.textPrimary,
                             side: const BorderSide(color: Color(0xFFE2E8F0)),
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
+                              horizontal: 6,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          key: const Key(
+                            'open-channel-generator-settings-button',
+                          ),
+                          onPressed: () => showChannelGeneratorDialog(context),
+                          icon: const Icon(Icons.percent_rounded, size: 16),
+                          label: const Text(
+                            'Markup ojol',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11.5,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.textPrimary,
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
                               vertical: 10,
                             ),
                             shape: RoundedRectangleBorder(

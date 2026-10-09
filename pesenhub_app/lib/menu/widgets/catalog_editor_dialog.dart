@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/utils/currency_formatter.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/app_typography.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../controllers/menu_availability_controller.dart';
@@ -48,6 +51,12 @@ Future<bool?> showGlobalExtraEditor(
   context: context,
   builder: (_) => _GlobalExtraEditor(controller: controller),
 );
+
+Future<bool?> showChannelGeneratorDialog(BuildContext context) =>
+    showDialog<bool>(
+      context: context,
+      builder: (_) => const _ChannelGeneratorDialog(),
+    );
 
 class _CategoryEditor extends StatefulWidget {
   final MenuAvailabilityController controller;
@@ -423,12 +432,25 @@ class _PriceEditor extends StatefulWidget {
 class _PriceEditorState extends State<_PriceEditor> {
   late final Map<String, TextEditingController> _prices;
   late final TextEditingController _hpp;
+  late final Map<String, TextEditingController> _channelMarkups;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _hpp = TextEditingController(text: widget.menu.hppAmount?.toString() ?? '');
+    _hpp = TextEditingController(
+      text: widget.menu.hppAmount != null
+          ? CurrencyFormatter.formatThousands(widget.menu.hppAmount)
+          : '',
+    );
+    _channelMarkups = {
+      for (final channel in ChannelGeneratorConfig.onlineChannels)
+        channel: TextEditingController(
+          text: ChannelGeneratorConfig.formatRate(
+            ChannelGeneratorConfig.getRate(channel),
+          ),
+        ),
+    };
     _prices = {
       for (final channel in const [
         'OFFLINE',
@@ -437,10 +459,12 @@ class _PriceEditorState extends State<_PriceEditor> {
         'SHOPEEFOOD',
       ])
         channel: TextEditingController(
-          text:
-              (widget.menu.channelPrices[channel] ??
-                      (channel == 'OFFLINE' ? widget.menu.priceAmount : null))
-                  ?.toString(),
+          text: () {
+            final raw =
+                widget.menu.channelPrices[channel] ??
+                (channel == 'OFFLINE' ? widget.menu.priceAmount : null);
+            return raw != null ? CurrencyFormatter.formatThousands(raw) : '';
+          }(),
         ),
     };
   }
@@ -448,17 +472,59 @@ class _PriceEditorState extends State<_PriceEditor> {
   @override
   void dispose() {
     _hpp.dispose();
+    for (final controller in _channelMarkups.values) {
+      controller.dispose();
+    }
     for (final controller in _prices.values) {
       controller.dispose();
     }
     super.dispose();
   }
 
+  void _generateOnlinePrices() {
+    final offlineText = _prices['OFFLINE']?.text ?? '';
+    final offlinePrice = CurrencyFormatter.parseThousands(offlineText);
+    if (offlinePrice == null || offlinePrice <= 0) {
+      setState(
+        () => _error =
+            'Harga OFFLINE wajib diisi dengan benar sebelum generate harga online.',
+      );
+      return;
+    }
+
+    final parsedRates = <String, double>{};
+    for (final channel in ChannelGeneratorConfig.onlineChannels) {
+      final text =
+          _channelMarkups[channel]?.text.trim().replaceAll(',', '.') ?? '';
+      final percent = double.tryParse(text);
+      if (percent == null || percent < 0) {
+        final label = ChannelGeneratorConfig.channelLabels[channel] ?? channel;
+        setState(() => _error = 'Persentase markup untuk $label tidak valid.');
+        return;
+      }
+      parsedRates[channel] = percent;
+    }
+
+    setState(() {
+      for (final entry in parsedRates.entries) {
+        final channel = entry.key;
+        final percent = entry.value;
+        final onlinePrice = CurrencyFormatter.calculateOnlinePrice(
+          offlinePrice,
+          percent,
+        );
+        _prices[channel]?.text = CurrencyFormatter.formatThousands(onlinePrice);
+        ChannelGeneratorConfig.setRate(channel, percent);
+      }
+      _error = null;
+    });
+  }
+
   Future<void> _save() async {
-    final hpp = int.tryParse(_hpp.text.trim());
+    final hpp = CurrencyFormatter.parseThousands(_hpp.text);
     final values = <String, int>{};
     for (final entry in _prices.entries) {
-      final amount = int.tryParse(entry.value.text.trim());
+      final amount = CurrencyFormatter.parseThousands(entry.value.text);
       if (amount == null || amount < 0) {
         setState(() => _error = 'HPP dan seluruh harga channel wajib diisi.');
         return;
@@ -494,20 +560,122 @@ class _PriceEditorState extends State<_PriceEditor> {
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               AppTextField(
                 key: const Key('menu-hpp-field'),
                 label: 'HPP (rupiah)',
                 controller: _hpp,
                 keyboardType: TextInputType.number,
+                inputFormatters: const [ThousandsSeparatorInputFormatter()],
               ),
-              for (final entry in _prices.entries) ...[
+              const SizedBox(height: AppSpacing.md),
+              AppTextField(
+                key: const Key('menu-offline-price-field'),
+                label: 'Harga ${labels['OFFLINE']}',
+                controller: _prices['OFFLINE'],
+                keyboardType: TextInputType.number,
+                inputFormatters: const [ThousandsSeparatorInputFormatter()],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: AppSpacing.borderRadiusMd,
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Generator Harga Online',
+                          style: AppTypography.labelLarge.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        TextButton.icon(
+                          key: const Key('open-master-generator-button'),
+                          icon: const Icon(Icons.settings_outlined, size: 16),
+                          label: const Text(
+                            'Master Data',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          onPressed: () async {
+                            final changed = await showChannelGeneratorDialog(
+                              context,
+                            );
+                            if (mounted && changed == true) {
+                              setState(() {
+                                for (final ch
+                                    in ChannelGeneratorConfig.onlineChannels) {
+                                  _channelMarkups[ch]?.text =
+                                      ChannelGeneratorConfig.formatRate(
+                                        ChannelGeneratorConfig.getRate(ch),
+                                      );
+                                }
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Hitung harga GoFood, GrabFood, dan ShopeeFood otomatis dari acuan harga OFFLINE.',
+                      style: AppTypography.bodySmall,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        for (final channel
+                            in ChannelGeneratorConfig.onlineChannels) ...[
+                          Expanded(
+                            child: AppTextField(
+                              key: Key(
+                                'menu-${channel.toLowerCase()}-markup-field',
+                              ),
+                              label:
+                                  '${ChannelGeneratorConfig.channelLabels[channel] ?? channel} (%)',
+                              controller: _channelMarkups[channel],
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        AppButton(
+                          key: const Key('generate-online-prices-button'),
+                          label: 'Generate',
+                          icon: Icons.auto_fix_high_rounded,
+                          onPressed: _generateOnlinePrices,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              for (final channel in const [
+                'GOFOOD',
+                'GRABFOOD',
+                'SHOPEEFOOD',
+              ]) ...[
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
-                  key: Key('menu-${entry.key.toLowerCase()}-price-field'),
-                  label: 'Harga ${labels[entry.key]}',
-                  controller: entry.value,
+                  key: Key('menu-${channel.toLowerCase()}-price-field'),
+                  label: 'Harga ${labels[channel]}',
+                  controller: _prices[channel],
                   keyboardType: TextInputType.number,
+                  inputFormatters: const [ThousandsSeparatorInputFormatter()],
                 ),
               ],
               if (_error != null) ...[
@@ -527,6 +695,7 @@ class _PriceEditorState extends State<_PriceEditor> {
           child: const Text('Batal'),
         ),
         AppButton(
+          key: const Key('save-price-button'),
           label: 'Simpan harga',
           isLoading: widget.controller.isSaving,
           onPressed: _save,
@@ -910,5 +1079,128 @@ class _OptionDraft {
     code.dispose();
     name.dispose();
     price.dispose();
+  }
+}
+
+class _ChannelGeneratorDialog extends StatefulWidget {
+  const _ChannelGeneratorDialog();
+
+  @override
+  State<_ChannelGeneratorDialog> createState() =>
+      _ChannelGeneratorDialogState();
+}
+
+class _ChannelGeneratorDialogState extends State<_ChannelGeneratorDialog> {
+  late final Map<String, TextEditingController> _controllers;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = {
+      for (final channel in ChannelGeneratorConfig.onlineChannels)
+        channel: TextEditingController(
+          text: ChannelGeneratorConfig.formatRate(
+            ChannelGeneratorConfig.getRate(channel),
+          ),
+        ),
+    };
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _reset() {
+    setState(() {
+      for (final channel in ChannelGeneratorConfig.onlineChannels) {
+        final def = ChannelGeneratorConfig.defaultPercentages[channel] ?? 20.0;
+        _controllers[channel]?.text = ChannelGeneratorConfig.formatRate(def);
+      }
+      _error = null;
+    });
+  }
+
+  void _save() {
+    for (final entry in _controllers.entries) {
+      final text = entry.value.text.trim().replaceAll(',', '.');
+      final val = double.tryParse(text);
+      if (val == null || val < 0) {
+        setState(
+          () => _error = 'Persentase untuk seluruh kanal wajib valid (>= 0).',
+        );
+        return;
+      }
+    }
+
+    for (final entry in _controllers.entries) {
+      final text = entry.value.text.trim().replaceAll(',', '.');
+      final val = double.parse(text);
+      ChannelGeneratorConfig.setRate(entry.key, val);
+    }
+
+    Navigator.pop(context, true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Master Data Generator Harga Kanal'),
+      content: SizedBox(
+        width: 440,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Atur persentase markup acuan untuk masing-masing kanal online (GoFood, GrabFood, ShopeeFood). Harga acuan adalah harga OFFLINE.',
+                style: AppTypography.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              for (final channel in ChannelGeneratorConfig.onlineChannels) ...[
+                AppTextField(
+                  key: Key('master-markup-${channel.toLowerCase()}-field'),
+                  label:
+                      'Markup ${ChannelGeneratorConfig.channelLabels[channel] ?? channel} (%)',
+                  controller: _controllers[channel],
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const Key('reset-master-generator-button'),
+          onPressed: _reset,
+          child: const Text('Reset default (20%)'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        AppButton(
+          key: const Key('save-master-generator-button'),
+          label: 'Simpan',
+          onPressed: _save,
+        ),
+      ],
+    );
   }
 }

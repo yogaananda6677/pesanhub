@@ -44,12 +44,12 @@ type Principal struct {
 // CanOperateOutlet permits day-to-day outlet work. STAFF remains supported for
 // service credentials; interactive users receive ADMIN or CASHIER.
 func CanOperateOutlet(p Principal) bool {
-	return p.Subject != "" && (p.Role == "STAFF" || p.Role == "ADMIN" || p.Role == "CASHIER")
+	return p.Subject != "" && (p.Role == "STAFF" || p.Role == "ADMIN" || p.Role == "CASHIER" || p.Role == "SUPERADMIN")
 }
 
 // CanManageOutlet restricts configuration and catalog mutations to admins.
 func CanManageOutlet(p Principal) bool {
-	return p.Subject != "" && (p.Role == "STAFF" || p.Role == "ADMIN")
+	return p.Subject != "" && (p.Role == "STAFF" || p.Role == "ADMIN" || p.Role == "SUPERADMIN")
 }
 
 type Repository interface {

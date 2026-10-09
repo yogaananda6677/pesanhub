@@ -109,6 +109,16 @@ func (s *Store) SetMenuAvailability(ctx context.Context, branchID, id string, av
 	}
 	defer tx.Rollback(ctx)
 
+	if branchID == "" {
+		_ = tx.QueryRow(ctx, `SELECT id::text FROM branches WHERE is_default = true LIMIT 1`).Scan(&branchID)
+		if branchID == "" {
+			_ = tx.QueryRow(ctx, `SELECT id::text FROM branches ORDER BY created_at ASC LIMIT 1`).Scan(&branchID)
+		}
+		if branchID == "" {
+			branchID = "b0000000-0000-0000-0000-000000000001"
+		}
+	}
+
 	// Ensure branch row exists
 	_, err = tx.Exec(ctx, `
 		INSERT INTO branch_menu_availability (branch_id, menu_id, is_available, version)
@@ -138,7 +148,7 @@ func (s *Store) SetMenuAvailability(ctx context.Context, branchID, id string, av
 
 	var isDefault bool
 	_ = tx.QueryRow(ctx, `SELECT is_default FROM branches WHERE id = $1`, branchID).Scan(&isDefault)
-	if isDefault {
+	if isDefault || branchID == "b0000000-0000-0000-0000-000000000001" {
 		_, _ = tx.Exec(ctx, `UPDATE menus SET is_available = $1, updated_at = now() WHERE id = $2`, available, id)
 	}
 
@@ -169,6 +179,16 @@ func (s *Store) SetModifierOptionAvailability(ctx context.Context, branchID, id 
 	}
 	defer tx.Rollback(ctx)
 
+	if branchID == "" {
+		_ = tx.QueryRow(ctx, `SELECT id::text FROM branches WHERE is_default = true LIMIT 1`).Scan(&branchID)
+		if branchID == "" {
+			_ = tx.QueryRow(ctx, `SELECT id::text FROM branches ORDER BY created_at ASC LIMIT 1`).Scan(&branchID)
+		}
+		if branchID == "" {
+			branchID = "b0000000-0000-0000-0000-000000000001"
+		}
+	}
+
 	// Ensure branch row exists
 	_, err = tx.Exec(ctx, `
 		INSERT INTO branch_modifier_option_availability (branch_id, modifier_option_id, is_available, version)
@@ -197,7 +217,7 @@ func (s *Store) SetModifierOptionAvailability(ctx context.Context, branchID, id 
 
 	var isDefault bool
 	_ = tx.QueryRow(ctx, `SELECT is_default FROM branches WHERE id = $1`, branchID).Scan(&isDefault)
-	if isDefault {
+	if isDefault || branchID == "b0000000-0000-0000-0000-000000000001" {
 		_, _ = tx.Exec(ctx, `UPDATE modifier_options SET is_available = $1, updated_at = now() WHERE id = $2`, available, id)
 	}
 

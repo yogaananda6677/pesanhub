@@ -136,9 +136,6 @@ func (s *Service) prepareMenu(m *Menu, create bool) error {
 }
 
 func (s *Service) SetMenuAvailability(ctx context.Context, branchID, id string, available bool, version int64, actorID, requestID string) (Menu, error) {
-	if branchID == "" {
-		return Menu{}, ErrBranchScopeRequired
-	}
 	if id == "" || version < 1 {
 		return Menu{}, ErrInvalidCatalog
 	}
@@ -146,9 +143,6 @@ func (s *Service) SetMenuAvailability(ctx context.Context, branchID, id string, 
 }
 
 func (s *Service) SetModifierOptionAvailability(ctx context.Context, branchID, id string, available bool, version int64, actorID, requestID string) (Option, error) {
-	if branchID == "" {
-		return Option{}, ErrBranchScopeRequired
-	}
 	if id == "" || version < 1 {
 		return Option{}, ErrInvalidCatalog
 	}

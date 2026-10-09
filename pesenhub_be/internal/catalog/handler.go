@@ -204,19 +204,10 @@ func (h *Handler) Availability(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}
-	principal := customer.PrincipalFromRequest(r)
 	scope := branch.ScopeFromContext(r.Context())
 	branchID := scope.BranchID
-	if branchID == "" && principal.Role == "ADMIN" {
-		branchID = strings.TrimSpace(r.URL.Query().Get("branch_id"))
-	}
-	if principal.Role == "ADMIN" && branchID == "" {
-		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_SCOPE_REQUIRED", "Admin harus memilih cabang aktif (header X-Branch-ID) untuk mengubah ketersediaan menu.", httpserver.RequestID(r.Context()), nil)
-		return
-	}
 	if branchID == "" {
-		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_SCOPE_REQUIRED", "Cabang aktif harus ditentukan untuk mengubah ketersediaan menu.", httpserver.RequestID(r.Context()), nil)
-		return
+		branchID = strings.TrimSpace(r.URL.Query().Get("branch_id"))
 	}
 	var body struct {
 		Available bool  `json:"is_available"`
@@ -239,19 +230,10 @@ func (h *Handler) OptionAvailability(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, customer.ErrUnauthorized)
 		return
 	}
-	principal := customer.PrincipalFromRequest(r)
 	scope := branch.ScopeFromContext(r.Context())
 	branchID := scope.BranchID
-	if branchID == "" && principal.Role == "ADMIN" {
-		branchID = strings.TrimSpace(r.URL.Query().Get("branch_id"))
-	}
-	if principal.Role == "ADMIN" && branchID == "" {
-		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_SCOPE_REQUIRED", "Admin harus memilih cabang aktif (header X-Branch-ID) untuk mengubah ketersediaan opsi menu.", httpserver.RequestID(r.Context()), nil)
-		return
-	}
 	if branchID == "" {
-		httpapi.WriteError(w, http.StatusBadRequest, "BRANCH_SCOPE_REQUIRED", "Cabang aktif harus ditentukan untuk mengubah ketersediaan opsi menu.", httpserver.RequestID(r.Context()), nil)
-		return
+		branchID = strings.TrimSpace(r.URL.Query().Get("branch_id"))
 	}
 	var body struct {
 		Available bool  `json:"is_available"`
