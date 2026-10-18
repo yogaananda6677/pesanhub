@@ -332,6 +332,7 @@ func main() {
 	mux.HandleFunc("PATCH /api/v1/admin/categories/{id}", catalogHandler.UpdateCategory)
 	mux.HandleFunc("POST /api/v1/admin/menus", catalogHandler.CreateMenu)
 	mux.HandleFunc("PATCH /api/v1/admin/menus/{id}", catalogHandler.UpdateMenu)
+	mux.HandleFunc("POST /api/v1/admin/menus/bulk-channel-prices", catalogHandler.BulkChannelPrices)
 	mux.HandleFunc("PATCH /api/v1/admin/menus/{id}/availability", catalogHandler.Availability)
 	mux.HandleFunc("PATCH /api/v1/admin/modifier-options/{id}/availability", catalogHandler.OptionAvailability)
 	mux.HandleFunc("POST /api/v1/admin/menu-images", catalogHandler.UploadImage)

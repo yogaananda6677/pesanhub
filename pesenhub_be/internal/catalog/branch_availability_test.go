@@ -216,6 +216,10 @@ func (m *multiBranchRepo) ListAdmin(_ context.Context, branchID ...string) ([]Ca
 	return resCategories, nil
 }
 
+func (m *multiBranchRepo) ApplyChannelPricesAll(_ context.Context, _ map[string]float64, _ MutationMeta) ([]Menu, error) {
+	return []Menu{m.menu}, nil
+}
+
 func TestMultiBranchMenuAvailabilityIsolation(t *testing.T) {
 	menu := Menu{
 		ID:          "menu-x",

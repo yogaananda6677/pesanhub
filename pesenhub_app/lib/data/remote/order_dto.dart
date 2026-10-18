@@ -2,7 +2,14 @@ import '../../queue/models/queue_order.dart';
 import '../../queue/models/queue_order_item.dart';
 
 class QueueOrderDto {
-  static const validSources = {'CASHIER_MANUAL', 'CUSTOMER_WEB', 'WHATSAPP'};
+  static const validSources = {
+    'CASHIER_MANUAL',
+    'CUSTOMER_WEB',
+    'WHATSAPP',
+    'GOFOOD',
+    'GRABFOOD',
+    'SHOPEEFOOD',
+  };
   static const validStatuses = {
     'PENDING',
     'ACCEPTED',

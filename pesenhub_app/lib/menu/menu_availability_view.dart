@@ -244,7 +244,10 @@ class _MenuAvailabilityViewState extends State<MenuAvailabilityView> {
                           key: const Key(
                             'open-channel-generator-settings-button',
                           ),
-                          onPressed: () => showChannelGeneratorDialog(context),
+                          onPressed: () => showChannelGeneratorDialog(
+                            context,
+                            controller: controller,
+                          ),
                           icon: const Icon(Icons.percent_rounded, size: 16),
                           label: const Text(
                             'Markup ojol',

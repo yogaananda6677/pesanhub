@@ -6,8 +6,10 @@ import '../cart/widgets/cart_item_tile.dart';
 import '../cart/widgets/order_review_dialog.dart';
 import '../cart/widgets/order_success_dialog.dart';
 import '../connectivity/connectivity_controller.dart';
+import '../data/local/local_database.dart';
+import '../data/local/queue_local_repository.dart';
 import '../data/remote/pesenhub_api_client.dart';
-import '../discount/models/discount.dart';
+import '../discount/widgets/promo_selector_sheet.dart';
 import '../menu/controllers/menu_controller.dart' as mc;
 import '../menu/controllers/modifier_selection_state.dart';
 import '../menu/menu_catalog_view.dart';
@@ -32,6 +34,7 @@ class PosView extends StatefulWidget {
   final Future<QueueOrder> Function(CartOrderDraft draft)? submitOrder;
   final ConnectivityController? connectivityController;
   final PesenHubApiClient? apiClient;
+  final Future<int> Function()? getDailySequence;
 
   const PosView({
     super.key,
@@ -41,6 +44,7 @@ class PosView extends StatefulWidget {
     this.submitOrder,
     this.connectivityController,
     this.apiClient,
+    this.getDailySequence,
   });
 
   @override
@@ -65,11 +69,48 @@ class _PosViewState extends State<PosView> {
         mc.MenuController(initialCategories: const [], initialMenus: const []);
     _cartController = widget.cartController ?? CartController();
 
-    _nameController.text = _cartController.customerName;
+    if (_cartController.customerName.trim().isEmpty) {
+      _fetchDefaultCustomerName().then((defaultName) {
+        if (mounted && _cartController.customerName.trim().isEmpty) {
+          _nameController.text = defaultName;
+          _cartController.setCustomerName(defaultName);
+          setState(() {});
+        }
+      });
+    } else {
+      _nameController.text = _cartController.customerName;
+    }
     _phoneController.text = _cartController.customerPhone;
     _takeawayNotesController.text = _cartController.takeawayNotes;
 
     _cartController.addListener(_onCartChanged);
+  }
+
+  Future<String> _fetchDefaultCustomerName() async {
+    try {
+      if (widget.getDailySequence != null) {
+        final seq = await widget.getDailySequence!();
+        return 'Customer #${seq.toString().padLeft(2, '0')}';
+      }
+      final seq = await QueueLocalRepository(
+        LocalDatabase(),
+      ).getNextDailySequence();
+      return 'Customer #${seq.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return 'Customer #01';
+    }
+  }
+
+  void _resetToDefaultCustomer() {
+    _phoneController.clear();
+    _takeawayNotesController.clear();
+    _fetchDefaultCustomerName().then((nextName) {
+      if (mounted) {
+        _nameController.text = nextName;
+        _cartController.setCustomerName(nextName);
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -82,7 +123,13 @@ class _PosViewState extends State<PosView> {
   }
 
   void _onCartChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    if (_cartController.customerName.isEmpty &&
+        _nameController.text.isNotEmpty &&
+        !_nameController.text.startsWith('Customer #')) {
+      _resetToDefaultCustomer();
+    }
+    setState(() {});
   }
 
   void _handleItemConfigured(ModifierSelectionState modifierState) {
@@ -138,7 +185,9 @@ class _PosViewState extends State<PosView> {
       return;
     }
 
-    if (sheetContext != null && Navigator.canPop(sheetContext)) {
+    if (sheetContext != null &&
+        sheetContext.mounted &&
+        Navigator.canPop(sheetContext)) {
       Navigator.of(sheetContext).pop();
     }
 
@@ -146,18 +195,18 @@ class _PosViewState extends State<PosView> {
       context: context,
       controller: _cartController,
       submitFn: widget.submitOrder,
+      apiClient: widget.apiClient,
     );
 
     if (createdOrder != null && mounted) {
+      _resetToDefaultCustomer();
       _showSuccess(createdOrder);
     }
   }
 
   void _handleClearCart() {
-    _nameController.clear();
-    _phoneController.clear();
-    _takeawayNotesController.clear();
     _cartController.clearCart();
+    _resetToDefaultCustomer();
   }
 
   void _showSuccess(QueueOrder order) {
@@ -166,9 +215,7 @@ class _PosViewState extends State<PosView> {
       order: order,
       onViewQueue: widget.onNavigateToQueue,
       onNewOrder: () {
-        _nameController.clear();
-        _phoneController.clear();
-        _takeawayNotesController.clear();
+        _resetToDefaultCustomer();
       },
     );
   }
@@ -503,7 +550,34 @@ class _PosViewState extends State<PosView> {
                         label: 'Nama Pelanggan *',
                         hintText: 'Contoh: Budi Santoso',
                         controller: _nameController,
-                        onChanged: _cartController.setCustomerName,
+                        onTap: () {
+                          if (_nameController.text.startsWith('Customer #') ||
+                              _nameController.text == 'Customer') {
+                            _nameController.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: _nameController.text.length,
+                            );
+                          }
+                        },
+                        suffixIcon: _nameController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(
+                                  Icons.cancel_rounded,
+                                  size: 18,
+                                  color: AppColors.textMuted,
+                                ),
+                                tooltip: 'Hapus nama',
+                                onPressed: () {
+                                  _nameController.clear();
+                                  _cartController.setCustomerName('');
+                                  setState(() {});
+                                },
+                              )
+                            : null,
+                        onChanged: (val) {
+                          _cartController.setCustomerName(val);
+                          setState(() {});
+                        },
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       AppTextField(
@@ -747,467 +821,17 @@ class _PosViewState extends State<PosView> {
   }
 
   void _showPromoSelectorSheet(BuildContext context) {
-    showModalBottomSheet(
+    PromoSelectorSheet.show(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => _PromoSelectorSheet(
-        apiClient: widget.apiClient,
-        cartController: _cartController,
-        onApplied: (discount) {
-          Navigator.of(ctx).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Promo "${discount.name}" berhasil digunakan!'),
-              backgroundColor: const Color(0xFF2E7D32),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Bottom Sheet for Selecting & Applying Promo/Discount in POS
-class _PromoSelectorSheet extends StatefulWidget {
-  final PesenHubApiClient? apiClient;
-  final CartController cartController;
-  final ValueChanged<Discount> onApplied;
-
-  const _PromoSelectorSheet({
-    this.apiClient,
-    required this.cartController,
-    required this.onApplied,
-  });
-
-  @override
-  State<_PromoSelectorSheet> createState() => _PromoSelectorSheetState();
-}
-
-class _PromoSelectorSheetState extends State<_PromoSelectorSheet> {
-  final TextEditingController _codeController = TextEditingController();
-  bool _isLoading = false;
-  List<Discount> _promos = [];
-  String? _errorMsg;
-
-  static final List<Discount> _fallbackPromos = [
-    const Discount(
-      id: 'disc-fall-1',
-      name: 'Promo GoFood Martabak 20%',
-      code: 'GFMARTABAK20',
-      scope: 'ITEM',
-      channel: 'GOFOOD',
-      type: 'PERCENTAGE',
-      value: 20,
-      maxDiscountAmount: 15000,
-      minOrderAmount: 40000,
-      isActive: true,
-    ),
-    const Discount(
-      id: 'disc-fall-2',
-      name: 'Diskon Min Belanja 50 Ribu',
-      code: 'DISKON50K',
-      scope: 'ORDER',
-      channel: 'ALL',
-      type: 'FIXED',
-      value: 10000,
-      minOrderAmount: 50000,
-      isActive: true,
-    ),
-    const Discount(
-      id: 'disc-fall-3',
-      name: 'Promo GrabFood Spesial 15%',
-      code: 'GRABSPESIAL15',
-      scope: 'ORDER',
-      channel: 'GRABFOOD',
-      type: 'PERCENTAGE',
-      value: 15,
-      maxDiscountAmount: 20000,
-      minOrderAmount: 60000,
-      isActive: true,
-    ),
-    const Discount(
-      id: 'disc-fall-4',
-      name: 'Diskon Kasir Offline 5 Ribu',
-      code: 'OFFLINE5K',
-      scope: 'ORDER',
-      channel: 'OFFLINE',
-      type: 'FIXED',
-      value: 5000,
-      minOrderAmount: 30000,
-      isActive: true,
-    ),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadApplicablePromos();
-  }
-
-  @override
-  void dispose() {
-    _codeController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadApplicablePromos() async {
-    setState(() => _isLoading = true);
-    final orderSource = widget.cartController.orderSource;
-    final subtotal = widget.cartController.subtotalAmount;
-    final itemTotals = <String, int>{};
-    for (final i in widget.cartController.items) {
-      itemTotals[i.menuItem.id] =
-          (itemTotals[i.menuItem.id] ?? 0) + i.lineTotal;
-    }
-
-    try {
-      if (widget.apiClient != null) {
-        final list = await widget.apiClient!.fetchApplicableDiscounts(
-          channel: orderSource,
-          subtotal: subtotal,
+      cartController: _cartController,
+      apiClient: widget.apiClient,
+      onApplied: (discount) {
+        AppFeedback.show(
+          context,
+          message: 'Promo "${discount.name}" berhasil digunakan!',
+          type: AppBannerType.success,
         );
-        if (mounted) {
-          setState(() {
-            _promos = list.isNotEmpty ? list : _filterFallback(orderSource);
-            _isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _promos = _filterFallback(orderSource);
-            _isLoading = false;
-          });
-        }
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _promos = _filterFallback(orderSource);
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  List<Discount> _filterFallback(String orderSource) {
-    return _fallbackPromos
-        .where((d) => d.matchesChannel(orderSource) && d.isActive)
-        .toList();
-  }
-
-  void _applyManualCode() {
-    final code = _codeController.text.trim().toUpperCase();
-    if (code.isEmpty) return;
-
-    final found = _promos.where((d) => d.code?.toUpperCase() == code).toList();
-    if (found.isNotEmpty) {
-      final promo = found.first;
-      final subtotal = widget.cartController.subtotalAmount;
-      if (subtotal < promo.minOrderAmount) {
-        setState(() {
-          _errorMsg =
-              'Minimal belanja belum terpenuhi (Kurang ${_formatRupiah(promo.minOrderAmount - subtotal)})';
-        });
-        return;
-      }
-      widget.cartController.applyDiscount(promo);
-      widget.onApplied(promo);
-    } else {
-      setState(() {
-        _errorMsg =
-            'Kode promo "$code" tidak ditemukan atau tidak berlaku di saluran ini.';
-      });
-    }
-  }
-
-  String _formatRupiah(int amount) {
-    final digits = amount.toString();
-    final buffer = StringBuffer();
-    for (var i = 0; i < digits.length; i++) {
-      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
-      buffer.write(digits[i]);
-    }
-    return 'Rp ${buffer.toString()}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final subtotal = widget.cartController.subtotalAmount;
-
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSpacing.md,
-        right: AppSpacing.md,
-        top: AppSpacing.md,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.8,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Sheet Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF9EFE7),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.local_offer_rounded,
-                    color: Color(0xFF8D321F),
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Pilih Promo / Diskon',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF2D231E),
-                        ),
-                      ),
-                      Text(
-                        'Promo aktif untuk transaksi ini',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF7A6B63),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            const Divider(height: 16),
-
-            // Promo Code Input Box
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _codeController,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: InputDecoration(
-                      hintText: 'Punya kode promo? Masukkan di sini',
-                      prefixIcon: const Icon(
-                        Icons.confirmation_number_outlined,
-                        size: 18,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  key: const Key('promo-apply-manual-code-button'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8D321F),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                  ),
-                  onPressed: _applyManualCode,
-                  child: const Text('Gunakan'),
-                ),
-              ],
-            ),
-
-            if (_errorMsg != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                _errorMsg!,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFFD32F2F),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-
-            const SizedBox(height: AppSpacing.sm),
-            const Divider(height: 16),
-
-            // Applicable Promo List
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Color(0xFF8D321F),
-                      ),
-                    )
-                  : _promos.isEmpty
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Text(
-                          'Belum ada promo yang berlaku untuk transaksi ini.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF7A6B63),
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    )
-                  : ListView.separated(
-                      itemCount: _promos.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, idx) {
-                        final promo = _promos[idx];
-                        final isEligible = subtotal >= promo.minOrderAmount;
-                        final isPercent = promo.type == 'PERCENTAGE';
-                        final valueStr = isPercent
-                            ? '${promo.value}%'
-                            : _formatRupiah(promo.value);
-
-                        return Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isEligible
-                                ? Colors.white
-                                : const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isEligible
-                                  ? const Color(0xFFE2E8F0)
-                                  : const Color(0xFFEEF2F6),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: isEligible
-                                      ? const Color(0xFFFFF3E0)
-                                      : const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(
-                                  Icons.discount_rounded,
-                                  color: isEligible
-                                      ? const Color(0xFFE65100)
-                                      : const Color(0xFF94A3B8),
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      promo.name,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: isEligible
-                                            ? const Color(0xFF2D231E)
-                                            : const Color(0xFF94A3B8),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      isPercent
-                                          ? 'Diskon $valueStr${promo.maxDiscountAmount != null ? " (Maks ${_formatRupiah(promo.maxDiscountAmount!)})" : ""}'
-                                          : 'Potongan $valueStr',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: isEligible
-                                            ? const Color(0xFF2E7D32)
-                                            : const Color(0xFF94A3B8),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    if (promo.minOrderAmount > 0) ...[
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Min. belanja ${_formatRupiah(promo.minOrderAmount)}',
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          color: Color(0xFF7A6B63),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              ElevatedButton(
-                                key: Key('promo-apply-${promo.id}'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isEligible
-                                      ? const Color(0xFF8D321F)
-                                      : const Color(0xFFE2E8F0),
-                                  foregroundColor: isEligible
-                                      ? Colors.white
-                                      : const Color(0xFF94A3B8),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 8,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  elevation: 0,
-                                ),
-                                onPressed: isEligible
-                                    ? () {
-                                        widget.cartController.applyDiscount(
-                                          promo,
-                                        );
-                                        widget.onApplied(promo);
-                                      }
-                                    : null,
-                                child: Text(
-                                  isEligible ? 'Gunakan' : 'Min Belanja',
-                                  style: const TextStyle(fontSize: 11),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
+      },
     );
   }
 }

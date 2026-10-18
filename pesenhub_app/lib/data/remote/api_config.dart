@@ -11,7 +11,7 @@ class ApiConfig {
 
   ApiConfig({
     required Uri baseUri,
-    this.requestTimeout = const Duration(seconds: 10),
+    this.requestTimeout = const Duration(seconds: 20),
     this.googleServerClientId = '',
   }) : baseUri = _normalize(baseUri) {
     if (requestTimeout <= Duration.zero) {

@@ -35,6 +35,7 @@ class PosDestinationView extends StatelessWidget {
   final Future<QueueOrder> Function(CartOrderDraft draft)? submitOrder;
   final ConnectivityController? connectivityController;
   final PesenHubApiClient? apiClient;
+  final Future<int> Function()? getDailySequence;
 
   const PosDestinationView({
     super.key,
@@ -44,6 +45,7 @@ class PosDestinationView extends StatelessWidget {
     this.submitOrder,
     this.connectivityController,
     this.apiClient,
+    this.getDailySequence,
   });
 
   @override
@@ -55,6 +57,7 @@ class PosDestinationView extends StatelessWidget {
       submitOrder: submitOrder,
       connectivityController: connectivityController,
       apiClient: apiClient,
+      getDailySequence: getDailySequence,
     );
   }
 }
@@ -971,26 +974,67 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
     bool isSaving = false;
     String? errorText;
 
-    showDialog(
-      context: context,
-      builder: (dialogCtx) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+    final isTablet =
+        MediaQuery.sizeOf(context).width >= AppSpacing.tabletBreakpoint;
+
+    Widget buildSheet(BuildContext dialogCtx, StateSetter setDialogState) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFCBD5E1),
+                borderRadius: BorderRadius.circular(2),
               ),
-              title: const Row(
-                children: [
-                  Icon(Icons.badge_rounded, color: Color(0xFF8D321F), size: 22),
-                  SizedBox(width: 10),
-                  Text(
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9EFE7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.badge_rounded,
+                    color: Color(0xFF8D321F),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
                     'Ubah Nama Profil',
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
                   ),
-                ],
-              ),
-              content: Column(
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 22,
+                    color: Color(0xFF64748B),
+                  ),
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.of(dialogCtx).pop(),
+                  splashRadius: 20,
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1021,7 +1065,14 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                   ),
                 ],
               ),
-              actions: [
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
                 TextButton(
                   onPressed: isSaving
                       ? null
@@ -1031,6 +1082,7 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                     style: TextStyle(color: Color(0xFF7A6B63)),
                   ),
                 ),
+                const SizedBox(width: 10),
                 ElevatedButton(
                   onPressed: isSaving
                       ? null
@@ -1107,11 +1159,55 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                       : const Text('Simpan'),
                 ),
               ],
-            );
-          },
-        );
-      },
-    );
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (isTablet) {
+      showDialog(
+        context: context,
+        builder: (dialogCtx) => StatefulBuilder(
+          builder: (ctx, setDialogState) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480, maxHeight: 420),
+              child: Material(
+                color: Colors.white,
+                child: buildSheet(ctx, setDialogState),
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (dialogCtx) => StatefulBuilder(
+          builder: (ctx, setDialogState) => Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.75,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: buildSheet(ctx, setDialogState),
+          ),
+        ),
+      );
+    }
   }
 
   void _confirmSignOut(BuildContext context) {

@@ -130,6 +130,14 @@ class CartController extends ChangeNotifier {
 
   void setOrderSource(String source) {
     _orderSource = source;
+    for (int i = 0; i < _items.length; i++) {
+      final item = _items[i];
+      final newUnitPrice = item.priceForChannel(source);
+      _items[i] = item.copyWith(unitPrice: newUnitPrice);
+    }
+    if (_appliedDiscount != null && !_appliedDiscount!.matchesChannel(source)) {
+      _appliedDiscount = null;
+    }
     notifyListeners();
   }
 
@@ -165,13 +173,15 @@ class CartController extends ChangeNotifier {
 
   /// Adds an item directly without modifiers.
   void addItem(MenuItem menuItem, {int quantity = 1, String? notes}) {
+    final channelUnitPrice =
+        menuItem.priceForChannel(_orderSource) ?? menuItem.priceAmount;
     final lineItem = CartItem(
       id: _generateId(),
       menuItem: menuItem,
       modifierSummary: '',
       selectedOptionIds: const {},
       quantity: quantity,
-      unitPrice: menuItem.priceAmount,
+      unitPrice: channelUnitPrice,
       notes: notes ?? '',
     );
     _items.add(lineItem);
@@ -183,6 +193,10 @@ class CartController extends ChangeNotifier {
     MenuItem menuItem,
     ModifierSelectionState state,
   ) {
+    final basePrice =
+        menuItem.priceForChannel(_orderSource) ?? menuItem.priceAmount;
+    final modifierDelta = state.unitPrice - menuItem.priceAmount;
+    final channelUnitPrice = basePrice + modifierDelta;
     final lineItem = CartItem(
       id: _generateId(),
       menuItem: menuItem,
@@ -190,7 +204,7 @@ class CartController extends ChangeNotifier {
       selectedOptionIds: state.selectedOptionIds,
       selectedOptionQuantities: state.selectedOptionQuantities,
       quantity: state.quantity,
-      unitPrice: state.unitPrice,
+      unitPrice: channelUnitPrice,
       notes: state.notes,
     );
     _items.add(lineItem);

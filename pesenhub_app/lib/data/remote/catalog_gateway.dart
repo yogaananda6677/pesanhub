@@ -20,4 +20,7 @@ abstract class CatalogRemoteGateway {
     bool available,
     int expectedVersion,
   );
+  Future<List<MenuItem>> bulkUpdateChannelPrices(
+    Map<String, double> rates,
+  ) async => const [];
 }

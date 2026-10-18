@@ -111,5 +111,106 @@ void main() {
 
       expect(find.text('Tambah Promo Baru'), findsNothing);
     });
+
+    testWidgets(
+      'Creates promo with formatted dots in nominal value and min order',
+      (tester) async {
+        tester.view.physicalSize = const Size(600, 1000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(buildTestApp());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const Key('add-promo-fab')));
+        await tester.pumpAndSettle();
+
+        // Enter name
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Nama Promo / Diskon *'),
+          'Diskon Gajian 25 Ribu',
+        );
+
+        // Select Tipe Diskon = FIXED
+        await tester.tap(find.text('Persentase (%)').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Nominal Tetap (Rp)').last);
+        await tester.pumpAndSettle();
+
+        // Enter nominal with dots
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Nominal Potongan (Rp) *'),
+          '25.000',
+        );
+
+        // Enter min order with dots
+        await tester.enterText(
+          find.widgetWithText(
+            TextFormField,
+            'Minimal Pembelian (Rp, Opsional)',
+          ),
+          '75.000',
+        );
+
+        // Save
+        await tester.tap(find.text('Buat Promo'));
+        await tester.pumpAndSettle();
+
+        // Dialog should be dismissed and new promo card rendered
+        expect(find.text('Tambah Promo Baru'), findsNothing);
+        expect(find.text('Diskon Gajian 25 Ribu'), findsOneWidget);
+        expect(find.text('Rp 25.000'), findsOneWidget);
+        expect(find.text('Min. belanja Rp 75.000'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Validates item scope requires selecting menu items', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(600, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(buildTestApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('add-promo-fab')));
+      await tester.pumpAndSettle();
+
+      // Enter name
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Nama Promo / Diskon *'),
+        'Diskon Martabak Manis',
+      );
+
+      // Change Scope to ITEM
+      await tester.tap(find.text('Total Pembelian (Semua Pesanan)').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Menu Tertentu (Spesifik Menu)').last);
+      await tester.pumpAndSettle();
+
+      // Should show menu selector section
+      expect(find.text('Menu Diskon (0) *'), findsOneWidget);
+      expect(find.byKey(const Key('open-menu-picker-button')), findsOneWidget);
+
+      // Enter value
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Besar Diskon (%) *'),
+        '15',
+      );
+
+      // Try saving without picking any menu
+      await tester.tap(find.text('Buat Promo'));
+      await tester.pumpAndSettle();
+
+      // Should show validation error and stay in dialog
+      expect(
+        find.text('Pilih minimal 1 menu untuk promo menu tertentu!'),
+        findsOneWidget,
+      );
+      expect(find.text('Tambah Promo Baru'), findsOneWidget);
+    });
   });
 }

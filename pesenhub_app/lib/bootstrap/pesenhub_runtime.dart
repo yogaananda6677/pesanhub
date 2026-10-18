@@ -172,6 +172,7 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
       updateCategoryFn: api.updateCategory,
       createMenuFn: api.createMenu,
       updateMenuFn: api.updateMenu,
+      bulkChannelPricesFn: api.bulkUpdateChannelPrices,
       uploadMenuImageFn: api.uploadMenuImage,
       canMutate: () =>
           connectivity.backendReachable && session.user?.role == 'ADMIN',
@@ -400,6 +401,9 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
         await _coordinator?.refreshSnapshot();
       },
       apiClient: _api,
+      getDailySequence: _queueRepository == null
+          ? null
+          : () => _queueRepository!.getNextDailySequence(),
       onUpdateDisplayName: session != null
           ? (newName) async {
               await session.updateDisplayName(newName);

@@ -13,12 +13,163 @@ import '../models/menu_item.dart';
 import '../models/menu_modifier_group.dart';
 import '../models/menu_option.dart';
 
+Future<T?> _showCatalogBottomSheet<T>({
+  required BuildContext context,
+  required Widget Function(BuildContext) builder,
+}) {
+  final isTablet =
+      MediaQuery.sizeOf(context).width >= AppSpacing.tabletBreakpoint;
+
+  if (isTablet) {
+    return showDialog<T>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580, maxHeight: 760),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: builder(ctx),
+          ),
+        ),
+      ),
+    );
+  } else {
+    return showModalBottomSheet<T>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.88,
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            child: builder(ctx),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CatalogBottomSheetContainer extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final Widget child;
+  final List<Widget> actions;
+
+  const _CatalogBottomSheetContainer({
+    required this.title,
+    this.subtitle,
+    required this.child,
+    required this.actions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(color: Colors.white),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFCBD5E1),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTypography.titleLarge.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          style: AppTypography.bodySmall.copyWith(
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Color(0xFF64748B),
+                  ),
+                  tooltip: 'Tutup',
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          // Body
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              child: child,
+            ),
+          ),
+          // Actions
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: actions,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 Future<bool?> showCategoryEditor(
   BuildContext context, {
   required MenuAvailabilityController controller,
   MenuCategory? category,
 }) {
-  return showDialog<bool>(
+  return _showCatalogBottomSheet<bool>(
     context: context,
     builder: (_) => _CategoryEditor(controller: controller, category: category),
   );
@@ -29,7 +180,7 @@ Future<bool?> showMenuEditor(
   required MenuAvailabilityController controller,
   MenuItem? menu,
 }) {
-  return showDialog<bool>(
+  return _showCatalogBottomSheet<bool>(
     context: context,
     builder: (_) => _MenuEditor(controller: controller, menu: menu),
   );
@@ -39,7 +190,7 @@ Future<bool?> showPriceEditor(
   BuildContext context, {
   required MenuAvailabilityController controller,
   required MenuItem menu,
-}) => showDialog<bool>(
+}) => _showCatalogBottomSheet<bool>(
   context: context,
   builder: (_) => _PriceEditor(controller: controller, menu: menu),
 );
@@ -47,16 +198,18 @@ Future<bool?> showPriceEditor(
 Future<bool?> showGlobalExtraEditor(
   BuildContext context, {
   required MenuAvailabilityController controller,
-}) => showDialog<bool>(
+}) => _showCatalogBottomSheet<bool>(
   context: context,
   builder: (_) => _GlobalExtraEditor(controller: controller),
 );
 
-Future<bool?> showChannelGeneratorDialog(BuildContext context) =>
-    showDialog<bool>(
-      context: context,
-      builder: (_) => const _ChannelGeneratorDialog(),
-    );
+Future<bool?> showChannelGeneratorDialog(
+  BuildContext context, {
+  MenuAvailabilityController? controller,
+}) => _showCatalogBottomSheet<bool>(
+  context: context,
+  builder: (_) => _ChannelGeneratorDialog(controller: controller),
+);
 
 class _CategoryEditor extends StatefulWidget {
   final MenuAvailabilityController controller;
@@ -113,39 +266,9 @@ class _CategoryEditorState extends State<_CategoryEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(
-        widget.category == null ? 'Tambah kategori' : 'Edit kategori',
-      ),
-      content: SizedBox(
-        width: 420,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppTextField(
-                key: const Key('category-name-field'),
-                label: 'Nama kategori',
-                controller: _name,
-                errorText: _error,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(
-                label: 'Urutan',
-                controller: _sort,
-                keyboardType: TextInputType.number,
-              ),
-              if (widget.category != null)
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Kategori aktif'),
-                  value: _active,
-                  onChanged: (value) => setState(() => _active = value),
-                ),
-            ],
-          ),
-        ),
-      ),
+    return _CatalogBottomSheetContainer(
+      title: widget.category == null ? 'Tambah Kategori' : 'Edit Kategori',
+      subtitle: 'Kategori pengelompokan menu di katalog',
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -157,6 +280,31 @@ class _CategoryEditorState extends State<_CategoryEditor> {
           onPressed: _save,
         ),
       ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppTextField(
+            key: const Key('category-name-field'),
+            label: 'Nama kategori',
+            controller: _name,
+            errorText: _error,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            label: 'Urutan',
+            controller: _sort,
+            keyboardType: TextInputType.number,
+          ),
+          if (widget.category != null)
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Kategori aktif'),
+              value: _active,
+              onChanged: (value) => setState(() => _active = value),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -295,115 +443,9 @@ class _MenuEditorState extends State<_MenuEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      insetPadding: const EdgeInsets.all(AppSpacing.md),
-      title: Text(widget.menu == null ? 'Tambah data menu' : 'Edit data menu'),
-      content: SizedBox(
-        width: 680,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              DropdownButtonFormField<String>(
-                key: const Key('menu-category-field'),
-                initialValue: _categoryId,
-                decoration: const InputDecoration(labelText: 'Kategori'),
-                items: widget.controller.categories
-                    .where(
-                      (category) =>
-                          category.isActive || category.id == _categoryId,
-                    )
-                    .map(
-                      (category) => DropdownMenuItem(
-                        value: category.id,
-                        child: Text(category.name),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => _categoryId = value),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              DropdownButtonFormField<String>(
-                key: const Key('menu-product-type-field'),
-                initialValue: _productType,
-                decoration: const InputDecoration(labelText: 'Jenis martabak'),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'MARTABAK_TELUR',
-                    child: Text('Martabak Telur'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'TERANG_BULAN',
-                    child: Text('Terang Bulan'),
-                  ),
-                ],
-                onChanged: (value) => setState(() => _productType = value!),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(
-                key: const Key('menu-name-field'),
-                label: 'Nama menu',
-                controller: _name,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(label: 'SKU', controller: _sku),
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(
-                label: 'Deskripsi',
-                controller: _description,
-                maxLines: 2,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppTextField(
-                      label: 'Urutan',
-                      controller: _sort,
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: AppButton.outlined(
-                      label: _imageUrl == null
-                          ? 'Upload gambar'
-                          : 'Ganti gambar',
-                      icon: Icons.add_photo_alternate_outlined,
-                      isLoading: _uploadingImage,
-                      onPressed: _uploadingImage ? null : _pickImage,
-                    ),
-                  ),
-                ],
-              ),
-              if (_imageUrl case final url?) ...[
-                const SizedBox(height: AppSpacing.md),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    url,
-                    height: 160,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const SizedBox(
-                      height: 80,
-                      child: Center(
-                        child: Text('Pratinjau gambar tidak tersedia'),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-              if (_error != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return _CatalogBottomSheetContainer(
+      title: widget.menu == null ? 'Tambah Menu' : 'Edit Menu',
+      subtitle: 'Lengkapi data katalog menu martabak / terang bulan',
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -415,6 +457,102 @@ class _MenuEditorState extends State<_MenuEditor> {
           onPressed: _save,
         ),
       ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DropdownButtonFormField<String>(
+            key: const Key('menu-category-field'),
+            initialValue: _categoryId,
+            decoration: const InputDecoration(labelText: 'Kategori'),
+            items: widget.controller.categories
+                .where(
+                  (category) => category.isActive || category.id == _categoryId,
+                )
+                .map(
+                  (category) => DropdownMenuItem(
+                    value: category.id,
+                    child: Text(category.name),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() => _categoryId = value),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          DropdownButtonFormField<String>(
+            key: const Key('menu-product-type-field'),
+            initialValue: _productType,
+            decoration: const InputDecoration(labelText: 'Jenis martabak'),
+            items: const [
+              DropdownMenuItem(
+                value: 'MARTABAK_TELUR',
+                child: Text('Martabak Telur'),
+              ),
+              DropdownMenuItem(
+                value: 'TERANG_BULAN',
+                child: Text('Terang Bulan'),
+              ),
+            ],
+            onChanged: (value) => setState(() => _productType = value!),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            key: const Key('menu-name-field'),
+            label: 'Nama menu',
+            controller: _name,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(label: 'SKU', controller: _sku),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            label: 'Deskripsi',
+            controller: _description,
+            maxLines: 2,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: AppTextField(
+                  label: 'Urutan',
+                  controller: _sort,
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: AppButton.outlined(
+                  label: _imageUrl == null ? 'Upload gambar' : 'Ganti gambar',
+                  icon: Icons.add_photo_alternate_outlined,
+                  isLoading: _uploadingImage,
+                  onPressed: _uploadingImage ? null : _pickImage,
+                ),
+              ),
+            ],
+          ),
+          if (_imageUrl case final url?) ...[
+            const SizedBox(height: AppSpacing.md),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                url,
+                height: 160,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const SizedBox(
+                  height: 80,
+                  child: Center(child: Text('Pratinjau gambar tidak tersedia')),
+                ),
+              ),
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -553,142 +691,9 @@ class _PriceEditorState extends State<_PriceEditor> {
       'GRABFOOD': 'GrabFood',
       'SHOPEEFOOD': 'ShopeeFood',
     };
-    return AlertDialog(
-      title: Text('Edit harga · ${widget.menu.name}'),
-      content: SizedBox(
-        width: 520,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AppTextField(
-                key: const Key('menu-hpp-field'),
-                label: 'HPP (rupiah)',
-                controller: _hpp,
-                keyboardType: TextInputType.number,
-                inputFormatters: const [ThousandsSeparatorInputFormatter()],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(
-                key: const Key('menu-offline-price-field'),
-                label: 'Harga ${labels['OFFLINE']}',
-                controller: _prices['OFFLINE'],
-                keyboardType: TextInputType.number,
-                inputFormatters: const [ThousandsSeparatorInputFormatter()],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: AppSpacing.borderRadiusMd,
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Generator Harga Online',
-                          style: AppTypography.labelLarge.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        TextButton.icon(
-                          key: const Key('open-master-generator-button'),
-                          icon: const Icon(Icons.settings_outlined, size: 16),
-                          label: const Text(
-                            'Master Data',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                          onPressed: () async {
-                            final changed = await showChannelGeneratorDialog(
-                              context,
-                            );
-                            if (mounted && changed == true) {
-                              setState(() {
-                                for (final ch
-                                    in ChannelGeneratorConfig.onlineChannels) {
-                                  _channelMarkups[ch]?.text =
-                                      ChannelGeneratorConfig.formatRate(
-                                        ChannelGeneratorConfig.getRate(ch),
-                                      );
-                                }
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Hitung harga GoFood, GrabFood, dan ShopeeFood otomatis dari acuan harga OFFLINE.',
-                      style: AppTypography.bodySmall,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        for (final channel
-                            in ChannelGeneratorConfig.onlineChannels) ...[
-                          Expanded(
-                            child: AppTextField(
-                              key: Key(
-                                'menu-${channel.toLowerCase()}-markup-field',
-                              ),
-                              label:
-                                  '${ChannelGeneratorConfig.channelLabels[channel] ?? channel} (%)',
-                              controller: _channelMarkups[channel],
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                        ],
-                        AppButton(
-                          key: const Key('generate-online-prices-button'),
-                          label: 'Generate',
-                          icon: Icons.auto_fix_high_rounded,
-                          onPressed: _generateOnlinePrices,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              for (final channel in const [
-                'GOFOOD',
-                'GRABFOOD',
-                'SHOPEEFOOD',
-              ]) ...[
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  key: Key('menu-${channel.toLowerCase()}-price-field'),
-                  label: 'Harga ${labels[channel]}',
-                  controller: _prices[channel],
-                  keyboardType: TextInputType.number,
-                  inputFormatters: const [ThousandsSeparatorInputFormatter()],
-                ),
-              ],
-              if (_error != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return _CatalogBottomSheetContainer(
+      title: 'Edit harga · ${widget.menu.name}',
+      subtitle: 'Atur HPP, harga offline, dan generator markup kanal online',
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -701,6 +706,130 @@ class _PriceEditorState extends State<_PriceEditor> {
           onPressed: _save,
         ),
       ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppTextField(
+            key: const Key('menu-hpp-field'),
+            label: 'HPP (rupiah)',
+            controller: _hpp,
+            keyboardType: TextInputType.number,
+            inputFormatters: const [ThousandsSeparatorInputFormatter()],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            key: const Key('menu-offline-price-field'),
+            label: 'Harga ${labels['OFFLINE']}',
+            controller: _prices['OFFLINE'],
+            keyboardType: TextInputType.number,
+            inputFormatters: const [ThousandsSeparatorInputFormatter()],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: AppSpacing.borderRadiusMd,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Generator Harga Online',
+                      style: AppTypography.labelLarge.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    TextButton.icon(
+                      key: const Key('open-master-generator-button'),
+                      icon: const Icon(Icons.settings_outlined, size: 16),
+                      label: const Text(
+                        'Master Data',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      onPressed: () async {
+                        final changed = await showChannelGeneratorDialog(
+                          context,
+                        );
+                        if (mounted && changed == true) {
+                          setState(() {
+                            for (final ch
+                                in ChannelGeneratorConfig.onlineChannels) {
+                              _channelMarkups[ch]?.text =
+                                  ChannelGeneratorConfig.formatRate(
+                                    ChannelGeneratorConfig.getRate(ch),
+                                  );
+                            }
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Hitung harga GoFood, GrabFood, dan ShopeeFood otomatis dari acuan harga OFFLINE.',
+                  style: AppTypography.bodySmall,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    for (final channel
+                        in ChannelGeneratorConfig.onlineChannels) ...[
+                      Expanded(
+                        child: AppTextField(
+                          key: Key(
+                            'menu-${channel.toLowerCase()}-markup-field',
+                          ),
+                          label:
+                              '${ChannelGeneratorConfig.channelLabels[channel] ?? channel} (%)',
+                          controller: _channelMarkups[channel],
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    AppButton(
+                      key: const Key('generate-online-prices-button'),
+                      label: 'Generate',
+                      icon: Icons.auto_fix_high_rounded,
+                      onPressed: _generateOnlinePrices,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          for (final channel in const ['GOFOOD', 'GRABFOOD', 'SHOPEEFOOD']) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              key: Key('menu-${channel.toLowerCase()}-price-field'),
+              label: 'Harga ${labels[channel]}',
+              controller: _prices[channel],
+              keyboardType: TextInputType.number,
+              inputFormatters: const [ThousandsSeparatorInputFormatter()],
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -777,52 +906,10 @@ class _GlobalExtraEditorState extends State<_GlobalExtraEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      insetPadding: const EdgeInsets.all(AppSpacing.md),
-      title: const Text('Kelola topping & extra global'),
-      content: SizedBox(
-        width: 680,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Perubahan otomatis diterapkan ke seluruh menu dengan jenis yang sama.',
-              ),
-              const SizedBox(height: AppSpacing.md),
-              DropdownButtonFormField<String>(
-                initialValue: _productType,
-                decoration: const InputDecoration(labelText: 'Jenis martabak'),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'MARTABAK_TELUR',
-                    child: Text('Martabak Telur'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'TERANG_BULAN',
-                    child: Text('Terang Bulan'),
-                  ),
-                ],
-                onChanged: (value) => _changeType(value!),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _GroupEditor(
-                key: ObjectKey(_draft),
-                index: 0,
-                draft: _draft,
-                onChanged: () => setState(() {}),
-                onDelete: () {},
-                fixedIdentity: true,
-              ),
-              if (_error != null)
-                Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-            ],
-          ),
-        ),
-      ),
+    return _CatalogBottomSheetContainer(
+      title: 'Kelola Topping & Extra Global',
+      subtitle:
+          'Perubahan otomatis diterapkan ke seluruh menu dengan jenis yang sama',
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -834,6 +921,40 @@ class _GlobalExtraEditorState extends State<_GlobalExtraEditor> {
           onPressed: _save,
         ),
       ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: _productType,
+            decoration: const InputDecoration(labelText: 'Jenis martabak'),
+            items: const [
+              DropdownMenuItem(
+                value: 'MARTABAK_TELUR',
+                child: Text('Martabak Telur'),
+              ),
+              DropdownMenuItem(
+                value: 'TERANG_BULAN',
+                child: Text('Terang Bulan'),
+              ),
+            ],
+            onChanged: (value) => _changeType(value!),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _GroupEditor(
+            key: ObjectKey(_draft),
+            index: 0,
+            draft: _draft,
+            onChanged: () => setState(() {}),
+            onDelete: () {},
+            fixedIdentity: true,
+          ),
+          if (_error != null)
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -1083,7 +1204,9 @@ class _OptionDraft {
 }
 
 class _ChannelGeneratorDialog extends StatefulWidget {
-  const _ChannelGeneratorDialog();
+  final MenuAvailabilityController? controller;
+
+  const _ChannelGeneratorDialog({this.controller});
 
   @override
   State<_ChannelGeneratorDialog> createState() =>
@@ -1093,6 +1216,7 @@ class _ChannelGeneratorDialog extends StatefulWidget {
 class _ChannelGeneratorDialogState extends State<_ChannelGeneratorDialog> {
   late final Map<String, TextEditingController> _controllers;
   String? _error;
+  bool _isApplying = false;
 
   @override
   void initState() {
@@ -1146,45 +1270,48 @@ class _ChannelGeneratorDialogState extends State<_ChannelGeneratorDialog> {
     Navigator.pop(context, true);
   }
 
+  Future<void> _applyAll() async {
+    for (final entry in _controllers.entries) {
+      final text = entry.value.text.trim().replaceAll(',', '.');
+      final val = double.tryParse(text);
+      if (val == null || val < 0) {
+        setState(
+          () => _error = 'Persentase untuk seluruh kanal wajib valid (>= 0).',
+        );
+        return;
+      }
+    }
+
+    final rates = <String, double>{};
+    for (final entry in _controllers.entries) {
+      final text = entry.value.text.trim().replaceAll(',', '.');
+      final val = double.parse(text);
+      rates[entry.key] = val;
+      ChannelGeneratorConfig.setRate(entry.key, val);
+    }
+
+    if (widget.controller != null) {
+      setState(() => _isApplying = true);
+      final count = await widget.controller!.applyChannelPricesToAllMenus(
+        rates,
+      );
+      if (!mounted) return;
+      setState(() => _isApplying = false);
+      if (count >= 0) {
+        Navigator.pop(context, true);
+        return;
+      }
+    } else {
+      Navigator.pop(context, true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Master Data Generator Harga Kanal'),
-      content: SizedBox(
-        width: 440,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Atur persentase markup acuan untuk masing-masing kanal online (GoFood, GrabFood, ShopeeFood). Harga acuan adalah harga OFFLINE.',
-                style: AppTypography.bodySmall,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              for (final channel in ChannelGeneratorConfig.onlineChannels) ...[
-                AppTextField(
-                  key: Key('master-markup-${channel.toLowerCase()}-field'),
-                  label:
-                      'Markup ${ChannelGeneratorConfig.channelLabels[channel] ?? channel} (%)',
-                  controller: _controllers[channel],
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-              ],
-              if (_error != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return _CatalogBottomSheetContainer(
+      title: 'Master Data Generator Harga Kanal',
+      subtitle:
+          'Atur markup GoFood, GrabFood, ShopeeFood dari harga acuan OFFLINE',
       actions: [
         TextButton(
           key: const Key('reset-master-generator-button'),
@@ -1195,12 +1322,50 @@ class _ChannelGeneratorDialogState extends State<_ChannelGeneratorDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Batal'),
         ),
+        if (widget.controller != null)
+          AppButton(
+            key: const Key('apply-all-channel-generator-button'),
+            label: 'Terapkan ke Semua Menu',
+            icon: Icons.playlist_add_check_rounded,
+            isLoading: _isApplying,
+            onPressed: _applyAll,
+          ),
         AppButton(
           key: const Key('save-master-generator-button'),
           label: 'Simpan',
           onPressed: _save,
         ),
       ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Atur persentase markup acuan untuk masing-masing kanal online (GoFood, GrabFood, ShopeeFood). Harga acuan adalah harga OFFLINE.',
+            style: AppTypography.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          for (final channel in ChannelGeneratorConfig.onlineChannels) ...[
+            AppTextField(
+              key: Key('master-markup-${channel.toLowerCase()}-field'),
+              label:
+                  'Markup ${ChannelGeneratorConfig.channelLabels[channel] ?? channel} (%)',
+              controller: _controllers[channel],
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

@@ -577,5 +577,116 @@ void main() {
         expect(ChannelGeneratorConfig.getRate('SHOPEEFOOD'), equals(20.0));
       },
     );
+
+    testWidgets(
+      'Channel generator master data can apply markup to all menus in bulk',
+      (tester) async {
+        final menuA = MenuItem(
+          id: 'menu-1',
+          categoryId: 'cat-1',
+          sku: 'SKU-1',
+          name: 'Menu A (20.000)',
+          priceAmount: 20000,
+          channelPrices: const {
+            'OFFLINE': 20000,
+            'GOFOOD': 20000,
+            'GRABFOOD': 20000,
+            'SHOPEEFOOD': 20000,
+          },
+          sortOrder: 1,
+        );
+        final menuB = MenuItem(
+          id: 'menu-2',
+          categoryId: 'cat-1',
+          sku: 'SKU-2',
+          name: 'Menu B (10.000)',
+          priceAmount: 10000,
+          channelPrices: const {
+            'OFFLINE': 10000,
+            'GOFOOD': 10000,
+            'GRABFOOD': 10000,
+            'SHOPEEFOOD': 10000,
+          },
+          sortOrder: 2,
+        );
+
+        final controller = MenuAvailabilityController(
+          initialCategories: const [],
+          initialMenus: [menuA, menuB],
+          updateMenuFn: (updated) async => updated,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () => showChannelGeneratorDialog(
+                    context,
+                    controller: controller,
+                  ),
+                  child: const Text('Open Dialog'),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Open Dialog'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('apply-all-channel-generator-button')),
+          findsOneWidget,
+        );
+
+        // Enter GoFood = 15%, GrabFood = 10%, ShopeeFood = 25%
+        await tester.enterText(
+          find.byKey(const Key('master-markup-gofood-field')),
+          '15',
+        );
+        await tester.enterText(
+          find.byKey(const Key('master-markup-grabfood-field')),
+          '10',
+        );
+        await tester.enterText(
+          find.byKey(const Key('master-markup-shopeefood-field')),
+          '25',
+        );
+        await tester.pumpAndSettle();
+
+        // Tap "Terapkan ke Semua Menu"
+        await tester.tap(
+          find.byKey(const Key('apply-all-channel-generator-button')),
+        );
+        await tester.pumpAndSettle();
+
+        // Dialog should be dismissed
+        expect(find.text('Master Data Generator Harga Kanal'), findsNothing);
+
+        // Check menu A (20.000)
+        final updatedA = controller.allMenus.firstWhere(
+          (m) => m.id == 'menu-1',
+        );
+        // GoFood: 20000 + 15% = 23000
+        expect(updatedA.channelPrices['GOFOOD'], equals(23000));
+        // GrabFood: 20000 + 10% = 22000
+        expect(updatedA.channelPrices['GRABFOOD'], equals(22000));
+        // ShopeeFood: 20000 + 25% = 25000
+        expect(updatedA.channelPrices['SHOPEEFOOD'], equals(25000));
+
+        // Check menu B (10.000)
+        final updatedB = controller.allMenus.firstWhere(
+          (m) => m.id == 'menu-2',
+        );
+        // GoFood: 10000 + 15% = 11500
+        expect(updatedB.channelPrices['GOFOOD'], equals(11500));
+        // GrabFood: 10000 + 10% = 11000
+        expect(updatedB.channelPrices['GRABFOOD'], equals(11000));
+        // ShopeeFood: 10000 + 25% = 12500
+        expect(updatedB.channelPrices['SHOPEEFOOD'], equals(12500));
+      },
+    );
   });
 }

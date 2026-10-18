@@ -52,6 +52,7 @@ class AppShell extends StatefulWidget {
   final Future<void> Function()? onRefreshQueue;
   final PesenHubApiClient? apiClient;
   final Future<void> Function(String newName)? onUpdateDisplayName;
+  final Future<int> Function()? getDailySequence;
 
   const AppShell({
     super.key,
@@ -79,6 +80,7 @@ class AppShell extends StatefulWidget {
     this.onRefreshQueue,
     this.apiClient,
     this.onUpdateDisplayName,
+    this.getDailySequence,
   });
 
   @override
@@ -324,6 +326,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         connectivityController: _connectivity,
         onNavigateToQueue: () =>
             _onDestinationSelected(AppDestination.queue.index),
+        apiClient: widget.apiClient,
+        getDailySequence: widget.getDailySequence,
       ),
       QueueDestinationView(
         controller: widget.queueController,

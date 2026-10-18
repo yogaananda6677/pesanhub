@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 
 import '../../auth/session.dart';
 import '../sync/sync_service.dart';
@@ -48,7 +51,34 @@ class PesenHubApiClient
     required this.accessToken,
     this.activeBranchId,
     http.Client? client,
-  }) : _client = client ?? http.Client();
+  }) : _client = client ?? _createDefaultClient();
+
+  static http.Client _createDefaultClient() {
+    if (kIsWeb) return http.Client();
+    final ioHttpClient = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15);
+    ioHttpClient.connectionFactory = (uri, proxyHost, proxyPort) async {
+      final host = proxyHost ?? uri.host;
+      final port = proxyPort ?? uri.port;
+      final isHttps = uri.scheme == 'https';
+
+      InternetAddress? targetAddress;
+      try {
+        final addrs = await InternetAddress.lookup(
+          host,
+          type: InternetAddressType.IPv4,
+        );
+        if (addrs.isNotEmpty) targetAddress = addrs.first;
+      } catch (_) {}
+
+      final target = targetAddress ?? host;
+      if (isHttps) {
+        return await SecureSocket.startConnect(target, port);
+      }
+      return await Socket.startConnect(target, port);
+    };
+    return IOClient(ioHttpClient);
+  }
 
   @override
   Future<String> createGoogleChallenge() async {
@@ -435,6 +465,23 @@ class PesenHubApiClient
     return _decodeMenuResponse(response);
   }
 
+  @override
+  Future<List<MenuItem>> bulkUpdateChannelPrices(
+    Map<String, double> rates,
+  ) async {
+    final response = await _send(
+      'POST',
+      config.resolve('admin/menus/bulk-channel-prices'),
+      body: jsonEncode({'rates': rates}),
+    );
+    final json = _decodeObject(response);
+    final data = json['data'];
+    if (data is! List) return const [];
+    return data
+        .map((item) => decodeMenu(Map<String, dynamic>.from(item as Map)))
+        .toList(growable: false);
+  }
+
   MenuCategory _decodeCategoryResponse(http.Response response) {
     try {
       return decodeCategory(_decodeObject(response));
@@ -542,10 +589,20 @@ class PesenHubApiClient
       throw _failureForStatus(response, requestId);
     } on ApiFailure {
       rethrow;
-    } on TimeoutException {
-      throw ApiFailure(ApiFailureKind.network, requestId: requestId);
-    } catch (_) {
-      throw ApiFailure(ApiFailureKind.network, requestId: requestId);
+    } on TimeoutException catch (e, stack) {
+      debugPrint('[PesenHubApiClient] $method $uri timeout: $e\n$stack');
+      throw ApiFailure(
+        ApiFailureKind.network,
+        requestId: requestId,
+        serverMessage: 'Koneksi waktu habis (Timeout)',
+      );
+    } catch (e, stack) {
+      debugPrint('[PesenHubApiClient] $method $uri error: $e\n$stack');
+      throw ApiFailure(
+        ApiFailureKind.network,
+        requestId: requestId,
+        serverMessage: e.toString(),
+      );
     }
   }
 
@@ -629,11 +686,16 @@ class PesenHubApiClient
       if (source['branch_id'] is String &&
           (source['branch_id'] as String).isNotEmpty)
         'branch_id': source['branch_id'],
+      if (source['source'] is String && (source['source'] as String).isNotEmpty)
+        'source': source['source'],
       'customer_name': source['customer_name'],
       if (source['customer_phone'] is String &&
           !(source['customer_phone'] as String).contains('*'))
         'customer_phone': source['customer_phone'],
       if (source['takeaway_notes'] is String) 'notes': source['takeaway_notes'],
+      if (source['discount_id'] is String &&
+          (source['discount_id'] as String).isNotEmpty)
+        'discount_id': source['discount_id'],
       'items': rawItems
           .map((raw) {
             final item = Map<String, dynamic>.from(raw as Map);

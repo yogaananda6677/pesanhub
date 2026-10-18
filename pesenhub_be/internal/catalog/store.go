@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"database/sql"
+	"math"
 	dbx "pesenhub/backend/internal/database"
 )
 
@@ -453,4 +454,63 @@ WHERE o.group_id=$1`
 	}
 	menu.Groups = groups
 	return nil
+}
+
+func (s *Store) ApplyChannelPricesAll(ctx context.Context, rates map[string]float64, meta MutationMeta) ([]Menu, error) {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	rows, err := tx.Query(ctx, `SELECT m.id::text, m.category_id::text, m.sku, m.name, COALESCE(m.description,''), m.product_type, COALESCE(m.image_url,''), m.price_amount, m.hpp_amount, m.is_available, m.version, m.sort_order FROM menus m WHERE m.price_amount > 0`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var menus []Menu
+	for rows.Next() {
+		var m Menu
+		if err := rows.Scan(&m.ID, &m.CategoryID, &m.SKU, &m.Name, &m.Description, &m.ProductType, &m.ImageURL, &m.PriceAmount, &m.HPPAmount, &m.Available, &m.Version, &m.SortOrder); err != nil {
+			return nil, err
+		}
+		menus = append(menus, m)
+	}
+	rows.Close()
+
+	var updatedMenus []Menu
+	for _, m := range menus {
+		offline := m.PriceAmount
+		prices := []ChannelPrice{
+			{Channel: "OFFLINE", Amount: offline},
+		}
+		for _, ch := range []string{"GOFOOD", "GRABFOOD", "SHOPEEFOOD"} {
+			pct := rates[ch]
+			markup := int64(math.Round(float64(offline) * pct / 100.0))
+			prices = append(prices, ChannelPrice{Channel: ch, Amount: offline + markup})
+		}
+
+		m.Version = m.Version + 1
+		m.ChannelPrices = prices
+		if _, err := tx.Exec(ctx, `UPDATE menus SET version = version + 1, updated_at = now() WHERE id = $1`, m.ID); err != nil {
+			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM menu_channel_prices WHERE menu_id = $1`, m.ID); err != nil {
+			return nil, err
+		}
+		for _, p := range prices {
+			if _, err := tx.Exec(ctx, `INSERT INTO menu_channel_prices(menu_id, channel, amount) VALUES($1, $2, $3)`, m.ID, p.Channel, p.Amount); err != nil {
+				return nil, err
+			}
+		}
+		m.Groups = []Group{}
+		updatedMenus = append(updatedMenus, m)
+	}
+
+	if err := audit(ctx, tx, meta, "CATALOG_MENU", "ALL", "CHANNEL_PRICES_BULK_UPDATED"); err != nil {
+		return nil, err
+	}
+
+	return updatedMenus, tx.Commit(ctx)
 }

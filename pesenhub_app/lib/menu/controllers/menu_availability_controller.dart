@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../data/remote/api_failure.dart';
+import '../../core/utils/currency_formatter.dart';
 import '../models/menu_category.dart';
 import '../models/menu_item.dart';
 import '../models/menu_modifier_group.dart';
@@ -15,6 +16,8 @@ typedef CatalogChangedFn =
     void Function(List<MenuCategory> categories, List<MenuItem> menus);
 typedef MenuImageUploadFn =
     Future<String> Function(String filename, List<int> bytes);
+typedef BulkChannelPricesFn =
+    Future<List<MenuItem>> Function(Map<String, double> rates);
 
 /// MenuAvailabilityController manages menu availability status with role guards,
 /// optimistic feedback, server rollback, version tracking, and synchronization.
@@ -41,6 +44,7 @@ class MenuAvailabilityController extends ChangeNotifier {
   final CategoryMutationFn? updateCategoryFn;
   final MenuMutationFn? createMenuFn;
   final MenuMutationFn? updateMenuFn;
+  final BulkChannelPricesFn? bulkChannelPricesFn;
   final Future<void> Function()? onRefresh;
   final bool Function()? canMutate;
   final CatalogChangedFn? onCatalogChanged;
@@ -58,6 +62,7 @@ class MenuAvailabilityController extends ChangeNotifier {
     this.updateCategoryFn,
     this.createMenuFn,
     this.updateMenuFn,
+    this.bulkChannelPricesFn,
     this.onRefresh,
     this.canMutate,
     this.onCatalogChanged,
@@ -394,6 +399,98 @@ class MenuAvailabilityController extends ChangeNotifier {
     } catch (error) {
       await _handleMutationFailure(error);
       return false;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
+    }
+  }
+
+  Future<int> applyChannelPricesToAllMenus(Map<String, double> rates) async {
+    if (!_canStartMutation(
+      bulkChannelPricesFn != null || updateMenuFn != null,
+    )) {
+      return 0;
+    }
+    _isSaving = true;
+    _bannerMessage = null;
+    notifyListeners();
+    try {
+      if (bulkChannelPricesFn != null) {
+        final updated = await bulkChannelPricesFn!(rates);
+        for (final item in updated) {
+          final index = _menus.indexWhere((m) => m.id == item.id);
+          if (index != -1) {
+            _menus[index] = _menus[index].copyWith(
+              channelPrices: item.channelPrices,
+              version: item.version,
+            );
+          }
+        }
+        _bannerMessage =
+            'Harga kanal online berhasil diterapkan ke ${updated.length} menu.';
+        _isBannerError = false;
+        _publishCatalog();
+        return updated.length;
+      }
+
+      int updatedCount = 0;
+      final errors = <String>[];
+      final targets = _menus
+          .where((menu) => menu.priceAmount > 0)
+          .toList(growable: false);
+      const poolSize = 3;
+      for (var i = 0; i < targets.length; i += poolSize) {
+        final chunk = targets.skip(i).take(poolSize);
+        await Future.wait(
+          chunk.map((menu) async {
+            try {
+              final currentPrices = Map<String, int>.from(menu.channelPrices);
+              currentPrices['OFFLINE'] = menu.priceAmount;
+              for (final entry in rates.entries) {
+                final ch = entry.key;
+                final pct = entry.value;
+                currentPrices[ch] = CurrencyFormatter.calculateOnlinePrice(
+                  menu.priceAmount,
+                  pct,
+                );
+              }
+              for (final ch in const ['GOFOOD', 'GRABFOOD', 'SHOPEEFOOD']) {
+                currentPrices.putIfAbsent(ch, () => menu.priceAmount);
+              }
+              final saved = await updateMenuFn!(
+                menu.copyWith(
+                  hppAmount: menu.hppAmount ?? 0,
+                  channelPrices: currentPrices,
+                ),
+              );
+              final index = _menus.indexWhere((item) => item.id == saved.id);
+              if (index != -1) _menus[index] = saved;
+              updatedCount++;
+            } catch (e) {
+              errors.add('${menu.name}: $e');
+            }
+          }),
+        );
+      }
+      if (updatedCount > 0) {
+        if (errors.isNotEmpty) {
+          _bannerMessage =
+              'Harga diterapkan ke $updatedCount menu (${errors.length} gagal).';
+          _isBannerError = true;
+        } else {
+          _bannerMessage =
+              'Harga kanal online berhasil diterapkan ke $updatedCount menu.';
+          _isBannerError = false;
+        }
+        _publishCatalog();
+        return updatedCount;
+      } else if (errors.isNotEmpty) {
+        throw Exception(errors.first);
+      }
+      return 0;
+    } catch (error) {
+      await _handleMutationFailure(error);
+      return 0;
     } finally {
       _isSaving = false;
       notifyListeners();

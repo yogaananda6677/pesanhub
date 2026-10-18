@@ -107,42 +107,50 @@ Map<String, dynamic> encodeCategory(MenuCategory category) => {
   'version': category.version,
 };
 
-Map<String, dynamic> encodeMenu(MenuItem menu) => {
-  'category_id': menu.categoryId,
-  'sku': menu.sku,
-  'name': menu.name,
-  if (menu.description != null) 'description': menu.description,
-  'product_type': menu.productType,
-  if (menu.imageUrl != null) 'image_url': menu.imageUrl,
-  'price_amount': menu.priceAmount,
-  'hpp_amount': menu.hppAmount,
-  'channel_prices': menu.channelPrices.entries
-      .map((entry) => {'channel': entry.key, 'amount': entry.value})
-      .toList(growable: false),
-  'sort_order': menu.sortOrder,
-  'version': menu.version,
-  'modifier_groups': menu.modifierGroups
-      .map(
-        (group) => {
-          'code': group.code,
-          'name': group.name,
-          'min_select': group.minSelect,
-          'max_select': group.maxSelect,
-          'sort_order': group.sortOrder,
-          'options': group.options
-              .map(
-                (option) => {
-                  'code': option.code,
-                  'name': option.name,
-                  'price_delta_amount': option.priceDeltaAmount,
-                  'sort_order': option.sortOrder,
-                },
-              )
-              .toList(),
-        },
-      )
-      .toList(),
-};
+Map<String, dynamic> encodeMenu(MenuItem menu) {
+  final channels = Map<String, int>.from(menu.channelPrices);
+  channels.putIfAbsent('OFFLINE', () => menu.priceAmount);
+  channels.putIfAbsent('GOFOOD', () => menu.priceAmount);
+  channels.putIfAbsent('GRABFOOD', () => menu.priceAmount);
+  channels.putIfAbsent('SHOPEEFOOD', () => menu.priceAmount);
+
+  return {
+    'category_id': menu.categoryId,
+    'sku': menu.sku,
+    'name': menu.name,
+    if (menu.description != null) 'description': menu.description,
+    'product_type': menu.productType,
+    if (menu.imageUrl != null) 'image_url': menu.imageUrl,
+    'price_amount': menu.priceAmount,
+    'hpp_amount': menu.hppAmount ?? 0,
+    'channel_prices': channels.entries
+        .map((entry) => {'channel': entry.key, 'amount': entry.value})
+        .toList(growable: false),
+    'sort_order': menu.sortOrder,
+    'version': menu.version,
+    'modifier_groups': menu.modifierGroups
+        .map(
+          (group) => {
+            'code': group.code,
+            'name': group.name,
+            'min_select': group.minSelect,
+            'max_select': group.maxSelect,
+            'sort_order': group.sortOrder,
+            'options': group.options
+                .map(
+                  (option) => {
+                    'code': option.code,
+                    'name': option.name,
+                    'price_delta_amount': option.priceDeltaAmount,
+                    'sort_order': option.sortOrder,
+                  },
+                )
+                .toList(),
+          },
+        )
+        .toList(),
+  };
+}
 
 String _string(Map<String, dynamic> json, String key) {
   final value = json[key];

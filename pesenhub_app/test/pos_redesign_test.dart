@@ -302,7 +302,16 @@ void main() {
         await tester.tap(find.byKey(const Key('sticky-cart-review-button')));
         await tester.pumpAndSettle();
 
-        // 1. Tapping submit when customer name is empty blocks submission
+        // 1. Has default customer name 'Customer #01'
+        expect(find.text('Customer #01'), findsOneWidget);
+
+        // Tap clear button to clear the default name
+        final clearBtn = find.byIcon(Icons.cancel_rounded);
+        expect(clearBtn, findsOneWidget);
+        await tester.tap(clearBtn);
+        await tester.pumpAndSettle();
+
+        // Tapping submit when customer name is empty blocks submission
         await tester.tap(find.text('Review & Proses Pesanan'));
         await tester.pumpAndSettle();
 

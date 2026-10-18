@@ -152,7 +152,12 @@ void main() {
         // Verify entered search query is retained
         expect(find.text('Martabak'), findsOneWidget);
 
-        // Enter customer name in tablet split view
+        // Clear default customer name and enter custom name
+        final clearBtn = find.byIcon(Icons.cancel_rounded);
+        if (clearBtn.evaluate().isNotEmpty) {
+          await tester.tap(clearBtn.first);
+          await tester.pumpAndSettle();
+        }
         final nameField = find.widgetWithText(
           TextField,
           'Contoh: Budi Santoso',

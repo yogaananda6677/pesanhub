@@ -22,6 +22,7 @@ class AppTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final int maxLines;
   final List<TextInputFormatter>? inputFormatters;
+  final VoidCallback? onTap;
 
   const AppTextField({
     super.key,
@@ -40,6 +41,7 @@ class AppTextField extends StatelessWidget {
     this.suffixIcon,
     this.maxLines = 1,
     this.inputFormatters,
+    this.onTap,
   });
 
   @override
@@ -65,6 +67,7 @@ class AppTextField extends StatelessWidget {
             controller: controller,
             onChanged: onChanged,
             onSubmitted: onSubmitted,
+            onTap: onTap,
             keyboardType: keyboardType,
             textInputAction: textInputAction,
             obscureText: obscureText,

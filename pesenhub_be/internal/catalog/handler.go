@@ -251,6 +251,26 @@ func (h *Handler) OptionAvailability(w http.ResponseWriter, r *http.Request) {
 	httpapi.WriteJSON(w, http.StatusOK, result)
 }
 
+func (h *Handler) BulkChannelPrices(w http.ResponseWriter, r *http.Request) {
+	if !staff(r) {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+	var body struct {
+		Rates map[string]float64 `json:"rates"`
+	}
+	if decode(r, &body) != nil || len(body.Rates) == 0 {
+		h.writeError(w, r, ErrInvalidCatalog)
+		return
+	}
+	result, err := h.service.ApplyChannelPricesAll(r.Context(), body.Rates, actorID(r), httpserver.RequestID(r.Context()))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, map[string]any{"data": result, "updated_count": len(result)})
+}
+
 func actorID(r *http.Request) string { return customer.PrincipalFromRequest(r).Subject }
 func staff(r *http.Request) bool {
 	p := customer.PrincipalFromRequest(r)
