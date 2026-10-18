@@ -514,4 +514,3 @@ func (s *Store) ApplyChannelPricesAll(ctx context.Context, rates map[string]floa
 
 	return updatedMenus, tx.Commit(ctx)
 }
-

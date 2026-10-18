@@ -92,8 +92,9 @@ class _PosViewState extends State<PosView> {
         final seq = await widget.getDailySequence!();
         return 'Customer #${seq.toString().padLeft(2, '0')}';
       }
-      final seq =
-          await QueueLocalRepository(LocalDatabase()).getNextDailySequence();
+      final seq = await QueueLocalRepository(
+        LocalDatabase(),
+      ).getNextDailySequence();
       return 'Customer #${seq.toString().padLeft(2, '0')}';
     } catch (_) {
       return 'Customer #01';

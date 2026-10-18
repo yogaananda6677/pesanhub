@@ -110,7 +110,9 @@ class _DiscountManagementViewState extends State<DiscountManagementView> {
       if (mounted) {
         final msg = e is ApiFailure ? e.presentationMessage : e.toString();
         setState(() {
-          _discounts = widget.apiClient == null ? List.of(_fallbackDiscounts) : [];
+          _discounts = widget.apiClient == null
+              ? List.of(_fallbackDiscounts)
+              : [];
           _errorMessage = widget.apiClient == null
               ? null
               : 'Gagal memuat promo dari server: $msg';
@@ -947,15 +949,18 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
               ),
               child: Material(
                 color: Colors.white,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
                 clipBehavior: Clip.antiAlias,
                 child: Container(
                   constraints: BoxConstraints(
                     maxHeight: MediaQuery.sizeOf(context).height * 0.75,
                   ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -989,7 +994,8 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                                     tempSelected.clear();
                                   } else {
                                     tempSelected.addAll(
-                                        _menus.map((m) => m.id));
+                                      _menus.map((m) => m.id),
+                                    );
                                   }
                                 });
                               },
@@ -1018,8 +1024,9 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide:
-                                const BorderSide(color: Color(0xFFE2E8F0)),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE2E8F0),
+                            ),
                           ),
                         ),
                         onChanged: (_) => setPickerState(() {}),
@@ -1033,59 +1040,58 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                                 ),
                               )
                             : filtered.isEmpty
-                                ? const Center(
-                                    child: Text(
-                                      'Tidak ada menu ditemukan',
-                                      style: TextStyle(
-                                        color: Color(0xFF94A3B8),
-                                      ),
-                                    ),
-                                  )
-                                : ListView.separated(
-                                    itemCount: filtered.length,
-                                    separatorBuilder: (context, index) =>
-                                        const Divider(
+                            ? const Center(
+                                child: Text(
+                                  'Tidak ada menu ditemukan',
+                                  style: TextStyle(color: Color(0xFF94A3B8)),
+                                ),
+                              )
+                            : ListView.separated(
+                                itemCount: filtered.length,
+                                separatorBuilder: (context, index) =>
+                                    const Divider(
                                       height: 1,
                                       color: Color(0xFFF1F5F9),
                                     ),
-                                    itemBuilder: (ctx, i) {
-                                      final item = filtered[i];
-                                      final isSelected =
-                                          tempSelected.contains(item.id);
-                                      return CheckboxListTile(
-                                        key: Key('menu-item-${item.id}'),
-                                        value: isSelected,
-                                        title: Text(
-                                          item.name,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        subtitle: Text(
-                                          _formatRupiah(item.priceAmount),
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Color(0xFF7A6B63),
-                                          ),
-                                        ),
-                                        activeColor: const Color(0xFF8D321F),
-                                        controlAffinity:
-                                            ListTileControlAffinity.leading,
-                                        dense: true,
-                                        contentPadding: EdgeInsets.zero,
-                                        onChanged: (val) {
-                                          setPickerState(() {
-                                            if (val == true) {
-                                              tempSelected.add(item.id);
-                                            } else {
-                                              tempSelected.remove(item.id);
-                                            }
-                                          });
-                                        },
-                                      );
+                                itemBuilder: (ctx, i) {
+                                  final item = filtered[i];
+                                  final isSelected = tempSelected.contains(
+                                    item.id,
+                                  );
+                                  return CheckboxListTile(
+                                    key: Key('menu-item-${item.id}'),
+                                    value: isSelected,
+                                    title: Text(
+                                      item.name,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      _formatRupiah(item.priceAmount),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF7A6B63),
+                                      ),
+                                    ),
+                                    activeColor: const Color(0xFF8D321F),
+                                    controlAffinity:
+                                        ListTileControlAffinity.leading,
+                                    dense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    onChanged: (val) {
+                                      setPickerState(() {
+                                        if (val == true) {
+                                          tempSelected.add(item.id);
+                                        } else {
+                                          tempSelected.remove(item.id);
+                                        }
+                                      });
                                     },
-                                  ),
+                                  );
+                                },
+                              ),
                       ),
                       const SizedBox(height: 12),
                       SizedBox(
@@ -1108,8 +1114,7 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                           },
                           child: Text(
                             'Terapkan Menu (${tempSelected.length})',
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -1382,9 +1387,10 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color:
-                                    _hasAttemptedSave && _selectedMenuIds.isEmpty
-                                        ? AppColors.error
-                                        : const Color(0xFFFFD8D0),
+                                    _hasAttemptedSave &&
+                                        _selectedMenuIds.isEmpty
+                                    ? AppColors.error
+                                    : const Color(0xFFFFD8D0),
                               ),
                             ),
                             child: Column(
@@ -1413,13 +1419,12 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                                       ],
                                     ),
                                     TextButton.icon(
-                                      key: const Key(
-                                          'open-menu-picker-button'),
+                                      key: const Key('open-menu-picker-button'),
                                       style: TextButton.styleFrom(
-                                        foregroundColor:
-                                            const Color(0xFF8D321F),
-                                        visualDensity:
-                                            VisualDensity.compact,
+                                        foregroundColor: const Color(
+                                          0xFF8D321F,
+                                        ),
+                                        visualDensity: VisualDensity.compact,
                                       ),
                                       icon: Icon(
                                         _selectedMenuIds.isEmpty
@@ -1432,7 +1437,8 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                                             ? 'Pilih Menu'
                                             : 'Ubah Menu',
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.bold),
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                       onPressed: _openMenuPicker,
                                     ),
@@ -1457,8 +1463,9 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                                     child: Text(
                                       'Belum ada menu yang dipilih. Tekan tombol di samping untuk memilih menu.',
                                       style: TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFF7A6B63)),
+                                        fontSize: 11,
+                                        color: Color(0xFF7A6B63),
+                                      ),
                                     ),
                                   )
                                 else ...[
@@ -1484,8 +1491,10 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                                             color: Color(0xFF2D231E),
                                           ),
                                         ),
-                                        deleteIcon: const Icon(Icons.close,
-                                            size: 14),
+                                        deleteIcon: const Icon(
+                                          Icons.close,
+                                          size: 14,
+                                        ),
                                         onDeleted: () {
                                           setState(() {
                                             _selectedMenuIds.remove(id);
@@ -1493,10 +1502,12 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                                         },
                                         backgroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           side: const BorderSide(
-                                              color: Color(0xFFFFCC80)),
+                                            color: Color(0xFFFFCC80),
+                                          ),
                                         ),
                                       );
                                     }).toList(),
@@ -1641,8 +1652,7 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                             controller: _maxDiscountController,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
-                              labelText:
-                                  'Batas Maksimal Diskon (Rp, Opsional)',
+                              labelText: 'Batas Maksimal Diskon (Rp, Opsional)',
                               hintText: 'Contoh: 15.000',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),

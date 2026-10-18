@@ -112,54 +112,58 @@ void main() {
       expect(find.text('Tambah Promo Baru'), findsNothing);
     });
 
-    testWidgets('Creates promo with formatted dots in nominal value and min order', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(600, 1000);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'Creates promo with formatted dots in nominal value and min order',
+      (tester) async {
+        tester.view.physicalSize = const Size(600, 1000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(buildTestApp());
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(buildTestApp());
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('add-promo-fab')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('add-promo-fab')));
+        await tester.pumpAndSettle();
 
-      // Enter name
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Nama Promo / Diskon *'),
-        'Diskon Gajian 25 Ribu',
-      );
+        // Enter name
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Nama Promo / Diskon *'),
+          'Diskon Gajian 25 Ribu',
+        );
 
-      // Select Tipe Diskon = FIXED
-      await tester.tap(find.text('Persentase (%)').first);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Nominal Tetap (Rp)').last);
-      await tester.pumpAndSettle();
+        // Select Tipe Diskon = FIXED
+        await tester.tap(find.text('Persentase (%)').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Nominal Tetap (Rp)').last);
+        await tester.pumpAndSettle();
 
-      // Enter nominal with dots
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Nominal Potongan (Rp) *'),
-        '25.000',
-      );
+        // Enter nominal with dots
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Nominal Potongan (Rp) *'),
+          '25.000',
+        );
 
-      // Enter min order with dots
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Minimal Pembelian (Rp, Opsional)'),
-        '75.000',
-      );
+        // Enter min order with dots
+        await tester.enterText(
+          find.widgetWithText(
+            TextFormField,
+            'Minimal Pembelian (Rp, Opsional)',
+          ),
+          '75.000',
+        );
 
-      // Save
-      await tester.tap(find.text('Buat Promo'));
-      await tester.pumpAndSettle();
+        // Save
+        await tester.tap(find.text('Buat Promo'));
+        await tester.pumpAndSettle();
 
-      // Dialog should be dismissed and new promo card rendered
-      expect(find.text('Tambah Promo Baru'), findsNothing);
-      expect(find.text('Diskon Gajian 25 Ribu'), findsOneWidget);
-      expect(find.text('Rp 25.000'), findsOneWidget);
-      expect(find.text('Min. belanja Rp 75.000'), findsOneWidget);
-    });
+        // Dialog should be dismissed and new promo card rendered
+        expect(find.text('Tambah Promo Baru'), findsNothing);
+        expect(find.text('Diskon Gajian 25 Ribu'), findsOneWidget);
+        expect(find.text('Rp 25.000'), findsOneWidget);
+        expect(find.text('Min. belanja Rp 75.000'), findsOneWidget);
+      },
+    );
 
     testWidgets('Validates item scope requires selecting menu items', (
       tester,

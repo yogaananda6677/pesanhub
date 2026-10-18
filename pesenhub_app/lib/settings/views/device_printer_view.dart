@@ -703,10 +703,7 @@ class _DevicePrinterViewState extends State<DevicePrinterView> {
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520, maxHeight: 600),
-            child: Material(
-              color: Colors.white,
-              child: buildSheetContent(ctx),
-            ),
+            child: Material(color: Colors.white, child: buildSheetContent(ctx)),
           ),
         ),
       );

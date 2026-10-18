@@ -84,8 +84,15 @@ class PrinterService extends ChangeNotifier {
     buffer.writeln(_justify('No. Nota :', order.orderNumber));
     buffer.writeln(_justify('Waktu    :', order.formattedDateTime));
     buffer.writeln(_justify('Kasir    :', 'Kasir Utama'));
-    buffer.writeln(_justify('Pelanggan:', order.customerName.isEmpty ? 'Umum' : order.customerName));
-    buffer.writeln(_justify('Layanan  :', order.isTakeaway ? 'Takeaway' : 'Dine In'));
+    buffer.writeln(
+      _justify(
+        'Pelanggan:',
+        order.customerName.isEmpty ? 'Umum' : order.customerName,
+      ),
+    );
+    buffer.writeln(
+      _justify('Layanan  :', order.isTakeaway ? 'Takeaway' : 'Dine In'),
+    );
     if (order.takeawayNotes != null && order.takeawayNotes!.trim().isNotEmpty) {
       buffer.writeln('Catatan  : ${order.takeawayNotes!.trim()}');
     }
@@ -111,16 +118,34 @@ class PrinterService extends ChangeNotifier {
     buffer.writeln(_divider('-'));
 
     // Totals
-    buffer.writeln(_justify('Subtotal', CurrencyFormatter.formatRupiah(order.subtotal)));
+    buffer.writeln(
+      _justify('Subtotal', CurrencyFormatter.formatRupiah(order.subtotal)),
+    );
     if ((order.discountAmount ?? 0) > 0) {
-      final discLabel = order.discountName != null && order.discountName!.isNotEmpty
+      final discLabel =
+          order.discountName != null && order.discountName!.isNotEmpty
           ? 'Diskon (${order.discountName})'
           : 'Diskon Promo';
-      buffer.writeln(_justify(discLabel, '-${CurrencyFormatter.formatRupiah(order.discountAmount)}'));
+      buffer.writeln(
+        _justify(
+          discLabel,
+          '-${CurrencyFormatter.formatRupiah(order.discountAmount)}',
+        ),
+      );
     }
     buffer.writeln(_divider('='));
-    buffer.writeln(_justify('TOTAL AKHIR', CurrencyFormatter.formatRupiah(order.totalAmount)));
-    buffer.writeln(_justify('Status Bayar', order.paymentStatus == 'PAID' ? 'LUNAS (CASH)' : order.paymentStatus));
+    buffer.writeln(
+      _justify(
+        'TOTAL AKHIR',
+        CurrencyFormatter.formatRupiah(order.totalAmount),
+      ),
+    );
+    buffer.writeln(
+      _justify(
+        'Status Bayar',
+        order.paymentStatus == 'PAID' ? 'LUNAS (CASH)' : order.paymentStatus,
+      ),
+    );
     buffer.writeln(_divider('='));
 
     // Footer

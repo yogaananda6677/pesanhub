@@ -636,7 +636,10 @@ void main() {
         await tester.tap(find.text('Open Dialog'));
         await tester.pumpAndSettle();
 
-        expect(find.byKey(const Key('apply-all-channel-generator-button')), findsOneWidget);
+        expect(
+          find.byKey(const Key('apply-all-channel-generator-button')),
+          findsOneWidget,
+        );
 
         // Enter GoFood = 15%, GrabFood = 10%, ShopeeFood = 25%
         await tester.enterText(
@@ -654,14 +657,18 @@ void main() {
         await tester.pumpAndSettle();
 
         // Tap "Terapkan ke Semua Menu"
-        await tester.tap(find.byKey(const Key('apply-all-channel-generator-button')));
+        await tester.tap(
+          find.byKey(const Key('apply-all-channel-generator-button')),
+        );
         await tester.pumpAndSettle();
 
         // Dialog should be dismissed
         expect(find.text('Master Data Generator Harga Kanal'), findsNothing);
 
         // Check menu A (20.000)
-        final updatedA = controller.allMenus.firstWhere((m) => m.id == 'menu-1');
+        final updatedA = controller.allMenus.firstWhere(
+          (m) => m.id == 'menu-1',
+        );
         // GoFood: 20000 + 15% = 23000
         expect(updatedA.channelPrices['GOFOOD'], equals(23000));
         // GrabFood: 20000 + 10% = 22000
@@ -670,7 +677,9 @@ void main() {
         expect(updatedA.channelPrices['SHOPEEFOOD'], equals(25000));
 
         // Check menu B (10.000)
-        final updatedB = controller.allMenus.firstWhere((m) => m.id == 'menu-2');
+        final updatedB = controller.allMenus.firstWhere(
+          (m) => m.id == 'menu-2',
+        );
         // GoFood: 10000 + 15% = 11500
         expect(updatedB.channelPrices['GOFOOD'], equals(11500));
         // GrabFood: 10000 + 10% = 11000

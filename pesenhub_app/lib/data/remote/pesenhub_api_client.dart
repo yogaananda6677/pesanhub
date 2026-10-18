@@ -686,8 +686,7 @@ class PesenHubApiClient
       if (source['branch_id'] is String &&
           (source['branch_id'] as String).isNotEmpty)
         'branch_id': source['branch_id'],
-      if (source['source'] is String &&
-          (source['source'] as String).isNotEmpty)
+      if (source['source'] is String && (source['source'] as String).isNotEmpty)
         'source': source['source'],
       'customer_name': source['customer_name'],
       if (source['customer_phone'] is String &&

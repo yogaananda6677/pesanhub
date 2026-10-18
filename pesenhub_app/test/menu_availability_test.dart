@@ -326,56 +326,65 @@ void main() {
       },
     );
 
-    test('applyChannelPricesToAllMenus applies markups and ensures OFFLINE channel', () async {
-      final updatedMenus = <MenuItem>[];
-      final controller = MenuAvailabilityController(
-        initialCategories: testCategories,
-        initialMenus: createTestMenus(),
-        role: 'ADMIN',
-        updateMenuFn: (menu) async {
-          updatedMenus.add(menu);
-          return menu.copyWith(version: menu.version + 1);
-        },
-      );
+    test(
+      'applyChannelPricesToAllMenus applies markups and ensures OFFLINE channel',
+      () async {
+        final updatedMenus = <MenuItem>[];
+        final controller = MenuAvailabilityController(
+          initialCategories: testCategories,
+          initialMenus: createTestMenus(),
+          role: 'ADMIN',
+          updateMenuFn: (menu) async {
+            updatedMenus.add(menu);
+            return menu.copyWith(version: menu.version + 1);
+          },
+        );
 
-      final count = await controller.applyChannelPricesToAllMenus({
-        'GOFOOD': 12.0,
-        'GRABFOOD': 11.0,
-        'SHOPEEFOOD': 15.0,
-      });
+        final count = await controller.applyChannelPricesToAllMenus({
+          'GOFOOD': 12.0,
+          'GRABFOOD': 11.0,
+          'SHOPEEFOOD': 15.0,
+        });
 
-      expect(count, equals(3));
-      expect(updatedMenus.length, equals(3));
-      for (final m in updatedMenus) {
-        expect(m.channelPrices.containsKey('OFFLINE'), isTrue);
-        expect(m.channelPrices['OFFLINE'], equals(m.priceAmount));
-        expect(m.channelPrices.containsKey('GOFOOD'), isTrue);
-        expect(m.channelPrices.containsKey('GRABFOOD'), isTrue);
-        expect(m.channelPrices.containsKey('SHOPEEFOOD'), isTrue);
-      }
-      expect(controller.bannerMessage, contains('berhasil diterapkan ke 3 menu'));
-    });
+        expect(count, equals(3));
+        expect(updatedMenus.length, equals(3));
+        for (final m in updatedMenus) {
+          expect(m.channelPrices.containsKey('OFFLINE'), isTrue);
+          expect(m.channelPrices['OFFLINE'], equals(m.priceAmount));
+          expect(m.channelPrices.containsKey('GOFOOD'), isTrue);
+          expect(m.channelPrices.containsKey('GRABFOOD'), isTrue);
+          expect(m.channelPrices.containsKey('SHOPEEFOOD'), isTrue);
+        }
+        expect(
+          controller.bannerMessage,
+          contains('berhasil diterapkan ke 3 menu'),
+        );
+      },
+    );
 
-    test('applyChannelPricesToAllMenus handles partial failure gracefully', () async {
-      final controller = MenuAvailabilityController(
-        initialCategories: testCategories,
-        initialMenus: createTestMenus(),
-        role: 'ADMIN',
-        updateMenuFn: (menu) async {
-          if (menu.id == 'menu-2') {
-            throw Exception('Network timeout on menu-2');
-          }
-          return menu.copyWith(version: menu.version + 1);
-        },
-      );
+    test(
+      'applyChannelPricesToAllMenus handles partial failure gracefully',
+      () async {
+        final controller = MenuAvailabilityController(
+          initialCategories: testCategories,
+          initialMenus: createTestMenus(),
+          role: 'ADMIN',
+          updateMenuFn: (menu) async {
+            if (menu.id == 'menu-2') {
+              throw Exception('Network timeout on menu-2');
+            }
+            return menu.copyWith(version: menu.version + 1);
+          },
+        );
 
-      final count = await controller.applyChannelPricesToAllMenus({
-        'GOFOOD': 10.0,
-      });
+        final count = await controller.applyChannelPricesToAllMenus({
+          'GOFOOD': 10.0,
+        });
 
-      expect(count, equals(2));
-      expect(controller.bannerMessage, contains('1 gagal'));
-      expect(controller.isBannerError, isTrue);
-    });
+        expect(count, equals(2));
+        expect(controller.bannerMessage, contains('1 gagal'));
+        expect(controller.isBannerError, isTrue);
+      },
+    );
   });
 }

@@ -39,7 +39,9 @@ class OrderSuccessDialog extends StatefulWidget {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: AppSpacing.borderRadiusMd),
+          shape: RoundedRectangleBorder(
+            borderRadius: AppSpacing.borderRadiusMd,
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
             child: SingleChildScrollView(
@@ -350,7 +352,9 @@ class _OrderSuccessDialogState extends State<OrderSuccessDialog> {
             key: const Key('print-receipt-button'),
             label: _printed ? 'Cetak Ulang Struk' : 'Cetak Struk Nota',
             icon: Icons.print_rounded,
-            variant: _printed ? AppButtonVariant.secondary : AppButtonVariant.primary,
+            variant: _printed
+                ? AppButtonVariant.secondary
+                : AppButtonVariant.primary,
             isLoading: _isPrinting,
             onPressed: _handlePrint,
           ),
@@ -373,7 +377,9 @@ class _OrderSuccessDialogState extends State<OrderSuccessDialog> {
               TextButton.icon(
                 onPressed: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const DevicePrinterView()),
+                    MaterialPageRoute(
+                      builder: (_) => const DevicePrinterView(),
+                    ),
                   );
                 },
                 icon: const Icon(Icons.tune_rounded, size: 16),
@@ -393,7 +399,9 @@ class _OrderSuccessDialogState extends State<OrderSuccessDialog> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: _printed ? AppColors.success : Theme.of(context).colorScheme.error,
+                  color: _printed
+                      ? AppColors.success
+                      : Theme.of(context).colorScheme.error,
                 ),
               ),
             ),
@@ -407,7 +415,8 @@ class _OrderSuccessDialogState extends State<OrderSuccessDialog> {
                 child: AppButton(
                   label: 'Pesanan Baru',
                   variant: AppButtonVariant.secondary,
-                  onPressed: widget.onNewOrder ?? () => Navigator.of(context).pop(),
+                  onPressed:
+                      widget.onNewOrder ?? () => Navigator.of(context).pop(),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -415,7 +424,8 @@ class _OrderSuccessDialogState extends State<OrderSuccessDialog> {
                 child: AppButton(
                   label: 'Lihat di Antrean',
                   icon: Icons.list_alt_rounded,
-                  onPressed: widget.onViewQueue ?? () => Navigator.of(context).pop(),
+                  onPressed:
+                      widget.onViewQueue ?? () => Navigator.of(context).pop(),
                 ),
               ),
             ],

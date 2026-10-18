@@ -221,10 +221,12 @@ class OrderQueueCard extends StatelessWidget {
                 children: [
                   _smallPill(
                     StatusSemantics.forSource(order.source).label.toUpperCase(),
-                    foreground:
-                        StatusSemantics.forSource(order.source).foregroundColor,
-                    background:
-                        StatusSemantics.forSource(order.source).backgroundColor,
+                    foreground: StatusSemantics.forSource(
+                      order.source,
+                    ).foregroundColor,
+                    background: StatusSemantics.forSource(
+                      order.source,
+                    ).backgroundColor,
                     icon: StatusSemantics.forSource(order.source).icon,
                   ),
                   _smallPill(

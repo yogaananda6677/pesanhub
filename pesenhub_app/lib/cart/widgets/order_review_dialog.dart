@@ -754,7 +754,9 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                                     onTap: () => setState(() => _payNow = true),
                                     borderRadius: BorderRadius.circular(10),
                                     child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 150),
+                                      duration: const Duration(
+                                        milliseconds: 150,
+                                      ),
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 10,
                                         horizontal: 8,
@@ -811,10 +813,13 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                                 child: Material(
                                   color: Colors.transparent,
                                   child: InkWell(
-                                    onTap: () => setState(() => _payNow = false),
+                                    onTap: () =>
+                                        setState(() => _payNow = false),
                                     borderRadius: BorderRadius.circular(10),
                                     child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 150),
+                                      duration: const Duration(
+                                        milliseconds: 150,
+                                      ),
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 10,
                                         horizontal: 8,

@@ -22,10 +22,7 @@ class PolicyDialogs {
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520, maxHeight: 650),
-            child: Material(
-              color: Colors.white,
-              child: builder(ctx),
-            ),
+            child: Material(color: Colors.white, child: builder(ctx)),
           ),
         ),
       );
@@ -364,18 +361,18 @@ class _PolicySheetContainer extends StatelessWidget {
                   children: actions!,
                 )
               : (actionButton ??
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                    ),
-                    child: const Text('Tutup'),
-                  )),
+                      child: const Text('Tutup'),
+                    )),
         ),
       ],
     );

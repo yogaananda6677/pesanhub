@@ -719,10 +719,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480, maxHeight: 450),
-            child: Material(
-              color: Colors.white,
-              child: buildContent(ctx),
-            ),
+            child: Material(color: Colors.white, child: buildContent(ctx)),
           ),
         ),
       );

@@ -144,7 +144,9 @@ class _PromoSelectorSheetState extends State<PromoSelectorSheet> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _promos = widget.apiClient == null ? _filterFallback(orderSource) : [];
+          _promos = widget.apiClient == null
+              ? _filterFallback(orderSource)
+              : [];
           _isLoading = false;
         });
       }
@@ -412,204 +414,204 @@ class _PromoSelectorSheetState extends State<PromoSelectorSheet> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _promos.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.discount_outlined,
-                              size: 48,
-                              color: Color(0xFFCBD5E1),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Tidak ada promo aktif untuk $channelName',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.discount_outlined,
+                          size: 48,
+                          color: Color(0xFFCBD5E1),
                         ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                        itemCount: _promos.length,
-                        separatorBuilder: (ctx, i) => const SizedBox(height: 10),
-                        itemBuilder: (ctx, i) {
-                          final promo = _promos[i];
-                          final isSelected = currentDiscount?.id == promo.id;
-                          final subtotal = widget.cartController.subtotalAmount;
-                          final isEligible = subtotal >= promo.minOrderAmount;
-                          final isPercent = promo.type == 'PERCENTAGE';
-                          final valueStr = isPercent
-                              ? '${promo.value}%'
-                              : _formatRupiah(promo.value);
+                        const SizedBox(height: 12),
+                        Text(
+                          'Tidak ada promo aktif untuk $channelName',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                    itemCount: _promos.length,
+                    separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                    itemBuilder: (ctx, i) {
+                      final promo = _promos[i];
+                      final isSelected = currentDiscount?.id == promo.id;
+                      final subtotal = widget.cartController.subtotalAmount;
+                      final isEligible = subtotal >= promo.minOrderAmount;
+                      final isPercent = promo.type == 'PERCENTAGE';
+                      final valueStr = isPercent
+                          ? '${promo.value}%'
+                          : _formatRupiah(promo.value);
 
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFFFFF7ED)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : const Color(0xFFE2E8F0),
-                                width: isSelected ? 1.5 : 1,
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFFFFF7ED)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.primary
+                                : const Color(0xFFE2E8F0),
+                            width: isSelected ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.primary.withValues(alpha: 0.1)
+                                      : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  promo.type == 'PERCENTAGE'
+                                      ? Icons.percent_rounded
+                                      : Icons.attach_money_rounded,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : const Color(0xFF64748B),
+                                  size: 22,
+                                ),
                               ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? AppColors.primary.withValues(alpha: 0.1)
-                                          : const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Icon(
-                                      promo.type == 'PERCENTAGE'
-                                          ? Icons.percent_rounded
-                                          : Icons.attach_money_rounded,
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : const Color(0xFF64748B),
-                                      size: 22,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          promo.name,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.textPrimary,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          isPercent
-                                              ? 'Diskon $valueStr${promo.maxDiscountAmount != null ? " (Maks ${_formatRupiah(promo.maxDiscountAmount!)})" : ""}'
-                                              : 'Potongan $valueStr',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: isEligible
-                                                ? const Color(0xFF2E7D32)
-                                                : const Color(0xFF94A3B8),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        if (promo.code != null) ...[
-                                          const SizedBox(height: 4),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFF8FAFC),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                              border: Border.all(
-                                                color: const Color(0xFFCBD5E1),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              promo.code!,
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                        if (promo.minOrderAmount > 0) ...[
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Min. belanja ${_formatRupiah(promo.minOrderAmount)}',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: isEligible
-                                                  ? const Color(0xFF64748B)
-                                                  : const Color(0xFFDC2626),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  OutlinedButton(
-                                    key: Key('promo-apply-${promo.id}'),
-                                    onPressed: !isEligible
-                                        ? null
-                                        : () {
-                                            if (isSelected) {
-                                              widget.cartController
-                                                  .removeDiscount();
-                                            } else {
-                                              widget.cartController
-                                                  .applyDiscount(promo);
-                                              widget.onApplied?.call(promo);
-                                            }
-                                            Navigator.of(context).pop(promo);
-                                          },
-                                    style: OutlinedButton.styleFrom(
-                                      backgroundColor: isSelected
-                                          ? AppColors.primary
-                                          : Colors.white,
-                                      foregroundColor: isSelected
-                                          ? Colors.white
-                                          : AppColors.primary,
-                                      side: BorderSide(
-                                        color: isEligible
-                                            ? AppColors.primary
-                                            : const Color(0xFFCBD5E1),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 8,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      isSelected
-                                          ? 'Dipakai'
-                                          : isEligible
-                                              ? 'Gunakan'
-                                              : 'Min Belanja',
-                                      style: TextStyle(
-                                        fontSize: 12,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      promo.name,
+                                      style: const TextStyle(
+                                        fontSize: 14,
                                         fontWeight: FontWeight.bold,
-                                        color: isSelected
-                                            ? Colors.white
-                                            : isEligible
-                                                ? AppColors.primary
-                                                : const Color(0xFF94A3B8),
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      isPercent
+                                          ? 'Diskon $valueStr${promo.maxDiscountAmount != null ? " (Maks ${_formatRupiah(promo.maxDiscountAmount!)})" : ""}'
+                                          : 'Potongan $valueStr',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isEligible
+                                            ? const Color(0xFF2E7D32)
+                                            : const Color(0xFF94A3B8),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (promo.code != null) ...[
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(0xFFCBD5E1),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          promo.code!,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                    if (promo.minOrderAmount > 0) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Min. belanja ${_formatRupiah(promo.minOrderAmount)}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isEligible
+                                              ? const Color(0xFF64748B)
+                                              : const Color(0xFFDC2626),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                key: Key('promo-apply-${promo.id}'),
+                                onPressed: !isEligible
+                                    ? null
+                                    : () {
+                                        if (isSelected) {
+                                          widget.cartController
+                                              .removeDiscount();
+                                        } else {
+                                          widget.cartController.applyDiscount(
+                                            promo,
+                                          );
+                                          widget.onApplied?.call(promo);
+                                        }
+                                        Navigator.of(context).pop(promo);
+                                      },
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: isSelected
+                                      ? AppColors.primary
+                                      : Colors.white,
+                                  foregroundColor: isSelected
+                                      ? Colors.white
+                                      : AppColors.primary,
+                                  side: BorderSide(
+                                    color: isEligible
+                                        ? AppColors.primary
+                                        : const Color(0xFFCBD5E1),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: Text(
+                                  isSelected
+                                      ? 'Dipakai'
+                                      : isEligible
+                                      ? 'Gunakan'
+                                      : 'Min Belanja',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : isEligible
+                                        ? AppColors.primary
+                                        : const Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

@@ -112,119 +112,127 @@ void main() {
       );
     });
 
-    testWidgets('Loads discounts from real apiClient and enforces minimum spend', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(1024, 800);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    testWidgets(
+      'Loads discounts from real apiClient and enforces minimum spend',
+      (tester) async {
+        tester.view.physicalSize = const Size(1024, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final menuController = mc.MenuController(
-        initialCategories: const [],
-        initialMenus: const [itemMartabak],
-      );
-      final cartController = CartController();
+        final menuController = mc.MenuController(
+          initialCategories: const [],
+          initialMenus: const [itemMartabak],
+        );
+        final cartController = CartController();
 
-      // Mock client that returns MERDEKA discount with min_order_amount 150.000
-      final mockClient = http_testing.MockClient((req) async {
-        if (req.url.path.contains('admin/discounts')) {
-          return http.Response(
-            jsonEncode({
-              'data': [
-                {
-                  'id': 'disc-merdeka-1',
-                  'name': 'MERDEKA',
-                  'code': 'MDK-001',
-                  'scope': 'ORDER',
-                  'channel': 'ALL',
-                  'type': 'FIXED',
-                  'value': 20000,
-                  'min_order_amount': 150000,
-                  'is_active': true,
-                }
-              ]
-            }),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }
-        return http.Response('{"error":{"message":"not found"}}', 404);
-      });
+        // Mock client that returns MERDEKA discount with min_order_amount 150.000
+        final mockClient = http_testing.MockClient((req) async {
+          if (req.url.path.contains('admin/discounts')) {
+            return http.Response(
+              jsonEncode({
+                'data': [
+                  {
+                    'id': 'disc-merdeka-1',
+                    'name': 'MERDEKA',
+                    'code': 'MDK-001',
+                    'scope': 'ORDER',
+                    'channel': 'ALL',
+                    'type': 'FIXED',
+                    'value': 20000,
+                    'min_order_amount': 150000,
+                    'is_active': true,
+                  },
+                ],
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('{"error":{"message":"not found"}}', 404);
+        });
 
-      final apiClient = PesenHubApiClient(
-        config: ApiConfig(baseUri: Uri.parse('http://localhost:8080/api/v1/')),
-        accessToken: () async => 'test-token',
-        client: mockClient,
-      );
+        final apiClient = PesenHubApiClient(
+          config: ApiConfig(
+            baseUri: Uri.parse('http://localhost:8080/api/v1/'),
+          ),
+          accessToken: () async => 'test-token',
+          client: mockClient,
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: Scaffold(
-            body: PosView(
-              menuController: menuController,
-              cartController: cartController,
-              connectivityController: ConnectivityController(),
-              apiClient: apiClient,
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: Scaffold(
+              body: PosView(
+                menuController: menuController,
+                cartController: cartController,
+                connectivityController: ConnectivityController(),
+                apiClient: apiClient,
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // Add 1 Martabak (Rp 60.000 < Rp 150.000)
-      cartController.addItem(itemMartabak);
-      await tester.pumpAndSettle();
+        // Add 1 Martabak (Rp 60.000 < Rp 150.000)
+        cartController.addItem(itemMartabak);
+        await tester.pumpAndSettle();
 
-      // Open promo sheet
-      await tester.tap(find.byKey(const Key('cart-open-discount-button')));
-      await tester.pumpAndSettle();
+        // Open promo sheet
+        await tester.tap(find.byKey(const Key('cart-open-discount-button')));
+        await tester.pumpAndSettle();
 
-      // Real server promo is displayed
-      expect(find.text('MERDEKA'), findsOneWidget);
-      expect(find.text('Potongan Rp 20.000'), findsOneWidget);
-      expect(find.text('Min. belanja Rp 150.000'), findsOneWidget);
+        // Real server promo is displayed
+        expect(find.text('MERDEKA'), findsOneWidget);
+        expect(find.text('Potongan Rp 20.000'), findsOneWidget);
+        expect(find.text('Min. belanja Rp 150.000'), findsOneWidget);
 
-      // Button is disabled because subtotal 60k < 150k
-      final minBelanjaBtn = find.text('Min Belanja');
-      expect(minBelanjaBtn, findsOneWidget);
+        // Button is disabled because subtotal 60k < 150k
+        final minBelanjaBtn = find.text('Min Belanja');
+        expect(minBelanjaBtn, findsOneWidget);
 
-      // Try typing manual code MDK-001
-      await tester.enterText(
-        find.byKey(const Key('promo-manual-code-input')),
-        'MDK-001',
-      );
-      await tester.tap(find.byKey(const Key('promo-apply-manual-code-button')));
-      await tester.pumpAndSettle();
+        // Try typing manual code MDK-001
+        await tester.enterText(
+          find.byKey(const Key('promo-manual-code-input')),
+          'MDK-001',
+        );
+        await tester.tap(
+          find.byKey(const Key('promo-apply-manual-code-button')),
+        );
+        await tester.pumpAndSettle();
 
-      // Error message indicates minimum spend not reached
-      expect(find.textContaining('Minimal belanja belum terpenuhi'), findsOneWidget);
+        // Error message indicates minimum spend not reached
+        expect(
+          find.textContaining('Minimal belanja belum terpenuhi'),
+          findsOneWidget,
+        );
 
-      // Close sheet
-      await tester.tap(find.byIcon(Icons.close_rounded).first);
-      await tester.pumpAndSettle();
+        // Close sheet
+        await tester.tap(find.byIcon(Icons.close_rounded).first);
+        await tester.pumpAndSettle();
 
-      // Now add 2 more martabaks: total = 3 * 60k = 180k >= 150k
-      cartController.addItem(itemMartabak);
-      cartController.addItem(itemMartabak);
-      await tester.pumpAndSettle();
-      expect(cartController.subtotalAmount, equals(180000));
+        // Now add 2 more martabaks: total = 3 * 60k = 180k >= 150k
+        cartController.addItem(itemMartabak);
+        cartController.addItem(itemMartabak);
+        await tester.pumpAndSettle();
+        expect(cartController.subtotalAmount, equals(180000));
 
-      // Re-open promo sheet
-      await tester.tap(find.byKey(const Key('cart-open-discount-button')));
-      await tester.pumpAndSettle();
+        // Re-open promo sheet
+        await tester.tap(find.byKey(const Key('cart-open-discount-button')));
+        await tester.pumpAndSettle();
 
-      // Now the button is active 'Gunakan'
-      final applyBtn = find.byKey(const Key('promo-apply-disc-merdeka-1'));
-      expect(applyBtn, findsOneWidget);
-      await tester.tap(applyBtn);
-      await tester.pumpAndSettle();
+        // Now the button is active 'Gunakan'
+        final applyBtn = find.byKey(const Key('promo-apply-disc-merdeka-1'));
+        expect(applyBtn, findsOneWidget);
+        await tester.tap(applyBtn);
+        await tester.pumpAndSettle();
 
-      // Verified: Applied discount Rp 20.000, Total = 180k - 20k = 160k!
-      expect(cartController.appliedDiscount?.code, equals('MDK-001'));
-      expect(cartController.discountAmount, equals(20000));
-      expect(cartController.totalAmount, equals(160000));
-    });
+        // Verified: Applied discount Rp 20.000, Total = 180k - 20k = 160k!
+        expect(cartController.appliedDiscount?.code, equals('MDK-001'));
+        expect(cartController.discountAmount, equals(20000));
+        expect(cartController.totalAmount, equals(160000));
+      },
+    );
   });
 }

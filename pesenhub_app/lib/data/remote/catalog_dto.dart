@@ -128,27 +128,27 @@ Map<String, dynamic> encodeMenu(MenuItem menu) {
         .toList(growable: false),
     'sort_order': menu.sortOrder,
     'version': menu.version,
-  'modifier_groups': menu.modifierGroups
-      .map(
-        (group) => {
-          'code': group.code,
-          'name': group.name,
-          'min_select': group.minSelect,
-          'max_select': group.maxSelect,
-          'sort_order': group.sortOrder,
-          'options': group.options
-              .map(
-                (option) => {
-                  'code': option.code,
-                  'name': option.name,
-                  'price_delta_amount': option.priceDeltaAmount,
-                  'sort_order': option.sortOrder,
-                },
-              )
-              .toList(),
-        },
-      )
-      .toList(),
+    'modifier_groups': menu.modifierGroups
+        .map(
+          (group) => {
+            'code': group.code,
+            'name': group.name,
+            'min_select': group.minSelect,
+            'max_select': group.maxSelect,
+            'sort_order': group.sortOrder,
+            'options': group.options
+                .map(
+                  (option) => {
+                    'code': option.code,
+                    'name': option.name,
+                    'price_delta_amount': option.priceDeltaAmount,
+                    'sort_order': option.sortOrder,
+                  },
+                )
+                .toList(),
+          },
+        )
+        .toList(),
   };
 }
 

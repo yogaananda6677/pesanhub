@@ -406,7 +406,9 @@ class MenuAvailabilityController extends ChangeNotifier {
   }
 
   Future<int> applyChannelPricesToAllMenus(Map<String, double> rates) async {
-    if (!_canStartMutation(bulkChannelPricesFn != null || updateMenuFn != null)) {
+    if (!_canStartMutation(
+      bulkChannelPricesFn != null || updateMenuFn != null,
+    )) {
       return 0;
     }
     _isSaving = true;
@@ -447,8 +449,10 @@ class MenuAvailabilityController extends ChangeNotifier {
               for (final entry in rates.entries) {
                 final ch = entry.key;
                 final pct = entry.value;
-                currentPrices[ch] =
-                    CurrencyFormatter.calculateOnlinePrice(menu.priceAmount, pct);
+                currentPrices[ch] = CurrencyFormatter.calculateOnlinePrice(
+                  menu.priceAmount,
+                  pct,
+                );
               }
               for (final ch in const ['GOFOOD', 'GRABFOOD', 'SHOPEEFOOD']) {
                 currentPrices.putIfAbsent(ch, () => menu.priceAmount);

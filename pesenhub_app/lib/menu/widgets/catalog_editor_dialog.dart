@@ -47,9 +47,7 @@ Future<T?> _showCatalogBottomSheet<T>({
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
-        ),
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.sizeOf(ctx).height * 0.88,
@@ -80,9 +78,7 @@ class _CatalogBottomSheetContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-      ),
+      decoration: const BoxDecoration(color: Colors.white),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -129,7 +125,10 @@ class _CatalogBottomSheetContainer extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Color(0xFF64748B),
+                  ),
                   tooltip: 'Tutup',
                   onPressed: () => Navigator.of(context).pop(),
                 ),
@@ -207,11 +206,10 @@ Future<bool?> showGlobalExtraEditor(
 Future<bool?> showChannelGeneratorDialog(
   BuildContext context, {
   MenuAvailabilityController? controller,
-}) =>
-    _showCatalogBottomSheet<bool>(
-      context: context,
-      builder: (_) => _ChannelGeneratorDialog(controller: controller),
-    );
+}) => _showCatalogBottomSheet<bool>(
+  context: context,
+  builder: (_) => _ChannelGeneratorDialog(controller: controller),
+);
 
 class _CategoryEditor extends StatefulWidget {
   final MenuAvailabilityController controller;
@@ -462,104 +460,99 @@ class _MenuEditorState extends State<_MenuEditor> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-              DropdownButtonFormField<String>(
-                key: const Key('menu-category-field'),
-                initialValue: _categoryId,
-                decoration: const InputDecoration(labelText: 'Kategori'),
-                items: widget.controller.categories
-                    .where(
-                      (category) =>
-                          category.isActive || category.id == _categoryId,
-                    )
-                    .map(
-                      (category) => DropdownMenuItem(
-                        value: category.id,
-                        child: Text(category.name),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => _categoryId = value),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              DropdownButtonFormField<String>(
-                key: const Key('menu-product-type-field'),
-                initialValue: _productType,
-                decoration: const InputDecoration(labelText: 'Jenis martabak'),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'MARTABAK_TELUR',
-                    child: Text('Martabak Telur'),
+          DropdownButtonFormField<String>(
+            key: const Key('menu-category-field'),
+            initialValue: _categoryId,
+            decoration: const InputDecoration(labelText: 'Kategori'),
+            items: widget.controller.categories
+                .where(
+                  (category) => category.isActive || category.id == _categoryId,
+                )
+                .map(
+                  (category) => DropdownMenuItem(
+                    value: category.id,
+                    child: Text(category.name),
                   ),
-                  DropdownMenuItem(
-                    value: 'TERANG_BULAN',
-                    child: Text('Terang Bulan'),
-                  ),
-                ],
-                onChanged: (value) => setState(() => _productType = value!),
+                )
+                .toList(),
+            onChanged: (value) => setState(() => _categoryId = value),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          DropdownButtonFormField<String>(
+            key: const Key('menu-product-type-field'),
+            initialValue: _productType,
+            decoration: const InputDecoration(labelText: 'Jenis martabak'),
+            items: const [
+              DropdownMenuItem(
+                value: 'MARTABAK_TELUR',
+                child: Text('Martabak Telur'),
               ),
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(
-                key: const Key('menu-name-field'),
-                label: 'Nama menu',
-                controller: _name,
+              DropdownMenuItem(
+                value: 'TERANG_BULAN',
+                child: Text('Terang Bulan'),
               ),
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(label: 'SKU', controller: _sku),
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(
-                label: 'Deskripsi',
-                controller: _description,
-                maxLines: 2,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppTextField(
-                      label: 'Urutan',
-                      controller: _sort,
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: AppButton.outlined(
-                      label: _imageUrl == null
-                          ? 'Upload gambar'
-                          : 'Ganti gambar',
-                      icon: Icons.add_photo_alternate_outlined,
-                      isLoading: _uploadingImage,
-                      onPressed: _uploadingImage ? null : _pickImage,
-                    ),
-                  ),
-                ],
-              ),
-              if (_imageUrl case final url?) ...[
-                const SizedBox(height: AppSpacing.md),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    url,
-                    height: 160,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const SizedBox(
-                      height: 80,
-                      child: Center(
-                        child: Text('Pratinjau gambar tidak tersedia'),
-                      ),
-                    ),
-                  ),
+            ],
+            onChanged: (value) => setState(() => _productType = value!),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            key: const Key('menu-name-field'),
+            label: 'Nama menu',
+            controller: _name,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(label: 'SKU', controller: _sku),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            label: 'Deskripsi',
+            controller: _description,
+            maxLines: 2,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: AppTextField(
+                  label: 'Urutan',
+                  controller: _sort,
+                  keyboardType: TextInputType.number,
                 ),
-              ],
-              if (_error != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: AppButton.outlined(
+                  label: _imageUrl == null ? 'Upload gambar' : 'Ganti gambar',
+                  icon: Icons.add_photo_alternate_outlined,
+                  isLoading: _uploadingImage,
+                  onPressed: _uploadingImage ? null : _pickImage,
                 ),
-              ],
+              ),
             ],
           ),
+          if (_imageUrl case final url?) ...[
+            const SizedBox(height: AppSpacing.md),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                url,
+                height: 160,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const SizedBox(
+                  height: 80,
+                  child: Center(child: Text('Pratinjau gambar tidak tersedia')),
+                ),
+              ),
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -717,131 +710,126 @@ class _PriceEditorState extends State<_PriceEditor> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-              AppTextField(
-                key: const Key('menu-hpp-field'),
-                label: 'HPP (rupiah)',
-                controller: _hpp,
-                keyboardType: TextInputType.number,
-                inputFormatters: const [ThousandsSeparatorInputFormatter()],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(
-                key: const Key('menu-offline-price-field'),
-                label: 'Harga ${labels['OFFLINE']}',
-                controller: _prices['OFFLINE'],
-                keyboardType: TextInputType.number,
-                inputFormatters: const [ThousandsSeparatorInputFormatter()],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: AppSpacing.borderRadiusMd,
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          AppTextField(
+            key: const Key('menu-hpp-field'),
+            label: 'HPP (rupiah)',
+            controller: _hpp,
+            keyboardType: TextInputType.number,
+            inputFormatters: const [ThousandsSeparatorInputFormatter()],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            key: const Key('menu-offline-price-field'),
+            label: 'Harga ${labels['OFFLINE']}',
+            controller: _prices['OFFLINE'],
+            keyboardType: TextInputType.number,
+            inputFormatters: const [ThousandsSeparatorInputFormatter()],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: AppSpacing.borderRadiusMd,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Generator Harga Online',
-                          style: AppTypography.labelLarge.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        TextButton.icon(
-                          key: const Key('open-master-generator-button'),
-                          icon: const Icon(Icons.settings_outlined, size: 16),
-                          label: const Text(
-                            'Master Data',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                          onPressed: () async {
-                            final changed = await showChannelGeneratorDialog(
-                              context,
-                            );
-                            if (mounted && changed == true) {
-                              setState(() {
-                                for (final ch
-                                    in ChannelGeneratorConfig.onlineChannels) {
-                                  _channelMarkups[ch]?.text =
-                                      ChannelGeneratorConfig.formatRate(
-                                        ChannelGeneratorConfig.getRate(ch),
-                                      );
-                                }
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
                     Text(
-                      'Hitung harga GoFood, GrabFood, dan ShopeeFood otomatis dari acuan harga OFFLINE.',
-                      style: AppTypography.bodySmall,
+                      'Generator Harga Online',
+                      style: AppTypography.labelLarge.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        for (final channel
-                            in ChannelGeneratorConfig.onlineChannels) ...[
-                          Expanded(
-                            child: AppTextField(
-                              key: Key(
-                                'menu-${channel.toLowerCase()}-markup-field',
-                              ),
-                              label:
-                                  '${ChannelGeneratorConfig.channelLabels[channel] ?? channel} (%)',
-                              controller: _channelMarkups[channel],
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                        ],
-                        AppButton(
-                          key: const Key('generate-online-prices-button'),
-                          label: 'Generate',
-                          icon: Icons.auto_fix_high_rounded,
-                          onPressed: _generateOnlinePrices,
-                        ),
-                      ],
+                    TextButton.icon(
+                      key: const Key('open-master-generator-button'),
+                      icon: const Icon(Icons.settings_outlined, size: 16),
+                      label: const Text(
+                        'Master Data',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      onPressed: () async {
+                        final changed = await showChannelGeneratorDialog(
+                          context,
+                        );
+                        if (mounted && changed == true) {
+                          setState(() {
+                            for (final ch
+                                in ChannelGeneratorConfig.onlineChannels) {
+                              _channelMarkups[ch]?.text =
+                                  ChannelGeneratorConfig.formatRate(
+                                    ChannelGeneratorConfig.getRate(ch),
+                                  );
+                            }
+                          });
+                        }
+                      },
                     ),
                   ],
                 ),
-              ),
-              for (final channel in const [
-                'GOFOOD',
-                'GRABFOOD',
-                'SHOPEEFOOD',
-              ]) ...[
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  key: Key('menu-${channel.toLowerCase()}-price-field'),
-                  label: 'Harga ${labels[channel]}',
-                  controller: _prices[channel],
-                  keyboardType: TextInputType.number,
-                  inputFormatters: const [ThousandsSeparatorInputFormatter()],
-                ),
-              ],
-              if (_error != null) ...[
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: 2),
                 Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  'Hitung harga GoFood, GrabFood, dan ShopeeFood otomatis dari acuan harga OFFLINE.',
+                  style: AppTypography.bodySmall,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    for (final channel
+                        in ChannelGeneratorConfig.onlineChannels) ...[
+                      Expanded(
+                        child: AppTextField(
+                          key: Key(
+                            'menu-${channel.toLowerCase()}-markup-field',
+                          ),
+                          label:
+                              '${ChannelGeneratorConfig.channelLabels[channel] ?? channel} (%)',
+                          controller: _channelMarkups[channel],
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    AppButton(
+                      key: const Key('generate-online-prices-button'),
+                      label: 'Generate',
+                      icon: Icons.auto_fix_high_rounded,
+                      onPressed: _generateOnlinePrices,
+                    ),
+                  ],
                 ),
               ],
-            ],
+            ),
           ),
+          for (final channel in const ['GOFOOD', 'GRABFOOD', 'SHOPEEFOOD']) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              key: Key('menu-${channel.toLowerCase()}-price-field'),
+              label: 'Harga ${labels[channel]}',
+              controller: _prices[channel],
+              keyboardType: TextInputType.number,
+              inputFormatters: const [ThousandsSeparatorInputFormatter()],
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -1304,7 +1292,9 @@ class _ChannelGeneratorDialogState extends State<_ChannelGeneratorDialog> {
 
     if (widget.controller != null) {
       setState(() => _isApplying = true);
-      final count = await widget.controller!.applyChannelPricesToAllMenus(rates);
+      final count = await widget.controller!.applyChannelPricesToAllMenus(
+        rates,
+      );
       if (!mounted) return;
       setState(() => _isApplying = false);
       if (count >= 0) {

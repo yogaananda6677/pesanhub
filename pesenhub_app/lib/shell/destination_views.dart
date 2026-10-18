@@ -1022,8 +1022,9 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
                     size: 22,
                     color: Color(0xFF64748B),
                   ),
-                  onPressed:
-                      isSaving ? null : () => Navigator.of(dialogCtx).pop(),
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.of(dialogCtx).pop(),
                   splashRadius: 20,
                 ),
               ],
@@ -1073,8 +1074,9 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed:
-                      isSaving ? null : () => Navigator.of(dialogCtx).pop(),
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.of(dialogCtx).pop(),
                   child: const Text(
                     'Batal',
                     style: TextStyle(color: Color(0xFF7A6B63)),
