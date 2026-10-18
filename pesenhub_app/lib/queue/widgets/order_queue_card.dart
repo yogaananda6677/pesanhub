@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
+import '../../theme/status_semantics.dart';
 import '../models/queue_order.dart';
 
 /// Compact transaction card optimized for a cashier's one-handed workflow.
@@ -218,6 +219,14 @@ class OrderQueueCard extends StatelessWidget {
                 spacing: 5,
                 runSpacing: 4,
                 children: [
+                  _smallPill(
+                    StatusSemantics.forSource(order.source).label.toUpperCase(),
+                    foreground:
+                        StatusSemantics.forSource(order.source).foregroundColor,
+                    background:
+                        StatusSemantics.forSource(order.source).backgroundColor,
+                    icon: StatusSemantics.forSource(order.source).icon,
+                  ),
                   _smallPill(
                     order.diningOptionLabel.toUpperCase(),
                     foreground: order.isTakeaway

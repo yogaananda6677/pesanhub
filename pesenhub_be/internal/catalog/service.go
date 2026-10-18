@@ -14,6 +14,7 @@ type Repository interface {
 	SetModifierOptionAvailability(ctx context.Context, branchID, id string, available bool, version int64, meta MutationMeta) (Option, error)
 	ListPublic(ctx context.Context, categoryID string, branchID ...string) ([]Category, error)
 	ListAdmin(ctx context.Context, branchID ...string) ([]Category, error)
+	ApplyChannelPricesAll(ctx context.Context, rates map[string]float64, meta MutationMeta) ([]Menu, error)
 }
 
 type Service struct {
@@ -65,6 +66,10 @@ func (s *Service) UpdateMenu(ctx context.Context, id string, m Menu, expectedVer
 	return s.repo.UpdateMenu(ctx, m, expectedVersion, s.meta(actorID, requestID))
 }
 
+func (s *Service) ApplyChannelPricesAll(ctx context.Context, rates map[string]float64, actorID, requestID string) ([]Menu, error) {
+	return s.repo.ApplyChannelPricesAll(ctx, rates, s.meta(actorID, requestID))
+}
+
 func (s *Service) prepareMenu(m *Menu, create bool) error {
 	m.Name, m.SKU = strings.TrimSpace(m.Name), strings.TrimSpace(m.SKU)
 	m.ProductType = strings.ToUpper(strings.TrimSpace(m.ProductType))
@@ -78,7 +83,11 @@ func (s *Service) prepareMenu(m *Menu, create bool) error {
 	if len(m.ImageURL) > 500 || (m.ImageURL != "" && !strings.HasPrefix(m.ImageURL, "/uploads/") && !strings.HasPrefix(m.ImageURL, "http://") && !strings.HasPrefix(m.ImageURL, "https://")) {
 		return ErrInvalidCatalog
 	}
-	if m.CategoryID == "" || m.Name == "" || len(m.Name) > 160 || m.SKU == "" || len(m.SKU) > 64 || m.HPPAmount == nil || *m.HPPAmount < 0 || m.SortOrder < 0 {
+	if m.HPPAmount == nil {
+		zero := int64(0)
+		m.HPPAmount = &zero
+	}
+	if m.CategoryID == "" || m.Name == "" || len(m.Name) > 160 || m.SKU == "" || len(m.SKU) > 64 || *m.HPPAmount < 0 || m.SortOrder < 0 {
 		return ErrInvalidCatalog
 	}
 	wantedChannels := map[string]bool{"OFFLINE": false, "GOFOOD": false, "GRABFOOD": false, "SHOPEEFOOD": false}

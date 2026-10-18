@@ -125,7 +125,7 @@ func Canonical() Fixture {
 		},
 		Enums: Enums{
 			OrderSources: []domain.OrderSource{
-				domain.OrderSourceCashierManual, domain.OrderSourceCustomerWeb, domain.OrderSourceWhatsApp,
+				domain.OrderSourceCashierManual, domain.OrderSourceCustomerWeb, domain.OrderSourceWhatsApp, domain.OrderSourceGrabFood, domain.OrderSourceGoFood, domain.OrderSourceShopeeFood,
 			},
 			OrderStatuses: []domain.OrderStatus{
 				domain.OrderStatusPending, domain.OrderStatusAccepted, domain.OrderStatusPreparing,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../data/remote/pesenhub_api_client.dart';
+import '../../discount/widgets/promo_selector_sheet.dart';
 import '../../queue/models/queue_order.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -18,12 +20,14 @@ class OrderReviewDialog extends StatefulWidget {
   final CartController controller;
   final Future<QueueOrder> Function(CartOrderDraft draft)? submitFn;
   final ValueChanged<QueueOrder>? onOrderCreated;
+  final PesenHubApiClient? apiClient;
 
   const OrderReviewDialog({
     super.key,
     required this.controller,
     this.submitFn,
     this.onOrderCreated,
+    this.apiClient,
   });
 
   /// Helper to display this dialog responsively across mobile and tablet.
@@ -31,6 +35,7 @@ class OrderReviewDialog extends StatefulWidget {
     required BuildContext context,
     required CartController controller,
     Future<QueueOrder> Function(CartOrderDraft draft)? submitFn,
+    PesenHubApiClient? apiClient,
   }) {
     final isTablet =
         MediaQuery.sizeOf(context).width >= AppSpacing.tabletBreakpoint;
@@ -47,6 +52,7 @@ class OrderReviewDialog extends StatefulWidget {
             child: OrderReviewDialog(
               controller: controller,
               submitFn: submitFn,
+              apiClient: apiClient,
               onOrderCreated: (order) => Navigator.of(ctx).pop(order),
             ),
           ),
@@ -71,6 +77,7 @@ class OrderReviewDialog extends StatefulWidget {
             child: OrderReviewDialog(
               controller: controller,
               submitFn: submitFn,
+              apiClient: apiClient,
               onOrderCreated: (order) => Navigator.of(ctx).pop(order),
             ),
           ),
@@ -147,6 +154,68 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
             fontSize: 11,
             fontWeight: FontWeight.w700,
             color: isSelected ? Colors.white : const Color(0xFF334155),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChannelChip({
+    required String sourceKey,
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required bool isSubmitting,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: isSubmitting
+            ? null
+            : () {
+                setState(() {
+                  widget.controller.setOrderSource(sourceKey);
+                });
+              },
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? AppColors.primary : const Color(0xFFCBD5E1),
+              width: isSelected ? 1.5 : 1,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected ? Colors.white : const Color(0xFF475569),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: isSelected ? Colors.white : const Color(0xFF334155),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -293,102 +362,42 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 8,
-                            runSpacing: 4,
+                            runSpacing: 8,
                             children: [
-                              ChoiceChip(
-                                label: const Text('Kasir'),
-                                avatar: const Icon(
-                                  Icons.point_of_sale_rounded,
-                                  size: 14,
-                                ),
-                                selected: draft.source == 'CASHIER_MANUAL',
-                                onSelected: isSubmitting
-                                    ? null
-                                    : (selected) {
-                                        if (selected) {
-                                          setState(() {
-                                            widget.controller.setOrderSource(
-                                              'CASHIER_MANUAL',
-                                            );
-                                          });
-                                        }
-                                      },
+                              _buildChannelChip(
+                                sourceKey: 'CASHIER_MANUAL',
+                                label: 'Kasir',
+                                icon: Icons.point_of_sale_rounded,
+                                isSelected: draft.source == 'CASHIER_MANUAL',
+                                isSubmitting: isSubmitting,
                               ),
-                              ChoiceChip(
-                                label: const Text('WhatsApp'),
-                                avatar: const Icon(
-                                  Icons.chat_bubble_outline_rounded,
-                                  size: 14,
-                                ),
-                                selected: draft.source == 'WHATSAPP',
-                                onSelected: isSubmitting
-                                    ? null
-                                    : (selected) {
-                                        if (selected) {
-                                          setState(() {
-                                            widget.controller.setOrderSource(
-                                              'WHATSAPP',
-                                            );
-                                          });
-                                        }
-                                      },
+                              _buildChannelChip(
+                                sourceKey: 'WHATSAPP',
+                                label: 'WhatsApp',
+                                icon: Icons.chat_bubble_outline_rounded,
+                                isSelected: draft.source == 'WHATSAPP',
+                                isSubmitting: isSubmitting,
                               ),
-                              ChoiceChip(
-                                label: const Text('GoFood'),
-                                avatar: const Icon(
-                                  Icons.delivery_dining_rounded,
-                                  size: 14,
-                                ),
-                                selected: draft.source == 'GOFOOD',
-                                onSelected: isSubmitting
-                                    ? null
-                                    : (selected) {
-                                        if (selected) {
-                                          setState(() {
-                                            widget.controller.setOrderSource(
-                                              'GOFOOD',
-                                            );
-                                          });
-                                        }
-                                      },
+                              _buildChannelChip(
+                                sourceKey: 'GOFOOD',
+                                label: 'GoFood',
+                                icon: Icons.delivery_dining_rounded,
+                                isSelected: draft.source == 'GOFOOD',
+                                isSubmitting: isSubmitting,
                               ),
-                              ChoiceChip(
-                                label: const Text('GrabFood'),
-                                avatar: const Icon(
-                                  Icons.delivery_dining_rounded,
-                                  size: 14,
-                                ),
-                                selected: draft.source == 'GRABFOOD',
-                                onSelected: isSubmitting
-                                    ? null
-                                    : (selected) {
-                                        if (selected) {
-                                          setState(() {
-                                            widget.controller.setOrderSource(
-                                              'GRABFOOD',
-                                            );
-                                          });
-                                        }
-                                      },
+                              _buildChannelChip(
+                                sourceKey: 'GRABFOOD',
+                                label: 'GrabFood',
+                                icon: Icons.delivery_dining_rounded,
+                                isSelected: draft.source == 'GRABFOOD',
+                                isSubmitting: isSubmitting,
                               ),
-                              ChoiceChip(
-                                label: const Text('ShopeeFood'),
-                                avatar: const Icon(
-                                  Icons.fastfood_rounded,
-                                  size: 14,
-                                ),
-                                selected: draft.source == 'SHOPEEFOOD',
-                                onSelected: isSubmitting
-                                    ? null
-                                    : (selected) {
-                                        if (selected) {
-                                          setState(() {
-                                            widget.controller.setOrderSource(
-                                              'SHOPEEFOOD',
-                                            );
-                                          });
-                                        }
-                                      },
+                              _buildChannelChip(
+                                sourceKey: 'SHOPEEFOOD',
+                                label: 'ShopeeFood',
+                                icon: Icons.fastfood_rounded,
+                                isSelected: draft.source == 'SHOPEEFOOD',
+                                isSubmitting: isSubmitting,
                               ),
                             ],
                           ),
@@ -515,6 +524,189 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                     }),
                     const SizedBox(height: AppSpacing.md),
 
+                    // 3.5. Promo / Discount Selection Card
+                    AppCard(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.local_offer_rounded,
+                                    size: 16,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Voucher & Promo',
+                                    style: AppTypography.titleMedium.copyWith(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (draft.discountAmount > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE8F5E9),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    'Hemat ${_formatRupiah(draft.discountAmount)}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF2E7D32),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          if (draft.discountAmount > 0) ...[
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0FDF4),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: const Color(0xFF86EFAC),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    color: Color(0xFF16A34A),
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          draft.discountName ?? 'Promo Aktif',
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF166534),
+                                          ),
+                                        ),
+                                        Text(
+                                          'Potongan -${_formatRupiah(draft.discountAmount)}',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF15803D),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      PromoSelectorSheet.show(
+                                        context: context,
+                                        cartController: widget.controller,
+                                        apiClient: widget.apiClient,
+                                      ).then((_) => setState(() {}));
+                                    },
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: AppColors.primary,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Ganti',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.close_rounded,
+                                      size: 18,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                    onPressed: () {
+                                      widget.controller.removeDiscount();
+                                      setState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ] else ...[
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  PromoSelectorSheet.show(
+                                    context: context,
+                                    cartController: widget.controller,
+                                    apiClient: widget.apiClient,
+                                  ).then((_) => setState(() {}));
+                                },
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: const Color(0xFFCBD5E1),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: const [
+                                      Icon(
+                                        Icons.confirmation_number_outlined,
+                                        size: 20,
+                                        color: AppColors.primary,
+                                      ),
+                                      SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'Pilih atau masukkan kode voucher promo',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF475569),
+                                          ),
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.chevron_right_rounded,
+                                        size: 20,
+                                        color: Color(0xFF94A3B8),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+
                     // 4. Payment Selection Card
                     AppCard(
                       child: Column(
@@ -556,66 +748,120 @@ class _OrderReviewDialogState extends State<OrderReviewDialog> {
                           Row(
                             children: [
                               Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () =>
-                                      setState(() => _payNow = true),
-                                  icon: Icon(
-                                    _payNow
-                                        ? Icons.radio_button_checked_rounded
-                                        : Icons.radio_button_off_rounded,
-                                    size: 16,
-                                    color: _payNow
-                                        ? AppColors.primary
-                                        : AppColors.textMuted,
-                                  ),
-                                  label: const Text('Bayar Langsung'),
-                                  style: OutlinedButton.styleFrom(
-                                    backgroundColor: _payNow
-                                        ? const Color(0xFFFFF7ED)
-                                        : Colors.white,
-                                    side: BorderSide(
-                                      color: _payNow
-                                          ? AppColors.primary
-                                          : AppColors.border,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 10,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => setState(() => _payNow = true),
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 150),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 10,
+                                        horizontal: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: _payNow
+                                            ? const Color(0xFFE8F5E9)
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: _payNow
+                                              ? const Color(0xFF2E7D32)
+                                              : const Color(0xFFE2E8F0),
+                                          width: _payNow ? 1.5 : 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.flash_on_rounded,
+                                            size: 16,
+                                            color: _payNow
+                                                ? const Color(0xFF2E7D32)
+                                                : const Color(0xFF94A3B8),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Flexible(
+                                            child: Text(
+                                              'Bayar Langsung',
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: _payNow
+                                                    ? FontWeight.bold
+                                                    : FontWeight.w600,
+                                                color: _payNow
+                                                    ? const Color(0xFF2E7D32)
+                                                    : const Color(0xFF475569),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () =>
-                                      setState(() => _payNow = false),
-                                  icon: Icon(
-                                    !_payNow
-                                        ? Icons.radio_button_checked_rounded
-                                        : Icons.radio_button_off_rounded,
-                                    size: 16,
-                                    color: !_payNow
-                                        ? AppColors.primary
-                                        : AppColors.textMuted,
-                                  ),
-                                  label: const Text('Bayar Nanti'),
-                                  style: OutlinedButton.styleFrom(
-                                    backgroundColor: !_payNow
-                                        ? const Color(0xFFFFF7ED)
-                                        : Colors.white,
-                                    side: BorderSide(
-                                      color: !_payNow
-                                          ? AppColors.primary
-                                          : AppColors.border,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 10,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => setState(() => _payNow = false),
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 150),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 10,
+                                        horizontal: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: !_payNow
+                                            ? const Color(0xFFFFEBEE)
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: !_payNow
+                                              ? const Color(0xFFC62828)
+                                              : const Color(0xFFE2E8F0),
+                                          width: !_payNow ? 1.5 : 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.schedule_rounded,
+                                            size: 16,
+                                            color: !_payNow
+                                                ? const Color(0xFFC62828)
+                                                : const Color(0xFF94A3B8),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Flexible(
+                                            child: Text(
+                                              'Bayar Nanti',
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: !_payNow
+                                                    ? FontWeight.bold
+                                                    : FontWeight.w600,
+                                                color: !_payNow
+                                                    ? const Color(0xFFC62828)
+                                                    : const Color(0xFF475569),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),

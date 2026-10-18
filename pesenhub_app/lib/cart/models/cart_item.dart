@@ -25,6 +25,38 @@ class CartItem {
   int get lineTotal => unitPrice * quantity;
   bool get isDrink => menuItem.isDrink;
 
+  /// Calculates total price delta from configured modifiers.
+  int get modifierTotal {
+    int total = 0;
+    for (final group in menuItem.modifierGroups) {
+      final quantities = selectedOptionQuantities[group.id];
+      if (quantities != null) {
+        for (final option in group.options) {
+          final q = quantities[option.id] ?? 0;
+          if (q > 0) {
+            total += option.priceDeltaAmount * q;
+          }
+        }
+      } else {
+        final ids = selectedOptionIds[group.id];
+        if (ids != null) {
+          for (final option in group.options) {
+            if (ids.contains(option.id)) {
+              total += option.priceDeltaAmount;
+            }
+          }
+        }
+      }
+    }
+    return total;
+  }
+
+  /// Calculates the dynamic unit price for a given sales channel.
+  int priceForChannel(String channel) {
+    final basePrice = menuItem.priceForChannel(channel) ?? menuItem.priceAmount;
+    return basePrice + modifierTotal;
+  }
+
   CartItem copyWith({
     String? id,
     MenuItem? menuItem,

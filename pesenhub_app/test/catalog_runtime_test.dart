@@ -68,6 +68,11 @@ class _CatalogGateway implements CatalogRemoteGateway {
     int expectedVersion,
   ) async =>
       _menu.copyWith(isAvailable: available, version: expectedVersion + 1);
+
+  @override
+  Future<List<MenuItem>> bulkUpdateChannelPrices(
+    Map<String, double> rates,
+  ) async => [_menu];
 }
 
 class _FallbackCatalogGateway implements CatalogRemoteGateway {
@@ -99,6 +104,11 @@ class _FallbackCatalogGateway implements CatalogRemoteGateway {
     bool available,
     int expectedVersion,
   ) async => _menu;
+
+  @override
+  Future<List<MenuItem>> bulkUpdateChannelPrices(
+    Map<String, double> rates,
+  ) async => [_menu];
 }
 
 void main() {

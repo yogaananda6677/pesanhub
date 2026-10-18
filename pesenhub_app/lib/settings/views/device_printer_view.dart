@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_spacing.dart';
+import '../services/printer_service.dart';
 
 /// Screen 5: Perangkat & Printer
 class DevicePrinterView extends StatefulWidget {
@@ -10,12 +11,22 @@ class DevicePrinterView extends StatefulWidget {
 }
 
 class _DevicePrinterViewState extends State<DevicePrinterView> {
-  bool _autoPrint = true;
-  bool _kitchenCopy = false;
-  bool _autoCutter = true;
-  String _paperSize = '58mm';
+  late bool _autoPrint;
+  late bool _kitchenCopy;
+  late bool _autoCutter;
+  late String _paperSize;
   bool _isTestingPrint = false;
   bool _isScanning = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final printer = PrinterService.instance;
+    _autoPrint = printer.autoPrint;
+    _kitchenCopy = printer.kitchenCopy;
+    _autoCutter = printer.autoCutter;
+    _paperSize = printer.paperSize;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -310,7 +321,10 @@ class _DevicePrinterViewState extends State<DevicePrinterView> {
                 'Cetak struk secara otomatis begitu pesanan berhasil disimpan.',
                 style: TextStyle(fontSize: 12, color: Color(0xFF7A6B63)),
               ),
-              onChanged: (val) => setState(() => _autoPrint = val),
+              onChanged: (val) {
+                setState(() => _autoPrint = val);
+                PrinterService.instance.updateConfig(autoPrint: val);
+              },
             ),
             const Divider(
               height: 1,
@@ -333,7 +347,10 @@ class _DevicePrinterViewState extends State<DevicePrinterView> {
                 'Mencetak 2 struk (1 struk pelanggan + 1 tiket untuk dapur).',
                 style: TextStyle(fontSize: 12, color: Color(0xFF7A6B63)),
               ),
-              onChanged: (val) => setState(() => _kitchenCopy = val),
+              onChanged: (val) {
+                setState(() => _kitchenCopy = val);
+                PrinterService.instance.updateConfig(kitchenCopy: val);
+              },
             ),
             const Divider(
               height: 1,
@@ -356,7 +373,10 @@ class _DevicePrinterViewState extends State<DevicePrinterView> {
                 'Kirim sinyal pemotong kertas setelah selesai mencetak.',
                 style: TextStyle(fontSize: 12, color: Color(0xFF7A6B63)),
               ),
-              onChanged: (val) => setState(() => _autoCutter = val),
+              onChanged: (val) {
+                setState(() => _autoCutter = val);
+                PrinterService.instance.updateConfig(autoCutter: val);
+              },
             ),
             const Divider(
               height: 1,
@@ -388,7 +408,10 @@ class _DevicePrinterViewState extends State<DevicePrinterView> {
                   DropdownMenuItem(value: '80mm', child: Text('80mm (Lebar)')),
                 ],
                 onChanged: (val) {
-                  if (val != null) setState(() => _paperSize = val);
+                  if (val != null) {
+                    setState(() => _paperSize = val);
+                    PrinterService.instance.updateConfig(paperSize: val);
+                  }
                 },
               ),
             ),
@@ -552,76 +575,160 @@ class _DevicePrinterViewState extends State<DevicePrinterView> {
 
   Future<void> _runTestPrint() async {
     setState(() => _isTestingPrint = true);
-    await Future.delayed(const Duration(milliseconds: 900));
+    await PrinterService.instance.printTestReceipt();
     if (!mounted) return;
     setState(() => _isTestingPrint = false);
 
-    // Show simulated receipt dialog
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(
-              Icons.check_circle_rounded,
-              color: Color(0xFF2E7D32),
-              size: 24,
+    final isTablet =
+        MediaQuery.sizeOf(context).width >= AppSpacing.tabletBreakpoint;
+
+    Widget buildSheetContent(BuildContext ctx) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFCBD5E1),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            SizedBox(width: 8),
-            Text(
-              'Uji Cetak Berhasil',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-        content: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF9F9FB),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          child: const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '================================\n'
-                '   MARTABAK & TERANG BULAN\n'
-                '          JENGGIRAT\n'
-                '================================\n'
-                'Waktu : 03/10/2026 18:45 WIB\n'
-                'Kasir : Yoga Ananda (Superadmin)\n'
-                '--------------------------------\n'
-                'UJI CETAK THERMAL 58mm\n'
-                'STATUS PRINTER : OK / ONLINE\n'
-                'KONEKSI BLUETOOTH : STABIL\n'
-                '--------------------------------\n'
-                'Terima Kasih!\n'
-                '================================',
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 11,
-                  color: Color(0xFF1E293B),
-                  height: 1.3,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF2E7D32),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Uji Cetak Berhasil',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 22,
+                    color: Color(0xFF64748B),
+                  ),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  splashRadius: 20,
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Text(
+                  '================================\n'
+                  '   MARTABAK & TERANG BULAN\n'
+                  '          JENGGIRAT\n'
+                  '================================\n'
+                  'Waktu : 03/10/2026 18:45 WIB\n'
+                  'Kasir : Yoga Ananda (Superadmin)\n'
+                  '--------------------------------\n'
+                  'UJI CETAK THERMAL 58mm\n'
+                  'STATUS PRINTER : OK / ONLINE\n'
+                  'KONEKSI BLUETOOTH : STABIL\n'
+                  '--------------------------------\n'
+                  'Terima Kasih!\n'
+                  '================================',
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    color: Color(0xFF1E293B),
+                    height: 1.3,
+                  ),
                 ),
               ),
-            ],
-          ),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8D321F),
-              foregroundColor: Colors.white,
             ),
-            child: const Text('Tutup'),
+          ),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8D321F),
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Tutup'),
+            ),
           ),
         ],
-      ),
-    );
+      );
+    }
+
+    if (isTablet) {
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520, maxHeight: 600),
+            child: Material(
+              color: Colors.white,
+              child: buildSheetContent(ctx),
+            ),
+          ),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.82,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: buildSheetContent(ctx),
+        ),
+      );
+    }
   }
 
   Future<void> _scanBluetooth() async {

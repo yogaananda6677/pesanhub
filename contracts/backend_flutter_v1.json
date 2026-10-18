@@ -4,7 +4,10 @@
     "order_sources": [
       "CASHIER_MANUAL",
       "CUSTOMER_WEB",
-      "WHATSAPP"
+      "WHATSAPP",
+      "GRABFOOD",
+      "GOFOOD",
+      "SHOPEEFOOD"
     ],
     "order_statuses": [
       "PENDING",

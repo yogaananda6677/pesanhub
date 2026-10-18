@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../data/remote/api_failure.dart';
 import '../../data/remote/pesenhub_api_client.dart';
 import '../../discount/models/discount.dart';
+import '../../menu/models/menu_item.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/app_card.dart';
@@ -22,6 +24,7 @@ class _DiscountManagementViewState extends State<DiscountManagementView> {
   bool _isLoading = false;
   String? _errorMessage;
   List<Discount> _discounts = [];
+  List<MenuItem> _availableMenus = [];
 
   // Filter state
   String _selectedScope = 'ALL'; // ALL, ORDER, ITEM
@@ -83,9 +86,15 @@ class _DiscountManagementViewState extends State<DiscountManagementView> {
     try {
       if (widget.apiClient != null) {
         final list = await widget.apiClient!.fetchDiscounts();
+        List<MenuItem> menus = [];
+        try {
+          final catalog = await widget.apiClient!.fetchAdminCatalog();
+          menus = catalog.menus;
+        } catch (_) {}
         if (mounted) {
           setState(() {
-            _discounts = list.isNotEmpty ? list : List.of(_fallbackDiscounts);
+            _discounts = list;
+            _availableMenus = menus;
             _isLoading = false;
           });
         }
@@ -99,10 +108,12 @@ class _DiscountManagementViewState extends State<DiscountManagementView> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e is ApiFailure ? e.presentationMessage : e.toString();
         setState(() {
-          _discounts = List.of(_fallbackDiscounts);
-          _errorMessage =
-              'Gagal memuat dari server, menggunakan data lokal: $e';
+          _discounts = widget.apiClient == null ? List.of(_fallbackDiscounts) : [];
+          _errorMessage = widget.apiClient == null
+              ? null
+              : 'Gagal memuat promo dari server: $msg';
           _isLoading = false;
         });
       }
@@ -224,11 +235,14 @@ class _DiscountManagementViewState extends State<DiscountManagementView> {
   }
 
   void _showAddEditDialog({Discount? existing}) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => _DiscountFormDialog(
         existing: existing,
         apiClient: widget.apiClient,
+        availableMenus: _availableMenus,
         onSaved: (saved) {
           setState(() {
             final idx = _discounts.indexWhere((d) => d.id == saved.id);
@@ -238,6 +252,9 @@ class _DiscountManagementViewState extends State<DiscountManagementView> {
               _discounts.insert(0, saved);
             }
           });
+          if (widget.apiClient != null) {
+            _loadData();
+          }
         },
       ),
     );
@@ -802,11 +819,13 @@ class _DiscountManagementViewState extends State<DiscountManagementView> {
 class _DiscountFormDialog extends StatefulWidget {
   final Discount? existing;
   final PesenHubApiClient? apiClient;
+  final List<MenuItem> availableMenus;
   final ValueChanged<Discount> onSaved;
 
   const _DiscountFormDialog({
     this.existing,
     this.apiClient,
+    this.availableMenus = const [],
     required this.onSaved,
   });
 
@@ -826,6 +845,10 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
   late String _channel; // ALL, OFFLINE, GOFOOD, GRABFOOD, SHOPEEFOOD, WHATSAPP
   late String _type; // PERCENTAGE, FIXED
   late bool _isActive;
+  late List<MenuItem> _menus;
+  late List<String> _selectedMenuIds;
+  bool _isLoadingMenus = false;
+  bool _hasAttemptedSave = false;
   bool _isSaving = false;
 
   @override
@@ -841,12 +864,37 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
       text: d?.maxDiscountAmount != null ? '${d!.maxDiscountAmount}' : '',
     );
     _minOrderController = TextEditingController(
-      text: d?.minOrderAmount != null ? '${d!.minOrderAmount}' : '',
+      text: d?.minOrderAmount != null && d!.minOrderAmount > 0
+          ? '${d.minOrderAmount}'
+          : '',
     );
     _scope = d?.scope ?? 'ORDER';
     _channel = d?.channel ?? 'ALL';
     _type = d?.type ?? 'PERCENTAGE';
     _isActive = d?.isActive ?? true;
+    _menus = List.of(widget.availableMenus);
+    _selectedMenuIds = List.of(d?.menuIds ?? []);
+
+    if (_menus.isEmpty && widget.apiClient != null) {
+      _loadMenus();
+    }
+  }
+
+  Future<void> _loadMenus() async {
+    setState(() => _isLoadingMenus = true);
+    try {
+      final catalog = await widget.apiClient!.fetchAdminCatalog();
+      if (mounted) {
+        setState(() {
+          _menus = catalog.menus;
+          _isLoadingMenus = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingMenus = false);
+      }
+    }
   }
 
   @override
@@ -859,16 +907,245 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
     super.dispose();
   }
 
+  int? _parseAmount(String? text) {
+    if (text == null) return null;
+    final sanitized = text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (sanitized.isEmpty) return null;
+    return int.tryParse(sanitized);
+  }
+
+  static String _formatRupiah(int amount) {
+    final digits = amount.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(digits[i]);
+    }
+    return 'Rp ${buffer.toString()}';
+  }
+
+  Future<void> _openMenuPicker() async {
+    final tempSelected = Set<String>.from(_selectedMenuIds);
+    final searchController = TextEditingController();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (pickerCtx) {
+        return StatefulBuilder(
+          builder: (context, setPickerState) {
+            final query = searchController.text.toLowerCase().trim();
+            final filtered = _menus.where((m) {
+              if (query.isEmpty) return true;
+              return m.name.toLowerCase().contains(query);
+            }).toList();
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(pickerCtx).viewInsets.bottom,
+              ),
+              child: Material(
+                color: Colors.white,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
+                clipBehavior: Clip.antiAlias,
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Pilih Menu Promo (${tempSelected.length} dipilih)',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2D231E),
+                              ),
+                            ),
+                          ),
+                          if (_menus.isNotEmpty)
+                            TextButton(
+                              onPressed: () {
+                                setPickerState(() {
+                                  if (tempSelected.length == _menus.length) {
+                                    tempSelected.clear();
+                                  } else {
+                                    tempSelected.addAll(
+                                        _menus.map((m) => m.id));
+                                  }
+                                });
+                              },
+                              child: Text(
+                                tempSelected.length == _menus.length
+                                    ? 'Batal Semua'
+                                    : 'Pilih Semua',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF8D321F),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: searchController,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          hintText: 'Cari nama menu...',
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE2E8F0)),
+                          ),
+                        ),
+                        onChanged: (_) => setPickerState(() {}),
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: _isLoadingMenus
+                            ? const Center(
+                                child: CircularProgressIndicator(
+                                  color: Color(0xFF8D321F),
+                                ),
+                              )
+                            : filtered.isEmpty
+                                ? const Center(
+                                    child: Text(
+                                      'Tidak ada menu ditemukan',
+                                      style: TextStyle(
+                                        color: Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    itemCount: filtered.length,
+                                    separatorBuilder: (context, index) =>
+                                        const Divider(
+                                      height: 1,
+                                      color: Color(0xFFF1F5F9),
+                                    ),
+                                    itemBuilder: (ctx, i) {
+                                      final item = filtered[i];
+                                      final isSelected =
+                                          tempSelected.contains(item.id);
+                                      return CheckboxListTile(
+                                        key: Key('menu-item-${item.id}'),
+                                        value: isSelected,
+                                        title: Text(
+                                          item.name,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          _formatRupiah(item.priceAmount),
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF7A6B63),
+                                          ),
+                                        ),
+                                        activeColor: const Color(0xFF8D321F),
+                                        controlAffinity:
+                                            ListTileControlAffinity.leading,
+                                        dense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                        onChanged: (val) {
+                                          setPickerState(() {
+                                            if (val == true) {
+                                              tempSelected.add(item.id);
+                                            } else {
+                                              tempSelected.remove(item.id);
+                                            }
+                                          });
+                                        },
+                                      );
+                                    },
+                                  ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          key: const Key('menu-picker-save-button'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF8D321F),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _selectedMenuIds = tempSelected.toList();
+                            });
+                            Navigator.of(pickerCtx).pop();
+                          },
+                          child: Text(
+                            'Terapkan Menu (${tempSelected.length})',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+    searchController.dispose();
+  }
+
   Future<void> _handleSave() async {
+    setState(() => _hasAttemptedSave = true);
     if (!_formKey.currentState!.validate()) return;
+
+    if (_scope == 'ITEM' && _selectedMenuIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih minimal 1 menu untuk promo menu tertentu!'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isSaving = true);
 
     final name = _nameController.text.trim();
     final code = _codeController.text.trim();
-    final value = int.tryParse(_valueController.text.trim()) ?? 0;
-    final maxDiscount = int.tryParse(_maxDiscountController.text.trim());
-    final minOrder = int.tryParse(_minOrderController.text.trim());
+    final value = _parseAmount(_valueController.text) ?? 0;
+    final maxDiscount = _parseAmount(_maxDiscountController.text);
+    final minOrder = _parseAmount(_minOrderController.text);
 
     final payload = <String, dynamic>{
       'name': name,
@@ -881,7 +1158,9 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
         'max_discount_amount': maxDiscount,
       if (minOrder != null && minOrder > 0) 'min_order_amount': minOrder,
       'is_active': _isActive,
-      'menu_ids': widget.existing?.menuIds ?? <String>[],
+      'menu_ids': _scope == 'ITEM' ? _selectedMenuIds : <String>[],
+      if (widget.existing != null && widget.existing!.version > 0)
+        'expected_version': widget.existing!.version,
     };
 
     try {
@@ -901,8 +1180,9 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
             type: _type,
             value: value,
             maxDiscountAmount: maxDiscount,
-            minOrderAmount: minOrder,
+            minOrderAmount: minOrder ?? 0,
             isActive: _isActive,
+            menuIds: _scope == 'ITEM' ? _selectedMenuIds : const [],
           );
         }
       } else {
@@ -920,6 +1200,7 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
             maxDiscountAmount: maxDiscount,
             minOrderAmount: minOrder ?? 0,
             isActive: _isActive,
+            menuIds: _scope == 'ITEM' ? _selectedMenuIds : const [],
           );
         }
       }
@@ -945,17 +1226,41 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 680),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+          ),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.md,
+          ),
           child: Form(
             key: _formKey,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
                 // Header
                 Row(
                   children: [
@@ -1068,6 +1373,141 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                         ),
                         const SizedBox(height: AppSpacing.sm),
 
+                        // Menu Selection UI (only when ITEM scope)
+                        if (_scope == 'ITEM') ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF8F6),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color:
+                                    _hasAttemptedSave && _selectedMenuIds.isEmpty
+                                        ? AppColors.error
+                                        : const Color(0xFFFFD8D0),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.restaurant_menu_rounded,
+                                          size: 18,
+                                          color: Color(0xFF8D321F),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Menu Diskon (${_selectedMenuIds.length}) *',
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF2D231E),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    TextButton.icon(
+                                      key: const Key(
+                                          'open-menu-picker-button'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor:
+                                            const Color(0xFF8D321F),
+                                        visualDensity:
+                                            VisualDensity.compact,
+                                      ),
+                                      icon: Icon(
+                                        _selectedMenuIds.isEmpty
+                                            ? Icons.add_circle_outline
+                                            : Icons.edit_outlined,
+                                        size: 16,
+                                      ),
+                                      label: Text(
+                                        _selectedMenuIds.isEmpty
+                                            ? 'Pilih Menu'
+                                            : 'Ubah Menu',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      onPressed: _openMenuPicker,
+                                    ),
+                                  ],
+                                ),
+                                if (_hasAttemptedSave &&
+                                    _selectedMenuIds.isEmpty)
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'Wajib memilih minimal 1 menu untuk promo tipe Menu Tertentu.',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.error,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  )
+                                else if (_selectedMenuIds.isEmpty)
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'Belum ada menu yang dipilih. Tekan tombol di samping untuk memilih menu.',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF7A6B63)),
+                                    ),
+                                  )
+                                else ...[
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: _selectedMenuIds.map((id) {
+                                      final menuItem = _menus
+                                          .cast<MenuItem?>()
+                                          .firstWhere(
+                                            (m) => m?.id == id,
+                                            orElse: () => null,
+                                          );
+                                      final label =
+                                          menuItem?.name ?? 'Menu #$id';
+                                      return Chip(
+                                        label: Text(
+                                          label,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF2D231E),
+                                          ),
+                                        ),
+                                        deleteIcon: const Icon(Icons.close,
+                                            size: 14),
+                                        onDeleted: () {
+                                          setState(() {
+                                            _selectedMenuIds.remove(id);
+                                          });
+                                        },
+                                        backgroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          side: const BorderSide(
+                                              color: Color(0xFFFFCC80)),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                        ],
+
                         // Channel / Merchant
                         DropdownButtonFormField<String>(
                           initialValue: _channel,
@@ -1170,7 +1610,7 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                                 : 'Nominal Potongan (Rp) *',
                             hintText: _type == 'PERCENTAGE'
                                 ? 'Contoh: 20'
-                                : 'Contoh: 10000',
+                                : 'Contoh: 10.000',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -1183,7 +1623,7 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                             if (v == null || v.trim().isEmpty) {
                               return 'Nilai diskon wajib diisi';
                             }
-                            final n = int.tryParse(v.trim());
+                            final n = _parseAmount(v);
                             if (n == null || n <= 0) {
                               return 'Nilai harus angka lebih dari 0';
                             }
@@ -1201,8 +1641,9 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                             controller: _maxDiscountController,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
-                              labelText: 'Batas Maksimal Diskon (Rp, Opsional)',
-                              hintText: 'Contoh: 15000',
+                              labelText:
+                                  'Batas Maksimal Diskon (Rp, Opsional)',
+                              hintText: 'Contoh: 15.000',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -1211,6 +1652,15 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                                 vertical: 12,
                               ),
                             ),
+                            validator: (v) {
+                              if (v != null && v.trim().isNotEmpty) {
+                                final n = _parseAmount(v);
+                                if (n == null || n <= 0) {
+                                  return 'Batas diskon harus angka lebih dari 0 atau kosongkan';
+                                }
+                              }
+                              return null;
+                            },
                           ),
                           const SizedBox(height: AppSpacing.sm),
                         ],
@@ -1221,7 +1671,7 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                             labelText: 'Minimal Pembelian (Rp, Opsional)',
-                            hintText: 'Contoh: 50000',
+                            hintText: 'Contoh: 50.000',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -1230,6 +1680,15 @@ class _DiscountFormDialogState extends State<_DiscountFormDialog> {
                               vertical: 12,
                             ),
                           ),
+                          validator: (v) {
+                            if (v != null && v.trim().isNotEmpty) {
+                              final n = _parseAmount(v);
+                              if (n == null || n < 0) {
+                                return 'Minimal pembelian harus berupa angka atau kosongkan';
+                              }
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: AppSpacing.sm),
 

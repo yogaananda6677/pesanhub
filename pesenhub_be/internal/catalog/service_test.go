@@ -59,6 +59,10 @@ func (f *fakeRepo) ListAdmin(_ context.Context, branchID ...string) ([]Category,
 	}
 	return f.categories, nil
 }
+func (f *fakeRepo) ApplyChannelPricesAll(_ context.Context, rates map[string]float64, meta MutationMeta) ([]Menu, error) {
+	f.lastMeta = meta
+	return []Menu{f.menu}, nil
+}
 
 func financials(offline int64) (*int64, []ChannelPrice) {
 	hpp := offline / 2

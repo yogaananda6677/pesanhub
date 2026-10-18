@@ -583,72 +583,170 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
     final openCtrl = TextEditingController(text: _openTime);
     final closeCtrl = TextEditingController(text: _closeTime);
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.access_time_rounded, color: Color(0xFF8D321F)),
-            SizedBox(width: 10),
-            Text(
-              'Ubah Jam Operasional',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: openCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Jam Buka (contoh: 16:00)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.wb_sunny_outlined),
+    final isTablet =
+        MediaQuery.sizeOf(context).width >= AppSpacing.tabletBreakpoint;
+
+    Widget buildContent(BuildContext ctx) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFCBD5E1),
+                borderRadius: BorderRadius.circular(2),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: closeCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Jam Tutup (contoh: 23:30)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.nightlight_outlined),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
-              'Batal',
-              style: TextStyle(color: Color(0xFF7A6B63)),
             ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _openTime = openCtrl.text.trim();
-                _closeTime = closeCtrl.text.trim();
-              });
-              Navigator.of(ctx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Jam operasional berhasil diperbarui.'),
-                  backgroundColor: Color(0xFF2E7D32),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9EFE7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.access_time_rounded,
+                    color: Color(0xFF8D321F),
+                    size: 22,
+                  ),
                 ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8D321F),
-              foregroundColor: Colors.white,
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Ubah Jam Operasional',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 22,
+                    color: Color(0xFF64748B),
+                  ),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  splashRadius: 20,
+                ),
+              ],
             ),
-            child: const Text('Simpan'),
+          ),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: openCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Jam Buka (contoh: 16:00)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.wb_sunny_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: closeCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Jam Tutup (contoh: 23:30)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.nightlight_outlined),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text(
+                    'Batal',
+                    style: TextStyle(color: Color(0xFF7A6B63)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _openTime = openCtrl.text.trim();
+                      _closeTime = closeCtrl.text.trim();
+                    });
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Jam operasional berhasil diperbarui.'),
+                        backgroundColor: Color(0xFF2E7D32),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8D321F),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Simpan'),
+                ),
+              ],
+            ),
           ),
         ],
-      ),
-    );
+      );
+    }
+
+    if (isTablet) {
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 450),
+            child: Material(
+              color: Colors.white,
+              child: buildContent(ctx),
+            ),
+          ),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.75,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: buildContent(ctx),
+        ),
+      );
+    }
   }
 }
