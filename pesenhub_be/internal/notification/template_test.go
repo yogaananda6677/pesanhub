@@ -84,8 +84,11 @@ func TestRenderConfirmation(t *testing.T) {
 	if !strings.Contains(rendered, "*Total Pembayaran:* Rp 44.000") {
 		t.Error("rendered missing formatted total amount")
 	}
-	if !strings.Contains(rendered, "https://pesenhub.id/orders/track/trk_test_123") {
-		t.Error("rendered missing tracking URL")
+	if strings.Contains(rendered, "https://pesenhub.id/orders/track") {
+		t.Error("rendered should not contain web tracking URL")
+	}
+	if !strings.Contains(rendered, "mengabari Anda langsung lewat WhatsApp") {
+		t.Error("rendered missing WhatsApp update notification")
 	}
 }
 

@@ -189,8 +189,21 @@ type ConversationState struct {
 	ConfirmationToken     string          `json:"confirmation_token,omitempty"`
 	DraftVersion          int             `json:"draft_version"`
 	LastOrderID           *string         `json:"last_order_id,omitempty"`
+	CycleID               string          `json:"cycle_id,omitempty"`
 	CreatedAt             time.Time       `json:"created_at"`
 	UpdatedAt             time.Time       `json:"updated_at"`
+}
+
+// ConversationContextMessage represents a single message in an active conversation cycle context.
+type ConversationContextMessage struct {
+	ID             string    `json:"id"`
+	ConversationID string    `json:"conversation_id"`
+	Session        string    `json:"session"`
+	CustomerPhone  string    `json:"customer_phone"`
+	CycleID        string    `json:"cycle_id"`
+	Role           string    `json:"role"` // "customer" or "assistant"
+	MessageText    string    `json:"message_text"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 // WhatsAppOrderSummary contains essential order information returned when an order is finalized.

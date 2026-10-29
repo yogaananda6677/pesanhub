@@ -42,6 +42,11 @@ func TestDetectConfirmationIntent(t *testing.T) {
 		{"iya min", IntentConfirm},
 		{"oke tolong segera diproses ya", IntentConfirm},
 		{"ya proses sekarang", IntentConfirm},
+		{"ga jadi nambah kak, yang tadi aja", IntentConfirm},
+		{"cukup itu aja kak", IntentConfirm},
+		{"itu aja", IntentConfirm},
+		{"yang tadi aja", IntentConfirm},
+		{"cukup", IntentConfirm},
 
 		// Cancels
 		{"batal", IntentCancel},
@@ -63,6 +68,12 @@ func TestDetectConfirmationIntent(t *testing.T) {
 		{"revisi pesanan", IntentModify},
 		{"eh ga jadi deng yang terangbulan martabak sosis biasa 1", IntentModify},
 		{"ga jadi mau martabak sapi spesial aja", IntentModify},
+		{"bisa nambah lagi", IntentModify},
+		{"iya nambah pesanan lagi", IntentModify},
+		{"mau nambah lagi", IntentModify},
+		{"tambah pesanan lagi", IntentModify},
+		{"ada tambahan lagi", IntentModify},
+		{"bisa nambah", IntentModify},
 
 		// Unknown / Ambiguous
 		{"halo", IntentUnknown},

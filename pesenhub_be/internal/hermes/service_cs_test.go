@@ -75,8 +75,8 @@ func TestProcessTurn_OrderStatusInquiry_WithActiveOrder(t *testing.T) {
 	if !strings.Contains(resp.ReplyText, "kak Yoga") {
 		t.Errorf("expected customer name in reply, got: %s", resp.ReplyText)
 	}
-	if !strings.Contains(resp.ReplyText, "track-bwx-001") {
-		t.Errorf("expected tracking token in reply, got: %s", resp.ReplyText)
+	if strings.Contains(resp.ReplyText, "track-bwx-001") || strings.Contains(resp.ReplyText, "http") {
+		t.Errorf("reply must not contain web tracking links, got: %s", resp.ReplyText)
 	}
 }
 
@@ -341,9 +341,10 @@ func TestProcessTurn_AIConversationalReplyWithInjectedContext(t *testing.T) {
 		t.Errorf("expected outlet operational context in injected prompt, got: %s", mockClient.LastUserPrompt)
 	}
 
-	// Verify reply text matches the AI natural response
-	if resp.ReplyText != mockClient.Response.ReplyText {
-		t.Errorf("expected reply %q, got %q", mockClient.Response.ReplyText, resp.ReplyText)
+	// Verify reply text matches the AI natural response (with signature)
+	expectedReply := AttachAISignature(mockClient.Response.ReplyText)
+	if resp.ReplyText != expectedReply {
+		t.Errorf("expected reply %q, got %q", expectedReply, resp.ReplyText)
 	}
 	// Must NOT contain store location
 	if strings.Contains(resp.ReplyText, "Jl. Ahmad Yani") {
@@ -426,3 +427,83 @@ func TestProcessTurn_OutletLocationInquiryReturnsLocation(t *testing.T) {
 		t.Errorf("expected maps link in reply, got: %s", resp.ReplyText)
 	}
 }
+
+func TestProcessTurn_NameInquiryKnownAndUnknown(t *testing.T) {
+	phone := "+6281234567890"
+	mockClient := &MockLLMClient{}
+
+	svc := NewService(Config{
+		Client:          mockClient,
+		CatalogProvider: &mockCatalogProvider{categories: sampleCatalog()},
+	})
+
+	// 1. Unknown name
+	respUnknown, err := svc.ProcessTurn(context.Background(), TurnRequest{
+		SenderPhone:  phone,
+		MessageText:  "nama saya siapa",
+		CustomerName: "",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !respUnknown.HandledByAgent {
+		t.Errorf("expected HandledByAgent = true")
+	}
+	if !strings.Contains(respUnknown.ReplyText, "belum mencatat nama kakak") {
+		t.Errorf("expected unknown name message, got: %s", respUnknown.ReplyText)
+	}
+	if !strings.HasSuffix(respUnknown.ReplyText, "~AI Jenggirat") {
+		t.Errorf("expected signature ~AI Jenggirat, got: %s", respUnknown.ReplyText)
+	}
+
+	// 2. Known name provided from backend
+	respKnown, err := svc.ProcessTurn(context.Background(), TurnRequest{
+		SenderPhone:  phone,
+		MessageText:  "nama saya siapa ya?",
+		CustomerName: "Yoga",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !respKnown.HandledByAgent {
+		t.Errorf("expected HandledByAgent = true")
+	}
+	if !strings.Contains(respKnown.ReplyText, "Kak Yoga di sistem kami") {
+		t.Errorf("expected 'Kak Yoga di sistem kami' in reply, got: %s", respKnown.ReplyText)
+	}
+	if !strings.HasSuffix(respKnown.ReplyText, "~AI Jenggirat") {
+		t.Errorf("expected signature ~AI Jenggirat, got: %s", respKnown.ReplyText)
+	}
+}
+
+func TestProcessTurn_CorrectionDoesNotSetYogaBukan(t *testing.T) {
+	phone := "+6281987654321"
+	mockClient := &MockLLMClient{}
+
+	svc := NewService(Config{
+		Client:          mockClient,
+		CatalogProvider: &mockCatalogProvider{categories: sampleCatalog()},
+	})
+
+	resp, err := svc.ProcessTurn(context.Background(), TurnRequest{
+		SenderPhone:  phone,
+		MessageText:  "nama saya Yoga bukan siapa!",
+		CustomerName: "",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.State.CustomerName != "Yoga" {
+		t.Errorf("expected CustomerName = 'Yoga', got %q", resp.State.CustomerName)
+	}
+	if strings.Contains(resp.ReplyText, "Yoga Bukan") {
+		t.Errorf("reply must NOT contain 'Yoga Bukan', got: %s", resp.ReplyText)
+	}
+	if !strings.Contains(resp.ReplyText, "Yoga") {
+		t.Errorf("reply must greet Kak Yoga, got: %s", resp.ReplyText)
+	}
+	if !strings.HasSuffix(resp.ReplyText, "~AI Jenggirat") {
+		t.Errorf("expected signature ~AI Jenggirat, got: %s", resp.ReplyText)
+	}
+}
+

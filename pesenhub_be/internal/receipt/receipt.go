@@ -203,13 +203,9 @@ func GenerateReceiptPDF(data ReceiptData) ([]byte, error) {
 
 	pdf.CellFormat(printableWd, 3, "----------------------------------------------------------------", "", 1, "C", false, 0, "")
 
-	// 6. Footer & Tracking
-	if data.PublicTrackingToken != "" {
-		pdf.SetFont("Helvetica", "I", 6.5)
-		pdf.CellFormat(printableWd, 3.2, "Pantau status pesanan secara real-time di:", "", 1, "C", false, 0, "")
-		pdf.SetFont("Helvetica", "U", 6.5)
-		pdf.CellFormat(printableWd, 3.2, "http://localhost:3000/orders/track/"+data.PublicTrackingToken, "", 1, "C", false, 0, "")
-	}
+	// 6. Footer
+	pdf.SetFont("Helvetica", "I", 6.5)
+	pdf.CellFormat(printableWd, 3.2, "Status kesiapan pesanan akan dikabari via WhatsApp", "", 1, "C", false, 0, "")
 
 	pdf.SetFont("Helvetica", "B", 7)
 	pdf.CellFormat(printableWd, 4.5, "Terima kasih atas pesanan Anda!", "", 1, "C", false, 0, "")

@@ -30,6 +30,9 @@ type ConversationStore interface {
 	ListHandoffQueue(ctx context.Context, filter HandoffQueueFilter) ([]HandoffQueueItem, int, error)
 	RecordAuditEvent(ctx context.Context, event *ConversationAuditEvent) error
 	GetAuditEvents(ctx context.Context, conversationID string) ([]ConversationAuditEvent, error)
+	RecordContextMessage(ctx context.Context, msg ConversationContextMessage) error
+	GetRecentContextMessages(ctx context.Context, customerPhone, cycleID string, limit int) ([]ConversationContextMessage, error)
+	ClearCycleContext(ctx context.Context, customerPhone, cycleID string) error
 }
 
 // PGConversationStore is the SQL-backed implementation of ConversationStore.
@@ -75,6 +78,11 @@ func (s *PGConversationStore) GetOrCreate(ctx context.Context, session, customer
 	row := s.db.QueryRow(ctx, querySelect, session, customerPhone)
 	state, err := scanConversationState(row)
 	if err == nil {
+		if state.Status != ConversationCompleted {
+			var latestCycleID string
+			_ = s.db.QueryRow(ctx, "SELECT cycle_id FROM agent_conversation_contexts WHERE customer_phone = $1 ORDER BY created_at DESC LIMIT 1", customerPhone).Scan(&latestCycleID)
+			state.CycleID = latestCycleID
+		}
 		return state, nil
 	}
 	if !errors.Is(err, ErrConversationNotFound) {
@@ -766,18 +774,100 @@ func scanConversationState(row rowScanner) (*ConversationState, error) {
 	return &state, nil
 }
 
+// AutoMigrate creates the agent_conversation_contexts table if it doesn't already exist.
+func (s *PGConversationStore) AutoMigrate(ctx context.Context) error {
+	if s == nil || s.db == nil {
+		return nil
+	}
+	q := `CREATE TABLE IF NOT EXISTS agent_conversation_contexts (
+	  id VARCHAR(36) PRIMARY KEY,
+	  conversation_id VARCHAR(36) NOT NULL,
+	  session VARCHAR(191) NOT NULL,
+	  customer_phone VARCHAR(20) NOT NULL,
+	  cycle_id VARCHAR(36) NOT NULL,
+	  role VARCHAR(16) NOT NULL,
+	  message_text TEXT NOT NULL,
+	  created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	  INDEX idx_conv_context_cycle (customer_phone, cycle_id, created_at),
+	  INDEX idx_conv_context_conv (conversation_id, created_at)
+	) ENGINE=InnoDB;`
+	_, err := s.db.Exec(ctx, q)
+	return err
+}
+
+func (s *PGConversationStore) RecordContextMessage(ctx context.Context, msg ConversationContextMessage) error {
+	if s == nil || s.db == nil {
+		return nil
+	}
+	if msg.ID == "" {
+		msg.ID = newID()
+	}
+	if msg.CreatedAt.IsZero() {
+		msg.CreatedAt = time.Now().UTC()
+	}
+	q := `INSERT INTO agent_conversation_contexts (id, conversation_id, session, customer_phone, cycle_id, role, message_text, created_at)
+	      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	_, err := s.db.Exec(ctx, q, msg.ID, msg.ConversationID, msg.Session, msg.CustomerPhone, msg.CycleID, msg.Role, msg.MessageText, msg.CreatedAt)
+	return err
+}
+
+func (s *PGConversationStore) GetRecentContextMessages(ctx context.Context, customerPhone, cycleID string, limit int) ([]ConversationContextMessage, error) {
+	if s == nil || s.db == nil {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	q := `SELECT id, conversation_id, session, customer_phone, cycle_id, role, message_text, created_at
+	      FROM agent_conversation_contexts
+	      WHERE customer_phone = $1 AND cycle_id = $2
+	      ORDER BY created_at DESC
+	      LIMIT $3`
+	rows, err := s.db.Query(ctx, q, customerPhone, cycleID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []ConversationContextMessage
+	for rows.Next() {
+		var m ConversationContextMessage
+		if err := rows.Scan(&m.ID, &m.ConversationID, &m.Session, &m.CustomerPhone, &m.CycleID, &m.Role, &m.MessageText, &m.CreatedAt); err != nil {
+			return nil, err
+		}
+		messages = append(messages, m)
+	}
+
+	// Reverse to chronological order (oldest to newest)
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
+	}
+	return messages, nil
+}
+
+func (s *PGConversationStore) ClearCycleContext(ctx context.Context, customerPhone, cycleID string) error {
+	if s == nil || s.db == nil {
+		return nil
+	}
+	q := `DELETE FROM agent_conversation_contexts WHERE customer_phone = $1 AND cycle_id = $2`
+	_, err := s.db.Exec(ctx, q, customerPhone, cycleID)
+	return err
+}
+
 // MemoryConversationStore is an in-memory thread-safe implementation of ConversationStore for unit tests.
 type MemoryConversationStore struct {
-	mu            sync.Mutex
-	conversations map[string]*ConversationState
-	audits        []ConversationAuditEvent
+	mu              sync.Mutex
+	conversations   map[string]*ConversationState
+	audits          []ConversationAuditEvent
+	contextMessages []ConversationContextMessage
 }
 
 // NewMemoryConversationStore creates a new MemoryConversationStore.
 func NewMemoryConversationStore() *MemoryConversationStore {
 	return &MemoryConversationStore{
-		conversations: make(map[string]*ConversationState),
-		audits:        make([]ConversationAuditEvent, 0),
+		conversations:   make(map[string]*ConversationState),
+		audits:          make([]ConversationAuditEvent, 0),
+		contextMessages: make([]ConversationContextMessage, 0),
 	}
 }
 
@@ -791,6 +881,9 @@ func (m *MemoryConversationStore) GetOrCreate(ctx context.Context, session, cust
 
 	k := key(session, customerPhone)
 	if existing, ok := m.conversations[k]; ok {
+		if existing.Status == ConversationCompleted {
+			existing.CycleID = ""
+		}
 		return existing, nil
 	}
 
@@ -1144,3 +1237,46 @@ func (m *MemoryConversationStore) GetAuditEvents(ctx context.Context, conversati
 	}
 	return matched, nil
 }
+
+func (m *MemoryConversationStore) RecordContextMessage(ctx context.Context, msg ConversationContextMessage) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if msg.ID == "" {
+		msg.ID = newID()
+	}
+	if msg.CreatedAt.IsZero() {
+		msg.CreatedAt = time.Now().UTC()
+	}
+	m.contextMessages = append(m.contextMessages, msg)
+	return nil
+}
+
+func (m *MemoryConversationStore) GetRecentContextMessages(ctx context.Context, customerPhone, cycleID string, limit int) ([]ConversationContextMessage, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var matched []ConversationContextMessage
+	for _, msg := range m.contextMessages {
+		if msg.CustomerPhone == customerPhone && (cycleID == "" || msg.CycleID == cycleID) {
+			matched = append(matched, msg)
+		}
+	}
+	if limit > 0 && len(matched) > limit {
+		matched = matched[len(matched)-limit:]
+	}
+	return matched, nil
+}
+
+func (m *MemoryConversationStore) ClearCycleContext(ctx context.Context, customerPhone, cycleID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var remaining []ConversationContextMessage
+	for _, msg := range m.contextMessages {
+		if msg.CustomerPhone == customerPhone && (cycleID == "" || msg.CycleID == cycleID) {
+			continue
+		}
+		remaining = append(remaining, msg)
+	}
+	m.contextMessages = remaining
+	return nil
+}
+
