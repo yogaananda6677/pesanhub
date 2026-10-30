@@ -97,9 +97,7 @@ func RenderConfirmation(data OrderNotificationData) string {
 
 	sb.WriteString(fmt.Sprintf("\n*Total Pembayaran:* %s\n\n", FormatCurrency(data.TotalAmount)))
 
-	trackingURL := BuildTrackingURL(data.TrackingBaseURL, data.TrackingToken)
-	sb.WriteString("Pantau status pesanan Anda melalui tautan berikut:\n")
-	sb.WriteString(fmt.Sprintf("%s\n\n", trackingURL))
+	sb.WriteString("Kami akan mengabari Anda langsung lewat WhatsApp saat pesanan sudah siap diambil.\n\n")
 	sb.WriteString("Terima kasih telah memesan di PesenHub! 🙏")
 
 	return sb.String()
@@ -116,10 +114,7 @@ func RenderAccepted(data OrderNotificationData) string {
 	}
 	sb.WriteString(fmt.Sprintf("Halo *%s*, pesanan Anda *%s* telah diterima oleh outlet dan sedang dipersiapkan di dapur.\n\n", custName, data.OrderNumber))
 
-	trackingURL := BuildTrackingURL(data.TrackingBaseURL, data.TrackingToken)
-	sb.WriteString("Pantau status pesanan:\n")
-	sb.WriteString(fmt.Sprintf("%s\n\n", trackingURL))
-	sb.WriteString("Mohon ditunggu, kami akan memberi tahu jika pesanan sudah siap diambil.")
+	sb.WriteString("Mohon ditunggu, kami akan memberi tahu langsung lewat WhatsApp saat pesanan sudah siap diambil.")
 
 	return sb.String()
 }

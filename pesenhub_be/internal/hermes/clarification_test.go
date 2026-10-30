@@ -47,16 +47,17 @@ func TestClarificationEngine_PriorityHierarchy(t *testing.T) {
 		t.Errorf("expected options to be extracted from catalog, got empty")
 	}
 
-	// 3. Once modifier is resolved, next should be fulfillment type
+	// 3. Once modifier is resolved, fulfillment automatically defaults to PICKUP without requiring clarification
 	draft.AmbiguityReasons = []string{}
 	draft.IsAmbiguous = false
 	draft.FulfillmentType = ""
+	draft.PaymentMethod = "CASH"
 	plan3 := engine.PlanClarification(draft, 0, cats)
-	if plan3.PriorityAmbiguity != "missing_fulfillment_type" {
-		t.Fatalf("expected missing_fulfillment_type, got %s", plan3.PriorityAmbiguity)
+	if plan3.RequiresClarification {
+		t.Fatalf("expected no clarification required for fulfillment (auto PICKUP), got %s", plan3.PriorityAmbiguity)
 	}
-	if !strings.Contains(plan3.QuestionText, "Takeaway/Pickup") {
-		t.Errorf("question text should ask fulfillment, got %s", plan3.QuestionText)
+	if draft.FulfillmentType != "PICKUP" {
+		t.Fatalf("expected draft.FulfillmentType to be PICKUP, got %s", draft.FulfillmentType)
 	}
 }
 

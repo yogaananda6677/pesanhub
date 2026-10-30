@@ -44,6 +44,19 @@ func DetectConfirmationIntent(text string) ConfirmationIntent {
 		}
 	}
 
+	// 0. Explicit decision to keep existing order / skip adding more items (e.g. "ga jadi nambah", "itu aja")
+	keepExistingPhrases := []string{
+		"ga jadi nambah", "gak jadi nambah", "ngga jadi nambah", "tidak jadi nambah",
+		"ga jadi tambah", "gak jadi tambah", "ngga jadi tambah", "tidak jadi tambah",
+		"itu aja", "itu saja", "cukup itu", "cukup itu aja", "cukup kak", "cukup min",
+		"yang tadi aja", "pesanan tadi aja", "udah itu aja", "sudah itu aja", "itu aja kak",
+	}
+	for _, p := range keepExistingPhrases {
+		if strings.Contains(normalized, p) {
+			return IntentConfirm
+		}
+	}
+
 	// 1. Explicit cancellation takes priority (unless combined with ordering a replacement item)
 	cancelPhrases := []string{
 		"batal", "batalkan", "batalin", "gak jadi", "ga jadi", "enggak jadi", "gajadi",
@@ -60,10 +73,13 @@ func DetectConfirmationIntent(text string) ConfirmationIntent {
 
 	// 2. Explicit modification request
 	modifyPhrases := []string{
-		"ganti", "ubah", "tambah", "kurang", "tukar", "revisi", "edit",
+		"ganti", "ubah", "rubah", "tambah", "nambah", "tambahin", "tambahan", "menambah",
+		"kurang", "kurangi", "tukar", "revisi", "edit", "nambah lagi", "tambah lagi",
+		"bisa nambah", "mau nambah", "nambah pesanan", "tambah pesanan", "pesanan lagi",
+		"ada tambahan", "tambah lagi dong", "nambah lagi dong",
 	}
 	for _, p := range modifyPhrases {
-		if strings.HasPrefix(normalized, p+" ") || strings.Contains(normalized, " "+p+" ") || normalized == p {
+		if strings.Contains(normalized, p) {
 			return IntentModify
 		}
 	}
@@ -127,6 +143,15 @@ func DetectConfirmationIntent(text string) ConfirmationIntent {
 		"iya betul":        {},
 		"iya benar":        {},
 		"iya bener":        {},
+		"itu aja":          {},
+		"itu saja":         {},
+		"cukup":            {},
+		"cukup itu":        {},
+		"cukup itu aja":    {},
+		"yang tadi aja":    {},
+		"pesanan tadi aja": {},
+		"udah itu aja":     {},
+		"sudah itu aja":    {},
 	}
 
 	if _, ok := exactConfirms[normalized]; ok {
@@ -141,8 +166,25 @@ func DetectConfirmationIntent(text string) ConfirmationIntent {
 	if len(fields) > 1 {
 		first := fields[0]
 		if first == "ya" || first == "iya" || first == "oke" || first == "ok" || first == "siap" || first == "setuju" || first == "bener" || first == "betul" || first == "pas" || first == "gas" || first == "bungkus" || first == "mantap" {
+			for _, p := range modifyPhrases {
+				if strings.Contains(normalized, p) {
+					return IntentModify
+				}
+			}
+			for _, p := range cancelPhrases {
+				if strings.Contains(normalized, p) {
+					return IntentCancel
+				}
+			}
+			if hasFoodTerm {
+				return IntentModify
+			}
 			return IntentConfirm
 		}
+	}
+
+	if hasFoodTerm {
+		return IntentModify
 	}
 
 	return IntentUnknown
@@ -239,7 +281,6 @@ func ValidateDraftFreshness(ctx context.Context, draft *DraftCandidate, categori
 
 // FormatOrderSuccessMessage builds the final customer WhatsApp message after order is created.
 func FormatOrderSuccessMessage(orderNumber, trackingToken string, totalAmount int64, customerName ...string) string {
-	trackingURL := "https://pesenhub.id/orders/track/" + trackingToken
 	var sb strings.Builder
 	nameSuffix := ""
 	if len(customerName) > 0 && strings.TrimSpace(customerName[0]) != "" {
@@ -250,10 +291,8 @@ func FormatOrderSuccessMessage(orderNumber, trackingToken string, totalAmount in
 	sb.WriteString(fmt.Sprintf("Terima kasih%s! Pesanan berhasil kami buat dengan nomor:\n", nameSuffix))
 	sb.WriteString(fmt.Sprintf("*%s*\n\n", orderNumber))
 	sb.WriteString(fmt.Sprintf("Total: Rp %d\n", totalAmount))
-	sb.WriteString("Pengambilan: PICKUP\n")
-	sb.WriteString("Status: Menunggu konfirmasi outlet (PENDING)\n\n")
-	sb.WriteString("Pantau status pesanan secara berkala di tautan berikut:\n")
-	sb.WriteString(fmt.Sprintf("%s\n\n", trackingURL))
-	sb.WriteString(fmt.Sprintf("Pesanan sedang disiapkan. Pembayaran dapat dilakukan secara Tunai atau QRIS saat pengambilan di kasir ya%s. Sampai jumpa! 😊", nameSuffix))
+	sb.WriteString("Pengambilan: PICKUP (Bawa Pulang)\n")
+	sb.WriteString("Status: Sedang disiapkan di dapur\n\n")
+	sb.WriteString(fmt.Sprintf("Kami akan langsung mengabari di WhatsApp ini saat makanan sudah matang dan siap diambil ya%s! Pembayaran dapat dilakukan secara Tunai atau QRIS di kasir. Sampai jumpa! 😊", nameSuffix))
 	return sb.String()
 }

@@ -228,11 +228,14 @@ func (r *CatalogResolver) resolveItem(rawItem RawExtractedItem, categories []cat
 			}
 
 			toppingCount := 1
-			if strings.Contains(combinedNorm, "3 toping") || strings.Contains(combinedNorm, "3 topping") || strings.Contains(combinedNorm, "tiga toping") || strings.Contains(combinedNorm, "tiga topping") {
+			if strings.Contains(combinedNorm, "3 toping") || strings.Contains(combinedNorm, "3 topping") || strings.Contains(combinedNorm, "tiga toping") || strings.Contains(combinedNorm, "tiga topping") ||
+				strings.Contains(combinedNorm, "3 biasa") || strings.Contains(combinedNorm, "3 besar") || strings.Contains(combinedNorm, "tiga biasa") || strings.Contains(combinedNorm, "tiga besar") {
 				toppingCount = 3
-			} else if strings.Contains(combinedNorm, "2 toping") || strings.Contains(combinedNorm, "2 topping") || strings.Contains(combinedNorm, "dua toping") || strings.Contains(combinedNorm, "dua topping") {
+			} else if strings.Contains(combinedNorm, "2 toping") || strings.Contains(combinedNorm, "2 topping") || strings.Contains(combinedNorm, "dua toping") || strings.Contains(combinedNorm, "dua topping") ||
+				strings.Contains(combinedNorm, "2 biasa") || strings.Contains(combinedNorm, "2 besar") || strings.Contains(combinedNorm, "dua biasa") || strings.Contains(combinedNorm, "dua besar") {
 				toppingCount = 2
-			} else if strings.Contains(combinedNorm, "1 toping") || strings.Contains(combinedNorm, "1 topping") || strings.Contains(combinedNorm, "satu toping") || strings.Contains(combinedNorm, "satu topping") {
+			} else if strings.Contains(combinedNorm, "1 toping") || strings.Contains(combinedNorm, "1 topping") || strings.Contains(combinedNorm, "satu toping") || strings.Contains(combinedNorm, "satu topping") ||
+				strings.Contains(combinedNorm, "1 biasa") || strings.Contains(combinedNorm, "1 besar") || strings.Contains(combinedNorm, "satu biasa") || strings.Contains(combinedNorm, "satu besar") {
 				toppingCount = 1
 			} else {
 				flavorCount := countTerangBulanToppings(combinedNorm)
@@ -256,9 +259,14 @@ func (r *CatalogResolver) resolveItem(rawItem RawExtractedItem, categories []cat
 			targetWithoutHyphen := fmt.Sprintf("%d toping %s", toppingCount, strings.ToLower(sizeKeyword))
 			for _, m := range cat.Menus {
 				mNorm := strings.ToLower(m.Name)
+				topingStr := fmt.Sprintf("%d toping", toppingCount)
+				toppingStr := fmt.Sprintf("%d topping", toppingCount)
+				sizeStr := strings.ToLower(sizeKeyword)
+
 				if strings.EqualFold(m.Name, targetName) ||
 					strings.Contains(mNorm, targetWithHyphen) ||
-					strings.Contains(mNorm, targetWithoutHyphen) {
+					strings.Contains(mNorm, targetWithoutHyphen) ||
+					((strings.Contains(mNorm, topingStr) || strings.Contains(mNorm, toppingStr)) && strings.Contains(mNorm, sizeStr)) {
 					menuCopy := m
 					catCopy := cat
 					matchedMenu = &menuCopy
@@ -411,72 +419,160 @@ func countTerangBulanToppings(text string) int {
 	return count
 }
 
+func isTerangBulan(name string) bool {
+	lower := strings.ToLower(name)
+	return strings.Contains(lower, "terang bulan") || strings.Contains(lower, "terbul") || strings.Contains(lower, "toping") || strings.Contains(lower, "topping") || strings.Contains(lower, "pizza")
+}
+
+func isMartabak(name string) bool {
+	lower := strings.ToLower(name)
+	return strings.Contains(lower, "martabak") || strings.Contains(lower, "martel")
+}
+
+// expectedToppingCount returns the expected minimum and maximum selection for a modifier group.
+// It inspects the menu name for explicit topping counts (1, 2, 3 Toping / Mix 2) if it's a topping group.
+func expectedToppingCount(menuName string, g *catalog.Group) (int, int) {
+	minSel := g.MinSelect
+	maxSel := g.MaxSelect
+
+	nameLower := strings.ToLower(menuName)
+	groupLower := strings.ToLower(g.Name)
+	if strings.Contains(groupLower, "toping") || strings.Contains(groupLower, "topping") {
+		if strings.Contains(nameLower, "1 toping") || strings.Contains(nameLower, "1 topping") {
+			return 1, 1
+		}
+		if strings.Contains(nameLower, "2 toping") || strings.Contains(nameLower, "2 topping") || strings.Contains(nameLower, "mix 2") {
+			return 2, 2
+		}
+		if strings.Contains(nameLower, "3 toping") || strings.Contains(nameLower, "3 topping") || strings.Contains(nameLower, "mix 3") {
+			return 3, 3
+		}
+	}
+	return minSel, maxSel
+}
+
+// containsOptionMatch checks if an option is mentioned in text, avoiding false positives (e.g. tidak pedas vs pedas).
+func containsOptionMatch(textNorm, optNameNorm, optCodeNorm string) bool {
+	if textNorm == optNameNorm || textNorm == optCodeNorm {
+		return true
+	}
+	// Check pedas negation
+	if (optNameNorm == "pedas" || optCodeNorm == "hot") &&
+		(strings.Contains(textNorm, "tidak pedas") || strings.Contains(textNorm, "gak pedas") || strings.Contains(textNorm, "nggak pedas")) {
+		return false
+	}
+	// Sub-phrase for multi-word option
+	if strings.Contains(textNorm, optNameNorm) || strings.Contains(textNorm, optCodeNorm) {
+		return true
+	}
+	// Aliases
+	if strings.Contains(optNameNorm, "strawberry") && (strings.Contains(textNorm, "strawberry") || strings.Contains(textNorm, "stroberi")) {
+		return true
+	}
+	if strings.Contains(optNameNorm, "blueberry") && (strings.Contains(textNorm, "blueberry") || strings.Contains(textNorm, "bluberi")) {
+		return true
+	}
+	// Word match
+	words := strings.Fields(textNorm)
+	for _, w := range words {
+		cleaned := strings.Trim(w, ",.!?")
+		if cleaned == optNameNorm || cleaned == optCodeNorm {
+			return true
+		}
+	}
+	return false
+}
+
+// findMatchingOptionsInGroup extracts all distinct available options from a group present in the text.
+func findMatchingOptionsInGroup(text string, g *catalog.Group) []catalog.Option {
+	textNorm := normalizeText(text)
+	if textNorm == "" {
+		return nil
+	}
+	var matched []catalog.Option
+	seen := make(map[string]bool)
+
+	for _, opt := range g.Options {
+		if !opt.Available || seen[opt.ID] {
+			continue
+		}
+		optNorm := normalizeText(opt.Name)
+		codeNorm := normalizeText(opt.Code)
+		if containsOptionMatch(textNorm, optNorm, codeNorm) {
+			matched = append(matched, opt)
+			seen[opt.ID] = true
+		}
+	}
+	return matched
+}
+
 func (r *CatalogResolver) resolveModifiers(rawModifiers []string, groups []catalog.Group, matchedMenu *catalog.Menu, matchedCat *catalog.Category) ([]SelectedModifier, int64, []string) {
 	var selected []SelectedModifier
 	var totalDelta int64
 	var ambiguities []string
 
 	selectedPerGroup := make(map[string]int)
+	selectedOptionIDs := make(map[string]bool)
+	matchedRawMods := make(map[int]bool)
 
-	for _, rawMod := range rawModifiers {
-		rawModNorm := normalizeText(rawMod)
-		if rawModNorm == "" {
+	combinedRaw := strings.Join(rawModifiers, " ")
+
+	// 1. First pass: Multi-option group extraction for all active groups
+	for _, g := range groups {
+		if !g.Active {
 			continue
 		}
-
-		var bestOpt *catalog.Option
-		var bestGroup *catalog.Group
-		bestScore := 0
-
-		for _, g := range groups {
-			if !g.Active {
+		matchedOpts := findMatchingOptionsInGroup(combinedRaw, &g)
+		for _, opt := range matchedOpts {
+			if selectedOptionIDs[opt.ID] {
 				continue
 			}
-			for _, opt := range g.Options {
-				if !opt.Available {
-					continue
-				}
-				optNorm := normalizeText(opt.Name)
-				codeNorm := normalizeText(opt.Code)
-				score := matchOptionScore(rawModNorm, optNorm, codeNorm)
-				if score > bestScore {
-					bestScore = score
-					optCopy := opt
-					bestOpt = &optCopy
-					gCopy := g
-					bestGroup = &gCopy
-				}
+			selected = append(selected, SelectedModifier{
+				GroupID:          g.ID,
+				GroupName:        g.Name,
+				OptionID:         opt.ID,
+				OptionCode:       opt.Code,
+				OptionName:       opt.Name,
+				PriceDeltaAmount: opt.PriceDeltaAmount,
+			})
+			totalDelta += opt.PriceDeltaAmount
+			selectedPerGroup[g.ID]++
+			selectedOptionIDs[opt.ID] = true
+		}
+	}
+
+	// 2. Mark which rawModifiers were recognized
+	for idx, rawMod := range rawModifiers {
+		rawModNorm := normalizeText(rawMod)
+		if rawModNorm == "" {
+			matchedRawMods[idx] = true
+			continue
+		}
+		for _, sm := range selected {
+			optNameNorm := normalizeText(sm.OptionName)
+			optCodeNorm := normalizeText(sm.OptionCode)
+			if containsOptionMatch(rawModNorm, optNameNorm, optCodeNorm) {
+				matchedRawMods[idx] = true
+				break
 			}
 		}
-
-		if bestOpt != nil && bestScore > 0 {
-			selected = append(selected, SelectedModifier{
-				GroupID:          bestGroup.ID,
-				GroupName:        bestGroup.Name,
-				OptionID:         bestOpt.ID,
-				OptionCode:       bestOpt.Code,
-				OptionName:       bestOpt.Name,
-				PriceDeltaAmount: bestOpt.PriceDeltaAmount,
-			})
-			totalDelta += bestOpt.PriceDeltaAmount
-			selectedPerGroup[bestGroup.ID]++
-		} else {
-			// Check if redundant with menu name, category, or tier words
+		if !matchedRawMods[idx] {
 			if !isRedundantModifier(rawMod, matchedMenu, matchedCat) {
 				ambiguities = append(ambiguities, fmt.Sprintf("unrecognized_modifier:%s", rawMod))
 			}
 		}
 	}
 
-	// Check modifier group constraints (min_select, max_select)
+	// 3. Check modifier group constraints (min_select, max_select)
 	for _, g := range groups {
 		if !g.Active {
 			continue
 		}
+		minSel, maxSel := expectedToppingCount(matchedMenu.Name, &g)
 		count := selectedPerGroup[g.ID]
 
 		// Auto-select standard default option (e.g. Original Base Cake with 0 price delta) if none was chosen
-		if g.MinSelect >= 1 && count < g.MinSelect {
+		if minSel >= 1 && count < minSel {
 			var defaultOpt *catalog.Option
 			for _, opt := range g.Options {
 				if !opt.Available {
@@ -505,11 +601,15 @@ func (r *CatalogResolver) resolveModifiers(rawModifiers []string, groups []catal
 			}
 		}
 
-		if g.MinSelect >= 1 && count < g.MinSelect {
-			ambiguities = append(ambiguities, fmt.Sprintf("missing_required_modifier:%s", g.Name))
+		if minSel >= 1 && count < minSel {
+			if count == 0 {
+				ambiguities = append(ambiguities, fmt.Sprintf("missing_required_modifier:%s", g.Name))
+			} else {
+				ambiguities = append(ambiguities, fmt.Sprintf("insufficient_toppings:%s:%d:%d", g.Name, minSel, count))
+			}
 		}
-		if g.MaxSelect > 0 && count > g.MaxSelect {
-			ambiguities = append(ambiguities, fmt.Sprintf("modifier_limit_exceeded:%s", g.Name))
+		if maxSel > 0 && count > maxSel {
+			ambiguities = append(ambiguities, fmt.Sprintf("modifier_limit_exceeded:%s:%d:%d", g.Name, maxSel, count))
 		}
 	}
 

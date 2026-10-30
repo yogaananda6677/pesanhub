@@ -132,8 +132,8 @@ func (s *Service) Dispatch(ctx context.Context, notifType NotificationType, data
 
 	if !isNew {
 		// Existing notification found
-		if pending.Status == StatusSent || pending.Status == StatusSuppressed || pending.Status == StatusDeadLetter {
-			s.logger.Info("notification deduplicated: already resolved",
+		if pending.Status == StatusSent || pending.Status == StatusSuppressed || pending.Status == StatusDeadLetter || pending.Status == StatusProcessing {
+			s.logger.Info("notification deduplicated: already resolved or processing",
 				"order_id", data.OrderID,
 				"masked_phone", gowa.MaskPhone(data.CustomerPhone),
 				"type", notifType,
@@ -151,6 +151,26 @@ func (s *Service) Dispatch(ctx context.Context, notifType NotificationType, data
 		}
 	}
 	recordID := pending.ID
+
+	// Atomically claim for dispatch so that background worker or concurrent dispatch cannot double-send.
+	claimed, err := s.store.ClaimForDispatch(ctx, recordID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to claim notification for dispatch: %w", err)
+	}
+	if !claimed {
+		s.logger.Info("notification already claimed for processing, skipping direct send",
+			"order_id", data.OrderID,
+			"masked_phone", gowa.MaskPhone(data.CustomerPhone),
+			"type", notifType,
+		)
+		return &NotificationResult{
+			RecordID:         recordID,
+			OrderID:          data.OrderID,
+			NotificationType: notifType,
+			Status:           StatusProcessing,
+			IsDuplicate:      true,
+		}, nil
+	}
 
 	// 4. Opt-Out Guard
 	optedOut, err := s.store.IsOptedOut(ctx, data.CustomerPhone)

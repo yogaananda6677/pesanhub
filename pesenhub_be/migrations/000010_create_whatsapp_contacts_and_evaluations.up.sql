@@ -1,7 +1,7 @@
 -- 000010_create_whatsapp_contacts_and_evaluations.up.sql
 
 -- 1. Create whatsapp_contacts table
-CREATE TABLE whatsapp_contacts (
+CREATE TABLE IF NOT EXISTS whatsapp_contacts (
   id char(36) PRIMARY KEY,
   branch_id char(36) NOT NULL,
   phone_e164 varchar(16) NOT NULL UNIQUE,
@@ -17,7 +17,7 @@ CREATE TABLE whatsapp_contacts (
 ) ENGINE=InnoDB;
 
 -- 2. Create ai_evaluations table
-CREATE TABLE ai_evaluations (
+CREATE TABLE IF NOT EXISTS ai_evaluations (
   id char(36) PRIMARY KEY,
   branch_id char(36) NOT NULL,
   inbound_message_id char(36) NULL,

@@ -103,8 +103,8 @@ func TestService_ProcessTurn_ExplicitConfirmation_CreatesOrder(t *testing.T) {
 	if !strings.Contains(turn2.ReplyText, "ORD-CONFIRM-123") {
 		t.Fatalf("expected reply text to contain order number, got %s", turn2.ReplyText)
 	}
-	if !strings.Contains(turn2.ReplyText, "trk_confirm_token_123") {
-		t.Fatalf("expected reply text to contain tracking token, got %s", turn2.ReplyText)
+	if strings.Contains(turn2.ReplyText, "http") || strings.Contains(turn2.ReplyText, "trk_confirm_token_123") {
+		t.Fatalf("reply text must NOT contain web tracking links, got %s", turn2.ReplyText)
 	}
 	if !strings.Contains(turn2.ReplyText, "PICKUP") {
 		t.Fatalf("expected reply text to mention PICKUP, got %s", turn2.ReplyText)
@@ -472,5 +472,396 @@ func TestService_ProcessTurn_OrderCreationFailure_ThresholdHandoff(t *testing.T)
 	}
 	if turn4.State.HandoffPriority != HandoffPriorityHigh {
 		t.Fatalf("expected handoff priority HIGH, got %s", turn4.State.HandoffPriority)
+	}
+}
+
+func TestService_ProcessTurn_AddItemsDuringConfirmation(t *testing.T) {
+	mockClient := &MockLLMClient{
+		Response: &RawExtractedOrder{
+			Items: []RawExtractedItem{
+				{
+					MenuName:   "Nasi Goreng Spesial",
+					Quantity:   1,
+					Modifiers:  []string{"Pedas"},
+					Confidence: 0.95,
+				},
+			},
+			FulfillmentType: "PICKUP",
+			PaymentMethod:   "CASH",
+			Confidence:      0.95,
+		},
+	}
+
+	catProvider := &mockCatalogProvider{categories: sampleCatalog()}
+	convStore := NewMemoryConversationStore()
+	orderCreator := &mockOrderCreator{}
+
+	svc := NewService(Config{
+		Client:            mockClient,
+		CatalogProvider:   catProvider,
+		OrderCreator:      orderCreator,
+		ConversationStore: convStore,
+	})
+
+	ctx := context.Background()
+	phone := "+6289516122795"
+
+	// Turn 1: Initial item
+	turn1, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Yoga",
+		MessageText:  "Pesan nasi goreng spesial 1 pedas",
+	})
+	if err != nil {
+		t.Fatalf("turn 1 error: %v", err)
+	}
+	if turn1.State.Status != ConversationReadyForConfirmation {
+		t.Fatalf("expected status READY_FOR_CONFIRMATION, got %s", turn1.State.Status)
+	}
+	if len(turn1.Draft.Items) != 1 {
+		t.Fatalf("expected 1 item in draft, got %d", len(turn1.Draft.Items))
+	}
+	if len(orderCreator.calls) != 0 {
+		t.Fatal("order should not be created yet")
+	}
+
+	// Turn 2: Customer wants to add items ("iya nambah pesanan lagi")
+	// The mock client will return 0 items for extraction of "iya nambah pesanan lagi"
+	mockClient.Response = &RawExtractedOrder{
+		Items:           []RawExtractedItem{},
+		Confidence:      0.95,
+		FulfillmentType: "PICKUP",
+		PaymentMethod:   "CASH",
+	}
+
+	turn2, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Yoga",
+		MessageText:  "iya nambah pesanan lagi",
+	})
+	if err != nil {
+		t.Fatalf("turn 2 error: %v", err)
+	}
+	// Crucial check: MUST NOT create order
+	if len(orderCreator.calls) != 0 {
+		t.Fatal("order MUST NOT be created when customer asks to add more items!")
+	}
+	if !strings.Contains(turn2.ReplyText, "Boleh banget kak Yoga! Mau nambah menu apa lagi nih?") {
+		t.Fatalf("expected friendly prompt for additional items, got:\n%s", turn2.ReplyText)
+	}
+	if !strings.HasSuffix(turn2.ReplyText, "~AI Jenggirat") {
+		t.Fatalf("expected signature ~AI Jenggirat, got:\n%s", turn2.ReplyText)
+	}
+	if turn2.State.PendingAmbiguity != "awaiting_additional_items" {
+		t.Fatalf("expected PendingAmbiguity to be awaiting_additional_items, got %s", turn2.State.PendingAmbiguity)
+	}
+
+	// Turn 3: Customer provides 2nd item
+	mockClient.Response = &RawExtractedOrder{
+		Items: []RawExtractedItem{
+			{
+				MenuName:   "Nasi Goreng Spesial",
+				Quantity:   1,
+				Modifiers:  []string{"Sedang"},
+				Confidence: 0.95,
+			},
+		},
+		FulfillmentType: "PICKUP",
+		PaymentMethod:   "CASH",
+		Confidence:      0.95,
+	}
+
+	turn3, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Yoga",
+		MessageText:  "nasi goreng spesial 1 sedang",
+	})
+	if err != nil {
+		t.Fatalf("turn 3 error: %v", err)
+	}
+	if len(turn3.Draft.Items) != 2 {
+		t.Fatalf("expected draft to contain 2 items, got %d", len(turn3.Draft.Items))
+	}
+	if turn3.Draft.TotalAmount != 40000 {
+		t.Fatalf("expected total amount 40000 (2x20000), got %d", turn3.Draft.TotalAmount)
+	}
+	if strings.Contains(turn3.ReplyText, "Dine In") {
+		t.Fatalf("reply must NEVER mention Dine In, got:\n%s", turn3.ReplyText)
+	}
+	if !strings.Contains(turn3.ReplyText, "PICKUP (Bawa Pulang)") {
+		t.Fatalf("reply must specify PICKUP (Bawa Pulang), got:\n%s", turn3.ReplyText)
+	}
+	if !strings.HasSuffix(turn3.ReplyText, "~AI Jenggirat") {
+		t.Fatalf("expected signature ~AI Jenggirat, got:\n%s", turn3.ReplyText)
+	}
+
+	// Turn 4: Customer explicitly confirms
+	turn4, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Yoga",
+		MessageText:  "ya siap bungkus",
+	})
+	if err != nil {
+		t.Fatalf("turn 4 error: %v", err)
+	}
+	if turn4.State.Status != ConversationCompleted {
+		t.Fatalf("expected status COMPLETED, got %s", turn4.State.Status)
+	}
+	if len(orderCreator.calls) != 1 {
+		t.Fatalf("expected 1 call to order creator, got %d", len(orderCreator.calls))
+	}
+	if len(orderCreator.calls[0].Items) != 2 {
+		t.Fatalf("expected order to have 2 items, got %d", len(orderCreator.calls[0].Items))
+	}
+	if orderCreator.calls[0].CustomerName != "Yoga" {
+		t.Fatalf("expected customer name Yoga, got %s", orderCreator.calls[0].CustomerName)
+	}
+	if !strings.HasSuffix(turn4.ReplyText, "~AI Jenggirat") {
+		t.Fatalf("expected signature ~AI Jenggirat, got:\n%s", turn4.ReplyText)
+	}
+}
+
+func TestService_ProcessTurn_AddItemsWithLLMClarification(t *testing.T) {
+	mockClient := &MockLLMClient{
+		Response: &RawExtractedOrder{
+			Items: []RawExtractedItem{
+				{
+					MenuName:   "Nasi Goreng Spesial",
+					Quantity:   1,
+					Modifiers:  []string{"Pedas"},
+					Confidence: 0.95,
+				},
+			},
+			FulfillmentType: "PICKUP",
+			PaymentMethod:   "CASH",
+			Confidence:      0.95,
+		},
+	}
+
+	catProvider := &mockCatalogProvider{categories: sampleCatalog()}
+	convStore := NewMemoryConversationStore()
+	orderCreator := &mockOrderCreator{}
+
+	svc := NewService(Config{
+		Client:            mockClient,
+		CatalogProvider:   catProvider,
+		OrderCreator:      orderCreator,
+		ConversationStore: convStore,
+	})
+
+	ctx := context.Background()
+	phone := "+6289516122795"
+
+	// Turn 1: Initial item
+	turn1, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Yoga",
+		MessageText:  "Pesan nasi goreng spesial 1 pedas",
+	})
+	if err != nil {
+		t.Fatalf("turn 1 error: %v", err)
+	}
+	if turn1.State.Status != ConversationReadyForConfirmation {
+		t.Fatalf("expected status READY_FOR_CONFIRMATION, got %s", turn1.State.Status)
+	}
+
+	// Turn 2: Customer wants to add drinks, LLM returns conversational clarifying question
+	mockClient.Response = &RawExtractedOrder{
+		Items:           []RawExtractedItem{},
+		Confidence:      0.90,
+		ReplyText:       "Mau tambah minuman apa kak? Kami ada Es Teh Manis yang segar banget!",
+		FulfillmentType: "PICKUP",
+		PaymentMethod:   "CASH",
+	}
+
+	turn2, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Yoga",
+		MessageText:  "tambah minum dong",
+	})
+	if err != nil {
+		t.Fatalf("turn 2 error: %v", err)
+	}
+	if len(orderCreator.calls) != 0 {
+		t.Fatal("order MUST NOT be created when customer asks to add more items!")
+	}
+	if !strings.Contains(turn2.ReplyText, "Kami ada Es Teh Manis yang segar banget!") {
+		t.Fatalf("expected LLM clarifying question to be preserved, got:\n%s", turn2.ReplyText)
+	}
+	if turn2.State.Status != ConversationAwaitingClarification {
+		t.Fatalf("expected status AWAITING_CLARIFICATION, got %s", turn2.State.Status)
+	}
+	if turn2.State.PendingAmbiguity != "awaiting_additional_items" {
+		t.Fatalf("expected PendingAmbiguity awaiting_additional_items, got %s", turn2.State.PendingAmbiguity)
+	}
+
+	// Turn 3: Customer chooses "es teh manis 1"
+	mockClient.Response = &RawExtractedOrder{
+		Items: []RawExtractedItem{
+			{
+				MenuName:   "Es Teh Manis",
+				Quantity:   1,
+				Confidence: 0.95,
+			},
+		},
+		FulfillmentType: "PICKUP",
+		PaymentMethod:   "CASH",
+		Confidence:      0.95,
+	}
+
+	turn3, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Yoga",
+		MessageText:  "es teh manis 1",
+	})
+	if err != nil {
+		t.Fatalf("turn 3 error: %v", err)
+	}
+	if turn3.State.Status != ConversationReadyForConfirmation {
+		t.Fatalf("expected status READY_FOR_CONFIRMATION, got %s", turn3.State.Status)
+	}
+	if len(turn3.Draft.Items) != 2 {
+		t.Fatalf("expected 2 items in draft, got %d", len(turn3.Draft.Items))
+	}
+	if turn3.Draft.TotalAmount != 25000 {
+		t.Fatalf("expected total amount 25000 (20000 + 5000), got %d", turn3.Draft.TotalAmount)
+	}
+	if !strings.Contains(turn3.ReplyText, "Es Teh Manis") || !strings.Contains(turn3.ReplyText, "Nasi Goreng Spesial") {
+		t.Fatalf("expected both items in confirmation summary, got:\n%s", turn3.ReplyText)
+	}
+
+	// Turn 4: Confirm
+	turn4, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Yoga",
+		MessageText:  "oke deal",
+	})
+	if err != nil {
+		t.Fatalf("turn 4 error: %v", err)
+	}
+	if turn4.State.Status != ConversationCompleted {
+		t.Fatalf("expected COMPLETED, got %s", turn4.State.Status)
+	}
+	if len(orderCreator.calls) != 1 {
+		t.Fatalf("expected 1 order call, got %d", len(orderCreator.calls))
+	}
+	if len(orderCreator.calls[0].Items) != 2 {
+		t.Fatalf("expected 2 items in created order, got %d", len(orderCreator.calls[0].Items))
+	}
+}
+
+func TestService_ProcessTurn_ModifyOrder_NoDuplication(t *testing.T) {
+	catProvider := &mockCatalogProvider{categories: sampleTerangBulanCatalog()}
+	convStore := NewMemoryConversationStore()
+	orderCreator := &mockOrderCreator{}
+
+	// Turn 1: Initial order of "Terang Bulan 2 Toping - Besar" with Pisang Coklat
+	mockClient := &MockLLMClient{
+		Response: &RawExtractedOrder{
+			Items: []RawExtractedItem{
+				{
+					MenuName:   "Terang Bulan 2 Toping - Besar",
+					Quantity:   1,
+					Modifiers:  []string{"pisang", "coklat"},
+					Confidence: 0.95,
+				},
+			},
+			FulfillmentType: "PICKUP",
+			PaymentMethod:   "CASH",
+			Confidence:      0.95,
+		},
+	}
+
+	svc := NewService(Config{
+		Client:            mockClient,
+		CatalogProvider:   catProvider,
+		OrderCreator:      orderCreator,
+		ConversationStore: convStore,
+	})
+
+	phone := "+6281234567890"
+	ctx := context.Background()
+
+	turn1, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Yoga",
+		MessageText:  "pesan terang bulan 2 toping pisang coklat",
+	})
+	if err != nil {
+		t.Fatalf("turn 1 error: %v", err)
+	}
+	if turn1.State.Status != ConversationReadyForConfirmation {
+		t.Fatalf("expected status READY_FOR_CONFIRMATION, got %s", turn1.State.Status)
+	}
+	if len(turn1.Draft.Items) != 1 {
+		t.Fatalf("expected 1 item in draft, got %d", len(turn1.Draft.Items))
+	}
+	if turn1.Draft.TotalAmount != 30000 {
+		t.Fatalf("expected total amount 30000, got %d", turn1.Draft.TotalAmount)
+	}
+
+	// Turn 2: Customer modifies to "Diubah, 2 toping keju dan coklat"
+	// LLM extracts the modified order
+	mockClient.Response = &RawExtractedOrder{
+		Items: []RawExtractedItem{
+			{
+				MenuName:   "Terang Bulan 2 Toping - Besar",
+				Quantity:   1,
+				Modifiers:  []string{"keju", "coklat"},
+				Confidence: 0.95,
+			},
+		},
+		FulfillmentType: "PICKUP",
+		PaymentMethod:   "CASH",
+		Confidence:      0.95,
+	}
+
+	turn2, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Yoga",
+		MessageText:  "Diubah, 2 toping keju dan coklat",
+	})
+	if err != nil {
+		t.Fatalf("turn 2 error: %v", err)
+	}
+	if turn2.State.Status != ConversationReadyForConfirmation {
+		t.Fatalf("expected status READY_FOR_CONFIRMATION, got %s", turn2.State.Status)
+	}
+	// CRITICAL CHECK: Items count must still be 1 (replaced, NOT duplicated to 2 items / 60.000!)
+	if len(turn2.Draft.Items) != 1 {
+		t.Fatalf("expected 1 item after modification (anti-duplication), got %d items", len(turn2.Draft.Items))
+	}
+	if turn2.Draft.TotalAmount != 30000 {
+		t.Fatalf("expected total amount 30000 (NOT doubled to 60000), got %d", turn2.Draft.TotalAmount)
+	}
+
+	// Turn 3: Customer confirms "ya deal"
+	turn3, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Yoga",
+		MessageText:  "ya deal",
+	})
+	if err != nil {
+		t.Fatalf("turn 3 error: %v", err)
+	}
+	if turn3.State.Status != ConversationCompleted {
+		t.Fatalf("expected status COMPLETED, got %s", turn3.State.Status)
+	}
+	if len(orderCreator.calls) != 1 {
+		t.Fatalf("expected 1 order created, got %d", len(orderCreator.calls))
+	}
+	if len(orderCreator.calls[0].Items) != 1 {
+		t.Fatalf("expected 1 item in created order, got %d", len(orderCreator.calls[0].Items))
 	}
 }

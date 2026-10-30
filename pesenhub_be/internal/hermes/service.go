@@ -350,7 +350,7 @@ func (s *Service) ExtractOrder(ctx context.Context, req ExtractionRequest) (*Dra
 }
 
 // ProcessTurn processes an inbound turn in a conversation session, deciding whether to ask clarification, trigger handoff, or confirm order.
-func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnResponse, error) {
+func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnResponse, err error) {
 	startTime := time.Now()
 	correlationID := strings.TrimSpace(req.CorrelationID)
 	if correlationID == "" {
@@ -369,8 +369,49 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 	state.LastInboundMessageID = req.InboundMessageID
 	state.CorrelationID = correlationID
 
-	// Resolve and remember customer identity
-	if req.CustomerName != "" && state.CustomerName == "" {
+	// Ensure active conversation cycle exists
+	if state.CycleID == "" {
+		state.CycleID = newID()
+	}
+
+	// Record inbound customer message into conversation cycle context
+	if s.convStore != nil && strings.TrimSpace(req.MessageText) != "" {
+		_ = s.convStore.RecordContextMessage(ctx, ConversationContextMessage{
+			ID:             newID(),
+			ConversationID: state.ID,
+			Session:        session,
+			CustomerPhone:  req.SenderPhone,
+			CycleID:        state.CycleID,
+			Role:           "customer",
+			MessageText:    strings.TrimSpace(req.MessageText),
+			CreatedAt:      time.Now().UTC(),
+		})
+	}
+
+	defer func() {
+		if resp != nil && strings.TrimSpace(resp.ReplyText) != "" {
+			resp.ReplyText = AttachAISignature(resp.ReplyText)
+			// Record outgoing assistant reply into conversation cycle context
+			if s.convStore != nil && state != nil && state.CycleID != "" {
+				_ = s.convStore.RecordContextMessage(ctx, ConversationContextMessage{
+					ID:             newID(),
+					ConversationID: state.ID,
+					Session:        session,
+					CustomerPhone:  req.SenderPhone,
+					CycleID:        state.CycleID,
+					Role:           "assistant",
+					MessageText:    resp.ReplyText,
+					CreatedAt:      time.Now().UTC(),
+				})
+			}
+		}
+		if state != nil && state.Status == ConversationCompleted {
+			state.CycleID = ""
+		}
+	}()
+
+	// Resolve customer identity from backend table (Single Source of Truth)
+	if req.CustomerName != "" {
 		if cleaned := cleanCustomerName(req.CustomerName); cleaned != "" {
 			state.CustomerName = cleaned
 		}
@@ -379,6 +420,13 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 		state.CustomerName = extractedName
 		if s.customerMemory != nil {
 			_, _ = s.customerMemory.UpsertName(ctx, req.SenderPhone, extractedName)
+		}
+	} else if state.CustomerName == "" && (strings.Contains(state.LastQuestion, "siapa nih") || strings.Contains(state.LastQuestion, "siapa?") || strings.Contains(state.LastQuestion, "kakak siapa")) {
+		if bareName := ExtractBareCustomerName(req.MessageText); bareName != "" {
+			state.CustomerName = bareName
+			if s.customerMemory != nil {
+				_, _ = s.customerMemory.UpsertName(ctx, req.SenderPhone, bareName)
+			}
 		}
 	} else if state.CustomerName == "" && s.customerMemory != nil {
 		if profile, err := s.customerMemory.GetByPhone(ctx, req.SenderPhone); err == nil && profile != nil && profile.DisplayName != "" {
@@ -583,6 +631,48 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 		}, nil
 	}
 
+	// 4b. Customer name / identity inquiry (e.g. "nama saya siapa", "siapa namaku", "tau nama saya gak")
+	if DetectNameInquiry(req.MessageText) {
+		var reply string
+		if state.CustomerName != "" {
+			reply = fmt.Sprintf("Nama kakak tercatat sebagai Kak %s di sistem kami 😊 Ada yang bisa Jenggirat AI bantu hari ini?", state.CustomerName)
+		} else {
+			reply = "Kami belum mencatat nama kakak nih 😊 Boleh tahu dengan kakak siapa? Biar nanti pesanannya bisa kami siapkan atas nama kakak ya kak~"
+		}
+		state.LastQuestion = reply
+		_ = s.convStore.Save(ctx, state)
+
+		durationMs := int(time.Since(startTime).Milliseconds())
+		run := &AgentRun{
+			ID:               newID(),
+			InboundMessageID: req.InboundMessageID,
+			Session:          session,
+			CustomerPhone:    req.SenderPhone,
+			Model:            s.modelName,
+			PromptVersion:    s.promptVersion,
+			ConfidenceScore:  1.0,
+			IsAmbiguous:      false,
+			AmbiguityReasons: []string{},
+			DurationMs:       durationMs,
+			Status:           StatusSuccess,
+			CorrelationID:    correlationID,
+			CreatedAt:        time.Now().UTC(),
+		}
+		if s.store != nil {
+			_ = s.store.RecordRun(ctx, run)
+		}
+
+		return &TurnResponse{
+			State:            state,
+			Draft:            state.CurrentDraft,
+			ReplyText:        reply,
+			RequiresHandoff:  false,
+			HandledByAgent:   true,
+			AutomationPaused: false,
+			Run:              run,
+		}, nil
+	}
+
 	// Dynamic operational and customer context injection for natural conversational AI
 	pCtx := s.buildPromptContext(ctx, req, state)
 
@@ -701,6 +791,110 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 		}
 
 		if !resolved {
+			// Check if customer is in the middle of adding additional items
+			if state.PendingAmbiguity == "awaiting_additional_items" {
+				lowerMsg := strings.ToLower(req.MessageText)
+				isCancelAdd := strings.Contains(lowerMsg, "ga jadi nambah") || strings.Contains(lowerMsg, "gak jadi nambah") ||
+					strings.Contains(lowerMsg, "itu aja") || strings.Contains(lowerMsg, "cukup") || strings.Contains(lowerMsg, "yang tadi aja") ||
+					strings.Contains(lowerMsg, "ga usah") || strings.Contains(lowerMsg, "gak usah") || strings.Contains(lowerMsg, "udah") || strings.Contains(lowerMsg, "sudah")
+				if isCancelAdd {
+					state.Status = ConversationReadyForConfirmation
+					state.PendingAmbiguity = ""
+					state.DraftVersion++
+					state.ConfirmationToken = fmt.Sprintf("tok-%s-%d", newID(), state.DraftVersion)
+					summaryText := formatOrderSummary(state.CurrentDraft, state.CustomerName)
+					state.LastQuestion = summaryText
+					_ = s.convStore.Save(ctx, state)
+					return &TurnResponse{
+						State:            state,
+						Draft:            state.CurrentDraft,
+						ReplyText:        summaryText,
+						RequiresHandoff:  false,
+						HandledByAgent:   true,
+						AutomationPaused: false,
+					}, nil
+				}
+
+				newDraft, run, extractErr := s.ExtractOrder(ctx, ExtractionRequest{
+					InboundMessageID: req.InboundMessageID,
+					MessageText:      req.MessageText,
+					SenderPhone:      req.SenderPhone,
+					CustomerName:     state.CustomerName,
+					CorrelationID:    correlationID,
+					Session:          session,
+					PromptContext:    pCtx,
+				})
+				if extractErr == nil && len(newDraft.Items) > 0 {
+					mergedDraft := state.CurrentDraft
+					mergedDraft.Items = append(mergedDraft.Items, newDraft.Items...)
+					if newDraft.Notes != "" {
+						if mergedDraft.Notes != "" {
+							mergedDraft.Notes += "; " + newDraft.Notes
+						} else {
+							mergedDraft.Notes = newDraft.Notes
+						}
+					}
+					recalculateTotals(mergedDraft)
+
+					plan := s.clarifier.PlanClarification(mergedDraft, 0, categories)
+					if plan.RequiresClarification {
+						state.Status = ConversationAwaitingClarification
+						state.CurrentDraft = mergedDraft
+						state.PendingAmbiguity = plan.PriorityAmbiguity
+						replyQ := personalizeCustomerGreeting(plan.QuestionText, state.CustomerName)
+						state.LastQuestion = replyQ
+						state.ClarificationAttempts = 0
+						state.DraftVersion++
+						_ = s.convStore.Save(ctx, state)
+						return &TurnResponse{
+							State:            state,
+							Draft:            mergedDraft,
+							ReplyText:        replyQ,
+							RequiresHandoff:  false,
+							HandledByAgent:   true,
+							AutomationPaused: false,
+							Run:              run,
+						}, nil
+					}
+
+					state.Status = ConversationReadyForConfirmation
+					state.CurrentDraft = mergedDraft
+					state.PendingAmbiguity = ""
+					state.LastQuestion = ""
+					state.ClarificationAttempts = 0
+					state.DraftVersion++
+					state.ConfirmationToken = fmt.Sprintf("tok-%s-%d", newID(), state.DraftVersion)
+					summaryText := formatOrderSummary(mergedDraft, state.CustomerName)
+					state.LastQuestion = summaryText
+					_ = s.convStore.Save(ctx, state)
+
+					return &TurnResponse{
+						State:            state,
+						Draft:            mergedDraft,
+						ReplyText:        summaryText,
+						RequiresHandoff:  false,
+						HandledByAgent:   true,
+						AutomationPaused: false,
+						Run:              run,
+					}, nil
+				}
+
+				if extractErr == nil && newDraft != nil && strings.TrimSpace(newDraft.ReplyText) != "" {
+					reply := newDraft.ReplyText
+					state.LastQuestion = reply
+					_ = s.convStore.Save(ctx, state)
+					return &TurnResponse{
+						State:            state,
+						Draft:            state.CurrentDraft,
+						ReplyText:        reply,
+						RequiresHandoff:  false,
+						HandledByAgent:   true,
+						AutomationPaused: false,
+						Run:              run,
+					}, nil
+				}
+			}
+
 			// Before repeating the same question, check if customer changed their mind or ordered different items!
 			msgLower := strings.ToLower(req.MessageText)
 			isExplicitChange := strings.Contains(msgLower, "ga jadi") || strings.Contains(msgLower, "gak jadi") ||
@@ -734,7 +928,7 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 					isReplacing := strings.Contains(msgLower, "ga jadi") || strings.Contains(msgLower, "gak jadi") ||
 						strings.Contains(msgLower, "batal") || strings.Contains(msgLower, "ganti") ||
 						strings.Contains(msgLower, "tukar") || strings.Contains(msgLower, "bukan") ||
-						strings.Contains(msgLower, "maksudnya") || !strings.Contains(msgLower, "tambah")
+						strings.Contains(msgLower, "maksudnya") || (!strings.Contains(msgLower, "tambah") && !strings.Contains(msgLower, "tetep") && !strings.Contains(msgLower, "tetap") && state.PendingAmbiguity != "awaiting_additional_items")
 
 					var mergedDraft *DraftCandidate
 					if isReplacing {
@@ -742,8 +936,14 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 					} else {
 						mergedDraft = state.CurrentDraft
 						mergedDraft.Items = append(mergedDraft.Items, newDraft.Items...)
-						mergedDraft.TotalAmount += newDraft.TotalAmount
-						mergedDraft.SubtotalAmount += newDraft.SubtotalAmount
+						if newDraft.Notes != "" {
+							if mergedDraft.Notes != "" {
+								mergedDraft.Notes += "; " + newDraft.Notes
+							} else {
+								mergedDraft.Notes = newDraft.Notes
+							}
+						}
+						recalculateTotals(mergedDraft)
 					}
 
 					plan := s.clarifier.PlanClarification(mergedDraft, 0, categories)
@@ -784,6 +984,21 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 						State:            state,
 						Draft:            mergedDraft,
 						ReplyText:        summaryText,
+						RequiresHandoff:  false,
+						HandledByAgent:   true,
+						AutomationPaused: false,
+						Run:              run,
+					}, nil
+				}
+
+				if extractErr == nil && len(newDraft.Items) == 0 && strings.TrimSpace(newDraft.ReplyText) != "" {
+					reply := newDraft.ReplyText
+					state.LastQuestion = reply
+					_ = s.convStore.Save(ctx, state)
+					return &TurnResponse{
+						State:            state,
+						Draft:            state.CurrentDraft,
+						ReplyText:        reply,
 						RequiresHandoff:  false,
 						HandledByAgent:   true,
 						AutomationPaused: false,
@@ -883,6 +1098,16 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 	// 6. If currently ready for confirmation:
 	if state.Status == ConversationReadyForConfirmation && state.CurrentDraft != nil {
 		intent := DetectConfirmationIntent(req.MessageText)
+		if state.PendingAmbiguity == "awaiting_additional_items" && (intent == IntentUnknown || intent == IntentConfirm) {
+			lowerMsg := strings.ToLower(req.MessageText)
+			isKeepCurrent := strings.Contains(lowerMsg, "ga jadi nambah") || strings.Contains(lowerMsg, "gak jadi nambah") ||
+				strings.Contains(lowerMsg, "itu aja") || strings.Contains(lowerMsg, "cukup") || strings.Contains(lowerMsg, "yang tadi aja")
+			if isKeepCurrent {
+				intent = IntentConfirm
+			} else {
+				intent = IntentModify
+			}
+		}
 		switch intent {
 		case IntentConfirm:
 			// 1. Revalidate draft against current catalog (Zero Stale / Price Change)
@@ -1049,6 +1274,10 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 			}, nil
 
 		case IntentCancel:
+			if s.convStore != nil && state.CycleID != "" {
+				_ = s.convStore.ClearCycleContext(ctx, req.SenderPhone, state.CycleID)
+			}
+			state.CycleID = ""
 			state.Status = ConversationCollecting
 			state.CurrentDraft = nil
 			state.ConfirmationToken = ""
@@ -1085,6 +1314,48 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 				if state.CustomerName != "" {
 					greeting = "kak " + state.CustomerName
 				}
+				msgLower := strings.ToLower(req.MessageText)
+				isAdd := strings.Contains(msgLower, "nambah") || strings.Contains(msgLower, "tambah") ||
+					strings.Contains(msgLower, "lagi") || strings.Contains(msgLower, "ada tambahan")
+
+				// If LLM returned a conversational clarifying question, use it!
+				if err == nil && newDraft != nil && strings.TrimSpace(newDraft.ReplyText) != "" {
+					state.Status = ConversationAwaitingClarification
+					if isAdd {
+						state.PendingAmbiguity = "awaiting_additional_items"
+					} else {
+						state.PendingAmbiguity = "item_modification"
+					}
+					reply := newDraft.ReplyText
+					state.LastQuestion = reply
+					_ = s.convStore.Save(ctx, state)
+					return &TurnResponse{
+						State:            state,
+						Draft:            state.CurrentDraft,
+						ReplyText:        reply,
+						RequiresHandoff:  false,
+						HandledByAgent:   true,
+						AutomationPaused: false,
+						Run:              run,
+					}, nil
+				}
+
+				if isAdd {
+					state.Status = ConversationAwaitingClarification
+					state.PendingAmbiguity = "awaiting_additional_items"
+					reply := fmt.Sprintf("Boleh banget %s! Mau nambah menu apa lagi nih? Silakan sebutkan pesanannya ya %s 😊", greeting, greeting)
+					state.LastQuestion = reply
+					_ = s.convStore.Save(ctx, state)
+					return &TurnResponse{
+						State:            state,
+						Draft:            state.CurrentDraft,
+						ReplyText:        reply,
+						RequiresHandoff:  false,
+						HandledByAgent:   true,
+						AutomationPaused: false,
+						Run:              run,
+					}, nil
+				}
 				reply := fmt.Sprintf("Mohon maaf %s, kami belum menangkap perubahan yang dimaksud. Bisa tolong sebutkan menu yang ingin ditambah/diubah, atau mau tetap lanjut dengan pesanan yang tadi %s?", greeting, greeting)
 				return &TurnResponse{
 					State:            state,
@@ -1098,9 +1369,19 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 
 			// Check if customer wants to ADD (tambah) or REPLACE (ganti/ga jadi)
 			msgLower := strings.ToLower(req.MessageText)
-			isAdd := strings.Contains(msgLower, "tambah") || strings.Contains(msgLower, "plus") ||
-				strings.Contains(msgLower, "sama") || strings.Contains(msgLower, "dan") ||
-				strings.Contains(msgLower, "sekalian") || strings.Contains(msgLower, "juga")
+			isReplace := strings.Contains(msgLower, "ubah") || strings.Contains(msgLower, "diubah") ||
+				strings.Contains(msgLower, "ganti") || strings.Contains(msgLower, "diganti") ||
+				strings.Contains(msgLower, "bukan") || strings.Contains(msgLower, "revisi") ||
+				strings.Contains(msgLower, "tukar") || strings.Contains(msgLower, "salah") ||
+				strings.Contains(msgLower, "ralat") || strings.Contains(msgLower, "maksudnya") ||
+				strings.Contains(msgLower, "ga jadi") || strings.Contains(msgLower, "gak jadi") ||
+				strings.Contains(msgLower, "cuma") || strings.Contains(msgLower, "hanya")
+
+			isAdd := !isReplace && (state.PendingAmbiguity == "awaiting_additional_items" ||
+				strings.Contains(msgLower, "tambah") || strings.Contains(msgLower, "nambah") ||
+				strings.Contains(msgLower, "plus") || strings.Contains(msgLower, "sekalian") ||
+				strings.Contains(msgLower, "ada tambahan") || strings.Contains(msgLower, "nambah lagi") ||
+				strings.Contains(msgLower, "tambah lagi"))
 
 			var finalDraft *DraftCandidate
 			if isAdd && state.CurrentDraft != nil && len(state.CurrentDraft.Items) > 0 {
@@ -1114,6 +1395,25 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (*TurnRespon
 					}
 				}
 				recalculateTotals(finalDraft)
+			} else if isReplace && state.CurrentDraft != nil && len(state.CurrentDraft.Items) > 1 && len(newDraft.Items) == 1 {
+				// Replace matching item by category or type, keep other items
+				replaced := false
+				finalDraft = cloneDraft(state.CurrentDraft)
+				newIt := newDraft.Items[0]
+				for idx, existing := range finalDraft.Items {
+					isSameCategory := (isTerangBulan(existing.Name) && isTerangBulan(newIt.Name)) ||
+						(isMartabak(existing.Name) && isMartabak(newIt.Name))
+					if isSameCategory {
+						finalDraft.Items[idx] = newIt
+						replaced = true
+						break
+					}
+				}
+				if !replaced {
+					finalDraft = newDraft
+				} else {
+					recalculateTotals(finalDraft)
+				}
 			} else {
 				finalDraft = newDraft
 			}
@@ -1412,18 +1712,13 @@ func formatOrderSummary(draft *DraftCandidate, customerName string) string {
 		sb.WriteString(fmt.Sprintf("- %dx %s%s: Rp %d\n", it.Quantity, it.Name, modStr, it.LineTotalAmount))
 	}
 	sb.WriteString(fmt.Sprintf("\nTotal: Rp %d\n", draft.SubtotalAmount))
-	fulfillment := draft.FulfillmentType
-	if fulfillment == "" || fulfillment == "PICKUP" {
-		fulfillment = "PICKUP (Bawa Pulang)"
-	} else if fulfillment == "DINE_IN" {
-		fulfillment = "DINE IN (Makan di Tempat)"
-	}
+	fulfillment := "PICKUP (Bawa Pulang)"
 	sb.WriteString(fmt.Sprintf("Pengambilan: %s\n", fulfillment))
 	sb.WriteString("Pembayaran: Tunai / QRIS saat pengambilan di kasir\n")
 	if customerName != "" {
 		sb.WriteString(fmt.Sprintf("\nApakah pesanannya sudah sesuai kak %s? Kalau sudah oke, langsung kami buatkan ya! 😊", customerName))
 	} else {
-		sb.WriteString("\nApakah pesanan sudah sesuai kak? Kalau sudah oke, langsung kami buatkan ya! 😊")
+		sb.WriteString("\nOiya kak, sebelumnya boleh tahu dengan kakak siapa nih, biar nanti pesanannya bisa kami siapkan atas nama kakak? Kalau rincian di atas sudah sesuai, langsung balas nama kakak dan kata 'oke/ya' ya! 😊")
 	}
 	return sb.String()
 }
@@ -1470,6 +1765,32 @@ func personalizeCustomerGreeting(text, customerName string) string {
 		return strings.Replace(text, "Baik kak,", fmt.Sprintf("Baik kak %s,", customerName), 1)
 	}
 	return text
+}
+
+// AttachAISignature ensures the message ends cleanly with the standard ~AI Jenggirat signature.
+func AttachAISignature(text string) string {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return ""
+	}
+	sigLower := strings.ToLower(trimmed)
+	if strings.HasSuffix(sigLower, "~ai jenggirat") ||
+		strings.HasSuffix(sigLower, "~ ai jenggirat") ||
+		strings.HasSuffix(sigLower, "~ai-jenggirat") ||
+		strings.HasSuffix(sigLower, "-ai jenggirat") ||
+		strings.HasSuffix(sigLower, "- ai jenggirat") ||
+		strings.HasSuffix(sigLower, "-ai-jenggirat") {
+		for _, s := range []string{
+			"~AI Jenggirat", "~ AI Jenggirat", "~ai jenggirat", "~Ai Jenggirat",
+			"- AI Jenggirat", "- AI JENGGIRAT", "- ai jenggirat", "-ai jenggirat", "-Ai Jenggirat",
+		} {
+			if strings.HasSuffix(trimmed, s) {
+				trimmed = strings.TrimSpace(strings.TrimSuffix(trimmed, s))
+				break
+			}
+		}
+	}
+	return trimmed + "\n\n~AI Jenggirat"
 }
 
 func (s *Service) recordHandoffAudit(ctx context.Context, state *ConversationState, action, actor, role, reason, correlationID string, metaMap map[string]any) {
@@ -1706,9 +2027,6 @@ func (s *Service) buildPromptContext(ctx context.Context, req TurnRequest, state
 			statusLabel = "Dibatalkan"
 		}
 		activeOrderStatus = fmt.Sprintf("Pesanan #%s - Status: %s (%s). Total: Rp %d.", activeOrder.OrderNumber, activeOrder.Status, statusLabel, activeOrder.TotalAmount)
-		if activeOrder.PublicTrackingToken != "" {
-			activeOrderStatus += fmt.Sprintf(" Link tracking: http://localhost:3000/orders/track/%s", activeOrder.PublicTrackingToken)
-		}
 
 		var itemNames []string
 		for _, it := range activeOrder.Items {
@@ -1738,14 +2056,56 @@ func (s *Service) buildPromptContext(ctx context.Context, req TurnRequest, state
 		currentDraftInfo = fmt.Sprintf("Draf pesanan belum terkonfirmasi: %s. Subtotal: Rp %d.", strings.Join(draftItems, ", "), state.CurrentDraft.SubtotalAmount)
 	}
 
+	var conversationHistory string
+	if s.convStore != nil && state.CycleID != "" {
+		if recentMessages, err := s.convStore.GetRecentContextMessages(ctx, req.SenderPhone, state.CycleID, 8); err == nil && len(recentMessages) > 0 {
+			var lines []string
+			for _, m := range recentMessages {
+				roleLabel := "Pelanggan"
+				if m.Role == "assistant" {
+					roleLabel = "Asisten"
+				}
+				lines = append(lines, fmt.Sprintf("%s: %s", roleLabel, m.MessageText))
+			}
+			conversationHistory = strings.Join(lines, "\n")
+		}
+	}
+
+	var catalogPrices string
+	if s.catalogProvider != nil {
+		if categories, err := s.catalogProvider.ListPublic(ctx, ""); err == nil {
+			var catLines []string
+			for _, cat := range categories {
+				if !cat.Active || len(cat.Menus) == 0 {
+					continue
+				}
+				var itemPrices []string
+				for _, m := range cat.Menus {
+					if !m.Available {
+						continue
+					}
+					itemPrices = append(itemPrices, fmt.Sprintf("%s (Rp %d)", m.Name, m.PriceAmount))
+				}
+				if len(itemPrices) > 0 {
+					catLines = append(catLines, fmt.Sprintf("• %s: %s", cat.Name, strings.Join(itemPrices, " | ")))
+				}
+			}
+			if len(catLines) > 0 {
+				catalogPrices = strings.Join(catLines, "\n")
+			}
+		}
+	}
+
 	outletInfo := "Nama: Martabak & Terang Bulan Jenggirat. Alamat: Jl. Ahmad Yani No. 45 (Kediri / Banyuwangi). Jam Buka: 16:00 - 23:00 WIB setiap hari. Pesanan bisa diambil langsung di outlet (Pickup / Takeaway) atau pesan lewat WhatsApp."
 
 	return PromptContext{
-		CustomerName:      customerName,
-		ActiveOrderStatus: activeOrderStatus,
-		ActiveOrderItems:  activeOrderItems,
-		CurrentDraftInfo:  currentDraftInfo,
-		OutletInfo:        outletInfo,
+		CustomerName:        customerName,
+		ActiveOrderStatus:   activeOrderStatus,
+		ActiveOrderItems:    activeOrderItems,
+		CurrentDraftInfo:    currentDraftInfo,
+		OutletInfo:          outletInfo,
+		CatalogPrices:       catalogPrices,
+		ConversationHistory: conversationHistory,
 	}
 }
 

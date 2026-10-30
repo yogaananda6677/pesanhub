@@ -234,3 +234,162 @@ func TestDraftMerger_UnrecognizedModifier_NoCoklatCollision(t *testing.T) {
 		t.Fatalf("expected resolved = false because 'coklat' is food and must not trigger 'ok' skip confirmation")
 	}
 }
+
+func TestDraftMerger_TerangBulanMultiToppingClarification(t *testing.T) {
+	cats := sampleTerangBulanCatalog()
+	provider := &mockCatalogProvider{categories: cats}
+	merger := NewDraftMerger(provider)
+	ctx := context.Background()
+
+	// Case 1: Terang Bulan 2 Toping has 1 topping (Coklat), customer adds "pisang"
+	draftInsufficient := &DraftCandidate{
+		Items: []ExtractedItem{
+			{
+				MenuID:          "m-tb-2-besar",
+				SKU:             "TB-2TOPING-BESAR",
+				Name:            "Terang Bulan 2 Toping - Besar",
+				Quantity:        1,
+				UnitPriceAmount: 30000,
+				LineTotalAmount: 30000,
+				SelectedModifiers: []SelectedModifier{
+					{GroupID: "grp-base", GroupName: "Pilihan Base Cake", OptionID: "opt-orig", OptionName: "Original"},
+					{GroupID: "grp-top", GroupName: "Pilihan Toping", OptionID: "opt-coklat", OptionName: "Coklat"},
+				},
+			},
+		},
+		AmbiguityReasons: []string{"insufficient_toppings:Pilihan Toping:2:1"},
+		IsAmbiguous:      true,
+		FulfillmentType:  "PICKUP",
+		PaymentMethod:    "CASH",
+		SubtotalAmount:   30000,
+		TotalAmount:      30000,
+	}
+
+	updated1, resolved1, err := merger.MergeClarification(
+		ctx,
+		draftInsufficient,
+		"insufficient_toppings:Pilihan Toping:2:1",
+		"pisang",
+		cats,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !resolved1 {
+		t.Fatalf("expected resolved = true when customer provides remaining topping")
+	}
+	if updated1.IsAmbiguous {
+		t.Fatalf("expected unambiguous, got reasons: %v", updated1.AmbiguityReasons)
+	}
+	// Check toppings: should have Original (base) + Coklat + Pisang = 3 selected modifiers
+	var toppingNames []string
+	for _, m := range updated1.Items[0].SelectedModifiers {
+		if m.GroupName == "Pilihan Toping" {
+			toppingNames = append(toppingNames, m.OptionName)
+		}
+	}
+	if len(toppingNames) != 2 {
+		t.Fatalf("expected 2 toppings, got %d: %v", len(toppingNames), toppingNames)
+	}
+
+	// Case 2: Customer specifies BOTH toppings in clarification ("pisang coklat")
+	draftNeedsBoth := &DraftCandidate{
+		Items: []ExtractedItem{
+			{
+				MenuID:          "m-tb-2-besar",
+				SKU:             "TB-2TOPING-BESAR",
+				Name:            "Terang Bulan 2 Toping - Besar",
+				Quantity:        1,
+				UnitPriceAmount: 30000,
+				LineTotalAmount: 30000,
+				SelectedModifiers: []SelectedModifier{
+					{GroupID: "grp-base", GroupName: "Pilihan Base Cake", OptionID: "opt-orig", OptionName: "Original"},
+				},
+			},
+		},
+		AmbiguityReasons: []string{"missing_required_modifier:Pilihan Toping"},
+		IsAmbiguous:      true,
+		FulfillmentType:  "PICKUP",
+		PaymentMethod:    "CASH",
+		SubtotalAmount:   30000,
+		TotalAmount:      30000,
+	}
+
+	updated2, resolved2, err := merger.MergeClarification(
+		ctx,
+		draftNeedsBoth,
+		"missing_required_modifier:Pilihan Toping",
+		"pisang coklat",
+		cats,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !resolved2 {
+		t.Fatalf("expected resolved = true when providing 'pisang coklat'")
+	}
+	if updated2.IsAmbiguous {
+		t.Fatalf("expected unambiguous, got reasons: %v", updated2.AmbiguityReasons)
+	}
+	var toppingNames2 []string
+	for _, m := range updated2.Items[0].SelectedModifiers {
+		if m.GroupName == "Pilihan Toping" {
+			toppingNames2 = append(toppingNames2, m.OptionName)
+		}
+	}
+	if len(toppingNames2) != 2 {
+		t.Fatalf("expected 2 toppings from 'pisang coklat', got %d: %v", len(toppingNames2), toppingNames2)
+	}
+
+	// Case 3: Excess toppings (modifier_limit_exceeded), customer clarifies "keju dan coklat"
+	draftExcess := &DraftCandidate{
+		Items: []ExtractedItem{
+			{
+				MenuID:          "m-tb-2-besar",
+				SKU:             "TB-2TOPING-BESAR",
+				Name:            "Terang Bulan 2 Toping - Besar",
+				Quantity:        1,
+				UnitPriceAmount: 30000,
+				LineTotalAmount: 30000,
+				SelectedModifiers: []SelectedModifier{
+					{GroupID: "grp-base", GroupName: "Pilihan Base Cake", OptionID: "opt-orig", OptionName: "Original"},
+					{GroupID: "grp-top", GroupName: "Pilihan Toping", OptionID: "opt-coklat", OptionName: "Coklat"},
+					{GroupID: "grp-top", GroupName: "Pilihan Toping", OptionID: "opt-keju", OptionName: "Keju"},
+					{GroupID: "grp-top", GroupName: "Pilihan Toping", OptionID: "opt-pisang", OptionName: "Pisang"},
+				},
+			},
+		},
+		AmbiguityReasons: []string{"modifier_limit_exceeded:Pilihan Toping:2:3"},
+		IsAmbiguous:      true,
+		FulfillmentType:  "PICKUP",
+		PaymentMethod:    "CASH",
+		SubtotalAmount:   30000,
+		TotalAmount:      30000,
+	}
+
+	updated3, resolved3, err := merger.MergeClarification(
+		ctx,
+		draftExcess,
+		"modifier_limit_exceeded:Pilihan Toping:2:3",
+		"keju dan coklat",
+		cats,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !resolved3 {
+		t.Fatalf("expected resolved = true when picking 2 toppings from excess")
+	}
+	if updated3.IsAmbiguous {
+		t.Fatalf("expected unambiguous, got reasons: %v", updated3.AmbiguityReasons)
+	}
+	var toppingNames3 []string
+	for _, m := range updated3.Items[0].SelectedModifiers {
+		if m.GroupName == "Pilihan Toping" {
+			toppingNames3 = append(toppingNames3, m.OptionName)
+		}
+	}
+	if len(toppingNames3) != 2 {
+		t.Fatalf("expected exactly 2 toppings after excess clarification, got %d: %v", len(toppingNames3), toppingNames3)
+	}
+}
