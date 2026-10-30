@@ -13,19 +13,50 @@ abstract final class AppColors {
   static const Color secondaryContainer = Color(0xFFFFF1D2);
   static const Color onSecondary = Color(0xFFFFFFFF);
 
+  // Terracotta Warm Palette Tokens
+  static const Color terracottaDark = Color(0xFF2D231E);
+  static const Color terracotta = Color(0xFF8D321F);
+  static const Color terracottaLight = Color(0xFFF9EFE7);
+  static const Color terracottaBorder = Color(0xFFF0DCD3);
+  static const Color terracottaGradientStart = Color(0xFF8D321F);
+  static const Color terracottaGradientEnd = Color(0xFFB8482A);
+
   // Surfaces & Backgrounds
   static const Color background = Color(0xFFF8F9FA);
   static const Color surface = Color(0xFFFFFFFF);
   static const Color surfaceVariant = Color(0xFFF1F5F9);
   static const Color border = Color(0xFFE2E8F0);
   static const Color borderFocus = Color(0xFF7A321F);
+  static const Color creamBg = Color(0xFFFBF8F5);
+  static const Color warmSurface = Color(0xFFF7F5F2);
+  static const Color cardBorder = Color(0xFFF0EBE6);
+  static const Color cardBorderSubtle = Color(0xFFF4EEEA);
+  static const Color cardBorderAlt = Color(0xFFF3ECE6);
 
-  // Typography Colors
+  // Typography & Slate Colors
   static const Color textPrimary = Color(0xFF2B1B16);
   static const Color textSecondary = Color(0xFF75645D);
   static const Color textMuted = Color(0xFF8E9A93);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
+  static const Color slate = Color(0xFF64748B);
+  static const Color slateLight = Color(0xFF94A3B8);
+  static const Color slateDark = Color(0xFF475569);
+  static const Color neutralText = Color(0xFF7A6B63);
+  static const Color neutralTextLight = Color(0xFF9E8E85);
+  static const Color neutralTextMuted = Color(0xFF8C7E77);
 
+  // Distinct Accent Semantics
+  static const Color accentBlue = Color(0xFF0284C7);
+  static const Color accentBlueBg = Color(0xFFE0F2FE);
+  static const Color accentGreen = Color(0xFF16A34A);
+  static const Color accentGreenDeep = Color(0xFF2E7D32);
+  static const Color accentGreenBg = Color(0xFFE8F5E9);
+  static const Color accentGreenBorder = Color(0xFFC8E6C9);
+  static const Color accentRed = Color(0xFFC62828);
+  static const Color accentRedBg = Color(0xFFFFEBEE);
+  static const Color accentRedBorder = Color(0xFFFFCDD2);
+  static const Color accentAmber = Color(0xFFD97706);
+  static const Color accentAmberBg = Color(0xFFFEF3C7);
   // Semantic Feedback Colors
   static const Color success = Color(0xFF15803D);
   static const Color successBg = Color(0xFFDCFCE7);

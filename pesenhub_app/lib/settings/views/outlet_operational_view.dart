@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../data/local/local_database.dart';
 import '../../data/remote/pesenhub_api_client.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 
 /// Screen 4: Outlet & Operasional
@@ -191,7 +192,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Gagal memperbarui status: $err'),
-              backgroundColor: const Color(0xFFC62828),
+              backgroundColor: AppColors.accentRed,
             ),
           );
           return;
@@ -208,8 +209,8 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                 : 'Status kasir: TUTUP SEMENTARA',
           ),
           backgroundColor: newStatus
-              ? const Color(0xFF2E7D32)
-              : const Color(0xFFC62828),
+              ? AppColors.accentGreenDeep
+              : AppColors.accentRed,
           duration: const Duration(seconds: 2),
         ),
       );
@@ -262,14 +263,14 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF8F5),
+      backgroundColor: AppColors.creamBg,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: Color(0xFF2D231E),
+            color: AppColors.terracottaDark,
             size: 20,
           ),
           onPressed: () => Navigator.of(context).pop(),
@@ -277,7 +278,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
         title: const Text(
           'Outlet & Operasional',
           style: TextStyle(
-            color: Color(0xFF2D231E),
+            color: AppColors.terracottaDark,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -293,7 +294,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      Color(0xFF8D321F),
+                      AppColors.terracotta,
                     ),
                   ),
                 ),
@@ -302,7 +303,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
         ],
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: Color(0xFFF0EBE6)),
+          child: Divider(height: 1, color: AppColors.cardBorder),
         ),
       ),
       body: SingleChildScrollView(
@@ -341,7 +342,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
         style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-          color: Color(0xFF64748B),
+          color: AppColors.slate,
           letterSpacing: 0.8,
         ),
       ),
@@ -352,16 +353,16 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9EFE7),
+        color: AppColors.terracottaLight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF0DCD3)),
+        border: Border.all(color: AppColors.terracottaBorder),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF8D321F),
+              color: AppColors.terracotta,
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -380,7 +381,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF2D231E),
+                    color: AppColors.terracottaDark,
                   ),
                 ),
                 SizedBox(height: 3),
@@ -388,7 +389,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                   'Atur identitas brand, jam buka kasir, dan pantau cabang aktif.',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF7A6B63),
+                    color: AppColors.neutralText,
                     height: 1.35,
                   ),
                 ),
@@ -410,7 +411,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF0EBE6)),
+        border: Border.all(color: AppColors.cardBorder),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -429,7 +430,10 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                 height: 48,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF8D321F), Color(0xFFB8482A)],
+                    colors: [
+                      AppColors.terracotta,
+                      AppColors.terracottaGradientEnd,
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -455,13 +459,16 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF2D231E),
+                        color: AppColors.terracottaDark,
                       ),
                     ),
                     const SizedBox(height: 2),
                     const Text(
                       'Kuliner Martabak & Terang Bulan Spesial',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF7A6B63)),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.neutralText,
+                      ),
                     ),
                   ],
                 ),
@@ -470,7 +477,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                 icon: const Icon(
                   Icons.edit_outlined,
                   size: 20,
-                  color: Color(0xFF8D321F),
+                  color: AppColors.terracotta,
                 ),
                 onPressed: _showEditBrandDialog,
                 tooltip: 'Ubah Data Gerai',
@@ -479,7 +486,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 14),
-            child: Divider(height: 1, color: Color(0xFFF4EEEA)),
+            child: Divider(height: 1, color: AppColors.cardBorderSubtle),
           ),
           _buildInfoRow(
             icon: Icons.location_on_outlined,
@@ -509,7 +516,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF0EBE6)),
+        border: Border.all(color: AppColors.cardBorder),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -526,15 +533,15 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: _isOpen
-                      ? const Color(0xFFE8F5E9)
-                      : const Color(0xFFFFEBEE),
+                      ? AppColors.accentGreenBg
+                      : AppColors.accentRedBg,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.access_time_filled_rounded,
                   color: _isOpen
-                      ? const Color(0xFF2E7D32)
-                      : const Color(0xFFC62828),
+                      ? AppColors.accentGreenDeep
+                      : AppColors.accentRed,
                   size: 20,
                 ),
               ),
@@ -545,7 +552,10 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                   children: [
                     const Text(
                       'Status Layanan Kasir',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF7A6B63)),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.neutralText,
+                      ),
                     ),
                     Text(
                       _isOpen ? 'Buka Sekarang' : 'Tutup Sementara',
@@ -553,8 +563,8 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: _isOpen
-                            ? const Color(0xFF2E7D32)
-                            : const Color(0xFFC62828),
+                            ? AppColors.accentGreenDeep
+                            : AppColors.accentRed,
                       ),
                     ),
                   ],
@@ -562,14 +572,14 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
               ),
               Switch.adaptive(
                 value: _isOpen,
-                activeThumbColor: const Color(0xFF8D321F),
+                activeThumbColor: AppColors.terracotta,
                 onChanged: _updateOperationalStatus,
               ),
             ],
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1, color: Color(0xFFF4EEEA)),
+            child: Divider(height: 1, color: AppColors.cardBorderSubtle),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -579,7 +589,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF2D231E),
+                  color: AppColors.terracottaDark,
                 ),
               ),
               Container(
@@ -588,7 +598,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9EFE7),
+                  color: AppColors.terracottaLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -596,7 +606,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF8D321F),
+                    color: AppColors.terracotta,
                   ),
                 ),
               ),
@@ -609,7 +619,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
             children: [
               const Text(
                 'Hari Operasional:',
-                style: TextStyle(fontSize: 12, color: Color(0xFF7A6B63)),
+                style: TextStyle(fontSize: 12, color: AppColors.neutralText),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -619,7 +629,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF2D231E),
+                    color: AppColors.terracottaDark,
                   ),
                 ),
               ),
@@ -631,8 +641,8 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
             icon: const Icon(Icons.edit_calendar_outlined, size: 16),
             label: const Text('Ubah Jam & Hari Operasional'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF8D321F),
-              side: const BorderSide(color: Color(0xFFE2D3CC)),
+              foregroundColor: AppColors.terracotta,
+              side: const BorderSide(color: AppColors.terracottaBorder),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -660,8 +670,8 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isMain
-              ? const Color(0xFF8D321F).withValues(alpha: 0.3)
-              : const Color(0xFFF0EBE6),
+              ? AppColors.terracotta.withValues(alpha: 0.3)
+              : AppColors.cardBorder,
         ),
       ),
       child: Row(
@@ -670,12 +680,14 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: isMain ? const Color(0xFFF9EFE7) : const Color(0xFFF4F4F5),
+              color: isMain
+                  ? AppColors.terracottaLight
+                  : AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               Icons.store_outlined,
-              color: isMain ? const Color(0xFF8D321F) : const Color(0xFF71717A),
+              color: isMain ? AppColors.terracotta : AppColors.slateDark,
               size: 20,
             ),
           ),
@@ -692,7 +704,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF2D231E),
+                          color: AppColors.terracottaDark,
                         ),
                       ),
                     ),
@@ -703,7 +715,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF8D321F),
+                          color: AppColors.terracotta,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text(
@@ -723,8 +735,8 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                         ),
                         decoration: BoxDecoration(
                           color: branchIsOpen
-                              ? const Color(0xFFE8F5E9)
-                              : const Color(0xFFFFEBEE),
+                              ? AppColors.accentGreenBg
+                              : AppColors.accentRedBg,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -733,8 +745,8 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                             color: branchIsOpen
-                                ? const Color(0xFF2E7D32)
-                                : const Color(0xFFC62828),
+                                ? AppColors.accentGreenDeep
+                                : AppColors.accentRed,
                           ),
                         ),
                       ),
@@ -745,7 +757,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                   address,
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF7A6B63),
+                    color: AppColors.neutralText,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -754,14 +766,14 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                     const Icon(
                       Icons.phone_android,
                       size: 13,
-                      color: Color(0xFF9E8E85),
+                      color: AppColors.neutralTextLight,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       phone,
                       style: const TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF9E8E85),
+                        color: AppColors.neutralTextLight,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -783,7 +795,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: const Color(0xFF8D321F)),
+        Icon(icon, size: 16, color: AppColors.terracotta),
         const SizedBox(width: 10),
         SizedBox(
           width: 110,
@@ -791,7 +803,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
             label,
             style: const TextStyle(
               fontSize: 12,
-              color: Color(0xFF7A6B63),
+              color: AppColors.neutralText,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -801,7 +813,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
             value,
             style: const TextStyle(
               fontSize: 12,
-              color: Color(0xFF2D231E),
+              color: AppColors.terracottaDark,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -833,7 +845,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
               width: 44,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFCBD5E1),
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -845,12 +857,12 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF9EFE7),
+                    color: AppColors.terracottaLight,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
                     Icons.access_time_rounded,
-                    color: Color(0xFF8D321F),
+                    color: AppColors.terracotta,
                     size: 22,
                   ),
                 ),
@@ -865,7 +877,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                   icon: const Icon(
                     Icons.close_rounded,
                     size: 22,
-                    color: Color(0xFF64748B),
+                    color: AppColors.slate,
                   ),
                   onPressed: () => Navigator.of(ctx).pop(),
                   splashRadius: 20,
@@ -873,7 +885,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const Divider(height: 1, color: AppColors.surfaceVariant),
           Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -912,7 +924,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF2D231E),
+                      color: AppColors.terracottaDark,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -924,14 +936,14 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                       return FilterChip(
                         label: Text(day),
                         selected: isSelected,
-                        selectedColor: const Color(0xFFF9EFE7),
-                        checkmarkColor: const Color(0xFF8D321F),
+                        selectedColor: AppColors.terracottaLight,
+                        checkmarkColor: AppColors.terracotta,
                         labelStyle: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: isSelected
-                              ? const Color(0xFF8D321F)
-                              : const Color(0xFF64748B),
+                              ? AppColors.terracotta
+                              : AppColors.slate,
                         ),
                         onSelected: (val) {
                           setModalState(() {
@@ -951,7 +963,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
               ),
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const Divider(height: 1, color: AppColors.surfaceVariant),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
             child: Row(
@@ -961,7 +973,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                   onPressed: () => Navigator.of(ctx).pop(),
                   child: const Text(
                     'Batal',
-                    style: TextStyle(color: Color(0xFF7A6B63)),
+                    style: TextStyle(color: AppColors.neutralText),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -985,7 +997,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                                 content: Text(
                                   'Format jam harus valid (HH:MM, contoh: 16:00).',
                                 ),
-                                backgroundColor: Color(0xFFC62828),
+                                backgroundColor: AppColors.accentRed,
                               ),
                             );
                             return;
@@ -1014,7 +1026,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                                     content: Text(
                                       'Gagal menyimpan ke database: $err',
                                     ),
-                                    backgroundColor: const Color(0xFFC62828),
+                                    backgroundColor: AppColors.accentRed,
                                   ),
                                 );
                               }
@@ -1033,13 +1045,13 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                                 content: Text(
                                   'Jam operasional berhasil disimpan ke database.',
                                 ),
-                                backgroundColor: Color(0xFF2E7D32),
+                                backgroundColor: AppColors.accentGreenDeep,
                               ),
                             );
                           }
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8D321F),
+                    backgroundColor: AppColors.terracotta,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -1188,13 +1200,13 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                 messenger.showSnackBar(
                   const SnackBar(
                     content: Text('Data gerai berhasil disimpan ke database.'),
-                    backgroundColor: Color(0xFF2E7D32),
+                    backgroundColor: AppColors.accentGreenDeep,
                   ),
                 );
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8D321F),
+              backgroundColor: AppColors.terracotta,
               foregroundColor: Colors.white,
             ),
             child: const Text('Simpan'),

@@ -340,21 +340,59 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         },
         onRefresh: widget.onRefreshQueue,
       ),
-      SettingsDestinationView(
-        onSignOut: widget.onSignOut,
-        isAdmin: widget.isAdmin,
-        inviteCashier: widget.inviteCashier,
-        userName: widget.userName,
-        userEmail: widget.userEmail,
-        userRole: widget.userRole,
-        branchName: widget.branchName,
-        branchId: widget.branchId,
-        availableBranches: widget.availableBranches,
-        connectivityController: _connectivity,
+      HistoryDestinationView(
         apiClient: widget.apiClient,
-        onUpdateDisplayName: widget.onUpdateDisplayName,
+        branchId: widget.branchId,
+      ),
+      FinanceDestinationView(
+        apiClient: widget.apiClient,
+        branchId: widget.branchId,
+        onRefresh: _loadReportSummary,
       ),
     ];
+  }
+
+  void _openSettingsScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => SettingsScreen(
+          onSignOut: widget.onSignOut,
+          isAdmin: widget.isAdmin,
+          inviteCashier: widget.inviteCashier,
+          userName: widget.userName,
+          userEmail: widget.userEmail,
+          userRole: widget.userRole,
+          branchName: widget.branchName,
+          branchId: widget.branchId,
+          availableBranches: widget.availableBranches,
+          connectivityController: _connectivity,
+          apiClient: widget.apiClient,
+          onUpdateDisplayName: widget.onUpdateDisplayName,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDestinationIcon(
+    AppDestination destination, {
+    required bool isSelected,
+  }) {
+    final icon = Icon(
+      isSelected ? destination.selectedIcon : destination.icon,
+      color: isSelected ? AppColors.primary : AppColors.textSecondary,
+    );
+    if (destination == AppDestination.queue) {
+      final activeCount = widget.queueController?.activeOrders.length ?? 0;
+      if (activeCount > 0) {
+        return Badge.count(
+          count: activeCount,
+          backgroundColor: AppColors.accentRed,
+          textColor: Colors.white,
+          child: icon,
+        );
+      }
+    }
+    return icon;
   }
 
   @override
@@ -429,11 +467,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                   onDestinationSelected: _onDestinationSelected,
                   destinations: AppDestination.values.map((d) {
                     return NavigationDestination(
-                      icon: Icon(d.icon, color: AppColors.textSecondary),
-                      selectedIcon: Icon(
-                        d.selectedIcon,
-                        color: const Color(0xFFE5573F),
-                      ),
+                      icon: _buildDestinationIcon(d, isSelected: false),
+                      selectedIcon: _buildDestinationIcon(d, isSelected: true),
                       label: d.label,
                     );
                   }).toList(),
@@ -465,28 +500,44 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                     alignment: Alignment.bottomCenter,
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                      child: Tooltip(
-                        message: 'Sistem Terhubung ke Server',
-                        child: Container(
-                          padding: const EdgeInsets.all(AppSpacing.xs),
-                          decoration: const BoxDecoration(
-                            color: AppColors.successBg,
-                            shape: BoxShape.circle,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            key: const Key('rail-settings-button'),
+                            tooltip: 'Pengaturan Outlet',
+                            icon: const Icon(
+                              Icons.settings_outlined,
+                              color: AppColors.textSecondary,
+                              size: 22,
+                            ),
+                            onPressed: _openSettingsScreen,
                           ),
-                          child: const Icon(
-                            Icons.cloud_done_rounded,
-                            color: AppColors.success,
-                            size: 18,
+                          const SizedBox(height: 8),
+                          Tooltip(
+                            message: 'Sistem Terhubung ke Server',
+                            child: Container(
+                              padding: const EdgeInsets.all(AppSpacing.xs),
+                              decoration: const BoxDecoration(
+                                color: AppColors.successBg,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.cloud_done_rounded,
+                                color: AppColors.success,
+                                size: 18,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   ),
                 ),
                 destinations: AppDestination.values.map((d) {
                   return NavigationRailDestination(
-                    icon: Icon(d.icon),
-                    selectedIcon: Icon(d.selectedIcon),
+                    icon: _buildDestinationIcon(d, isSelected: false),
+                    selectedIcon: _buildDestinationIcon(d, isSelected: true),
                     label: Text(d.label),
                   );
                 }).toList(),
@@ -506,7 +557,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       AppDestination.dashboard => 'Ringkasan Operasional',
       AppDestination.pos => 'Sistem Pemesanan POS',
       AppDestination.queue => 'Manajemen Antrean',
-      AppDestination.settings => 'Pengaturan Outlet',
+      AppDestination.history => 'Riwayat Transaksi',
+      AppDestination.finance => 'Laporan & Keuangan',
     };
     final effectiveOnline =
         _connectivity.state != OperationalConnectionState.offline;
@@ -535,22 +587,22 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 2,
                     children: [
-                      Flexible(
-                        child: const Text(
-                          'Jenggirat',
-                          style: TextStyle(
-                            fontSize: 16,
-                            height: 1.1,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary,
-                            letterSpacing: -0.3,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                      const Text(
+                        'Jenggirat',
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 1.1,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                          letterSpacing: -0.3,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 8),
                       // Modern Navbar Online Status Pill
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -559,39 +611,42 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                         ),
                         decoration: BoxDecoration(
                           color: effectiveOnline
-                              ? const Color(0xFFE8F5E9)
-                              : const Color(0xFFFFEBEE),
+                              ? AppColors.accentGreenBg
+                              : AppColors.accentRedBg,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: effectiveOnline
-                                ? const Color(0xFFC8E6C9)
-                                : const Color(0xFFFFCDD2),
+                                ? AppColors.accentGreenBorder
+                                : AppColors.accentRedBorder,
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              effectiveOnline
-                                  ? Icons.cloud_done_rounded
-                                  : Icons.cloud_off_rounded,
-                              size: 13,
-                              color: effectiveOnline
-                                  ? const Color(0xFF2E7D32)
-                                  : const Color(0xFFC62828),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              effectiveOnline ? 'Online' : 'Offline',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                effectiveOnline
+                                    ? Icons.cloud_done_rounded
+                                    : Icons.cloud_off_rounded,
+                                size: 13,
                                 color: effectiveOnline
-                                    ? const Color(0xFF2E7D32)
-                                    : const Color(0xFFC62828),
+                                    ? AppColors.accentGreenDeep
+                                    : AppColors.accentRed,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Text(
+                                effectiveOnline ? 'Online' : 'Offline',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: effectiveOnline
+                                      ? AppColors.accentGreenDeep
+                                      : AppColors.accentRed,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -647,7 +702,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                 children: [
                   Container(
                     decoration: const BoxDecoration(
-                      color: Color(0xFFF1F5F9),
+                      color: AppColors.surfaceVariant,
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
@@ -688,13 +743,33 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFC62828),
+                          color: AppColors.accentRed,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 1.5),
                         ),
                       ),
                     ),
                 ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Header Settings button
+            Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceVariant,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                key: const Key('app-header-settings-button'),
+                tooltip: 'Pengaturan Outlet',
+                onPressed: _openSettingsScreen,
+                icon: const Icon(
+                  Icons.settings_outlined,
+                  color: AppColors.textPrimary,
+                  size: 19,
+                ),
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                padding: EdgeInsets.zero,
               ),
             ),
             const SizedBox(width: 8),
@@ -712,6 +787,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                         : (widget.userRole ?? 'Kasir Utama'),
                     branchName: widget.branchName,
                     onSignOut: widget.onSignOut,
+                    onOpenSettings: _openSettingsScreen,
                   );
                 },
                 borderRadius: BorderRadius.circular(18),
@@ -724,7 +800,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                       color: AppColors.primaryContainer,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFFF0DCD3),
+                        color: AppColors.terracottaBorder,
                         width: 1.5,
                       ),
                     ),

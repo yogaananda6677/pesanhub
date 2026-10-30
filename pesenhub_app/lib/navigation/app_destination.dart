@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
-/// AppDestination defines the navigation destinations available in the PesenHub App Shell.
+/// AppDestination defines the 5 primary operational navigation destinations
+/// available in the PesenHub App Shell (Issue #178).
 enum AppDestination {
   dashboard,
   pos,
   queue,
-  settings;
+  history,
+  finance;
 
   String get label {
     switch (this) {
@@ -14,9 +16,11 @@ enum AppDestination {
       case AppDestination.pos:
         return 'Kasir';
       case AppDestination.queue:
-        return 'Transaksi';
-      case AppDestination.settings:
-        return 'Akun';
+        return 'Antrean';
+      case AppDestination.history:
+        return 'Riwayat';
+      case AppDestination.finance:
+        return 'Keuangan';
     }
   }
 
@@ -28,8 +32,10 @@ enum AppDestination {
         return 'Kasir — Buat Pesanan';
       case AppDestination.queue:
         return 'Antrean Dapur';
-      case AppDestination.settings:
-        return 'Pengaturan Outlet';
+      case AppDestination.history:
+        return 'Riwayat Transaksi';
+      case AppDestination.finance:
+        return 'Laporan & Keuangan';
     }
   }
 
@@ -41,8 +47,10 @@ enum AppDestination {
         return Icons.point_of_sale_outlined;
       case AppDestination.queue:
         return Icons.receipt_long_outlined;
-      case AppDestination.settings:
-        return Icons.person_outline_rounded;
+      case AppDestination.history:
+        return Icons.history_outlined;
+      case AppDestination.finance:
+        return Icons.account_balance_wallet_outlined;
     }
   }
 
@@ -54,8 +62,10 @@ enum AppDestination {
         return Icons.point_of_sale_rounded;
       case AppDestination.queue:
         return Icons.receipt_long_rounded;
-      case AppDestination.settings:
-        return Icons.person_rounded;
+      case AppDestination.history:
+        return Icons.history_rounded;
+      case AppDestination.finance:
+        return Icons.account_balance_wallet_rounded;
     }
   }
 
