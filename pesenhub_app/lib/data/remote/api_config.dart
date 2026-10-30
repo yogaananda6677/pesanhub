@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class ApiConfig {
   static const _environmentBaseUrl = String.fromEnvironment(
     'PESENHUB_API_BASE_URL',
@@ -41,11 +43,22 @@ class ApiConfig {
   }
 
   static ApiConfig? fromEnvironment() {
-    if (_environmentBaseUrl.isEmpty) return null;
-    return ApiConfig(
-      baseUri: Uri.parse(_environmentBaseUrl),
-      googleServerClientId: _environmentGoogleServerClientId,
-    );
+    if (_environmentBaseUrl.isNotEmpty) {
+      return ApiConfig(
+        baseUri: Uri.parse(_environmentBaseUrl),
+        googleServerClientId: _environmentGoogleServerClientId,
+      );
+    }
+    if (kIsWeb) {
+      final base = Uri.base;
+      if (base.hasScheme && base.host.isNotEmpty) {
+        return ApiConfig(
+          baseUri: base.resolve('/api/v1/'),
+          googleServerClientId: _environmentGoogleServerClientId,
+        );
+      }
+    }
+    return null;
   }
 
   Uri resolve(String relativePath) => baseUri.resolve(relativePath);

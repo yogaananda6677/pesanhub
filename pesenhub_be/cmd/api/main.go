@@ -452,7 +452,14 @@ func main() {
 		}
 		http.Redirect(w, r, "https://github.com/yogaananda6677/pesanhub/releases", http.StatusTemporaryRedirect)
 	})
-	mux.Handle("GET /", http.FileServer(http.Dir("web")))
+	fileServer := http.FileServer(http.Dir("web"))
+	mux.HandleFunc("GET /app/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		fileServer.ServeHTTP(w, r)
+	})
+	mux.Handle("GET /", fileServer)
 	authenticatedMux := customer.Authenticate(cfg.Auth.StaffToken, cfg.Auth.KDSToken, sessions, branch.Middleware(branchService)(mux))
 	server := &http.Server{Addr: cfg.Address(), Handler: httpserver.Middleware(logger, authenticatedMux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
