@@ -151,8 +151,14 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	search := strings.TrimSpace(r.URL.Query().Get("search"))
+	if search == "" {
+		search = strings.TrimSpace(r.URL.Query().Get("q"))
+	}
+
 	filter := OrderFilter{
 		Pagination: pagination,
+		Search:     search,
 	}
 
 	for _, raw := range r.URL.Query()["status"] {

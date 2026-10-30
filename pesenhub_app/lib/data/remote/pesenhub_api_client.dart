@@ -34,9 +34,23 @@ abstract class QueueRemoteGateway {
   }
 }
 
+abstract class HistoryRemoteGateway {
+  Future<List<QueueOrder>> fetchOrders({
+    String? search,
+    List<String>? statuses,
+    DateTime? createdFrom,
+    DateTime? createdTo,
+    String? branchId,
+    int? pageSize,
+    String? cursor,
+    String? order,
+  });
+}
+
 class PesenHubApiClient
     implements
         QueueRemoteGateway,
+        HistoryRemoteGateway,
         OrderSyncGateway,
         AuthGateway,
         CatalogRemoteGateway {
@@ -302,6 +316,64 @@ class PesenHubApiClient
       return QueueOrderDto.fromJson(_decodeObject(response)).order;
     } on ApiFailure {
       rethrow;
+    } catch (_) {
+      throw _invalidResponse(response);
+    }
+  }
+
+  @override
+  Future<List<QueueOrder>> fetchOrders({
+    String? search,
+    List<String>? statuses,
+    DateTime? createdFrom,
+    DateTime? createdTo,
+    String? branchId,
+    int? pageSize,
+    String? cursor,
+    String? order,
+  }) async {
+    final queryParams = <String, String>{};
+    if (search != null && search.trim().isNotEmpty) {
+      queryParams['search'] = search.trim();
+    }
+    if (statuses != null && statuses.isNotEmpty) {
+      queryParams['status'] = statuses.join(',');
+    }
+    if (createdFrom != null) {
+      queryParams['created_from'] = createdFrom.toUtc().toIso8601String();
+    }
+    if (createdTo != null) {
+      queryParams['created_to'] = createdTo.toUtc().toIso8601String();
+    }
+    if (branchId != null && branchId.trim().isNotEmpty) {
+      queryParams['branch_id'] = branchId.trim();
+    }
+    if (pageSize != null && pageSize > 0) {
+      queryParams['page[size]'] = pageSize.toString();
+    }
+    if (cursor != null && cursor.isNotEmpty) {
+      queryParams['page[cursor]'] = cursor;
+    }
+    if (order != null && order.isNotEmpty) {
+      queryParams['page[order]'] = order;
+    }
+
+    final baseUri = config.resolve('orders');
+    final uri = queryParams.isEmpty
+        ? baseUri
+        : baseUri.replace(queryParameters: queryParams);
+    final response = await _send('GET', uri);
+    final json = _decodeObject(response);
+    final data = json['data'];
+    if (data is! List) throw _invalidResponse(response);
+    try {
+      return data
+          .map(
+            (value) => QueueOrderDto.fromJson(
+              Map<String, dynamic>.from(value as Map),
+            ).order,
+          )
+          .toList(growable: false);
     } catch (_) {
       throw _invalidResponse(response);
     }

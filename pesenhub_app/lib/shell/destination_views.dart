@@ -5,6 +5,8 @@ import '../alerts/order_alert_controller.dart';
 import '../cart/controllers/cart_controller.dart';
 import '../cart/models/cart_order_draft.dart';
 import '../connectivity/connectivity_controller.dart';
+import '../history/controllers/history_controller.dart';
+import '../history/views/history_view.dart';
 import '../kds/controllers/kds_controller.dart';
 import '../kds/kds_view.dart';
 import '../menu/controllers/menu_availability_controller.dart';
@@ -1244,187 +1246,27 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
 }
 
 /// HistoryDestinationView provides the Transaction History module (Issue #178 & #180).
-class HistoryDestinationView extends StatefulWidget {
+class HistoryDestinationView extends StatelessWidget {
   final PesenHubApiClient? apiClient;
   final String? branchId;
+  final HistoryController? controller;
+  final List<QueueOrder>? initialOrders;
 
-  const HistoryDestinationView({super.key, this.apiClient, this.branchId});
-
-  @override
-  State<HistoryDestinationView> createState() => _HistoryDestinationViewState();
-}
-
-class _HistoryDestinationViewState extends State<HistoryDestinationView> {
-  String _selectedFilter = 'Semua';
-  final TextEditingController _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  const HistoryDestinationView({
+    super.key,
+    this.apiClient,
+    this.branchId,
+    this.controller,
+    this.initialOrders,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= AppSpacing.tabletBreakpoint;
-        return SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: isWide ? AppSpacing.xl : AppSpacing.md,
-            vertical: AppSpacing.md,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header & Search
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TextField(
-                      key: const Key('history-search-input'),
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText:
-                            'Cari nomor antrean, nama pelanggan, atau ID...',
-                        hintStyle: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.neutralTextLight,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.search_rounded,
-                          color: AppColors.neutralTextMuted,
-                        ),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear_rounded),
-                                onPressed: () {
-                                  setState(() {
-                                    _searchController.clear();
-                                  });
-                                },
-                              )
-                            : null,
-                        filled: true,
-                        fillColor: AppColors.warmSurface,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final filter in [
-                            'Semua',
-                            'Selesai',
-                            'Batal',
-                            'Offline',
-                          ])
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: ChoiceChip(
-                                label: Text(filter),
-                                selected: _selectedFilter == filter,
-                                onSelected: (val) {
-                                  if (val) {
-                                    setState(() => _selectedFilter = filter);
-                                  }
-                                },
-                                selectedColor: AppColors.primaryContainer,
-                                labelStyle: TextStyle(
-                                  color: _selectedFilter == filter
-                                      ? AppColors.primary
-                                      : AppColors.slate,
-                                  fontWeight: _selectedFilter == filter
-                                      ? FontWeight.bold
-                                      : FontWeight.w500,
-                                  fontSize: 12,
-                                ),
-                                side: BorderSide(
-                                  color: _selectedFilter == filter
-                                      ? AppColors.terracottaBorder
-                                      : AppColors.border,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Empty State Card
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xl,
-                  vertical: 48,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: const BoxDecoration(
-                        color: AppColors.terracottaLight,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.history_toggle_off_rounded,
-                        size: 38,
-                        color: AppColors.terracotta,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    const Text(
-                      'Belum Ada Riwayat Transaksi',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Transaksi pesanan kasir dan online yang selesai atau dibatalkan akan tercatat rapi di sini.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.neutralText,
-                        height: 1.4,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    return HistoryView(
+      apiClient: apiClient,
+      branchId: branchId,
+      controller: controller,
+      initialOrders: initialOrders,
     );
   }
 }

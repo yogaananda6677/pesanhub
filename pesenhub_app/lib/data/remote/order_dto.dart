@@ -76,6 +76,41 @@ class QueueOrderDto {
     final discountAmount = (json['discount_amount'] as num?)?.toInt();
     final discountId = json['discount_id'] as String?;
     final discountName = json['discount_name'] as String?;
+    final paymentMethod = json['payment_method'] as String?;
+
+    String? cancellationReason;
+    String? cancelledBy;
+    if (json['history'] is List) {
+      final historyList = json['history'] as List;
+      for (final h in historyList.reversed) {
+        if (h is Map) {
+          final toStatus = h['to_status'] as String?;
+          if (toStatus == 'CANCELLED' || toStatus == 'REJECTED') {
+            final reason = h['reason_code'] as String?;
+            if (reason != null && reason.isNotEmpty) {
+              cancellationReason = reason;
+            }
+            final actorType = h['actor_type'] as String?;
+            final actorId = h['actor_id'] as String?;
+            if (actorType != null || actorId != null) {
+              cancelledBy = actorType != null && actorType.isNotEmpty
+                  ? (actorId != null && actorId.isNotEmpty
+                        ? '$actorType ($actorId)'
+                        : actorType)
+                  : actorId;
+            }
+            break;
+          }
+        }
+      }
+    }
+    if (cancellationReason == null && json['cancellation_reason'] is String) {
+      cancellationReason = json['cancellation_reason'] as String;
+    }
+    if (cancelledBy == null && json['cancelled_by'] is String) {
+      cancelledBy = json['cancelled_by'] as String;
+    }
+
     return QueueOrderDto(
       QueueOrder(
         id: id,
@@ -102,6 +137,9 @@ class QueueOrderDto {
         discountAmount: discountAmount,
         discountId: discountId,
         discountName: discountName,
+        cancellationReason: cancellationReason,
+        cancelledBy: cancelledBy,
+        paymentMethod: paymentMethod,
       ),
     );
   }

@@ -23,6 +23,9 @@ class QueueOrder {
   final int? discountAmount;
   final String? discountId;
   final String? discountName;
+  final String? cancellationReason;
+  final String? cancelledBy;
+  final String? paymentMethod;
 
   const QueueOrder({
     required this.id,
@@ -44,6 +47,9 @@ class QueueOrder {
     this.discountAmount,
     this.discountId,
     this.discountName,
+    this.cancellationReason,
+    this.cancelledBy,
+    this.paymentMethod,
   });
 
   /// Total sum of items in the order before discounts.
@@ -57,11 +63,15 @@ class QueueOrder {
     return res < 0 ? 0 : res;
   }
 
+  /// True if the order is completed.
+  bool get isCompleted => orderStatus == 'COMPLETED';
+
+  /// True if the order was cancelled or rejected.
+  bool get isCancelled =>
+      orderStatus == 'CANCELLED' || orderStatus == 'REJECTED';
+
   /// True if the order is still active in the kitchen/queue lifecycle.
-  bool get isActive =>
-      orderStatus != 'COMPLETED' &&
-      orderStatus != 'REJECTED' &&
-      orderStatus != 'CANCELLED';
+  bool get isActive => !isCompleted && !isCancelled;
 
   /// True if the active order has exceeded the 15-minute preparation threshold.
   bool isOverdueAt(DateTime now) {
@@ -143,6 +153,9 @@ class QueueOrder {
     int? discountAmount,
     String? discountId,
     String? discountName,
+    String? cancellationReason,
+    String? cancelledBy,
+    String? paymentMethod,
   }) {
     return QueueOrder(
       id: id ?? this.id,
@@ -164,6 +177,9 @@ class QueueOrder {
       discountAmount: discountAmount ?? this.discountAmount,
       discountId: discountId ?? this.discountId,
       discountName: discountName ?? this.discountName,
+      cancellationReason: cancellationReason ?? this.cancellationReason,
+      cancelledBy: cancelledBy ?? this.cancelledBy,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
     );
   }
 }

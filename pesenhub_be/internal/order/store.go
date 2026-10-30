@@ -533,6 +533,12 @@ func (s *Store) List(ctx context.Context, filter OrderFilter) ([]OrderDetail, st
 		args = append(args, filter.BranchID)
 		where = append(where, fmt.Sprintf("o.branch_id = $%d::uuid", len(args)))
 	}
+	if strings.TrimSpace(filter.Search) != "" {
+		searchTerm := "%" + strings.ToLower(strings.TrimSpace(filter.Search)) + "%"
+		args = append(args, searchTerm)
+		idx := len(args)
+		where = append(where, fmt.Sprintf("(LOWER(o.order_number) LIKE $%d OR LOWER(o.customer_name_snapshot) LIKE $%d OR LOWER(COALESCE(o.customer_phone_snapshot, '')) LIKE $%d OR LOWER(o.id::text) LIKE $%d)", idx, idx, idx, idx))
+	}
 
 	orderDir := "ASC"
 	if strings.ToLower(filter.Pagination.Order) == "desc" {
@@ -606,6 +612,12 @@ func (s *Store) List(ctx context.Context, filter OrderFilter) ([]OrderDetail, st
 	if err = s.populateItems(ctx, orders); err != nil {
 		return nil, "", err
 	}
+	if err = s.populateHistory(ctx, orders); err != nil {
+		return nil, "", err
+	}
+	if err = s.populatePayments(ctx, orders); err != nil {
+		return nil, "", err
+	}
 
 	return orders, nextCursor, nil
 }
@@ -631,6 +643,9 @@ func (s *Store) GetByID(ctx context.Context, orderID string) (OrderDetail, error
 	o.CustomerPhone = phone
 	orders := []OrderDetail{o}
 	if err = s.populateItems(ctx, orders); err != nil {
+		return OrderDetail{}, err
+	}
+	if err = s.populatePayments(ctx, orders); err != nil {
 		return OrderDetail{}, err
 	}
 	o = orders[0]
@@ -764,6 +779,76 @@ func (s *Store) populateItems(ctx context.Context, orders []OrderDetail) error {
 		}
 	}
 	return modRows.Err()
+}
+
+func (s *Store) populateHistory(ctx context.Context, orders []OrderDetail) error {
+	if len(orders) == 0 {
+		return nil
+	}
+	orderIDs := make([]string, len(orders))
+	orderMap := make(map[string]*OrderDetail, len(orders))
+	for i := range orders {
+		orderIDs[i] = orders[i].ID
+		orderMap[orders[i].ID] = &orders[i]
+		orders[i].History = []OrderStatusHistoryEntry{}
+	}
+
+	rows, err := s.db.Query(ctx, `SELECT order_id::text, COALESCE(from_status, ''), to_status, order_version, actor_type, COALESCE(actor_id, ''), COALESCE(reason_code, ''), created_at
+		FROM order_status_history
+		WHERE order_id = ANY($1)
+		ORDER BY order_version ASC`, orderIDs)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var orderID string
+		var h OrderStatusHistoryEntry
+		if err = rows.Scan(&orderID, &h.FromStatus, &h.ToStatus, &h.Version, &h.ActorType, &h.ActorID, &h.ReasonCode, &h.CreatedAt); err != nil {
+			return err
+		}
+		if ord, ok := orderMap[orderID]; ok {
+			ord.History = append(ord.History, h)
+		}
+	}
+	return rows.Err()
+}
+
+func (s *Store) populatePayments(ctx context.Context, orders []OrderDetail) error {
+	if len(orders) == 0 {
+		return nil
+	}
+	orderIDs := make([]string, len(orders))
+	orderMap := make(map[string]*OrderDetail, len(orders))
+	for i := range orders {
+		orderIDs[i] = orders[i].ID
+		orderMap[orders[i].ID] = &orders[i]
+		if orders[i].PaymentStatus == "" {
+			orders[i].PaymentStatus = "UNPAID"
+		}
+	}
+
+	rows, err := s.db.Query(ctx, `SELECT order_id::text, method, status
+		FROM payments
+		WHERE order_id = ANY($1)
+		ORDER BY created_at ASC`, orderIDs)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var orderID, method, status string
+		if err = rows.Scan(&orderID, &method, &status); err != nil {
+			return err
+		}
+		if ord, ok := orderMap[orderID]; ok {
+			ord.PaymentMethod = method
+			ord.PaymentStatus = status
+		}
+	}
+	return rows.Err()
 }
 
 func (s *Store) CreateWeb(ctx context.Context, in PublicOrderCreateInput, key, hash, requestID string) (PublicOrderResponse, bool, error) {
