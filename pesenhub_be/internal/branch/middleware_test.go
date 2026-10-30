@@ -68,6 +68,10 @@ func setupTestService() *Service {
 		ID:        "b0000000-0000-0000-0000-000000000001",
 		Code:      "BWX",
 		Name:      "Cabang Utama Banyuwangi",
+		OpenTime:  "16:00",
+		CloseTime: "23:30",
+		OpenDays:  "SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU",
+		IsOpen:    true,
 		IsDefault: true,
 		IsActive:  true,
 	}
@@ -75,6 +79,10 @@ func setupTestService() *Service {
 		ID:        "b0000000-0000-0000-0000-000000000002",
 		Code:      "JBR",
 		Name:      "Cabang Jember",
+		OpenTime:  "16:00",
+		CloseTime: "23:30",
+		OpenDays:  "SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU",
+		IsOpen:    true,
 		IsDefault: false,
 		IsActive:  true,
 	}
@@ -82,6 +90,10 @@ func setupTestService() *Service {
 		ID:        "b0000000-0000-0000-0000-000000000003",
 		Code:      "MLG",
 		Name:      "Cabang Malang",
+		OpenTime:  "16:00",
+		CloseTime: "23:30",
+		OpenDays:  "SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU",
+		IsOpen:    false,
 		IsDefault: false,
 		IsActive:  false,
 	}

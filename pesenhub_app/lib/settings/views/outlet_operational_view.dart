@@ -1,12 +1,18 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../data/local/local_database.dart';
+import '../../data/remote/pesenhub_api_client.dart';
 import '../../theme/app_spacing.dart';
 
 /// Screen 4: Outlet & Operasional
+/// Integrasi penuh profil gerai dan sinkronisasi jam/hari buka operasional ke database (Issue #179).
 class OutletOperationalView extends StatefulWidget {
   final List<Map<String, dynamic>>? availableBranches;
   final String? currentBranchId;
   final String? branchName;
   final String? branchAddress;
+  final PesenHubApiClient? apiClient;
+  final LocalDatabase? localDatabase;
 
   const OutletOperationalView({
     super.key,
@@ -14,6 +20,8 @@ class OutletOperationalView extends StatefulWidget {
     this.currentBranchId,
     this.branchName,
     this.branchAddress,
+    this.apiClient,
+    this.localDatabase,
   });
 
   @override
@@ -21,42 +29,238 @@ class OutletOperationalView extends StatefulWidget {
 }
 
 class _OutletOperationalViewState extends State<OutletOperationalView> {
-  // Configurable operational state
+  // Operational state
   bool _isOpen = true;
   String _openTime = '16:00';
   String _closeTime = '23:30';
+  String _openDays = 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU';
+
+  // Branch brand info
+  late String _activeBranchId;
+  late String _brandName;
+  late String _brandAddress;
+  String _brandPhone = '+62 813-9022-4134';
+
+  List<Map<String, dynamic>> _branches = [];
+  bool _isLoading = false;
+  bool _isSaving = false;
+
+  static const List<String> _allDays = [
+    'SENIN',
+    'SELASA',
+    'RABU',
+    'KAMIS',
+    'JUMAT',
+    'SABTU',
+    'MINGGU',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _activeBranchId =
+        widget.currentBranchId ?? 'b0000000-0000-0000-0000-000000000001';
+    _brandName = widget.branchName ?? 'Martabak & Terang Bulan Jenggirat';
+    _brandAddress = widget.branchAddress ?? 'Jl. Ahmad Yani No. 45, Banyuwangi';
+
+    if (widget.availableBranches != null &&
+        widget.availableBranches!.isNotEmpty) {
+      _branches = List.from(widget.availableBranches!);
+    } else {
+      _branches = [
+        {
+          'id': 'b-1',
+          'code': 'BWX',
+          'name': 'Cabang Utama Banyuwangi',
+          'address': 'Jl. Ahmad Yani No. 45, Banyuwangi',
+          'phone': '+62 813-9022-4134',
+          'open_time': '16:00',
+          'close_time': '23:30',
+          'open_days': 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU',
+          'is_open': true,
+          'is_main': true,
+          'is_active': true,
+        },
+      ];
+    }
+
+    _loadOperationalData();
+  }
+
+  Future<void> _loadOperationalData() async {
+    // 1. Load from local cache first (offline-first)
+    if (widget.localDatabase != null) {
+      try {
+        final cached = await widget.localDatabase!.getMetadata(
+          'cached_branch_operational',
+        );
+        if (cached != null && cached.isNotEmpty && mounted) {
+          final data = jsonDecode(cached) as Map<String, dynamic>;
+          setState(() {
+            _applyBranchData(data);
+          });
+        }
+      } catch (_) {
+        // Ignored in test environments without sqflite
+      }
+    }
+
+    // 2. Fetch fresh data from backend
+    if (widget.apiClient != null) {
+      if (!mounted) return;
+      setState(() => _isLoading = true);
+      try {
+        final branches = await widget.apiClient!.fetchBranches();
+        if (branches.isNotEmpty && mounted) {
+          setState(() {
+            _branches = branches;
+            // Match current active branch or fallback to default
+            final active = branches.firstWhere(
+              (b) => b['id'] == _activeBranchId || b['is_default'] == true,
+              orElse: () => branches.first,
+            );
+            _applyBranchData(active);
+          });
+
+          // Save to local SQLite cache
+          if (widget.localDatabase != null) {
+            try {
+              final active = branches.firstWhere(
+                (b) => b['id'] == _activeBranchId || b['is_default'] == true,
+                orElse: () => branches.first,
+              );
+              await widget.localDatabase!.setMetadata(
+                'cached_branch_operational',
+                jsonEncode(active),
+              );
+            } catch (_) {}
+          }
+        }
+      } catch (err) {
+        // Network failure; offline fallback already active
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    }
+  }
+
+  void _applyBranchData(Map<String, dynamic> data) {
+    if (data['id'] != null) {
+      _activeBranchId = data['id'].toString();
+    }
+    if (data['name'] != null && data['name'].toString().isNotEmpty) {
+      _brandName = data['name'].toString();
+    }
+    if (data['address'] != null && data['address'].toString().isNotEmpty) {
+      _brandAddress = data['address'].toString();
+    }
+    if (data['phone'] != null && data['phone'].toString().isNotEmpty) {
+      _brandPhone = data['phone'].toString();
+    }
+    if (data['open_time'] != null && data['open_time'].toString().isNotEmpty) {
+      _openTime = data['open_time'].toString();
+    }
+    if (data['close_time'] != null &&
+        data['close_time'].toString().isNotEmpty) {
+      _closeTime = data['close_time'].toString();
+    }
+    if (data['open_days'] != null && data['open_days'].toString().isNotEmpty) {
+      _openDays = data['open_days'].toString();
+    }
+    if (data['is_open'] != null) {
+      _isOpen = data['is_open'] == true;
+    }
+  }
+
+  Future<void> _updateOperationalStatus(bool newStatus) async {
+    final previousStatus = _isOpen;
+    setState(() => _isOpen = newStatus);
+
+    if (widget.apiClient != null) {
+      try {
+        await widget.apiClient!.updateBranchOperational(
+          _activeBranchId,
+          isOpen: newStatus,
+        );
+        _cacheCurrentProfile();
+      } catch (err) {
+        if (mounted) {
+          setState(() => _isOpen = previousStatus);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal memperbarui status: $err'),
+              backgroundColor: const Color(0xFFC62828),
+            ),
+          );
+          return;
+        }
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            newStatus
+                ? 'Status kasir: BUKA SEKARANG'
+                : 'Status kasir: TUTUP SEMENTARA',
+          ),
+          backgroundColor: newStatus
+              ? const Color(0xFF2E7D32)
+              : const Color(0xFFC62828),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _cacheCurrentProfile() async {
+    if (widget.localDatabase == null) return;
+    try {
+      final payload = {
+        'id': _activeBranchId,
+        'name': _brandName,
+        'address': _brandAddress,
+        'phone': _brandPhone,
+        'open_time': _openTime,
+        'close_time': _closeTime,
+        'open_days': _openDays,
+        'is_open': _isOpen,
+      };
+      await widget.localDatabase!.setMetadata(
+        'cached_branch_operational',
+        jsonEncode(payload),
+      );
+    } catch (_) {}
+  }
+
+  String _formatOpenDaysDisplay(String rawDays) {
+    final days = rawDays.split(',').map((d) => d.trim().toUpperCase()).toSet();
+    if (days.length == 7) {
+      return 'Setiap Hari (Senin - Minggu)';
+    }
+    if (days.length == 6 && !days.contains('MINGGU')) {
+      return 'Senin - Sabtu (Minggu Libur)';
+    }
+    if (days.length == 5 &&
+        !days.contains('SABTU') &&
+        !days.contains('MINGGU')) {
+      return 'Senin - Jumat (Weekend Libur)';
+    }
+    // Format capitalized
+    final readable = days
+        .map((d) {
+          if (d.length <= 1) return d;
+          return d[0].toUpperCase() + d.substring(1).toLowerCase();
+        })
+        .join(', ');
+    return readable.isEmpty ? 'Belum Diatur' : readable;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final branches =
-        widget.availableBranches ??
-        [
-          {
-            'id': 'b-1',
-            'name': 'Cabang Utama Banyuwangi',
-            'address': 'Jl. Ahmad Yani No. 45, Banyuwangi',
-            'phone': '+62 813-9022-4134',
-            'is_main': true,
-            'is_active': true,
-          },
-          {
-            'id': 'b-2',
-            'name': 'Cabang Rogojampi',
-            'address': 'Jl. Raya Rogojampi No. 12, Banyuwangi',
-            'phone': '+62 812-3456-7890',
-            'is_main': false,
-            'is_active': true,
-          },
-          {
-            'id': 'b-3',
-            'name': 'Cabang Genteng',
-            'address': 'Jl. Gajah Mada No. 88, Genteng, Banyuwangi',
-            'phone': '+62 819-8765-4321',
-            'is_main': false,
-            'is_active': true,
-          },
-        ];
-
     return Scaffold(
       backgroundColor: const Color(0xFFFBF8F5),
       appBar: AppBar(
@@ -78,6 +282,24 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
             fontWeight: FontWeight.w800,
           ),
         ),
+        actions: [
+          if (_isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Color(0xFF8D321F),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
           child: Divider(height: 1, color: Color(0xFFF0EBE6)),
@@ -103,8 +325,8 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
             const SizedBox(height: AppSpacing.lg),
 
             // 4. Daftar Cabang Gerai
-            _buildSectionHeader('DAFTAR CABANG GERAI (${branches.length})'),
-            ...branches.map((b) => _buildBranchCard(b)),
+            _buildSectionHeader('DAFTAR CABANG GERAI (${_branches.length})'),
+            ..._branches.map((b) => _buildBranchCard(b)),
           ],
         ),
       ),
@@ -179,6 +401,10 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
   }
 
   Widget _buildBrandCard() {
+    final initial = _brandName.trim().isNotEmpty
+        ? _brandName.trim()[0].toUpperCase()
+        : 'J';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -210,9 +436,9 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
-                child: const Text(
-                  'J',
-                  style: TextStyle(
+                child: Text(
+                  initial,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
@@ -220,25 +446,34 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Martabak & Terang Bulan Jenggirat',
-                      style: TextStyle(
+                      _brandName,
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF2D231E),
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Kuliner Martabak & Terang Bulan Spesial Banyuwangi',
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Kuliner Martabak & Terang Bulan Spesial',
                       style: TextStyle(fontSize: 12, color: Color(0xFF7A6B63)),
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  size: 20,
+                  color: Color(0xFF8D321F),
+                ),
+                onPressed: _showEditBrandDialog,
+                tooltip: 'Ubah Data Gerai',
               ),
             ],
           ),
@@ -248,14 +483,14 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
           ),
           _buildInfoRow(
             icon: Icons.location_on_outlined,
-            label: 'Alamat Pusat',
-            value: widget.branchAddress ?? 'Jl. Ahmad Yani No. 45, Banyuwangi',
+            label: 'Alamat Gerai',
+            value: _brandAddress,
           ),
           const SizedBox(height: 10),
           _buildInfoRow(
             icon: Icons.phone_outlined,
             label: 'Kontak CS & Gerai',
-            value: '+62 813-9022-4134',
+            value: _brandPhone,
           ),
           const SizedBox(height: 10),
           _buildInfoRow(
@@ -328,22 +563,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
               Switch.adaptive(
                 value: _isOpen,
                 activeThumbColor: const Color(0xFF8D321F),
-                onChanged: (val) {
-                  setState(() => _isOpen = val);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        val
-                            ? 'Status kasir: BUKA SEKARANG'
-                            : 'Status kasir: TUTUP SEMENTARA',
-                      ),
-                      backgroundColor: val
-                          ? const Color(0xFF2E7D32)
-                          : const Color(0xFFC62828),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                },
+                onChanged: _updateOperationalStatus,
               ),
             ],
           ),
@@ -383,28 +603,33 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
             ],
           ),
           const SizedBox(height: 8),
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'Hari Operasional:',
                 style: TextStyle(fontSize: 12, color: Color(0xFF7A6B63)),
               ),
-              Text(
-                'Setiap Hari (Senin - Minggu)',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF2D231E),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _formatOpenDaysDisplay(_openDays),
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2D231E),
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 14),
           OutlinedButton.icon(
-            onPressed: () => _showEditHoursDialog(),
+            onPressed: _showEditHoursDialog,
             icon: const Icon(Icons.edit_calendar_outlined, size: 16),
-            label: const Text('Ubah Jam Operasional'),
+            label: const Text('Ubah Jam & Hari Operasional'),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF8D321F),
               side: const BorderSide(color: Color(0xFFE2D3CC)),
@@ -412,6 +637,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                 borderRadius: BorderRadius.circular(10),
               ),
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+              minimumSize: const Size(double.infinity, 48),
             ),
           ),
         ],
@@ -420,10 +646,11 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
   }
 
   Widget _buildBranchCard(Map<String, dynamic> branch) {
-    final isMain = branch['is_main'] == true;
+    final isMain = branch['is_main'] == true || branch['is_default'] == true;
     final name = branch['name']?.toString() ?? 'Cabang';
     final address = branch['address']?.toString() ?? '-';
     final phone = branch['phone']?.toString() ?? '-';
+    final branchIsOpen = branch['is_open'] == true;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -495,15 +722,19 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5E9),
+                          color: branchIsOpen
+                              ? const Color(0xFFE8F5E9)
+                              : const Color(0xFFFFEBEE),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Text(
-                          'AKTIF',
+                        child: Text(
+                          branchIsOpen ? 'BUKA' : 'TUTUP',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF2E7D32),
+                            color: branchIsOpen
+                                ? const Color(0xFF2E7D32)
+                                : const Color(0xFFC62828),
                           ),
                         ),
                       ),
@@ -582,11 +813,16 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
   void _showEditHoursDialog() {
     final openCtrl = TextEditingController(text: _openTime);
     final closeCtrl = TextEditingController(text: _closeTime);
+    final selectedDays = _openDays
+        .split(',')
+        .map((d) => d.trim().toUpperCase())
+        .where((d) => d.isNotEmpty)
+        .toSet();
 
     final isTablet =
         MediaQuery.sizeOf(context).width >= AppSpacing.tabletBreakpoint;
 
-    Widget buildContent(BuildContext ctx) {
+    Widget buildContent(BuildContext ctx, StateSetter setModalState) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -621,7 +857,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
-                    'Ubah Jam Operasional',
+                    'Ubah Jam & Hari Operasional',
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
                   ),
                 ),
@@ -643,23 +879,73 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TextField(
-                    controller: openCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Jam Buka (contoh: 16:00)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.wb_sunny_outlined),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: openCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Jam Buka (HH:MM)',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.wb_sunny_outlined),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: closeCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Jam Tutup (HH:MM)',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.nightlight_outlined),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Hari Buka Operasional',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF2D231E),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: closeCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Jam Tutup (contoh: 23:30)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.nightlight_outlined),
-                    ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: _allDays.map((day) {
+                      final isSelected = selectedDays.contains(day);
+                      return FilterChip(
+                        label: Text(day),
+                        selected: isSelected,
+                        selectedColor: const Color(0xFFF9EFE7),
+                        checkmarkColor: const Color(0xFF8D321F),
+                        labelStyle: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected
+                              ? const Color(0xFF8D321F)
+                              : const Color(0xFF64748B),
+                        ),
+                        onSelected: (val) {
+                          setModalState(() {
+                            if (val) {
+                              selectedDays.add(day);
+                            } else {
+                              if (selectedDays.length > 1) {
+                                selectedDays.remove(day);
+                              }
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
                   ),
                 ],
               ),
@@ -680,27 +966,96 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                 ),
                 const SizedBox(width: 10),
                 ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _openTime = openCtrl.text.trim();
-                      _closeTime = closeCtrl.text.trim();
-                    });
-                    Navigator.of(ctx).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Jam operasional berhasil diperbarui.'),
-                        backgroundColor: Color(0xFF2E7D32),
-                      ),
-                    );
-                  },
+                  onPressed: _isSaving
+                      ? null
+                      : () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final navigator = Navigator.of(ctx);
+                          final newOpen = openCtrl.text.trim();
+                          final newClose = closeCtrl.text.trim();
+                          final newDays = selectedDays.join(',');
+
+                          final timeReg = RegExp(
+                            r'^([01][0-9]|2[0-3]):[0-5][0-9]$',
+                          );
+                          if (!timeReg.hasMatch(newOpen) ||
+                              !timeReg.hasMatch(newClose)) {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Format jam harus valid (HH:MM, contoh: 16:00).',
+                                ),
+                                backgroundColor: Color(0xFFC62828),
+                              ),
+                            );
+                            return;
+                          }
+
+                          setState(() {
+                            _openTime = newOpen;
+                            _closeTime = newClose;
+                            _openDays = newDays;
+                            _isSaving = true;
+                          });
+
+                          if (widget.apiClient != null) {
+                            try {
+                              await widget.apiClient!.updateBranchOperational(
+                                _activeBranchId,
+                                openTime: newOpen,
+                                closeTime: newClose,
+                                openDays: newDays,
+                              );
+                              _cacheCurrentProfile();
+                            } catch (err) {
+                              if (mounted) {
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Gagal menyimpan ke database: $err',
+                                    ),
+                                    backgroundColor: const Color(0xFFC62828),
+                                  ),
+                                );
+                              }
+                            }
+                          } else {
+                            _cacheCurrentProfile();
+                          }
+
+                          if (mounted) {
+                            setState(() => _isSaving = false);
+                            if (ctx.mounted) {
+                              navigator.pop();
+                            }
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Jam operasional berhasil disimpan ke database.',
+                                ),
+                                backgroundColor: Color(0xFF2E7D32),
+                              ),
+                            );
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF8D321F),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
+                    minimumSize: const Size(100, 48),
                   ),
-                  child: const Text('Simpan'),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Simpan'),
                 ),
               ],
             ),
@@ -712,14 +1067,19 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
     if (isTablet) {
       showDialog(
         context: context,
-        builder: (ctx) => Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 450),
-            child: Material(color: Colors.white, child: buildContent(ctx)),
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setModalState) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520, maxHeight: 500),
+              child: Material(
+                color: Colors.white,
+                child: buildContent(ctx, setModalState),
+              ),
+            ),
           ),
         ),
       );
@@ -729,21 +1089,118 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
         isScrollControlled: true,
         useSafeArea: true,
         backgroundColor: Colors.transparent,
-        builder: (ctx) => Container(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setModalState) => Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.85,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: buildContent(ctx, setModalState),
           ),
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(ctx).height * 0.75,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: buildContent(ctx),
         ),
       );
     }
+  }
+
+  void _showEditBrandDialog() {
+    final nameCtrl = TextEditingController(text: _brandName);
+    final addressCtrl = TextEditingController(text: _brandAddress);
+    final phoneCtrl = TextEditingController(text: _brandPhone);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Ubah Informasi Gerai'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Nama Gerai / Brand',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: addressCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Alamat Gerai',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Kontak CS / WhatsApp',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(ctx);
+              final newName = nameCtrl.text.trim();
+              final newAddress = addressCtrl.text.trim();
+              final newPhone = phoneCtrl.text.trim();
+              if (newName.isEmpty) return;
+
+              setState(() {
+                _brandName = newName;
+                _brandAddress = newAddress;
+                _brandPhone = newPhone;
+              });
+
+              if (widget.apiClient != null) {
+                try {
+                  await widget.apiClient!.updateBranchOperational(
+                    _activeBranchId,
+                    name: newName,
+                    address: newAddress,
+                    phone: newPhone,
+                  );
+                  _cacheCurrentProfile();
+                } catch (_) {}
+              } else {
+                _cacheCurrentProfile();
+              }
+
+              if (mounted) {
+                if (ctx.mounted) {
+                  navigator.pop();
+                }
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Data gerai berhasil disimpan ke database.'),
+                    backgroundColor: Color(0xFF2E7D32),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8D321F),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
   }
 }

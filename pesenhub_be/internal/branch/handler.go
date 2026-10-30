@@ -69,6 +69,71 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	httpapi.WriteJSON(w, http.StatusCreated, b)
 }
 
+func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
+	principal := customer.PrincipalFromRequest(r)
+	if !customer.CanOperateOutlet(principal) {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "current" || id == "default" {
+		if principal.BranchID != "" {
+			id = principal.BranchID
+		} else {
+			b, err := h.service.GetDefault(r.Context())
+			if err != nil {
+				h.writeError(w, r, err)
+				return
+			}
+			httpapi.WriteJSON(w, http.StatusOK, b)
+			return
+		}
+	}
+
+	b, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, b)
+}
+
+func (h *Handler) UpdateOperational(w http.ResponseWriter, r *http.Request) {
+	principal := customer.PrincipalFromRequest(r)
+	if !customer.CanOperateOutlet(principal) {
+		h.writeError(w, r, customer.ErrUnauthorized)
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "current" || id == "default" {
+		if principal.BranchID != "" {
+			id = principal.BranchID
+		} else {
+			def, err := h.service.GetDefault(r.Context())
+			if err != nil {
+				h.writeError(w, r, err)
+				return
+			}
+			id = def.ID
+		}
+	}
+
+	var in UpdateBranchInput
+	if err := decodeJSON(r, &in); err != nil {
+		h.writeError(w, r, ErrInvalidInput)
+		return
+	}
+
+	b, err := h.service.Update(r.Context(), id, in)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, b)
+}
+
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	principal := customer.PrincipalFromRequest(r)
 	if !customer.CanManageOutlet(principal) {

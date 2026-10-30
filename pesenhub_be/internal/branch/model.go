@@ -25,6 +25,10 @@ type Branch struct {
 	Name      string    `json:"name"`
 	Address   string    `json:"address,omitempty"`
 	Phone     string    `json:"phone,omitempty"`
+	OpenTime  string    `json:"open_time"`
+	CloseTime string    `json:"close_time"`
+	OpenDays  string    `json:"open_days"`
+	IsOpen    bool      `json:"is_open"`
 	IsDefault bool      `json:"is_default"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
@@ -36,6 +40,10 @@ type CreateBranchInput struct {
 	Name      string `json:"name"`
 	Address   string `json:"address,omitempty"`
 	Phone     string `json:"phone,omitempty"`
+	OpenTime  string `json:"open_time,omitempty"`
+	CloseTime string `json:"close_time,omitempty"`
+	OpenDays  string `json:"open_days,omitempty"`
+	IsOpen    *bool  `json:"is_open,omitempty"`
 	IsDefault bool   `json:"is_default,omitempty"`
 }
 
@@ -44,6 +52,10 @@ type UpdateBranchInput struct {
 	Name      string `json:"name,omitempty"`
 	Address   string `json:"address,omitempty"`
 	Phone     string `json:"phone,omitempty"`
+	OpenTime  string `json:"open_time,omitempty"`
+	CloseTime string `json:"close_time,omitempty"`
+	OpenDays  string `json:"open_days,omitempty"`
+	IsOpen    *bool  `json:"is_open,omitempty"`
 	IsDefault *bool  `json:"is_default,omitempty"`
 	IsActive  *bool  `json:"is_active,omitempty"`
 }
