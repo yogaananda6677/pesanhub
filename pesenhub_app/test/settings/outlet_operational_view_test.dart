@@ -34,16 +34,39 @@ void main() {
       await localDb.close();
     });
 
-    testWidgets('renders branch operational data fetched from backend database', (tester) async {
-      final client = PesenHubApiClient(
-        config: ApiConfig(baseUri: Uri.parse('https://api.example.test/api/v1')),
-        accessToken: () async => 'test-token',
-        client: MockClient((req) async {
-          if (req.method == 'GET' && req.url.path == '/api/v1/branches') {
-            return http.Response(
-              jsonEncode({
-                'data': [
-                  {
+    testWidgets(
+      'renders branch operational data fetched from backend database',
+      (tester) async {
+        final client = PesenHubApiClient(
+          config: ApiConfig(
+            baseUri: Uri.parse('https://api.example.test/api/v1'),
+          ),
+          accessToken: () async => 'test-token',
+          client: MockClient((req) async {
+            if (req.method == 'GET' && req.url.path == '/api/v1/branches') {
+              return http.Response(
+                jsonEncode({
+                  'data': [
+                    {
+                      'id': 'b-01',
+                      'name': 'Cabang Utama Genteng',
+                      'address': 'Jl. Gajah Mada No. 12',
+                      'phone': '081234567890',
+                      'open_time': '16:00',
+                      'close_time': '23:30',
+                      'open_days': 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU',
+                      'is_open': true,
+                    },
+                  ],
+                }),
+                200,
+              );
+            }
+            if (req.method == 'GET' &&
+                req.url.path == '/api/v1/branches/b-01') {
+              return http.Response(
+                jsonEncode({
+                  'data': {
                     'id': 'b-01',
                     'name': 'Cabang Utama Genteng',
                     'address': 'Jl. Gajah Mada No. 12',
@@ -52,59 +75,46 @@ void main() {
                     'close_time': '23:30',
                     'open_days': 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU',
                     'is_open': true,
-                  }
-                ]
-              }),
-              200,
-            );
-          }
-          if (req.method == 'GET' && req.url.path == '/api/v1/branches/b-01') {
-            return http.Response(
-              jsonEncode({
-                'data': {
-                  'id': 'b-01',
-                  'name': 'Cabang Utama Genteng',
-                  'address': 'Jl. Gajah Mada No. 12',
-                  'phone': '081234567890',
-                  'open_time': '16:00',
-                  'close_time': '23:30',
-                  'open_days': 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU',
-                  'is_open': true,
-                }
-              }),
-              200,
-            );
-          }
-          return http.Response('Not Found', 404);
-        }),
-      );
+                  },
+                }),
+                200,
+              );
+            }
+            return http.Response('Not Found', 404);
+          }),
+        );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: Scaffold(
-            body: OutletOperationalView(
-              apiClient: client,
-              localDatabase: localDb,
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: Scaffold(
+              body: OutletOperationalView(
+                apiClient: client,
+                localDatabase: localDb,
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      expect(find.text('Outlet & Operasional'), findsOneWidget);
-      expect(find.text('Cabang Utama Genteng'), findsWidgets);
-      expect(find.text('Jl. Gajah Mada No. 12'), findsOneWidget);
-      expect(find.text('16:00 - 23:30 WIB'), findsOneWidget);
-      expect(find.text('Setiap Hari (Senin - Minggu)'), findsOneWidget);
-      expect(find.text('BUKA'), findsOneWidget);
-    });
+        expect(find.text('Outlet & Operasional'), findsOneWidget);
+        expect(find.text('Cabang Utama Genteng'), findsWidgets);
+        expect(find.text('Jl. Gajah Mada No. 12'), findsOneWidget);
+        expect(find.text('16:00 - 23:30 WIB'), findsOneWidget);
+        expect(find.text('Setiap Hari (Senin - Minggu)'), findsOneWidget);
+        expect(find.text('BUKA'), findsOneWidget);
+      },
+    );
 
-    testWidgets('toggles operational status switch and syncs to database', (tester) async {
+    testWidgets('toggles operational status switch and syncs to database', (
+      tester,
+    ) async {
       String? updatedIsOpen;
       final client = PesenHubApiClient(
-        config: ApiConfig(baseUri: Uri.parse('https://api.example.test/api/v1')),
+        config: ApiConfig(
+          baseUri: Uri.parse('https://api.example.test/api/v1'),
+        ),
         accessToken: () async => 'test-token',
         client: MockClient((req) async {
           if (req.method == 'GET' && req.url.path == '/api/v1/branches') {
@@ -118,22 +128,20 @@ void main() {
                     'close_time': '23:30',
                     'open_days': 'SENIN,SELASA',
                     'is_open': true,
-                  }
-                ]
+                  },
+                ],
               }),
               200,
             );
           }
-          if (req.method == 'PATCH' && req.url.path == '/api/v1/branches/b-01/operational') {
+          if (req.method == 'PATCH' &&
+              req.url.path == '/api/v1/branches/b-01/operational') {
             final body = jsonDecode(req.body) as Map<String, dynamic>;
             updatedIsOpen = body['is_open'].toString();
             return http.Response(
               jsonEncode({
                 'message': 'updated',
-                'branch': {
-                  'id': 'b-01',
-                  'is_open': body['is_open'],
-                }
+                'branch': {'id': 'b-01', 'is_open': body['is_open']},
               }),
               200,
             );
@@ -167,7 +175,9 @@ void main() {
       expect(find.text('TUTUP'), findsOneWidget);
     });
 
-    testWidgets('falls back to local cached metadata when offline', (tester) async {
+    testWidgets('falls back to local cached metadata when offline', (
+      tester,
+    ) async {
       await localDb.setMetadata(
         'cached_branch_operational',
         jsonEncode({

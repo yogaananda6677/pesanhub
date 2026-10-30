@@ -58,11 +58,13 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
   @override
   void initState() {
     super.initState();
-    _activeBranchId = widget.currentBranchId ?? 'b0000000-0000-0000-0000-000000000001';
+    _activeBranchId =
+        widget.currentBranchId ?? 'b0000000-0000-0000-0000-000000000001';
     _brandName = widget.branchName ?? 'Martabak & Terang Bulan Jenggirat';
     _brandAddress = widget.branchAddress ?? 'Jl. Ahmad Yani No. 45, Banyuwangi';
 
-    if (widget.availableBranches != null && widget.availableBranches!.isNotEmpty) {
+    if (widget.availableBranches != null &&
+        widget.availableBranches!.isNotEmpty) {
       _branches = List.from(widget.availableBranches!);
     } else {
       _branches = [
@@ -89,7 +91,9 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
     // 1. Load from local cache first (offline-first)
     if (widget.localDatabase != null) {
       try {
-        final cached = await widget.localDatabase!.getMetadata('cached_branch_operational');
+        final cached = await widget.localDatabase!.getMetadata(
+          'cached_branch_operational',
+        );
         if (cached != null && cached.isNotEmpty && mounted) {
           final data = jsonDecode(cached) as Map<String, dynamic>;
           setState(() {
@@ -157,7 +161,8 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
     if (data['open_time'] != null && data['open_time'].toString().isNotEmpty) {
       _openTime = data['open_time'].toString();
     }
-    if (data['close_time'] != null && data['close_time'].toString().isNotEmpty) {
+    if (data['close_time'] != null &&
+        data['close_time'].toString().isNotEmpty) {
       _closeTime = data['close_time'].toString();
     }
     if (data['open_days'] != null && data['open_days'].toString().isNotEmpty) {
@@ -238,14 +243,18 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
     if (days.length == 6 && !days.contains('MINGGU')) {
       return 'Senin - Sabtu (Minggu Libur)';
     }
-    if (days.length == 5 && !days.contains('SABTU') && !days.contains('MINGGU')) {
+    if (days.length == 5 &&
+        !days.contains('SABTU') &&
+        !days.contains('MINGGU')) {
       return 'Senin - Jumat (Weekend Libur)';
     }
     // Format capitalized
-    final readable = days.map((d) {
-      if (d.length <= 1) return d;
-      return d[0].toUpperCase() + d.substring(1).toLowerCase();
-    }).join(', ');
+    final readable = days
+        .map((d) {
+          if (d.length <= 1) return d;
+          return d[0].toUpperCase() + d.substring(1).toLowerCase();
+        })
+        .join(', ');
     return readable.isEmpty ? 'Belum Diatur' : readable;
   }
 
@@ -282,7 +291,9 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8D321F)),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Color(0xFF8D321F),
+                    ),
                   ),
                 ),
               ),
@@ -455,7 +466,11 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 20, color: Color(0xFF8D321F)),
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  size: 20,
+                  color: Color(0xFF8D321F),
+                ),
                 onPressed: _showEditBrandDialog,
                 tooltip: 'Ubah Data Gerai',
               ),
@@ -803,7 +818,8 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
         .where((d) => d.isNotEmpty)
         .toSet();
 
-    final isTablet = MediaQuery.sizeOf(context).width >= AppSpacing.tabletBreakpoint;
+    final isTablet =
+        MediaQuery.sizeOf(context).width >= AppSpacing.tabletBreakpoint;
 
     Widget buildContent(BuildContext ctx, StateSetter setModalState) {
       return Column(
@@ -958,11 +974,16 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                           final newClose = closeCtrl.text.trim();
                           final newDays = selectedDays.join(',');
 
-                          final timeReg = RegExp(r'^([01][0-9]|2[0-3]):[0-5][0-9]$');
-                          if (!timeReg.hasMatch(newOpen) || !timeReg.hasMatch(newClose)) {
+                          final timeReg = RegExp(
+                            r'^([01][0-9]|2[0-3]):[0-5][0-9]$',
+                          );
+                          if (!timeReg.hasMatch(newOpen) ||
+                              !timeReg.hasMatch(newClose)) {
                             messenger.showSnackBar(
                               const SnackBar(
-                                content: Text('Format jam harus valid (HH:MM, contoh: 16:00).'),
+                                content: Text(
+                                  'Format jam harus valid (HH:MM, contoh: 16:00).',
+                                ),
                                 backgroundColor: Color(0xFFC62828),
                               ),
                             );
@@ -989,7 +1010,9 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                               if (mounted) {
                                 messenger.showSnackBar(
                                   SnackBar(
-                                    content: Text('Gagal menyimpan ke database: $err'),
+                                    content: Text(
+                                      'Gagal menyimpan ke database: $err',
+                                    ),
                                     backgroundColor: const Color(0xFFC62828),
                                   ),
                                 );
@@ -1006,7 +1029,9 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
                             }
                             messenger.showSnackBar(
                               const SnackBar(
-                                content: Text('Jam operasional berhasil disimpan ke database.'),
+                                content: Text(
+                                  'Jam operasional berhasil disimpan ke database.',
+                                ),
                                 backgroundColor: Color(0xFF2E7D32),
                               ),
                             );
@@ -1049,7 +1074,10 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
             clipBehavior: Clip.antiAlias,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520, maxHeight: 500),
-              child: Material(color: Colors.white, child: buildContent(ctx, setModalState)),
+              child: Material(
+                color: Colors.white,
+                child: buildContent(ctx, setModalState),
+              ),
             ),
           ),
         ),

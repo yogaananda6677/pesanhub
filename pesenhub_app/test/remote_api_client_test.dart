@@ -240,8 +240,8 @@ void main() {
                 'is_open': true,
                 'open_time': '16:00',
                 'close_time': '23:30',
-              }
-            ]
+              },
+            ],
           }),
           200,
         );
@@ -259,8 +259,8 @@ void main() {
         return http.Response(
           jsonEncode({
             'branches': [
-              {'id': 'b2', 'name': 'Cabang Rogojampi'}
-            ]
+              {'id': 'b2', 'name': 'Cabang Rogojampi'},
+            ],
           }),
           200,
         );
@@ -271,62 +271,66 @@ void main() {
     expect(branches2.first['id'], 'b2');
   });
 
-  test('fetchBranch and updateBranchOperational call correct endpoints with payload', () async {
-    http.Request? capturedPatch;
-    final client = PesenHubApiClient(
-      config: config(),
-      accessToken: accessToken,
-      client: MockClient((req) async {
-        if (req.method == 'GET' && req.url.path == '/api/v1/branches/b-01') {
-          return http.Response(
-            jsonEncode({
-              'data': {
-                'id': 'b-01',
-                'name': 'Cabang Banyuwangi',
-                'open_time': '16:00',
-                'close_time': '23:30',
-                'open_days': 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU',
-                'is_open': true,
-              }
-            }),
-            200,
-          );
-        }
-        if (req.method == 'PATCH' && req.url.path == '/api/v1/branches/b-01/operational') {
-          capturedPatch = req;
-          return http.Response(
-            jsonEncode({
-              'message': 'updated',
-              'branch': {
-                'id': 'b-01',
-                'open_time': '17:00',
-                'close_time': '23:00',
-                'is_open': false,
-              }
-            }),
-            200,
-          );
-        }
-        return http.Response('Not Found', 404);
-      }),
-    );
+  test(
+    'fetchBranch and updateBranchOperational call correct endpoints with payload',
+    () async {
+      http.Request? capturedPatch;
+      final client = PesenHubApiClient(
+        config: config(),
+        accessToken: accessToken,
+        client: MockClient((req) async {
+          if (req.method == 'GET' && req.url.path == '/api/v1/branches/b-01') {
+            return http.Response(
+              jsonEncode({
+                'data': {
+                  'id': 'b-01',
+                  'name': 'Cabang Banyuwangi',
+                  'open_time': '16:00',
+                  'close_time': '23:30',
+                  'open_days': 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU',
+                  'is_open': true,
+                },
+              }),
+              200,
+            );
+          }
+          if (req.method == 'PATCH' &&
+              req.url.path == '/api/v1/branches/b-01/operational') {
+            capturedPatch = req;
+            return http.Response(
+              jsonEncode({
+                'message': 'updated',
+                'branch': {
+                  'id': 'b-01',
+                  'open_time': '17:00',
+                  'close_time': '23:00',
+                  'is_open': false,
+                },
+              }),
+              200,
+            );
+          }
+          return http.Response('Not Found', 404);
+        }),
+      );
 
-    final branch = await client.fetchBranch('b-01');
-    expect(branch, isNotNull);
-    expect(branch!['name'], 'Cabang Banyuwangi');
-    expect(branch['is_open'], isTrue);
+      final branch = await client.fetchBranch('b-01');
+      expect(branch, isNotNull);
+      expect(branch!['name'], 'Cabang Banyuwangi');
+      expect(branch['is_open'], isTrue);
 
-    final updateRes = await client.updateBranchOperational(
-      'b-01',
-      openTime: '17:00',
-      closeTime: '23:00',
-      isOpen: false,
-    );
-    expect(updateRes['message'], 'updated');
-    expect(capturedPatch, isNotNull);
-    final body = jsonDecode(capturedPatch!.body) as Map<String, dynamic>;
-    expect(body['open_time'], '17:00');
-    expect(body['close_time'], '23:00');
-    expect(body['is_open'], isFalse);
-  });
+      final updateRes = await client.updateBranchOperational(
+        'b-01',
+        openTime: '17:00',
+        closeTime: '23:00',
+        isOpen: false,
+      );
+      expect(updateRes['message'], 'updated');
+      expect(capturedPatch, isNotNull);
+      final body = jsonDecode(capturedPatch!.body) as Map<String, dynamic>;
+      expect(body['open_time'], '17:00');
+      expect(body['close_time'], '23:00');
+      expect(body['is_open'], isFalse);
+    },
+  );
 }
