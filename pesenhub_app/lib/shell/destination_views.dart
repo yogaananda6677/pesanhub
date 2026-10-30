@@ -7,6 +7,10 @@ import '../cart/models/cart_order_draft.dart';
 import '../connectivity/connectivity_controller.dart';
 import '../history/controllers/history_controller.dart';
 import '../history/views/history_view.dart';
+import '../finance/controllers/cash_shift_controller.dart';
+import '../finance/controllers/finance_controller.dart';
+import '../finance/views/finance_view.dart';
+import '../settings/services/printer_service.dart';
 import '../kds/controllers/kds_controller.dart';
 import '../kds/kds_view.dart';
 import '../menu/controllers/menu_availability_controller.dart';
@@ -1275,389 +1279,30 @@ class HistoryDestinationView extends StatelessWidget {
 class FinanceDestinationView extends StatelessWidget {
   final PesenHubApiClient? apiClient;
   final String? branchId;
+  final FinanceController? financeController;
+  final CashShiftController? cashShiftController;
+  final PrinterService? printerService;
   final VoidCallback? onRefresh;
 
   const FinanceDestinationView({
     super.key,
     this.apiClient,
     this.branchId,
+    this.financeController,
+    this.cashShiftController,
+    this.printerService,
     this.onRefresh,
   });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= AppSpacing.tabletBreakpoint;
-        return SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: isWide ? AppSpacing.xl : AppSpacing.md,
-            vertical: AppSpacing.md,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Summary Banner
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.terracotta, Color(0xFF6E2415)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.terracotta.withValues(alpha: 0.25),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        const Text(
-                          'TOTAL OMSET HARI INI',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                            color: Colors.white70,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_today_rounded,
-                                size: 12,
-                                color: Colors.white,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                'Hari Ini',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Rp 0',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Rekapitulasi transaksi lunas kasir & online',
-                      style: TextStyle(fontSize: 12, color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Metric Breakdown Cards
-              LayoutBuilder(
-                builder: (context, cardConstraints) {
-                  final isCompact = cardConstraints.maxWidth < 420;
-                  if (isCompact) {
-                    return Column(
-                      children: [
-                        _buildMetricCard(
-                          icon: Icons.payments_outlined,
-                          iconColor: AppColors.accentGreen,
-                          iconBg: AppColors.accentGreenBg,
-                          title: 'Tunai (Cash)',
-                          value: 'Rp 0',
-                          subtitle: 'Di laci kasir',
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        _buildMetricCard(
-                          icon: Icons.qr_code_rounded,
-                          iconColor: AppColors.accentBlue,
-                          iconBg: AppColors.accentBlueBg,
-                          title: 'Non-Tunai / QRIS',
-                          value: 'Rp 0',
-                          subtitle: 'Masuk rekening',
-                        ),
-                      ],
-                    );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: _buildMetricCard(
-                          icon: Icons.payments_outlined,
-                          iconColor: AppColors.accentGreen,
-                          iconBg: AppColors.accentGreenBg,
-                          title: 'Tunai (Cash)',
-                          value: 'Rp 0',
-                          subtitle: 'Di laci kasir',
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: _buildMetricCard(
-                          icon: Icons.qr_code_rounded,
-                          iconColor: AppColors.accentBlue,
-                          iconBg: AppColors.accentBlueBg,
-                          title: 'Non-Tunai / QRIS',
-                          value: 'Rp 0',
-                          subtitle: 'Masuk rekening',
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Action Buttons (Minimum 48dp touch target)
-              LayoutBuilder(
-                builder: (context, btnConstraints) {
-                  final isCompact = btnConstraints.maxWidth < 420;
-                  if (isCompact) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 48),
-                          child: OutlinedButton.icon(
-                            key: const Key('recap-cash-action-button'),
-                            onPressed: () {},
-                            icon: const Icon(
-                              Icons.receipt_long_rounded,
-                              size: 18,
-                              color: AppColors.terracotta,
-                            ),
-                            label: const Text('Rekap Kas Harian'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.terracotta,
-                              side: const BorderSide(
-                                color: AppColors.terracottaBorder,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 48),
-                          child: ElevatedButton.icon(
-                            key: const Key('close-cashier-action-button'),
-                            onPressed: () {},
-                            icon: const Icon(
-                              Icons.lock_clock_rounded,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                            label: const Text('Tutup Kasir'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.terracotta,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 48),
-                          child: OutlinedButton.icon(
-                            key: const Key('recap-cash-action-button'),
-                            onPressed: () {},
-                            icon: const Icon(
-                              Icons.receipt_long_rounded,
-                              size: 18,
-                              color: AppColors.terracotta,
-                            ),
-                            label: const Text('Rekap Kas Harian'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.terracotta,
-                              side: const BorderSide(
-                                color: AppColors.terracottaBorder,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 48),
-                          child: ElevatedButton.icon(
-                            key: const Key('close-cashier-action-button'),
-                            onPressed: () {},
-                            icon: const Icon(
-                              Icons.lock_clock_rounded,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                            label: const Text('Tutup Kasir'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.terracotta,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: AppSpacing.lg),
-
-              // Empty or Placeholder List
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Rincian Rekapitulasi Kas Terakhir',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.account_balance_wallet_outlined,
-                              size: 40,
-                              color: AppColors.slateLight.withValues(
-                                alpha: 0.7,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Belum ada penutupan kasir untuk sesi ini.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppColors.neutralText,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  static Widget _buildMetricCard({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
-    required String title,
-    required String value,
-    required String subtitle,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.slate,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 10,
-              color: AppColors.neutralTextLight,
-            ),
-          ),
-        ],
-      ),
+    return FinanceView(
+      apiClient: apiClient,
+      branchId: branchId,
+      financeController: financeController,
+      cashShiftController: cashShiftController,
+      printerService: printerService,
+      onRefresh: onRefresh,
     );
   }
 }

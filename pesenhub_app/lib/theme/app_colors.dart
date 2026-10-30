@@ -17,6 +17,7 @@ abstract final class AppColors {
   static const Color terracottaDark = Color(0xFF2D231E);
   static const Color terracotta = Color(0xFF8D321F);
   static const Color terracottaLight = Color(0xFFF9EFE7);
+  static const Color terracottaSoft = Color(0xFFF9EFE7);
   static const Color terracottaBorder = Color(0xFFF0DCD3);
   static const Color terracottaGradientStart = Color(0xFF8D321F);
   static const Color terracottaGradientEnd = Color(0xFFB8482A);
@@ -26,9 +27,11 @@ abstract final class AppColors {
   static const Color surface = Color(0xFFFFFFFF);
   static const Color surfaceVariant = Color(0xFFF1F5F9);
   static const Color border = Color(0xFFE2E8F0);
+  static const Color outlineVariant = Color(0xFFE2E8F0);
   static const Color borderFocus = Color(0xFF7A321F);
   static const Color creamBg = Color(0xFFFBF8F5);
   static const Color warmSurface = Color(0xFFF7F5F2);
+  static const Color surfaceWarm = Color(0xFFF7F5F2);
   static const Color cardBorder = Color(0xFFF0EBE6);
   static const Color cardBorderSubtle = Color(0xFFF4EEEA);
   static const Color cardBorderAlt = Color(0xFFF3ECE6);

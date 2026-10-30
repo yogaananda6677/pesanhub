@@ -3,6 +3,7 @@ package report
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,21 +22,14 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
-	p := customer.PrincipalFromRequest(r)
-	if !customer.CanOperateOutlet(p) {
-		httpapi.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Akses ditolak.", httpserver.RequestID(r.Context()), nil)
-		return
-	}
-
+func (h *Handler) parseFilter(r *http.Request) (Filter, error) {
 	scope := branch.ScopeFromContext(r.Context())
 	filter := Filter{}
 
 	rawBranch := strings.TrimSpace(r.URL.Query().Get("branch_id"))
 	if rawBranch != "" {
 		if !domain.ValidUUID(rawBranch) {
-			httpapi.WriteError(w, http.StatusBadRequest, "INVALID_BRANCH", "Format branch_id tidak valid.", httpserver.RequestID(r.Context()), nil)
-			return
+			return filter, errors.New("INVALID_BRANCH")
 		}
 		filter.BranchID = rawBranch
 	} else if !scope.All && scope.BranchID != "" {
@@ -45,8 +39,7 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 	if rawFrom := strings.TrimSpace(r.URL.Query().Get("from")); rawFrom != "" {
 		t, err := parseDate(rawFrom, false)
 		if err != nil {
-			httpapi.WriteError(w, http.StatusBadRequest, "INVALID_DATE", "Parameter 'from' harus berformat YYYY-MM-DD atau RFC3339.", httpserver.RequestID(r.Context()), nil)
-			return
+			return filter, errors.New("INVALID_DATE_FROM")
 		}
 		filter.From = &t
 	}
@@ -54,14 +47,34 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 	if rawTo := strings.TrimSpace(r.URL.Query().Get("to")); rawTo != "" {
 		t, err := parseDate(rawTo, true)
 		if err != nil {
-			httpapi.WriteError(w, http.StatusBadRequest, "INVALID_DATE", "Parameter 'to' harus berformat YYYY-MM-DD atau RFC3339.", httpserver.RequestID(r.Context()), nil)
-			return
+			return filter, errors.New("INVALID_DATE_TO")
 		}
 		filter.To = &t
 	}
 
 	if rawInc := strings.TrimSpace(r.URL.Query().Get("include_branches")); rawInc == "true" || rawInc == "1" {
 		filter.IncludeBranches = true
+	}
+
+	return filter, nil
+}
+
+func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
+	p := customer.PrincipalFromRequest(r)
+	if !customer.CanOperateOutlet(p) {
+		httpapi.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Akses ditolak.", httpserver.RequestID(r.Context()), nil)
+		return
+	}
+
+	filter, err := h.parseFilter(r)
+	if err != nil {
+		reqID := httpserver.RequestID(r.Context())
+		if err.Error() == "INVALID_BRANCH" {
+			httpapi.WriteError(w, http.StatusBadRequest, "INVALID_BRANCH", "Format branch_id tidak valid.", reqID, nil)
+		} else {
+			httpapi.WriteError(w, http.StatusBadRequest, "INVALID_DATE", "Parameter tanggal harus berformat YYYY-MM-DD atau RFC3339.", reqID, nil)
+		}
+		return
 	}
 
 	summary, err := h.service.GetSummary(r.Context(), p, filter)
@@ -71,6 +84,40 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpapi.WriteJSON(w, http.StatusOK, SummaryResponse{Summary: summary})
+}
+
+func (h *Handler) TopProducts(w http.ResponseWriter, r *http.Request) {
+	p := customer.PrincipalFromRequest(r)
+	if !customer.CanOperateOutlet(p) {
+		httpapi.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Akses ditolak.", httpserver.RequestID(r.Context()), nil)
+		return
+	}
+
+	filter, err := h.parseFilter(r)
+	if err != nil {
+		reqID := httpserver.RequestID(r.Context())
+		if err.Error() == "INVALID_BRANCH" {
+			httpapi.WriteError(w, http.StatusBadRequest, "INVALID_BRANCH", "Format branch_id tidak valid.", reqID, nil)
+		} else {
+			httpapi.WriteError(w, http.StatusBadRequest, "INVALID_DATE", "Parameter tanggal harus berformat YYYY-MM-DD atau RFC3339.", reqID, nil)
+		}
+		return
+	}
+
+	limit := 5
+	if rawLimit := strings.TrimSpace(r.URL.Query().Get("limit")); rawLimit != "" {
+		if parsed, err := strconv.Atoi(rawLimit); err == nil && parsed > 0 && parsed <= 50 {
+			limit = parsed
+		}
+	}
+
+	resp, err := h.service.GetTopProducts(r.Context(), p, filter, limit)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+
+	httpapi.WriteJSON(w, http.StatusOK, resp)
 }
 
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
