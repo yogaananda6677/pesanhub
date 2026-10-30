@@ -107,6 +107,7 @@ class _OutletOperationalViewState extends State<OutletOperationalView> {
 
     // 2. Fetch fresh data from backend
     if (widget.apiClient != null) {
+      if (!mounted) return;
       setState(() => _isLoading = true);
       try {
         final branches = await widget.apiClient!.fetchBranches();

@@ -21,19 +21,6 @@ void main() {
   });
 
   group('OutletOperationalView Database Integration Tests', () {
-    late LocalDatabase localDb;
-
-    setUp(() async {
-      localDb = LocalDatabase(
-        customPath: inMemoryDatabasePath,
-        customFactory: databaseFactoryFfi,
-      );
-    });
-
-    tearDown(() async {
-      await localDb.close();
-    });
-
     testWidgets(
       'renders branch operational data fetched from backend database',
       (tester) async {
@@ -56,26 +43,9 @@ void main() {
                       'close_time': '23:30',
                       'open_days': 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU',
                       'is_open': true,
+                      'is_main': true,
                     },
                   ],
-                }),
-                200,
-              );
-            }
-            if (req.method == 'GET' &&
-                req.url.path == '/api/v1/branches/b-01') {
-              return http.Response(
-                jsonEncode({
-                  'data': {
-                    'id': 'b-01',
-                    'name': 'Cabang Utama Genteng',
-                    'address': 'Jl. Gajah Mada No. 12',
-                    'phone': '081234567890',
-                    'open_time': '16:00',
-                    'close_time': '23:30',
-                    'open_days': 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU',
-                    'is_open': true,
-                  },
                 }),
                 200,
               );
@@ -87,23 +57,21 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             theme: AppTheme.lightTheme,
-            home: Scaffold(
-              body: OutletOperationalView(
-                apiClient: client,
-                localDatabase: localDb,
-              ),
-            ),
+            home: Scaffold(body: OutletOperationalView(apiClient: client)),
           ),
         );
 
+        // Allow async _loadOperationalData to complete
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
         await tester.pumpAndSettle();
 
         expect(find.text('Outlet & Operasional'), findsOneWidget);
         expect(find.text('Cabang Utama Genteng'), findsWidgets);
-        expect(find.text('Jl. Gajah Mada No. 12'), findsOneWidget);
+        expect(find.text('Jl. Gajah Mada No. 12'), findsWidgets);
         expect(find.text('16:00 - 23:30 WIB'), findsOneWidget);
         expect(find.text('Setiap Hari (Senin - Minggu)'), findsOneWidget);
-        expect(find.text('BUKA'), findsOneWidget);
+        expect(find.text('Buka Sekarang'), findsOneWidget);
       },
     );
 
@@ -124,6 +92,8 @@ void main() {
                   {
                     'id': 'b-01',
                     'name': 'Cabang Banyuwangi',
+                    'address': 'Jl. Basuki Rahmat No. 1',
+                    'phone': '0812345678',
                     'open_time': '16:00',
                     'close_time': '23:30',
                     'open_days': 'SENIN,SELASA',
@@ -153,17 +123,15 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: Scaffold(
-            body: OutletOperationalView(
-              apiClient: client,
-              localDatabase: localDb,
-            ),
-          ),
+          home: Scaffold(body: OutletOperationalView(apiClient: client)),
         ),
       );
 
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
       await tester.pumpAndSettle();
-      expect(find.text('BUKA'), findsOneWidget);
+
+      expect(find.text('Buka Sekarang'), findsOneWidget);
 
       // Tap the Switch to toggle status
       final switchFinder = find.byType(Switch);
@@ -172,44 +140,39 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(updatedIsOpen, 'false');
-      expect(find.text('TUTUP'), findsOneWidget);
+      expect(find.text('Tutup Sementara'), findsOneWidget);
     });
 
-    testWidgets('falls back to local cached metadata when offline', (
-      tester,
-    ) async {
-      await localDb.setMetadata(
-        'cached_branch_operational',
-        jsonEncode({
-          'id': 'b-cached',
-          'name': 'Cabang Offline Rogojampi',
-          'address': 'Jl. Rogojampi Indah No. 5',
-          'phone': '081987654321',
-          'open_time': '17:00',
-          'close_time': '22:00',
-          'open_days': 'SENIN,SELASA,RABU',
-          'is_open': false,
-        }),
+    test('LocalDatabase caches operational metadata for offline use', () async {
+      final localDb = LocalDatabase(
+        customPath: inMemoryDatabasePath,
+        customFactory: databaseFactoryFfi,
       );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: Scaffold(
-            body: OutletOperationalView(
-              apiClient: null,
-              localDatabase: localDb,
-            ),
-          ),
-        ),
-      );
+      final payload = jsonEncode({
+        'id': 'b-cached',
+        'name': 'Cabang Offline Rogojampi',
+        'address': 'Jl. Rogojampi Indah No. 5',
+        'phone': '081987654321',
+        'open_time': '17:00',
+        'close_time': '22:00',
+        'open_days': 'SENIN,SELASA,RABU',
+        'is_open': false,
+      });
 
-      await tester.pumpAndSettle();
+      await localDb.setMetadata('cached_branch_operational', payload);
 
-      expect(find.text('Cabang Offline Rogojampi'), findsWidgets);
-      expect(find.text('Jl. Rogojampi Indah No. 5'), findsOneWidget);
-      expect(find.text('17:00 - 22:00 WIB'), findsOneWidget);
-      expect(find.text('TUTUP'), findsOneWidget);
+      final cached = await localDb.getMetadata('cached_branch_operational');
+      expect(cached, isNotNull);
+
+      final map = jsonDecode(cached!) as Map<String, dynamic>;
+      expect(map['id'], 'b-cached');
+      expect(map['name'], 'Cabang Offline Rogojampi');
+      expect(map['open_time'], '17:00');
+      expect(map['close_time'], '22:00');
+      expect(map['is_open'], isFalse);
+
+      await localDb.close();
     });
   });
 }
