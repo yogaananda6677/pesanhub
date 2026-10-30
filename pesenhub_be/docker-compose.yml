@@ -21,6 +21,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./uploads:/app/web/uploads
+      - ./web/downloads:/app/web/downloads:ro
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/live"]
       interval: 10s
