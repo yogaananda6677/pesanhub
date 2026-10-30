@@ -21,7 +21,7 @@ func NewStore(db *dbx.Pool) *Store {
 }
 
 func (s *Store) List(ctx context.Context, activeOnly bool) ([]Branch, error) {
-	q := `SELECT id::text, code, name, COALESCE(address, ''), COALESCE(phone, ''), is_default, is_active, created_at, updated_at
+	q := `SELECT id::text, code, name, COALESCE(address, ''), COALESCE(phone, ''), COALESCE(open_time, '16:00'), COALESCE(close_time, '23:30'), COALESCE(open_days, 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU'), is_open, is_default, is_active, created_at, updated_at
 		FROM branches`
 	if activeOnly {
 		q += ` WHERE is_active = true`
@@ -37,7 +37,7 @@ func (s *Store) List(ctx context.Context, activeOnly bool) ([]Branch, error) {
 	var branches []Branch
 	for rows.Next() {
 		var b Branch
-		if err := rows.Scan(&b.ID, &b.Code, &b.Name, &b.Address, &b.Phone, &b.IsDefault, &b.IsActive, &b.CreatedAt, &b.UpdatedAt); err != nil {
+		if err := rows.Scan(&b.ID, &b.Code, &b.Name, &b.Address, &b.Phone, &b.OpenTime, &b.CloseTime, &b.OpenDays, &b.IsOpen, &b.IsDefault, &b.IsActive, &b.CreatedAt, &b.UpdatedAt); err != nil {
 			return nil, err
 		}
 		branches = append(branches, b)
@@ -48,9 +48,9 @@ func (s *Store) List(ctx context.Context, activeOnly bool) ([]Branch, error) {
 func (s *Store) GetByID(ctx context.Context, id string) (Branch, error) {
 	var b Branch
 	err := s.db.QueryRow(ctx, `
-		SELECT id::text, code, name, COALESCE(address, ''), COALESCE(phone, ''), is_default, is_active, created_at, updated_at
+		SELECT id::text, code, name, COALESCE(address, ''), COALESCE(phone, ''), COALESCE(open_time, '16:00'), COALESCE(close_time, '23:30'), COALESCE(open_days, 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU'), is_open, is_default, is_active, created_at, updated_at
 		FROM branches
-		WHERE id = $1::uuid`, id).Scan(&b.ID, &b.Code, &b.Name, &b.Address, &b.Phone, &b.IsDefault, &b.IsActive, &b.CreatedAt, &b.UpdatedAt)
+		WHERE id = $1::uuid`, id).Scan(&b.ID, &b.Code, &b.Name, &b.Address, &b.Phone, &b.OpenTime, &b.CloseTime, &b.OpenDays, &b.IsOpen, &b.IsDefault, &b.IsActive, &b.CreatedAt, &b.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Branch{}, ErrNotFound
 	}
@@ -60,9 +60,9 @@ func (s *Store) GetByID(ctx context.Context, id string) (Branch, error) {
 func (s *Store) GetByCode(ctx context.Context, code string) (Branch, error) {
 	var b Branch
 	err := s.db.QueryRow(ctx, `
-		SELECT id::text, code, name, COALESCE(address, ''), COALESCE(phone, ''), is_default, is_active, created_at, updated_at
+		SELECT id::text, code, name, COALESCE(address, ''), COALESCE(phone, ''), COALESCE(open_time, '16:00'), COALESCE(close_time, '23:30'), COALESCE(open_days, 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU'), is_open, is_default, is_active, created_at, updated_at
 		FROM branches
-		WHERE UPPER(code) = UPPER($1)`, strings.TrimSpace(code)).Scan(&b.ID, &b.Code, &b.Name, &b.Address, &b.Phone, &b.IsDefault, &b.IsActive, &b.CreatedAt, &b.UpdatedAt)
+		WHERE UPPER(code) = UPPER($1)`, strings.TrimSpace(code)).Scan(&b.ID, &b.Code, &b.Name, &b.Address, &b.Phone, &b.OpenTime, &b.CloseTime, &b.OpenDays, &b.IsOpen, &b.IsDefault, &b.IsActive, &b.CreatedAt, &b.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Branch{}, ErrNotFound
 	}
@@ -72,10 +72,10 @@ func (s *Store) GetByCode(ctx context.Context, code string) (Branch, error) {
 func (s *Store) GetDefault(ctx context.Context) (Branch, error) {
 	var b Branch
 	err := s.db.QueryRow(ctx, `
-		SELECT id::text, code, name, COALESCE(address, ''), COALESCE(phone, ''), is_default, is_active, created_at, updated_at
+		SELECT id::text, code, name, COALESCE(address, ''), COALESCE(phone, ''), COALESCE(open_time, '16:00'), COALESCE(close_time, '23:30'), COALESCE(open_days, 'SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU'), is_open, is_default, is_active, created_at, updated_at
 		FROM branches
 		WHERE is_default = true
-		LIMIT 1`).Scan(&b.ID, &b.Code, &b.Name, &b.Address, &b.Phone, &b.IsDefault, &b.IsActive, &b.CreatedAt, &b.UpdatedAt)
+		LIMIT 1`).Scan(&b.ID, &b.Code, &b.Name, &b.Address, &b.Phone, &b.OpenTime, &b.CloseTime, &b.OpenDays, &b.IsOpen, &b.IsDefault, &b.IsActive, &b.CreatedAt, &b.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Branch{}, ErrNotFound
 	}
@@ -96,9 +96,9 @@ func (s *Store) Create(ctx context.Context, b Branch) (Branch, error) {
 	}
 
 	_, err = tx.Exec(ctx, `
-		INSERT INTO branches (id, code, name, address, phone, is_default, is_active)
-		VALUES ($1::uuid, $2, $3, NULLIF($4, ''), NULLIF($5, ''), $6, $7)`,
-		b.ID, b.Code, b.Name, b.Address, b.Phone, b.IsDefault, b.IsActive)
+		INSERT INTO branches (id, code, name, address, phone, open_time, close_time, open_days, is_open, is_default, is_active)
+		VALUES ($1::uuid, $2, $3, NULLIF($4, ''), NULLIF($5, ''), $6, $7, $8, $9, $10, $11)`,
+		b.ID, b.Code, b.Name, b.Address, b.Phone, b.OpenTime, b.CloseTime, b.OpenDays, b.IsOpen, b.IsDefault, b.IsActive)
 	if err != nil {
 		var dbErr *mysql.MySQLError
 		if errors.As(err, &dbErr) && dbErr.Number == 1062 {
@@ -148,9 +148,11 @@ func (s *Store) Update(ctx context.Context, b Branch) (Branch, error) {
 
 	res, err := tx.Exec(ctx, `
 		UPDATE branches
-		SET code = $2, name = $3, address = NULLIF($4, ''), phone = NULLIF($5, ''), is_default = $6, is_active = $7, updated_at = now()
+		SET code = $2, name = $3, address = NULLIF($4, ''), phone = NULLIF($5, ''),
+		    open_time = $6, close_time = $7, open_days = $8, is_open = $9,
+		    is_default = $10, is_active = $11, updated_at = now()
 		WHERE id = $1::uuid`,
-		b.ID, b.Code, b.Name, b.Address, b.Phone, b.IsDefault, b.IsActive)
+		b.ID, b.Code, b.Name, b.Address, b.Phone, b.OpenTime, b.CloseTime, b.OpenDays, b.IsOpen, b.IsDefault, b.IsActive)
 	if err != nil {
 		var dbErr *mysql.MySQLError
 		if errors.As(err, &dbErr) && dbErr.Number == 1062 {

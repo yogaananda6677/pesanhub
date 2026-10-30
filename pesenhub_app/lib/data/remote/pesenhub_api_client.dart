@@ -740,11 +740,47 @@ class PesenHubApiClient
   Future<List<Map<String, dynamic>>> fetchBranches() async {
     final response = await _send('GET', config.resolve('branches'));
     final json = _decodeObject(response);
-    final rawList = json['branches'];
+    final rawList = json['data'] ?? json['branches'];
     if (rawList is List) {
       return rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
     }
     return [];
+  }
+
+  Future<Map<String, dynamic>?> fetchBranch(String branchId) async {
+    final response = await _send('GET', config.resolve('branches/$branchId'));
+    final json = _decodeObject(response);
+    if (json.containsKey('data') && json['data'] is Map) {
+      return Map<String, dynamic>.from(json['data'] as Map);
+    }
+    return json;
+  }
+
+  Future<Map<String, dynamic>> updateBranchOperational(
+    String branchId, {
+    String? openTime,
+    String? closeTime,
+    String? openDays,
+    bool? isOpen,
+    String? name,
+    String? address,
+    String? phone,
+  }) async {
+    final payload = <String, dynamic>{
+      'open_time': ?openTime,
+      'close_time': ?closeTime,
+      'open_days': ?openDays,
+      'is_open': ?isOpen,
+      'name': ?name,
+      'address': ?address,
+      'phone': ?phone,
+    };
+    final response = await _send(
+      'PATCH',
+      config.resolve('branches/$branchId/operational'),
+      body: jsonEncode(payload),
+    );
+    return _decodeObject(response);
   }
 
   Future<List<Discount>> fetchDiscounts({

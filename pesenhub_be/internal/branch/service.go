@@ -10,6 +10,7 @@ import (
 )
 
 var validCodePattern = regexp.MustCompile(`^[A-Z0-9_-]{2,16}$`)
+var validTimePattern = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
 
 type Repository interface {
 	List(ctx context.Context, activeOnly bool) ([]Branch, error)
@@ -50,12 +51,43 @@ func (s *Service) Create(ctx context.Context, in CreateBranchInput) (Branch, err
 	if !validCodePattern.MatchString(code) || name == "" || len(name) > 120 {
 		return Branch{}, ErrInvalidInput
 	}
+
+	openTime := strings.TrimSpace(in.OpenTime)
+	if openTime != "" && !validTimePattern.MatchString(openTime) {
+		return Branch{}, ErrInvalidInput
+	}
+	if openTime == "" {
+		openTime = "16:00"
+	}
+
+	closeTime := strings.TrimSpace(in.CloseTime)
+	if closeTime != "" && !validTimePattern.MatchString(closeTime) {
+		return Branch{}, ErrInvalidInput
+	}
+	if closeTime == "" {
+		closeTime = "23:30"
+	}
+
+	openDays := strings.TrimSpace(in.OpenDays)
+	if openDays == "" {
+		openDays = "SENIN,SELASA,RABU,KAMIS,JUMAT,SABTU,MINGGU"
+	}
+
+	isOpen := true
+	if in.IsOpen != nil {
+		isOpen = *in.IsOpen
+	}
+
 	b := Branch{
 		ID:        customer.NewID(),
 		Code:      code,
 		Name:      name,
 		Address:   strings.TrimSpace(in.Address),
 		Phone:     strings.TrimSpace(in.Phone),
+		OpenTime:  openTime,
+		CloseTime: closeTime,
+		OpenDays:  openDays,
+		IsOpen:    isOpen,
 		IsDefault: in.IsDefault,
 		IsActive:  true,
 	}
@@ -90,6 +122,26 @@ func (s *Service) Update(ctx context.Context, id string, in UpdateBranchInput) (
 	}
 	if in.Phone != "" {
 		existing.Phone = strings.TrimSpace(in.Phone)
+	}
+	if in.OpenTime != "" {
+		openTime := strings.TrimSpace(in.OpenTime)
+		if !validTimePattern.MatchString(openTime) {
+			return Branch{}, ErrInvalidInput
+		}
+		existing.OpenTime = openTime
+	}
+	if in.CloseTime != "" {
+		closeTime := strings.TrimSpace(in.CloseTime)
+		if !validTimePattern.MatchString(closeTime) {
+			return Branch{}, ErrInvalidInput
+		}
+		existing.CloseTime = closeTime
+	}
+	if in.OpenDays != "" {
+		existing.OpenDays = strings.TrimSpace(in.OpenDays)
+	}
+	if in.IsOpen != nil {
+		existing.IsOpen = *in.IsOpen
 	}
 	if in.IsDefault != nil {
 		existing.IsDefault = *in.IsDefault

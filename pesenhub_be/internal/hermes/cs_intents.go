@@ -297,19 +297,58 @@ func formatGreetingMessage(customerName string) string {
 	return fmt.Sprintf("Halo %s! Selamat datang di Martabak & Terang Bulan Jenggirat. Ada yang bisa kami bantu? Silakan sebutkan pesanan makanan atau minuman yang diinginkan ya kak 😊", greeting)
 }
 
-func formatStoreInfoMessage(infoType, customerName string) string {
+type OperationalInfo struct {
+	OpenTime  string
+	CloseTime string
+	OpenDays  string
+	IsOpen    bool
+}
+
+func formatStoreInfoMessage(infoType, customerName string, op ...OperationalInfo) string {
 	greeting := "kak"
 	if strings.TrimSpace(customerName) != "" {
 		greeting = "kak " + strings.TrimSpace(customerName)
 	}
 	switch infoType {
 	case "hours":
-		return fmt.Sprintf("Kedai Martabak & Terang Bulan Jenggirat buka setiap hari pukul *16:00 - 23:00 WIB* ya %s! Silakan jika ingin pesan martabak atau terang bulan untuk menemani malam kakak 😊", greeting)
+		openTime := "16:00"
+		closeTime := "23:00"
+		openDays := "setiap hari"
+		isOpen := true
+		if len(op) > 0 {
+			if op[0].OpenTime != "" {
+				openTime = op[0].OpenTime
+			}
+			if op[0].CloseTime != "" {
+				closeTime = op[0].CloseTime
+			}
+			if op[0].OpenDays != "" {
+				openDays = op[0].OpenDays
+				upperDays := strings.ToUpper(openDays)
+				if strings.Contains(upperDays, "SENIN") && strings.Contains(upperDays, "MINGGU") {
+					openDays = "setiap hari"
+				}
+			}
+			isOpen = op[0].IsOpen
+		}
+		if !isOpen {
+			return fmt.Sprintf("Kedai Martabak & Terang Bulan Jenggirat saat ini sedang *tutup sementara* ya %s. Jam operasional normal kami buka %s pukul *%s - %s WIB*. Silakan kembali lagi nanti ya kak! 😊", greeting, openDays, openTime, closeTime)
+		}
+		return fmt.Sprintf("Kedai Martabak & Terang Bulan Jenggirat buka %s pukul *%s - %s WIB* ya %s! Silakan jika ingin pesan martabak atau terang bulan untuk menemani malam kakak 😊", openDays, openTime, closeTime, greeting)
 	case "location":
 		return fmt.Sprintf("Kedai Martabak & Terang Bulan Jenggirat berlokasi di *Jl. Ahmad Yani No. 45* (Kediri / Banyuwangi) ya %s 📍\n\nPesanan bisa diambil langsung ke kasir (Pickup / Takeaway) atau pesan lewat WhatsApp ini 😊\n\n📌 *Link Lokasi Google Maps:*\nhttps://maps.google.com/?q=Martabak+Terang+Bulan+Jenggirat", greeting)
 	default:
 		return fmt.Sprintf("Ada yang bisa kami bantu seputar kedai atau menu Martabak & Terang Bulan Jenggirat %s? 😊", greeting)
 	}
+}
+
+func FormatStoreHoursResponse(openTime, closeTime, openDays string, isOpen bool, customerName string) string {
+	return formatStoreInfoMessage("hours", customerName, OperationalInfo{
+		OpenTime:  openTime,
+		CloseTime: closeTime,
+		OpenDays:  openDays,
+		IsOpen:    isOpen,
+	})
 }
 
 func formatCategoryInquiryMessage(catType, customerName string) string {

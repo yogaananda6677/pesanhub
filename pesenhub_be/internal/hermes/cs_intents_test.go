@@ -283,3 +283,17 @@ func TestDetectCategoryInquiry(t *testing.T) {
 		}
 	}
 }
+
+func TestFormatStoreHoursResponse_Dynamic(t *testing.T) {
+	// Open store with custom hours
+	msgOpen := FormatStoreHoursResponse("17:00", "23:45", "Senin - Sabtu", true, "Yoga")
+	if !strings.Contains(msgOpen, "17:00 - 23:45 WIB") || !strings.Contains(msgOpen, "kak Yoga") {
+		t.Errorf("unexpected open store message: %s", msgOpen)
+	}
+
+	// Closed store
+	msgClosed := FormatStoreHoursResponse("16:00", "23:00", "setiap hari", false, "Yoga")
+	if !strings.Contains(msgClosed, "tutup sementara") {
+		t.Errorf("unexpected closed store message: %s", msgClosed)
+	}
+}

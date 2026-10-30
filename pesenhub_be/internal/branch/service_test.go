@@ -69,6 +69,56 @@ func TestService_BranchOperations(t *testing.T) {
 		}
 	})
 
+	t.Run("Create and Update branch operational hours", func(t *testing.T) {
+		// Invalid open time format
+		_, err := svc.Create(ctx, CreateBranchInput{
+			Code:      "KDR",
+			Name:      "Cabang Kediri",
+			OpenTime:  "25:00",
+			CloseTime: "23:00",
+		})
+		if err != ErrInvalidInput {
+			t.Fatalf("expected ErrInvalidInput for invalid open time, got %v", err)
+		}
+
+		// Valid create
+		isOpen := true
+		b, err := svc.Create(ctx, CreateBranchInput{
+			Code:      "KDR",
+			Name:      "Cabang Kediri",
+			OpenTime:  "15:00",
+			CloseTime: "22:00",
+			OpenDays:  "SENIN,SELASA,RABU,KAMIS,JUMAT",
+			IsOpen:    &isOpen,
+		})
+		if err != nil {
+			t.Fatalf("unexpected err: %v", err)
+		}
+		if b.OpenTime != "15:00" || b.CloseTime != "22:00" || !b.IsOpen || b.OpenDays != "SENIN,SELASA,RABU,KAMIS,JUMAT" {
+			t.Fatalf("unexpected operational fields: %#v", b)
+		}
+
+		// Invalid update close time
+		_, err = svc.Update(ctx, b.ID, UpdateBranchInput{CloseTime: "abc"})
+		if err != ErrInvalidInput {
+			t.Fatalf("expected ErrInvalidInput for invalid close time update, got %v", err)
+		}
+
+		// Valid update: toggle store closed
+		isClosed := false
+		updated, err := svc.Update(ctx, b.ID, UpdateBranchInput{
+			OpenTime:  "17:00",
+			CloseTime: "23:30",
+			IsOpen:    &isClosed,
+		})
+		if err != nil {
+			t.Fatalf("unexpected err: %v", err)
+		}
+		if updated.OpenTime != "17:00" || updated.CloseTime != "23:30" || updated.IsOpen {
+			t.Fatalf("expected updated operational status, got %#v", updated)
+		}
+	})
+
 	t.Run("Assign user to branch validates UUID", func(t *testing.T) {
 		err := svc.AssignUserBranch(ctx, "invalid-user-id", "b0000000-0000-0000-0000-000000000001")
 		if err != ErrInvalidInput {

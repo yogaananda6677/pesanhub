@@ -919,6 +919,7 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
           currentBranchId: widget.branchId,
           branchName: widget.branchName,
           branchAddress: widget.branchAddress,
+          apiClient: widget.apiClient,
         ),
       ),
     );
