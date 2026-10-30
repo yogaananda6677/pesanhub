@@ -65,6 +65,15 @@
       <line class="svg-icon-stroke" x1="18" y1="6" x2="6" y2="18"></line>
       <line class="svg-icon-stroke" x1="6" y1="6" x2="18" y2="18"></line>
     </symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24">
+      <path class="svg-icon-stroke" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+      <polyline class="svg-icon-stroke" points="7 10 12 15 17 10"></polyline>
+      <line class="svg-icon-stroke" x1="12" y1="15" x2="12" y2="3"></line>
+    </symbol>
+    <symbol id="icon-smartphone" viewBox="0 0 24 24">
+      <rect class="svg-icon-stroke" x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+      <line class="svg-icon-stroke" x1="12" y1="18" x2="12.01" y2="18"></line>
+    </symbol>
   </svg>
 
   <!-- ==========================================
@@ -85,12 +94,16 @@
         <a href="#hero" class="nav-link">Beranda</a>
         <a href="#keunggulan" class="nav-link">Menu Unggulan</a>
         <a href="#menu" class="nav-link">Daftar Menu</a>
+        <a href="#aplikasi" class="nav-link">Aplikasi Kasir</a>
         <a href="#mitra" class="nav-link">Pesan Antar</a>
         <a href="#lokasi" class="nav-link">Lokasi Outlet</a>
       </nav>
 
       <!-- Action Buttons -->
       <div class="nav-actions">
+        <a href="/downloads/pesenhub-pos.apk" class="btn btn-outline btn-sm nav-btn-app" download title="Unduh Aplikasi Android (APK)">
+          <svg class="svg-icon"><use href="#icon-download"/></svg> Unduh APK
+        </a>
         <a href="/order/" class="btn btn-primary btn-sm">
           <svg class="svg-icon"><use href="#icon-bag"/></svg> Pesan Online
         </a>
@@ -108,9 +121,16 @@
       <a href="#hero" class="nav-link">Beranda</a>
       <a href="#keunggulan" class="nav-link">Menu Unggulan</a>
       <a href="#menu" class="nav-link">Daftar Menu</a>
+      <a href="#aplikasi" class="nav-link">Aplikasi Kasir (POS)</a>
       <a href="#mitra" class="nav-link">Pesan Antar</a>
       <a href="#lokasi" class="nav-link">Lokasi Outlet</a>
       <div style="display:flex;flex-direction:column;gap:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border-subtle)">
+        <a href="/downloads/pesenhub-pos.apk" class="btn btn-outline" download>
+          <svg class="svg-icon"><use href="#icon-download"/></svg> Unduh Aplikasi Kasir (.APK)
+        </a>
+        <a href="/app/" class="btn btn-outline" style="border-color:var(--primary);color:var(--primary);">
+          <svg class="svg-icon"><use href="#icon-smartphone"/></svg> Buka Web POS Kasir
+        </a>
         <a href="/order/" class="btn btn-primary">
           <svg class="svg-icon"><use href="#icon-bag"/></svg> Pesan Online (Web Order)
         </a>
@@ -154,6 +174,24 @@
               <span>Daftar Menu & Harga</span>
               <svg class="svg-icon"><use href="#icon-arrow-right"/></svg>
             </a>
+          </div>
+
+          <!-- Shortcut Unduh Aplikasi Mobile POS -->
+          <div class="hero-app-shortcut-box">
+            <div class="hero-app-shortcut-badge">
+              <svg class="svg-icon" style="color:var(--primary);width:16px;height:16px;"><use href="#icon-smartphone"/></svg>
+              <span>Aplikasi Kasir POS</span>
+            </div>
+            <div class="hero-app-shortcut-content">
+              <span class="hero-app-label">Aplikasi Kasir & Staf Gerai:</span>
+              <a href="/downloads/pesenhub-pos.apk" class="hero-app-btn-download" download title="Unduh File APK Android Langsung">
+                <svg class="svg-icon" style="width:14px;height:14px;"><use href="#icon-download"/></svg> Unduh APK
+              </a>
+              <span class="hero-app-divider">•</span>
+              <a href="/app/" class="hero-app-btn-web" title="Buka Aplikasi Web POS di Browser">
+                Buka Web POS &rarr;
+              </a>
+            </div>
           </div>
 
           <div class="hero-trust-bar">
@@ -618,6 +656,114 @@
     </section>
 
     <!-- ==========================================
+         MOBILE APP & POS SHOWCASE SECTION
+         ========================================== -->
+    <section class="app-section" id="aplikasi">
+      <div class="container">
+        <div class="app-showcase-card">
+          <div class="app-showcase-content">
+            <span class="section-tag">
+              <svg class="svg-icon"><use href="#icon-smartphone"/></svg> Aplikasi Kasir PesenHub POS
+            </span>
+            <h2 class="app-section-title">
+              Kelola Penjualan & Dapur Gerai dengan <span class="title-accent-red">PesenHub POS</span>
+            </h2>
+            <p class="app-section-desc">
+              Aplikasi mobile resmi kasir Martabak Jenggirat Kediri. Dilengkapi sistem pencatatan pesanan kilat, sinkronisasi jam operasional gerai, antrean dapur realtime, cetak struk Bluetooth thermal, hingga rekonsiliasi kas laci kasir harian.
+            </p>
+
+            <div class="app-feature-pills">
+              <div class="app-feature-item">
+                <div class="app-feature-icon"><svg class="svg-icon"><use href="#icon-check"/></svg></div>
+                <div>
+                  <strong>Kasir POS Cepat & Responsif:</strong> Antarmuka kasir modern untuk smartphone, tablet POS, dan desktop kasir.
+                </div>
+              </div>
+              <div class="app-feature-item">
+                <div class="app-feature-icon"><svg class="svg-icon"><use href="#icon-check"/></svg></div>
+                <div>
+                  <strong>Cetak Struk Bluetooth Thermal:</strong> Cetak struk pesanan & struk tutup kasir ke printer thermal 58mm/80mm ESC/POS.
+                </div>
+              </div>
+              <div class="app-feature-item">
+                <div class="app-feature-icon"><svg class="svg-icon"><use href="#icon-check"/></svg></div>
+                <div>
+                  <strong>Antrean Dapur & KDS:</strong> Status antrean pesanan langsung terhubung dan ter-update secara otomatis.
+                </div>
+              </div>
+              <div class="app-feature-item">
+                <div class="app-feature-icon"><svg class="svg-icon"><use href="#icon-check"/></svg></div>
+                <div>
+                  <strong>Rekap Kas Laci & Tutup Kasir:</strong> Pencatatan kas modal awal, penerimaan tunai, dan audit selisih kas fisik.
+                </div>
+              </div>
+            </div>
+
+            <!-- Download CTA Buttons -->
+            <div class="app-cta-group">
+              <a href="/downloads/pesenhub-pos.apk" class="btn btn-primary btn-lg" download>
+                <svg class="svg-icon" style="width:22px;height:22px;"><use href="#icon-download"/></svg>
+                <span>
+                  <strong>Unduh Aplikasi Android (.APK)</strong>
+                  <small style="display:block;font-size:0.75rem;opacity:0.9;">Versi 1.0.0 • Kompatibel Android 8.0+</small>
+                </span>
+              </a>
+              <a href="/app/" class="btn btn-outline btn-lg" title="Buka aplikasi kasir langsung di browser">
+                <svg class="svg-icon" style="width:22px;height:22px;"><use href="#icon-smartphone"/></svg>
+                <span>
+                  <strong>Buka Web POS Kasir</strong>
+                  <small style="display:block;font-size:0.75rem;color:var(--text-muted);">Akses Langsung via Browser</small>
+                </span>
+              </a>
+            </div>
+          </div>
+
+          <div class="app-showcase-visual">
+            <div class="phone-frame-mockup">
+              <div class="phone-frame-header">
+                <div class="phone-camera"></div>
+                <div class="phone-speaker"></div>
+              </div>
+              <div class="phone-screen-content">
+                <div class="mockup-app-bar">
+                  <div class="mockup-app-title">PesenHub POS</div>
+                  <div class="mockup-badge">ONLINE</div>
+                </div>
+                <div class="mockup-stat-card">
+                  <div class="mockup-stat-label">TOTAL OMSET BERSIH HARI INI</div>
+                  <div class="mockup-stat-val">Rp 2.450.000</div>
+                  <div class="mockup-stat-sub">38 Pesanan Sukses • Kasir Aktif</div>
+                </div>
+                <div class="mockup-grid-actions">
+                  <div class="mockup-action-tile active">
+                    <svg class="svg-icon"><use href="#icon-bag"/></svg>
+                    <span>Kasir POS</span>
+                  </div>
+                  <div class="mockup-action-tile">
+                    <svg class="svg-icon"><use href="#icon-clock"/></svg>
+                    <span>Antrean</span>
+                  </div>
+                  <div class="mockup-action-tile">
+                    <svg class="svg-icon"><use href="#icon-photo"/></svg>
+                    <span>Riwayat</span>
+                  </div>
+                  <div class="mockup-action-tile">
+                    <svg class="svg-icon"><use href="#icon-star"/></svg>
+                    <span>Keuangan</span>
+                  </div>
+                </div>
+                <div class="mockup-order-item">
+                  <div class="mockup-order-name">#ORD-042 • Terang Bulan 2 Toping</div>
+                  <div class="mockup-order-status">SEDANG DIMASAK</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
          DELIVERY PARTNERS
          ========================================== -->
     <section class="delivery-section" id="mitra">
@@ -744,6 +890,7 @@
             <li><a href="#hero">Beranda</a></li>
             <li><a href="#keunggulan">Menu Unggulan</a></li>
             <li><a href="#menu">Katalog Harga</a></li>
+            <li><a href="#aplikasi">Aplikasi Kasir</a></li>
             <li><a href="#lokasi">Lokasi & Kontak</a></li>
           </ul>
         </div>
@@ -756,11 +903,22 @@
             <li><a href="/superadmin/">Superadmin Portal</a></li>
           </ul>
         </div>
+
+        <div class="footer-col">
+          <h5>Aplikasi Kasir POS</h5>
+          <ul>
+            <li><a href="/downloads/pesenhub-pos.apk" download style="color:var(--accent-green);font-weight:700;">Unduh APK Android (.APK)</a></li>
+            <li><a href="/app/">Buka Web POS (Browser)</a></li>
+            <li><a href="#aplikasi">Panduan Fitur Kasir</a></li>
+          </ul>
+        </div>
       </div>
 
       <div class="footer-bottom">
         <div>&copy; 2026 Martabak Jenggirat Kediri. All rights reserved. Powered by PesenHub.</div>
-        <div style="display:flex;gap:1.5rem;">
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
+          <a href="/downloads/pesenhub-pos.apk" download style="color:var(--accent-green);font-weight:700;">Unduh APK POS</a>
+          <a href="/app/" style="color:var(--primary);font-weight:700;">Web POS</a>
           <a href="/order/" style="color:var(--primary);font-weight:700;">Order Online</a>
           <a href="/superadmin/">Control Plane</a>
         </div>
