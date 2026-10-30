@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../queue/models/queue_order.dart';
+import '../../finance/models/cash_shift.dart';
+import '../../finance/models/financial_summary.dart';
 
 /// PrinterService manages thermal receipt printer configuration, formatting,
 /// and print jobs for POS checkout and test printing.
@@ -183,6 +185,100 @@ class PrinterService extends ChangeNotifier {
     notifyListeners();
     try {
       await Future<void>.delayed(const Duration(milliseconds: 500));
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      _isPrinting = false;
+      notifyListeners();
+    }
+  }
+
+  /// Formats shift closing report into monospaced ESC/POS text.
+  String formatShiftClosingReport(CashShift shift, FinancialSummary? summary) {
+    final buffer = StringBuffer();
+
+    // Store Header
+    buffer.writeln(_divider('='));
+    buffer.writeln(_center('LAPORAN TUTUP KASIR'));
+    buffer.writeln(_center('PESENHUB POS'));
+    buffer.writeln(_divider('='));
+
+    // Meta
+    buffer.writeln(_justify('Kasir    :', shift.cashierName));
+    buffer.writeln(_justify('Status   :', shift.status));
+    buffer.writeln(
+      _justify(
+        'Mulai    :',
+        shift.shiftStart.toLocal().toString().substring(0, 16),
+      ),
+    );
+    if (shift.shiftEnd != null) {
+      buffer.writeln(
+        _justify(
+          'Selesai  :',
+          shift.shiftEnd!.toLocal().toString().substring(0, 16),
+        ),
+      );
+    }
+    buffer.writeln(_divider('-'));
+
+    // Shift Register Cash
+    buffer.writeln(_center('-- REKAP KAS LACI --'));
+    buffer.writeln(_justify('Modal Awal   :', shift.formattedStartingCash));
+    buffer.writeln(_justify('Tunai Masuk  :', shift.formattedCashIn));
+    if (shift.cashOut > 0) {
+      buffer.writeln(_justify('Kas Keluar   :', shift.formattedCashOut));
+    }
+    buffer.writeln(_divider('-'));
+    buffer.writeln(_justify('Ekspektasi   :', shift.formattedExpectedCash));
+    buffer.writeln(_justify('Fisik Aktual :', shift.formattedActualCash));
+    buffer.writeln(_justify('Selisih Kas  :', shift.formattedDiscrepancy));
+    if (shift.notes != null && shift.notes!.isNotEmpty) {
+      buffer.writeln('Catatan : ${shift.notes}');
+    }
+
+    // Revenue Overview if summary provided
+    if (summary != null) {
+      buffer.writeln(_divider('-'));
+      buffer.writeln(_center('-- RINGKASAN OMSET --'));
+      buffer.writeln(_justify('Omset Bersih :', summary.formattedNetRevenue));
+      buffer.writeln(
+        _justify('Total Diskon :', summary.formattedTotalDiscount),
+      );
+      buffer.writeln(
+        _justify('Total Order  :', '${summary.totalOrders} pesanan'),
+      );
+      buffer.writeln(_justify('Porsi Tunai  :', summary.formattedCashRevenue));
+      buffer.writeln(
+        _justify('Porsi QRIS   :', summary.formattedDigitalRevenue),
+      );
+    }
+
+    buffer.writeln(_divider('='));
+    buffer.writeln(
+      _center(
+        'Dicetak pada: ${DateTime.now().toLocal().toString().substring(0, 16)}',
+      ),
+    );
+    if (_autoCutter) {
+      buffer.writeln(_center('[AUTO CUT]'));
+    }
+    buffer.writeln();
+
+    return buffer.toString();
+  }
+
+  /// Prints shift closing report to thermal printer.
+  Future<bool> printShiftClosingReport(
+    CashShift shift,
+    FinancialSummary? summary,
+  ) async {
+    if (!_isConnected) return false;
+    _isPrinting = true;
+    notifyListeners();
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 650));
       return true;
     } catch (_) {
       return false;

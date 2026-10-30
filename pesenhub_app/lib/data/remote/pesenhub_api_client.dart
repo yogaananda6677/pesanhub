@@ -20,6 +20,9 @@ import '../../discount/models/discount.dart';
 import '../../menu/models/menu_category.dart';
 import '../../menu/models/menu_item.dart';
 import '../../settings/models/employee.dart';
+import '../../finance/models/financial_summary.dart';
+import '../../finance/models/top_products.dart';
+import '../../finance/models/cash_shift.dart';
 
 abstract class QueueRemoteGateway {
   Future<List<QueueOrder>> fetchQueue();
@@ -47,13 +50,46 @@ abstract class HistoryRemoteGateway {
   });
 }
 
+abstract class FinanceRemoteGateway {
+  Future<FinancialSummary> fetchFinancialSummary({
+    String? branchId,
+    DateTime? from,
+    DateTime? to,
+    bool includeBranches = false,
+  });
+
+  Future<TopProductsResponse> fetchTopProducts({
+    String? branchId,
+    DateTime? from,
+    DateTime? to,
+    int limit = 5,
+  });
+}
+
+abstract class ShiftRemoteGateway {
+  Future<CashShift?> fetchCurrentShift({String? branchId});
+  Future<CashShift> openShift({
+    required int startingCash,
+    String? notes,
+    String? branchId,
+  });
+  Future<CashShift> closeShift({
+    String? shiftId,
+    required int actualCash,
+    String? notes,
+  });
+  Future<List<CashShift>> fetchShiftHistory({String? branchId, int limit = 20});
+}
+
 class PesenHubApiClient
     implements
         QueueRemoteGateway,
         HistoryRemoteGateway,
         OrderSyncGateway,
         AuthGateway,
-        CatalogRemoteGateway {
+        CatalogRemoteGateway,
+        FinanceRemoteGateway,
+        ShiftRemoteGateway {
   final ApiConfig config;
   final Future<String?> Function() accessToken;
   final Future<String?> Function()? activeBranchId;
@@ -807,6 +843,127 @@ class PesenHubApiClient
     final response = await _send('GET', uri);
     final json = _decodeObject(response);
     return Map<String, dynamic>.from(json['summary'] as Map);
+  }
+
+  @override
+  Future<FinancialSummary> fetchFinancialSummary({
+    String? branchId,
+    DateTime? from,
+    DateTime? to,
+    bool includeBranches = false,
+  }) async {
+    final queryParams = <String, String>{
+      if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+      if (from != null) 'from': from.toUtc().toIso8601String(),
+      if (to != null) 'to': to.toUtc().toIso8601String(),
+      if (includeBranches) 'include_branches': 'true',
+    };
+    final uri = config
+        .resolve('reports/financial-summary')
+        .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await _send('GET', uri);
+    final json = _decodeObject(response);
+    return FinancialSummary.fromJson(
+      Map<String, dynamic>.from(json['summary'] as Map),
+    );
+  }
+
+  @override
+  Future<TopProductsResponse> fetchTopProducts({
+    String? branchId,
+    DateTime? from,
+    DateTime? to,
+    int limit = 5,
+  }) async {
+    final queryParams = <String, String>{
+      if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+      if (from != null) 'from': from.toUtc().toIso8601String(),
+      if (to != null) 'to': to.toUtc().toIso8601String(),
+      'limit': limit.toString(),
+    };
+    final uri = config
+        .resolve('reports/top-products')
+        .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await _send('GET', uri);
+    final json = _decodeObject(response);
+    return TopProductsResponse.fromJson(json);
+  }
+
+  @override
+  Future<CashShift?> fetchCurrentShift({String? branchId}) async {
+    final queryParams = <String, String>{
+      if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+    };
+    final uri = config
+        .resolve('shifts/current')
+        .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await _send('GET', uri);
+    final json = _decodeObject(response);
+    if (json['shift'] == null) return null;
+    return CashShift.fromJson(Map<String, dynamic>.from(json['shift'] as Map));
+  }
+
+  @override
+  Future<CashShift> openShift({
+    required int startingCash,
+    String? notes,
+    String? branchId,
+  }) async {
+    final payload = <String, dynamic>{
+      'starting_cash': startingCash,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+    };
+    final response = await _send(
+      'POST',
+      config.resolve('shifts/open'),
+      body: jsonEncode(payload),
+    );
+    final json = _decodeObject(response);
+    return CashShift.fromJson(Map<String, dynamic>.from(json['shift'] as Map));
+  }
+
+  @override
+  Future<CashShift> closeShift({
+    String? shiftId,
+    required int actualCash,
+    String? notes,
+  }) async {
+    final payload = <String, dynamic>{
+      if (shiftId != null && shiftId.isNotEmpty) 'shift_id': shiftId,
+      'actual_cash': actualCash,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    };
+    final response = await _send(
+      'POST',
+      config.resolve('shifts/close'),
+      body: jsonEncode(payload),
+    );
+    final json = _decodeObject(response);
+    return CashShift.fromJson(Map<String, dynamic>.from(json['shift'] as Map));
+  }
+
+  @override
+  Future<List<CashShift>> fetchShiftHistory({
+    String? branchId,
+    int limit = 20,
+  }) async {
+    final queryParams = <String, String>{
+      if (branchId != null && branchId.isNotEmpty) 'branch_id': branchId,
+      'limit': limit.toString(),
+    };
+    final uri = config
+        .resolve('shifts')
+        .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
+    final response = await _send('GET', uri);
+    final json = _decodeObject(response);
+    final rawList = json['shifts'];
+    if (rawList is List) {
+      return rawList
+          .map((e) => CashShift.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+    return [];
   }
 
   Future<List<Map<String, dynamic>>> fetchBranches() async {

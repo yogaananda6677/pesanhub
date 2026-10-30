@@ -31,23 +31,23 @@ func NewService(store *Store, branchFinder BranchFinder) *Service {
 	}
 }
 
-func (s *Service) GetSummary(ctx context.Context, p customer.Principal, filter Filter) (Summary, error) {
+func (s *Service) validateFilter(ctx context.Context, p customer.Principal, filter *Filter) error {
 	if !customer.CanOperateOutlet(p) {
-		return Summary{}, ErrUnauthorized
+		return ErrUnauthorized
 	}
 
 	if filter.From != nil && filter.To != nil && filter.From.After(*filter.To) {
-		return Summary{}, ErrInvalidDateRange
+		return ErrInvalidDateRange
 	}
 
 	switch p.Role {
 	case "CASHIER":
 		if p.BranchID == "" {
-			return Summary{}, ErrUnauthorized
+			return ErrUnauthorized
 		}
 		// Cashier cannot query another branch
 		if filter.BranchID != "" && filter.BranchID != p.BranchID {
-			return Summary{}, ErrCrossBranchForbidden
+			return ErrCrossBranchForbidden
 		}
 		// Strictly enforce cashier's assigned branch
 		filter.BranchID = p.BranchID
@@ -58,7 +58,7 @@ func (s *Service) GetSummary(ctx context.Context, p customer.Principal, filter F
 			if s.branchFinder != nil {
 				b, err := s.branchFinder.GetByID(ctx, filter.BranchID)
 				if err != nil || !b.IsActive {
-					return Summary{}, ErrBranchNotFound
+					return ErrBranchNotFound
 				}
 			}
 		} else {
@@ -66,6 +66,19 @@ func (s *Service) GetSummary(ctx context.Context, p customer.Principal, filter F
 			filter.IncludeBranches = true
 		}
 	}
+	return nil
+}
 
+func (s *Service) GetSummary(ctx context.Context, p customer.Principal, filter Filter) (Summary, error) {
+	if err := s.validateFilter(ctx, p, &filter); err != nil {
+		return Summary{}, err
+	}
 	return s.store.GetSummary(ctx, filter)
+}
+
+func (s *Service) GetTopProducts(ctx context.Context, p customer.Principal, filter Filter, limit int) (TopProductsResponse, error) {
+	if err := s.validateFilter(ctx, p, &filter); err != nil {
+		return TopProductsResponse{}, err
+	}
+	return s.store.GetTopProducts(ctx, filter, limit)
 }

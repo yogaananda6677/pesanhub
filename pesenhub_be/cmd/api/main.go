@@ -31,6 +31,7 @@ import (
 	"pesenhub/backend/internal/payment"
 	"pesenhub/backend/internal/phonename"
 	"pesenhub/backend/internal/report"
+	"pesenhub/backend/internal/shift"
 	"pesenhub/backend/internal/superadmin"
 	"pesenhub/backend/internal/ws"
 )
@@ -327,6 +328,9 @@ func main() {
 	reportStore := report.NewStore(pool)
 	reportService := report.NewService(reportStore, branchService)
 	reportHandler := report.NewHandler(reportService)
+	shiftStore := shift.NewStore(pool)
+	shiftService := shift.NewService(shiftStore, branchService)
+	shiftHandler := shift.NewHandler(shiftService)
 	discountStore := discount.NewStore(pool)
 	discountHandler := discount.NewHandler(discountStore)
 
@@ -334,6 +338,12 @@ func main() {
 	mux.HandleFunc("GET /health/live", h.Live)
 	mux.HandleFunc("GET /health/ready", h.Ready)
 	mux.HandleFunc("GET /api/v1/reports/summary", reportHandler.Summary)
+	mux.HandleFunc("GET /api/v1/reports/financial-summary", reportHandler.Summary)
+	mux.HandleFunc("GET /api/v1/reports/top-products", reportHandler.TopProducts)
+	mux.HandleFunc("POST /api/v1/shifts/open", shiftHandler.Open)
+	mux.HandleFunc("POST /api/v1/shifts/close", shiftHandler.Close)
+	mux.HandleFunc("GET /api/v1/shifts/current", shiftHandler.Current)
+	mux.HandleFunc("GET /api/v1/shifts", shiftHandler.List)
 	mux.HandleFunc("GET /api/v1/branches", branchHandler.List)
 	mux.HandleFunc("GET /api/v1/branches/{id}", branchHandler.GetByID)
 	mux.HandleFunc("PATCH /api/v1/branches/{id}/operational", branchHandler.UpdateOperational)
