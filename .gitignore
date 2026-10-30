@@ -13,3 +13,5 @@ pesenhub_be/gowa_storage/
 backups/
 pesenhub_be/uploads/*
 !pesenhub_be/uploads/.gitkeep
+pesenhub_be/web/downloads/*.apk
+!pesenhub_be/web/downloads/.gitkeep

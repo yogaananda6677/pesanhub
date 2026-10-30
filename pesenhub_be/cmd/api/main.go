@@ -436,6 +436,22 @@ func main() {
 	mux.HandleFunc("POST /api/v1/superadmin/users/{id}/reactivate", superadminHandler.Reactivate)
 	mux.HandleFunc("POST /api/v1/superadmin/users/{id}/revoke-sessions", superadminHandler.RevokeSessions)
 	mux.HandleFunc("GET /api/v1/superadmin/audits", superadminHandler.ListAudits)
+	mux.HandleFunc("GET /downloads/pesenhub-pos.apk", func(w http.ResponseWriter, r *http.Request) {
+		apkPaths := []string{
+			"web/downloads/pesenhub-pos.apk",
+			"../pesenhub_app/build/app/outputs/flutter-apk/app-release.apk",
+			"../pesenhub_app/build/app/outputs/apk/release/app-release.apk",
+		}
+		for _, p := range apkPaths {
+			if _, err := os.Stat(p); err == nil {
+				w.Header().Set("Content-Disposition", "attachment; filename=\"pesenhub-pos.apk\"")
+				w.Header().Set("Content-Type", "application/vnd.android.package-archive")
+				http.ServeFile(w, r, p)
+				return
+			}
+		}
+		http.Redirect(w, r, "https://github.com/yogaananda6677/pesanhub/releases", http.StatusTemporaryRedirect)
+	})
 	mux.Handle("GET /", http.FileServer(http.Dir("web")))
 	authenticatedMux := customer.Authenticate(cfg.Auth.StaffToken, cfg.Auth.KDSToken, sessions, branch.Middleware(branchService)(mux))
 	server := &http.Server{Addr: cfg.Address(), Handler: httpserver.Middleware(logger, authenticatedMux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}

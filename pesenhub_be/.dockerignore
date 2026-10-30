@@ -16,3 +16,4 @@ qr
 storages
 gowa_storage
 **/*_test.go
+web/downloads/*.apk
