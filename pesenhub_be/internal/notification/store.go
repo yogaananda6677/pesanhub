@@ -27,6 +27,7 @@ type Store interface {
 
 	ScheduleRetry(ctx context.Context, id string, nextRetryAt time.Time, category ErrorCategory, safeError string) error
 	MarkDeadLetter(ctx context.Context, id string, category ErrorCategory, safeError string) error
+	ClaimForDispatch(ctx context.Context, id string) (bool, error)
 	ClaimBatchForProcessing(ctx context.Context, limit int) ([]*NotificationRecord, error)
 	RecoverStaleProcessing(ctx context.Context, staleThreshold time.Duration) (int64, error)
 }
@@ -256,6 +257,24 @@ func (s *PGStore) MarkDeadLetter(ctx context.Context, id string, category ErrorC
 	return err
 }
 
+// ClaimForDispatch attempts to atomically transition a PENDING record to PROCESSING for synchronous dispatch.
+// Returns true if successfully claimed, or false if already claimed/processed by worker or concurrent thread.
+func (s *PGStore) ClaimForDispatch(ctx context.Context, id string) (bool, error) {
+	if s == nil || s.db == nil {
+		return false, errors.New("pgstore db is nil")
+	}
+	query := `
+		UPDATE order_notifications
+		SET status = 'PROCESSING', updated_at = now()
+		WHERE id = $1 AND status = 'PENDING'
+	`
+	res, err := s.db.Exec(ctx, query, id)
+	if err != nil {
+		return false, err
+	}
+	return res.RowsAffected() > 0, nil
+}
+
 func (s *PGStore) ClaimBatchForProcessing(ctx context.Context, limit int) ([]*NotificationRecord, error) {
 	if s == nil || s.db == nil {
 		return nil, errors.New("pgstore db is nil")
@@ -270,7 +289,8 @@ func (s *PGStore) ClaimBatchForProcessing(ctx context.Context, limit int) ([]*No
 	}
 	defer tx.Rollback(ctx)
 	rows, err := tx.Query(ctx, `SELECT id FROM order_notifications
-		WHERE status IN ('PENDING','FAILED') AND (next_retry_at IS NULL OR next_retry_at <= now())
+		WHERE ((status = 'FAILED' AND (next_retry_at IS NULL OR next_retry_at <= now()))
+		   OR (status = 'PENDING' AND created_at <= now() - INTERVAL 10 SECOND))
 		ORDER BY created_at,id LIMIT $1 FOR UPDATE SKIP LOCKED`, limit)
 	if err != nil {
 		return nil, err
@@ -497,6 +517,22 @@ func (m *MemoryStore) MarkDeadLetter(_ context.Context, id string, category Erro
 	rec.NextRetryAt = nil
 	rec.UpdatedAt = now
 	return nil
+}
+
+func (m *MemoryStore) ClaimForDispatch(_ context.Context, id string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	rec, ok := m.recordsByID[id]
+	if !ok {
+		return false, errors.New("not found")
+	}
+	if rec.Status != StatusPending {
+		return false, nil
+	}
+	rec.Status = StatusProcessing
+	rec.UpdatedAt = time.Now().UTC()
+	return true, nil
 }
 
 func (m *MemoryStore) ClaimBatchForProcessing(_ context.Context, limit int) ([]*NotificationRecord, error) {

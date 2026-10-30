@@ -2,6 +2,7 @@ package hermes
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"pesenhub/backend/internal/catalog"
@@ -436,5 +437,190 @@ func TestCatalogResolver_JenggiratMenus(t *testing.T) {
 	}
 	if len(res4.Items) != 1 || res4.Items[0].SKU != "TB-2TOPING-BIASA" {
 		t.Errorf("expected SKU TB-2TOPING-BIASA, got %+v", res4.Items)
+	}
+}
+
+func sampleTerangBulanCatalog() []catalog.Category {
+	return []catalog.Category{
+		{
+			ID:     "cat-tb",
+			Name:   "Terang Bulan Manis",
+			Active: true,
+			Menus: []catalog.Menu{
+				{
+					ID:          "m-tb-1-besar",
+					SKU:         "TB-1TOPING-BESAR",
+					Name:        "Terang Bulan 1 Toping - Besar",
+					PriceAmount: 22000,
+					Available:   true,
+					Groups: []catalog.Group{
+						{
+							ID:        "grp-base-1",
+							Name:      "Pilihan Base Cake",
+							MinSelect: 1,
+							MaxSelect: 1,
+							Active:    true,
+							Options: []catalog.Option{
+								{ID: "opt-orig-1", Code: "original", Name: "Original", PriceDeltaAmount: 0, Available: true},
+							},
+						},
+						{
+							ID:        "grp-top-1",
+							Name:      "Pilihan Toping",
+							MinSelect: 1,
+							MaxSelect: 1,
+							Active:    true,
+							Options: []catalog.Option{
+								{ID: "opt-coklat", Code: "coklat", Name: "Coklat", PriceDeltaAmount: 0, Available: true},
+								{ID: "opt-keju", Code: "keju", Name: "Keju", PriceDeltaAmount: 0, Available: true},
+								{ID: "opt-pisang", Code: "pisang", Name: "Pisang", PriceDeltaAmount: 0, Available: true},
+							},
+						},
+					},
+				},
+				{
+					ID:          "m-tb-2-besar",
+					SKU:         "TB-2TOPING-BESAR",
+					Name:        "Terang Bulan 2 Toping - Besar",
+					PriceAmount: 30000,
+					Available:   true,
+					Groups: []catalog.Group{
+						{
+							ID:        "grp-base",
+							Name:      "Pilihan Base Cake",
+							MinSelect: 1,
+							MaxSelect: 1,
+							Active:    true,
+							Options: []catalog.Option{
+								{ID: "opt-orig", Code: "original", Name: "Original", PriceDeltaAmount: 0, Available: true},
+							},
+						},
+						{
+							ID:        "grp-top",
+							Name:      "Pilihan Toping",
+							MinSelect: 2,
+							MaxSelect: 2,
+							Active:    true,
+							Options: []catalog.Option{
+								{ID: "opt-coklat", Code: "coklat", Name: "Coklat", PriceDeltaAmount: 0, Available: true},
+								{ID: "opt-keju", Code: "keju", Name: "Keju", PriceDeltaAmount: 0, Available: true},
+								{ID: "opt-pisang", Code: "pisang", Name: "Pisang", PriceDeltaAmount: 0, Available: true},
+							},
+						},
+					},
+				},
+				{
+					ID:          "m-tb-3-besar",
+					SKU:         "TB-3TOPING-BESAR",
+					Name:        "Terang Bulan 3 Toping - Besar",
+					PriceAmount: 35000,
+					Available:   true,
+					Groups: []catalog.Group{
+						{
+							ID:        "grp-base-3",
+							Name:      "Pilihan Base Cake",
+							MinSelect: 1,
+							MaxSelect: 1,
+							Active:    true,
+							Options: []catalog.Option{
+								{ID: "opt-orig-3", Code: "original", Name: "Original", PriceDeltaAmount: 0, Available: true},
+							},
+						},
+						{
+							ID:        "grp-top-3",
+							Name:      "Pilihan Toping",
+							MinSelect: 3,
+							MaxSelect: 3,
+							Active:    true,
+							Options: []catalog.Option{
+								{ID: "opt-coklat", Code: "coklat", Name: "Coklat", PriceDeltaAmount: 0, Available: true},
+								{ID: "opt-keju", Code: "keju", Name: "Keju", PriceDeltaAmount: 0, Available: true},
+								{ID: "opt-pisang", Code: "pisang", Name: "Pisang", PriceDeltaAmount: 0, Available: true},
+								{ID: "opt-kacang", Code: "kacang", Name: "Kacang", PriceDeltaAmount: 0, Available: true},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func TestCatalogResolver_TerangBulanToppingCounts(t *testing.T) {
+	cat := sampleTerangBulanCatalog()
+	resolver := NewCatalogResolver(&mockCatalogProvider{categories: cat})
+	ctx := context.Background()
+
+	// 1. "Pisang coklat" in a single string for 2 Toping -> should resolve BOTH toppings!
+	res1, err := resolver.ResolveOrder(ctx, &RawExtractedOrder{
+		Items: []RawExtractedItem{
+			{MenuName: "Terang Bulan 2 Toping - Besar", Modifiers: []string{"pisang coklat"}, Quantity: 1, Confidence: 0.95},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res1.IsAmbiguous {
+		t.Fatalf("expected unambiguous for 2 toppings, got: %v", res1.AmbiguityReasons)
+	}
+	if len(res1.Items[0].SelectedModifiers) != 3 { // Original base cake + Pisang + Coklat
+		t.Fatalf("expected 3 selected modifiers (1 base + 2 toppings), got %d: %+v", len(res1.Items[0].SelectedModifiers), res1.Items[0].SelectedModifiers)
+	}
+
+	// 2. Only 1 topping ("coklat") for 2 Toping menu -> must trigger insufficient_toppings!
+	res2, err := resolver.ResolveOrder(ctx, &RawExtractedOrder{
+		Items: []RawExtractedItem{
+			{MenuName: "Terang Bulan 2 Toping - Besar", Modifiers: []string{"coklat"}, Quantity: 1, Confidence: 0.95},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !res2.IsAmbiguous {
+		t.Fatalf("expected ambiguous when only 1 topping is provided for 2-topping menu")
+	}
+	foundInsufficient := false
+	for _, r := range res2.AmbiguityReasons {
+		if strings.HasPrefix(r, "insufficient_toppings:") {
+			foundInsufficient = true
+		}
+	}
+	if !foundInsufficient {
+		t.Fatalf("expected insufficient_toppings ambiguity, got: %v", res2.AmbiguityReasons)
+	}
+
+	// 3. Excess toppings (3 toppings for 2 Toping menu) -> must trigger modifier_limit_exceeded!
+	res3, err := resolver.ResolveOrder(ctx, &RawExtractedOrder{
+		Items: []RawExtractedItem{
+			{MenuName: "Terang Bulan 2 Toping - Besar", Modifiers: []string{"keju", "coklat", "pisang"}, Quantity: 1, Confidence: 0.95},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !res3.IsAmbiguous {
+		t.Fatalf("expected ambiguous when 3 toppings are provided for 2-topping menu")
+	}
+	foundLimitExceeded := false
+	for _, r := range res3.AmbiguityReasons {
+		if strings.HasPrefix(r, "modifier_limit_exceeded:") {
+			foundLimitExceeded = true
+		}
+	}
+	if !foundLimitExceeded {
+		t.Fatalf("expected modifier_limit_exceeded ambiguity, got: %v", res3.AmbiguityReasons)
+	}
+
+	// 4. Only 1 topping for 3 Toping menu -> must trigger insufficient_toppings!
+	res4, err := resolver.ResolveOrder(ctx, &RawExtractedOrder{
+		Items: []RawExtractedItem{
+			{MenuName: "Terang Bulan 3 Toping - Besar", Modifiers: []string{"coklat"}, Quantity: 1, Confidence: 0.95},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !res4.IsAmbiguous {
+		t.Fatalf("expected ambiguous when 1 topping is provided for 3-topping menu")
 	}
 }

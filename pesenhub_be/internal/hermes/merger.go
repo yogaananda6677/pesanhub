@@ -51,6 +51,14 @@ func (m *DraftMerger) MergeClarification(
 		groupName := strings.TrimPrefix(pendingAmbiguity, "missing_required_modifier:")
 		resolved = m.applyModifierAnswer(cloned, groupName, answerNorm, categories)
 
+	case strings.HasPrefix(pendingAmbiguity, "insufficient_toppings:"):
+		groupName := strings.TrimPrefix(pendingAmbiguity, "insufficient_toppings:")
+		resolved = m.applyModifierAnswer(cloned, groupName, answerNorm, categories)
+
+	case strings.HasPrefix(pendingAmbiguity, "modifier_limit_exceeded:"):
+		groupName := strings.TrimPrefix(pendingAmbiguity, "modifier_limit_exceeded:")
+		resolved = m.applyModifierAnswer(cloned, groupName, answerNorm, categories)
+
 	case strings.HasPrefix(pendingAmbiguity, "menu_unavailable:"):
 		menuName := strings.TrimPrefix(pendingAmbiguity, "menu_unavailable:")
 		resolved = m.applyMenuReplacement(ctx, cloned, menuName, answerNorm, categories)
@@ -119,11 +127,50 @@ func RevalidateAgainstCatalog(draft *DraftCandidate, categories []catalog.Catego
 			continue
 		}
 
-		// Check selected modifiers availability
+		// Check selected modifiers availability and group counts
 		optAvailMap := make(map[string]bool)
+		groupCountMap := make(map[string]int)
+
+		for _, selMod := range it.SelectedModifiers {
+			groupCountMap[selMod.GroupID]++
+		}
+
 		for _, g := range menu.Groups {
+			if !g.Active {
+				continue
+			}
 			for _, opt := range g.Options {
 				optAvailMap[opt.ID] = opt.Available
+			}
+
+			// Validate group count constraints
+			minSel, maxSel := expectedToppingCount(menu.Name, &g)
+			cnt := groupCountMap[g.ID]
+
+			// If default option can be chosen
+			if minSel >= 1 && cnt < minSel && cnt == 0 {
+				hasDefault := false
+				for _, opt := range g.Options {
+					optNorm := normalizeText(opt.Name)
+					codeNorm := normalizeText(opt.Code)
+					if (optNorm == "original" || codeNorm == "original" || optNorm == "standar" || optNorm == "biasa") && opt.PriceDeltaAmount == 0 {
+						hasDefault = true
+						break
+					}
+				}
+				if !hasDefault {
+					draft.IsAmbiguous = true
+					reason := fmt.Sprintf("missing_required_modifier:%s", g.Name)
+					draft.AmbiguityReasons = addAmbiguityIfMissing(draft.AmbiguityReasons, reason)
+				}
+			} else if minSel >= 1 && cnt < minSel && cnt > 0 {
+				draft.IsAmbiguous = true
+				reason := fmt.Sprintf("insufficient_toppings:%s:%d:%d", g.Name, minSel, cnt)
+				draft.AmbiguityReasons = addAmbiguityIfMissing(draft.AmbiguityReasons, reason)
+			} else if maxSel > 0 && cnt > maxSel {
+				draft.IsAmbiguous = true
+				reason := fmt.Sprintf("modifier_limit_exceeded:%s:%d:%d", g.Name, maxSel, cnt)
+				draft.AmbiguityReasons = addAmbiguityIfMissing(draft.AmbiguityReasons, reason)
 			}
 		}
 
@@ -139,62 +186,117 @@ func RevalidateAgainstCatalog(draft *DraftCandidate, categories []catalog.Catego
 }
 
 func (m *DraftMerger) applyModifierAnswer(draft *DraftCandidate, groupName, answerNorm string, categories []catalog.Category) bool {
-	// If the customer message indicates a different menu tier or item, don't force it as a modifier on the existing item
-	isDifferentItemTier := strings.Contains(answerNorm, "2 toping") || strings.Contains(answerNorm, "2 topping") ||
-		strings.Contains(answerNorm, "3 toping") || strings.Contains(answerNorm, "3 topping") ||
-		strings.Contains(answerNorm, "besar") || strings.Contains(answerNorm, "martabak") ||
-		strings.Contains(answerNorm, "sosis") || strings.Contains(answerNorm, "sapi") ||
-		strings.Contains(answerNorm, "ayam")
-	if isDifferentItemTier {
-		return false
+	if idx := strings.Index(groupName, ":"); idx != -1 {
+		groupName = groupName[:idx]
 	}
-
-	groupNameLower := strings.ToLower(groupName)
+	groupNameLower := strings.ToLower(strings.TrimSpace(groupName))
 
 	// Find the item with this modifier group
 	for i := range draft.Items {
 		it := &draft.Items[i]
+
+		// If customer specified a completely different menu category, return false
+		if (strings.Contains(answerNorm, "martabak") && !isMartabak(it.Name)) ||
+			(strings.Contains(answerNorm, "terang bulan") && !isTerangBulan(it.Name)) {
+			return false
+		}
+
 		for _, cat := range categories {
 			for _, menu := range cat.Menus {
 				if menu.ID != it.MenuID && !strings.EqualFold(menu.Name, it.Name) {
 					continue
 				}
-				var bestOpt *catalog.Option
-				var bestGroup *catalog.Group
-				bestScore := 0
 
 				for _, g := range menu.Groups {
 					if !g.Active || (!strings.EqualFold(g.Name, groupName) && !strings.EqualFold(g.Code, groupName) && !strings.Contains(strings.ToLower(g.Name), groupNameLower)) {
 						continue
 					}
-					for _, opt := range g.Options {
-						if !opt.Available {
-							continue
-						}
-						optNameNorm := normalizeText(opt.Name)
-						optCodeNorm := normalizeText(opt.Code)
-						score := matchOptionScore(answerNorm, optNameNorm, optCodeNorm)
-						if score > bestScore {
-							bestScore = score
-							optCopy := opt
-							bestOpt = &optCopy
-							gCopy := g
-							bestGroup = &gCopy
+
+					matchedOpts := findMatchingOptionsInGroup(answerNorm, &g)
+					if len(matchedOpts) == 0 {
+						continue
+					}
+
+					minSel, maxSel := expectedToppingCount(it.Name, &g)
+
+					// Separate current modifiers into this group vs other groups
+					var otherMods []SelectedModifier
+					var currentGroupMods []SelectedModifier
+					for _, sm := range it.SelectedModifiers {
+						if sm.GroupID == g.ID || strings.EqualFold(sm.GroupName, g.Name) {
+							currentGroupMods = append(currentGroupMods, sm)
+						} else {
+							otherMods = append(otherMods, sm)
 						}
 					}
-				}
 
-				if bestOpt != nil && bestScore > 0 {
-					it.SelectedModifiers = append(it.SelectedModifiers, SelectedModifier{
-						GroupID:          bestGroup.ID,
-						GroupName:        bestGroup.Name,
-						OptionID:         bestOpt.ID,
-						OptionCode:       bestOpt.Code,
-						OptionName:       bestOpt.Name,
-						PriceDeltaAmount: bestOpt.PriceDeltaAmount,
-					})
-					it.ModifiersTotalAmount += bestOpt.PriceDeltaAmount
-					it.LineTotalAmount = (it.UnitPriceAmount + it.ModifiersTotalAmount) * int64(it.Quantity)
+					isReplace := strings.Contains(answerNorm, "ganti") || strings.Contains(answerNorm, "ubah") ||
+						strings.Contains(answerNorm, "bukan") || strings.Contains(answerNorm, "salah") ||
+						strings.Contains(answerNorm, "ralat") || strings.Contains(answerNorm, "tukar")
+
+					var finalGroupMods []SelectedModifier
+					selectedMap := make(map[string]bool)
+
+					// If user gave enough or more options than minSel, or is explicitly replacing, or currently has excess:
+					if isReplace || len(matchedOpts) >= minSel || (maxSel > 0 && len(currentGroupMods) > maxSel) {
+						for _, opt := range matchedOpts {
+							if !selectedMap[opt.ID] {
+								finalGroupMods = append(finalGroupMods, SelectedModifier{
+									GroupID:          g.ID,
+									GroupName:        g.Name,
+									OptionID:         opt.ID,
+									OptionCode:       opt.Code,
+									OptionName:       opt.Name,
+									PriceDeltaAmount: opt.PriceDeltaAmount,
+								})
+								selectedMap[opt.ID] = true
+							}
+						}
+					} else {
+						// User is supplying missing additional options: merge with existing
+						for _, sm := range currentGroupMods {
+							if !selectedMap[sm.OptionID] {
+								finalGroupMods = append(finalGroupMods, sm)
+								selectedMap[sm.OptionID] = true
+							}
+						}
+						for _, opt := range matchedOpts {
+							if !selectedMap[opt.ID] {
+								finalGroupMods = append(finalGroupMods, SelectedModifier{
+									GroupID:          g.ID,
+									GroupName:        g.Name,
+									OptionID:         opt.ID,
+									OptionCode:       opt.Code,
+									OptionName:       opt.Name,
+									PriceDeltaAmount: opt.PriceDeltaAmount,
+								})
+								selectedMap[opt.ID] = true
+							}
+						}
+					}
+
+					it.SelectedModifiers = append(otherMods, finalGroupMods...)
+					var modTotal int64
+					for _, sm := range it.SelectedModifiers {
+						modTotal += sm.PriceDeltaAmount
+					}
+					it.ModifiersTotalAmount = modTotal
+					it.LineTotalAmount = (it.UnitPriceAmount + modTotal) * int64(it.Quantity)
+
+					newCount := len(finalGroupMods)
+					if minSel >= 1 && newCount < minSel {
+						// Still missing some toppings! Keep ambiguity and return false
+						draft.AmbiguityReasons = []string{fmt.Sprintf("insufficient_toppings:%s:%d:%d", g.Name, minSel, newCount)}
+						draft.IsAmbiguous = true
+						return false
+					}
+					if maxSel > 0 && newCount > maxSel {
+						// Exceeds allowed toppings!
+						draft.AmbiguityReasons = []string{fmt.Sprintf("modifier_limit_exceeded:%s:%d:%d", g.Name, maxSel, newCount)}
+						draft.IsAmbiguous = true
+						return false
+					}
+
 					return true
 				}
 			}

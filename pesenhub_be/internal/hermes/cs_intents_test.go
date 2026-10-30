@@ -213,8 +213,11 @@ func TestFormatOrderStatusMessage(t *testing.T) {
 	if !strings.Contains(msg, "Sedang Dimasak / Disiapkan") {
 		t.Errorf("expected status description in message: %s", msg)
 	}
-	if !strings.Contains(msg, "track-123") {
-		t.Errorf("expected tracking link in message: %s", msg)
+	if strings.Contains(msg, "track-123") || strings.Contains(msg, "http") {
+		t.Errorf("order status message must NOT contain web tracking link, got: %s", msg)
+	}
+	if !strings.Contains(msg, "mengabari kakak di WhatsApp ini") {
+		t.Errorf("expected WhatsApp status notification notice in message: %s", msg)
 	}
 }
 

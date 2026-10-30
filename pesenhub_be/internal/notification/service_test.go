@@ -239,3 +239,54 @@ func TestDispatch_InvalidPhone_FailsCleanly(t *testing.T) {
 		t.Fatalf("sender should not be called for invalid phone")
 	}
 }
+
+func TestDispatch_ClaimForDispatch_WorkerRaceSuppression(t *testing.T) {
+	store := NewMemoryStore()
+	sender := &mockSender{
+		sendFunc: func(ctx context.Context, toPhone, text string) (string, error) {
+			return "wamid.success.race", nil
+		},
+	}
+	svc := NewService(Config{
+		Store:  store,
+		Sender: sender,
+	})
+
+	data := sampleData()
+
+	// Pre-create the record in store and manually transition it to PROCESSING (simulating worker claiming it)
+	key := "order:ord-001:type:CONFIRMATION:v:v1"
+	rec := &NotificationRecord{
+		OrderID:          data.OrderID,
+		CustomerPhone:    data.CustomerPhone,
+		NotificationType: TypeConfirmation,
+		TemplateVersion:  DefaultTemplateVersion,
+		IdempotencyKey:   key,
+		MessageText:      "Test message",
+	}
+	created, _, err := store.CreatePending(context.Background(), rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, err := store.ClaimForDispatch(context.Background(), created.ID)
+	if err != nil || !claimed {
+		t.Fatalf("failed to claim record: %v, claimed=%v", err, claimed)
+	}
+
+	// Now call Dispatch() concurrently with the same data
+	res, err := svc.NotifyConfirmation(context.Background(), data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !res.IsDuplicate {
+		t.Errorf("expected IsDuplicate=true when already claimed/processing")
+	}
+	if res.Status != StatusProcessing {
+		t.Errorf("expected StatusProcessing, got %s", res.Status)
+	}
+	// Sender should NOT have been called by Dispatch!
+	if sender.calls != 0 {
+		t.Errorf("expected 0 sender calls by Dispatch (worker owns the send), got %d", sender.calls)
+	}
+}

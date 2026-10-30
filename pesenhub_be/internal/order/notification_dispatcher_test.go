@@ -124,6 +124,67 @@ func TestNotificationDispatcher_AcceptedTransition(t *testing.T) {
 	}
 }
 
+func TestNotificationDispatcher_AcceptedTransition_WhatsAppSuppressed(t *testing.T) {
+	phone := "+6281234567890"
+	reader := &mockOrderReader{
+		detail: OrderDetail{
+			ID:                  "ord-123",
+			OrderNumber:         "ORD-ACCEPTED-WA-1",
+			Source:              "WHATSAPP",
+			CustomerName:        "Yoga",
+			CustomerPhone:       &phone,
+			Status:              "ACCEPTED",
+			TotalAmount:         35000,
+			PublicTrackingToken: "trk_accepted_wa_123",
+		},
+	}
+	notif := &mockNotifier{}
+	dispatcher := NewNotificationDispatcher(reader, notif, nil)
+
+	// ACCEPTED notification for WHATSAPP order should be suppressed
+	dispatcher.NotifyStatusTransition(context.Background(), "ord-123", "PENDING", "ACCEPTED")
+
+	if notif.dispatchCalls != 0 {
+		t.Fatalf("expected 0 dispatch calls for WHATSAPP order ACCEPTED transition, got %d", notif.dispatchCalls)
+	}
+}
+
+type mockNameResolver struct {
+	name string
+	err  error
+}
+
+func (m *mockNameResolver) Get(ctx context.Context, phone string) (string, error) {
+	return m.name, m.err
+}
+
+func TestNotificationDispatcher_CustomerNameResolver(t *testing.T) {
+	phone := "+6281234567890"
+	reader := &mockOrderReader{
+		detail: OrderDetail{
+			ID:                  "ord-123",
+			OrderNumber:         "ORD-READY-1",
+			CustomerName:        "OldSnapshotName",
+			CustomerPhone:       &phone,
+			Status:              "READY_FOR_PICKUP",
+			TotalAmount:         35000,
+			PublicTrackingToken: "trk_ready_123",
+		},
+	}
+	notif := &mockNotifier{}
+	resolver := &mockNameResolver{name: "Yoga"}
+	dispatcher := NewNotificationDispatcher(reader, notif, nil, resolver)
+
+	dispatcher.NotifyStatusTransition(context.Background(), "ord-123", "PREPARING", "READY_FOR_PICKUP")
+
+	if notif.dispatchCalls != 1 {
+		t.Fatalf("expected 1 dispatch call, got %d", notif.dispatchCalls)
+	}
+	if notif.lastData.CustomerName != "Yoga" {
+		t.Fatalf("expected resolved customer name 'Yoga', got '%s'", notif.lastData.CustomerName)
+	}
+}
+
 func TestNotificationDispatcher_IgnoredTransitions(t *testing.T) {
 	phone := "+6281234567890"
 	reader := &mockOrderReader{
@@ -135,12 +196,75 @@ func TestNotificationDispatcher_IgnoredTransitions(t *testing.T) {
 	notif := &mockNotifier{}
 	dispatcher := NewNotificationDispatcher(reader, notif, nil)
 
-	// Transitions to PREPARING or READY_FOR_PICKUP do not trigger customer notifications
+	// Transitions to PREPARING do not trigger customer notifications
 	dispatcher.NotifyStatusTransition(context.Background(), "ord-123", "ACCEPTED", "PREPARING")
-	dispatcher.NotifyStatusTransition(context.Background(), "ord-123", "PREPARING", "READY_FOR_PICKUP")
 
 	if notif.dispatchCalls != 0 {
-		t.Fatalf("expected 0 dispatch calls for intermediate kitchen statuses, got %d", notif.dispatchCalls)
+		t.Fatalf("expected 0 dispatch calls for intermediate kitchen status PREPARING, got %d", notif.dispatchCalls)
+	}
+}
+
+func TestNotificationDispatcher_ReadyForPickupTransition(t *testing.T) {
+	phone := "+6281234567890"
+	reader := &mockOrderReader{
+		detail: OrderDetail{
+			ID:                  "ord-123",
+			OrderNumber:         "ORD-READY-1",
+			CustomerName:        "Doni",
+			CustomerPhone:       &phone,
+			Status:              "READY_FOR_PICKUP",
+			TotalAmount:         35000,
+			PublicTrackingToken: "trk_ready_123",
+		},
+	}
+	notif := &mockNotifier{}
+	dispatcher := NewNotificationDispatcher(reader, notif, nil)
+
+	dispatcher.NotifyStatusTransition(context.Background(), "ord-123", "PREPARING", "READY_FOR_PICKUP")
+
+	if notif.dispatchCalls != 1 {
+		t.Fatalf("expected 1 dispatch call on READY_FOR_PICKUP, got %d", notif.dispatchCalls)
+	}
+	if notif.lastType != notification.TypeCompleted {
+		t.Fatalf("expected TypeCompleted, got %s", notif.lastType)
+	}
+}
+
+func TestNotificationDispatcher_NotifyOrderCreated_SingleReceiptPolicy(t *testing.T) {
+	phone := "+6281234567890"
+	notif := &mockNotifier{}
+
+	// Case 1: Order from WHATSAPP bot -> should suppress duplicate confirmation
+	waReader := &mockOrderReader{
+		detail: OrderDetail{
+			ID:            "ord-wa-1",
+			Source:        "WHATSAPP",
+			CustomerPhone: &phone,
+		},
+	}
+	waDispatcher := NewNotificationDispatcher(waReader, notif, nil)
+	waDispatcher.NotifyOrderCreated(context.Background(), "ord-wa-1")
+
+	if notif.dispatchCalls != 0 {
+		t.Fatalf("expected 0 dispatch calls for WHATSAPP order confirmation (single receipt), got %d", notif.dispatchCalls)
+	}
+
+	// Case 2: Order from MANUAL / POS -> should dispatch WhatsApp confirmation
+	manualReader := &mockOrderReader{
+		detail: OrderDetail{
+			ID:            "ord-man-1",
+			Source:        "MANUAL",
+			CustomerPhone: &phone,
+		},
+	}
+	manualDispatcher := NewNotificationDispatcher(manualReader, notif, nil)
+	manualDispatcher.NotifyOrderCreated(context.Background(), "ord-man-1")
+
+	if notif.dispatchCalls != 1 {
+		t.Fatalf("expected 1 dispatch call for MANUAL order confirmation, got %d", notif.dispatchCalls)
+	}
+	if notif.lastType != notification.TypeConfirmation {
+		t.Fatalf("expected TypeConfirmation, got %s", notif.lastType)
 	}
 }
 

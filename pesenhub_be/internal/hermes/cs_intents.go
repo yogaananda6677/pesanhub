@@ -60,7 +60,29 @@ var (
 
 	broadTerangBulanPattern = regexp.MustCompile(`(?i)^\s*(mau|ingin|bisa|tolong)?\s*(pesen|pesan|beli|order)?\s*(terang\s*bulan|terangbulan|terbul)(\s*(dong|kak|min|ya|aja))*\s*[\.!?]*\s*$`)
 	broadMartabakPattern    = regexp.MustCompile(`(?i)^\s*(mau|ingin|bisa|tolong)?\s*(pesen|pesan|beli|order)?\s*(martabak(\s+telur|\s+telor)?|martel)(\s*(dong|kak|min|ya|aja))*\s*[\.!?]*\s*$`)
+
+	nameInquiryPatterns = []*regexp.Regexp{
+		regexp.MustCompile(`(?i)\b(nama\s*(saya|ku|gw|gue|aku))\s+(siapa|apa)\b`),
+		regexp.MustCompile(`(?i)\b(siapa|apa)\s+(nama\s*(saya|ku|gw|gue|aku)|nama\s*ku)\b`),
+		regexp.MustCompile(`(?i)\b(siapa\s+(saya|aku|gw|gue))\b`),
+		regexp.MustCompile(`(?i)\b(tau|tahu|kenal)\s+(nama\s*(saya|ku|aku|gw|gue)|(siapa\s+)?(saya|aku|gw|gue))\b`),
+		regexp.MustCompile(`(?i)^\s*(nama\s+saya\s+siapa|namaku\s+siapa|siapa\s+namaku)(\s+(dong|kak|min|ya|kah|sih|nih|deh|ta))*\s*[\.!?]*\s*$`),
+	}
 )
+
+// DetectNameInquiry detects whether the customer is asking the bot what their recorded name is.
+func DetectNameInquiry(text string) bool {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return false
+	}
+	for _, p := range nameInquiryPatterns {
+		if p.MatchString(trimmed) {
+			return true
+		}
+	}
+	return false
+}
 
 // DetectCategoryInquiry detects whether the message is a general category inquiry without variant or toppings.
 func DetectCategoryInquiry(text string) (bool, string) {
@@ -200,9 +222,7 @@ func formatOrderStatusMessage(o order.OrderDetail, customerName string) string {
 		}
 	}
 
-	if o.PublicTrackingToken != "" {
-		sb.WriteString(fmt.Sprintf("\nKakak juga bisa pantau status terkini di tautan ini:\nhttp://localhost:3000/orders/track/%s", o.PublicTrackingToken))
-	}
+	sb.WriteString("\nKami akan langsung mengabari kakak di WhatsApp ini saat pesanan sudah siap diambil ya! 😊")
 
 	return sb.String()
 }
@@ -290,11 +310,11 @@ func formatRecommendationMessage(customerName string) string {
 }
 
 func formatGreetingMessage(customerName string) string {
-	greeting := "kak"
-	if strings.TrimSpace(customerName) != "" {
-		greeting = "kak " + strings.TrimSpace(customerName)
+	customerName = strings.TrimSpace(customerName)
+	if customerName != "" {
+		return fmt.Sprintf("Halo kak %s! Selamat datang di Martabak & Terang Bulan Jenggirat Kediri 😊 Ada yang bisa kami bantu? Silakan sebutkan pesanan makanan atau minuman yang diinginkan ya kak~", customerName)
 	}
-	return fmt.Sprintf("Halo %s! Selamat datang di Martabak & Terang Bulan Jenggirat. Ada yang bisa kami bantu? Silakan sebutkan pesanan makanan atau minuman yang diinginkan ya kak 😊", greeting)
+	return "Halo kak! Selamat datang di Martabak & Terang Bulan Jenggirat Kediri 😊 Boleh tahu dengan kakak siapa nih, biar nanti pesanannya bisa kami catat dengan pas? Ada yang bisa kami bantu hari ini kak?~"
 }
 
 type OperationalInfo struct {

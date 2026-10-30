@@ -29,6 +29,7 @@ import (
 	"pesenhub/backend/internal/notification"
 	orderapi "pesenhub/backend/internal/order"
 	"pesenhub/backend/internal/payment"
+	"pesenhub/backend/internal/phonename"
 	"pesenhub/backend/internal/report"
 	"pesenhub/backend/internal/superadmin"
 	"pesenhub/backend/internal/ws"
@@ -123,6 +124,9 @@ func main() {
 
 	hermesStore := hermes.NewStore(pool)
 	hermesConvStore := hermes.NewPGConversationStore(pool)
+	if err := hermesConvStore.AutoMigrate(ctx); err != nil {
+		logger.Error("Failed to auto-migrate agent_conversation_contexts", "error", err)
+	}
 	hermesService := hermes.NewService(hermes.Config{
 		Client:              llmClient,
 		CatalogProvider:     catalogService,
@@ -140,6 +144,12 @@ func main() {
 
 	contactStore := contact.NewStore(pool)
 	contactHandler := contact.NewHandler(contactStore)
+	phoneNameStore := phonename.NewStore(pool)
+	if err := phoneNameStore.AutoMigrate(ctx); err != nil {
+		logger.Error("Failed to auto-migrate customer_phone_names", "error", err)
+	}
+	phoneNameHandler := phonename.NewHandler(phoneNameStore)
+	notifDispatcher.SetCustomerNameResolver(phoneNameStore)
 	evaluationStore := evaluation.NewStore(pool)
 	evaluationHandler := evaluation.NewHandler(evaluationStore)
 
@@ -165,6 +175,14 @@ func main() {
 
 		// Check contact rules: Is this contact marked as NON_CUSTOMER or is auto-reply disabled?
 		existingContact, cErr := contactStore.GetByPhone(msgCtx, senderPhone)
+		var customerName string
+		// Priority 1: Check dedicated customer_phone_names table in backend (Single Source of Truth)
+		if dedicatedName, err := phoneNameStore.Get(msgCtx, senderPhone); err == nil && dedicatedName != "" {
+			customerName = dedicatedName
+		} else if cErr == nil && existingContact != nil && strings.TrimSpace(existingContact.Name) != "" {
+			customerName = strings.TrimSpace(existingContact.Name)
+		}
+
 		if cErr == nil && existingContact != nil {
 			if !existingContact.AutoReplyEnabled || existingContact.ContactType == contact.TypeNonCustomer || existingContact.ContactType == contact.TypeBlacklist {
 				logger.Info("Skipping Hermes AI auto-reply for non-customer / disabled contact", "sender", senderPhone, "contact_type", existingContact.ContactType, "auto_reply", existingContact.AutoReplyEnabled)
@@ -172,10 +190,11 @@ func main() {
 			}
 		} else {
 			// Auto-register new contact as CUSTOMER with auto_reply_enabled = true
+			// Rules: Do not populate Name from WhatsApp pushName automatically
 			_, _ = contactStore.Upsert(msgCtx, contact.UpsertContactInput{
 				BranchID:    branch.DefaultBranchID,
 				Phone:       senderPhone,
-				Name:        msg.SenderName,
+				Name:        customerName,
 				ContactType: contact.TypeCustomer,
 			})
 		}
@@ -190,13 +209,31 @@ func main() {
 			InboundMessageID: &msg.ID,
 			Session:          session,
 			SenderPhone:      senderPhone,
-			CustomerName:     msg.SenderName,
+			CustomerName:     customerName,
 			MessageText:      msg.MessageBody,
 			CorrelationID:    correlationID,
 		})
 		if err != nil {
 			logger.Error("Hermes WhatsApp turn processing error", "error", err, "sender", senderPhone, "msg_id", msg.ID)
 			return
+		}
+
+		// Sync customer name back to phoneNameStore and contact store if learned or updated during turn
+		if turnResp != nil && turnResp.State != nil && turnResp.State.CustomerName != "" {
+			if customerName == "" || customerName != turnResp.State.CustomerName {
+				_, _ = phoneNameStore.Set(msgCtx, phonename.SetPhoneNameInput{
+					Phone:        senderPhone,
+					CustomerName: turnResp.State.CustomerName,
+					Notes:        "Auto-saved by Hermes AI from conversation",
+				})
+				_, _ = contactStore.Upsert(msgCtx, contact.UpsertContactInput{
+					BranchID:    branch.DefaultBranchID,
+					Phone:       senderPhone,
+					Name:        turnResp.State.CustomerName,
+					ContactType: contact.TypeCustomer,
+				})
+				customerName = turnResp.State.CustomerName
+			}
 		}
 
 		// Record turn for AI evaluation & training dataset
@@ -210,20 +247,22 @@ func main() {
 			if turnResp.State != nil && turnResp.State.ID != "" {
 				convID = &turnResp.State.ID
 			}
+			replyWithSig := attachAISignature(turnResp.ReplyText)
 			_, _ = evaluationStore.RecordTurn(msgCtx, evaluation.RecordTurnInput{
 				BranchID:         branch.DefaultBranchID,
 				InboundMessageID: &msg.ID,
 				ConversationID:   convID,
 				SenderPhone:      senderPhone,
-				CustomerName:     msg.SenderName,
+				CustomerName:     customerName,
 				InputText:        msg.MessageBody,
-				AIReply:          turnResp.ReplyText,
+				AIReply:          replyWithSig,
 				ExtractedDraft:   json.RawMessage(extractedJSON),
 			})
 		}
 		if turnResp != nil {
-			if strings.TrimSpace(turnResp.ReplyText) != "" {
-				if _, sendErr := wc.SendMessage(msgCtx, senderPhone, turnResp.ReplyText); sendErr != nil {
+			replyWithSig := attachAISignature(turnResp.ReplyText)
+			if strings.TrimSpace(replyWithSig) != "" {
+				if _, sendErr := wc.SendMessage(msgCtx, senderPhone, replyWithSig); sendErr != nil {
 					logger.Error("Failed to send Hermes reply via WhatsApp", "error", sendErr, "sender", senderPhone)
 				} else {
 					logger.Info("Sent Hermes text reply via WhatsApp", "sender", senderPhone)
@@ -356,6 +395,9 @@ func main() {
 	mux.HandleFunc("POST /api/v1/contacts", contactHandler.Upsert)
 	mux.HandleFunc("POST /api/v1/contacts/{id}/toggle-reply", contactHandler.ToggleReply)
 	mux.HandleFunc("POST /api/v1/contacts/{id}/mark-non-customer", contactHandler.MarkNonCustomer)
+	mux.HandleFunc("GET /api/v1/phone-names", phoneNameHandler.List)
+	mux.HandleFunc("POST /api/v1/phone-names", phoneNameHandler.Set)
+	mux.HandleFunc("DELETE /api/v1/phone-names/{phone}", phoneNameHandler.Delete)
 	mux.HandleFunc("GET /api/v1/agent/evaluations", evaluationHandler.List)
 	mux.HandleFunc("POST /api/v1/agent/evaluations/{id}/review", evaluationHandler.SubmitReview)
 	mux.HandleFunc("GET /api/v1/agent/evaluations/export", evaluationHandler.Export)
@@ -401,4 +443,8 @@ func main() {
 		logger.Error("graceful shutdown failed", "error", err)
 	}
 	logger.Info("API stopped")
+}
+
+func attachAISignature(text string) string {
+	return hermes.AttachAISignature(text)
 }
