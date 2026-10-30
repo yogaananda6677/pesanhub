@@ -155,6 +155,9 @@ func TestHandlerOrderQueries(t *testing.T) {
 	r := &mockReader{
 		listFunc: func(ctx context.Context, f OrderFilter) ([]OrderDetail, string, error) {
 			if len(f.Statuses) > 0 && f.Statuses[0] == "ACCEPTED" {
+				if f.Search != "Budi" {
+					return nil, "", errors.New("expected search=Budi")
+				}
 				return []OrderDetail{{ID: "11111111-1111-4111-8111-111111111111", Status: "ACCEPTED", CustomerPhone: &phone}}, "", nil
 			}
 			return []OrderDetail{}, "", nil
@@ -187,7 +190,7 @@ func TestHandlerOrderQueries(t *testing.T) {
 	}
 
 	// List with valid filters -> 200
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/orders?status=ACCEPTED&source=CASHIER_MANUAL&created_from=2026-09-01T00:00:00Z", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/orders?status=ACCEPTED&source=CASHIER_MANUAL&created_from=2026-09-01T00:00:00Z&search=Budi", nil)
 	req = req.WithContext(customer.WithPrincipal(req.Context(), customer.Principal{Subject: "staff", Role: "STAFF"}))
 	w = httptest.NewRecorder()
 	h.List(w, req)

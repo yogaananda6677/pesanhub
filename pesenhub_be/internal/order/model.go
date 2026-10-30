@@ -98,6 +98,7 @@ type OrderFilter struct {
 	Sources     []string
 	Statuses    []string
 	BranchID    string
+	Search      string
 	CreatedFrom *time.Time
 	CreatedTo   *time.Time
 	Pagination  httpapi.Pagination
@@ -155,6 +156,8 @@ type OrderDetail struct {
 	CreatedAt           time.Time                 `json:"created_at"`
 	UpdatedAt           time.Time                 `json:"updated_at"`
 	PublicTrackingToken string                    `json:"public_tracking_token,omitempty"`
+	PaymentMethod       string                    `json:"payment_method,omitempty"`
+	PaymentStatus       string                    `json:"payment_status,omitempty"`
 	Items               []OrderItemDetail         `json:"items"`
 	History             []OrderStatusHistoryEntry `json:"history,omitempty"`
 }
