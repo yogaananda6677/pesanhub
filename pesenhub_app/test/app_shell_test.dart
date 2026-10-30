@@ -38,7 +38,7 @@ void main() {
         final navigationBar = tester.widget<NavigationBar>(
           find.byKey(const Key('primary-bottom-navigation')),
         );
-        expect(navigationBar.destinations, hasLength(4));
+        expect(navigationBar.destinations, hasLength(5));
 
         // Verify no exceptions or overflows
         expect(tester.takeException(), isNull);
@@ -83,8 +83,8 @@ void main() {
           MaterialApp(theme: AppTheme.lightTheme, home: const AppShell()),
         );
 
-        // Navigate to 'Transaksi' (index 2)
-        await tester.tap(find.text('Transaksi'));
+        // Navigate to 'Antrean' (index 2)
+        await tester.tap(find.text('Antrean'));
         await tester.pumpAndSettle();
 
         expect(find.text('Antrean Dapur'), findsOneWidget);
@@ -258,15 +258,28 @@ void main() {
         expect(find.byType(PosDestinationView), findsOneWidget);
         expect(find.text('Kasir — Buat Pesanan'), findsOneWidget);
 
-        // 3. Switch to Transaksi
-        await tester.tap(find.text('Transaksi'));
+        // 3. Switch to Antrean
+        await tester.tap(find.text('Antrean'));
         await tester.pumpAndSettle();
         expect(find.text('Antrean Dapur'), findsOneWidget);
 
-        // 4. Switch to Akun directly
-        await tester.tap(find.text('Akun'));
+        // 4. Switch to Riwayat
+        await tester.tap(find.text('Riwayat'));
+        await tester.pumpAndSettle();
+        expect(find.text('Riwayat Transaksi'), findsOneWidget);
+        expect(find.byType(HistoryDestinationView), findsOneWidget);
+
+        // 5. Switch to Keuangan
+        await tester.tap(find.text('Keuangan'));
+        await tester.pumpAndSettle();
+        expect(find.text('Laporan & Keuangan'), findsOneWidget);
+        expect(find.byType(FinanceDestinationView), findsOneWidget);
+
+        // 6. Open Settings via header settings button
+        await tester.tap(find.byKey(const Key('app-header-settings-button')));
         await tester.pumpAndSettle();
         expect(find.text('Pengaturan Outlet'), findsOneWidget);
+        expect(find.byType(SettingsScreen), findsOneWidget);
 
         // Development-only showcase data is not exposed in production settings.
         expect(find.text('Buka Katalog Design System'), findsNothing);

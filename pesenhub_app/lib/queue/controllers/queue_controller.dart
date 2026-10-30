@@ -46,6 +46,10 @@ class QueueController extends ChangeNotifier {
   /// All unique orders without filtering.
   List<QueueOrder> get allOrders => _ordersMap.values.toList();
 
+  /// Orders that are currently active (pending, preparing, ready).
+  List<QueueOrder> get activeOrders =>
+      _ordersMap.values.where((o) => o.isActive).toList();
+
   /// Total count of orders in queue map.
   int get totalCount => _ordersMap.length;
 

@@ -33,12 +33,33 @@ Semua kontributor, developer, dan coding agent wajib mematuhi aturan berikut tan
    - Format branch: `feature/<nomor-issue>-<slug-deskriptif>` atau `fix/<nomor-issue>-<slug>`.
    - Dilarang keras push langsung ke branch `main`.
 2. **Format Commit & PR**:
-   - Mengikuti *Conventional Commits*: `feat(...)`, `fix(...)`, `refactor(...)`, `test(...)`.
-   - PR wajib menyertakan closing keyword: `Closes #<nomor-issue>` dan referensi parent `Parent Phase: #6`.
-   - PR perubahan UI wajib melampirkan screenshot sebelum dan sesudah.
-3. **Quality Gate (100% Pass)**:
-   - Backend: `go test ./...` harus 100% lulus tanpa kegagalan.
-   - Mobile: `flutter analyze` 0 issues dan `flutter test` 100% lulus.
+   - Mengikuti *Conventional Commits*: `feat(...)`, `fix(...)`, `refactor(...)`, `test(...)`, `style(...)`.
+   - Issue wajib memiliki referensi parent phase: `Parent Phase: #6`.
+   - PR wajib menyertakan:
+     - `Parent Phase: #6` (pada body PR).
+     - Closing keyword: `Closes #<nomor-issue>`.
+     - Ringkasan perubahan dan detail implementasi.
+3. **Quality Gate Lokal Sebelum Push**:
+   - Backend: `go test -count=1 ./...` harus 100% lulus tanpa kegagalan.
+   - Mobile:
+     - `dart format --output=none --set-exit-if-changed .` (atau `dart format .` untuk memformat otomatis).
+     - `flutter analyze` wajib 0 error dan 0 warning.
+     - `flutter test` 100% lulus (seluruh suite).
+4. **PR Check Lifecycle & Kebijakan Verifikasi Otomatis (CI Gates)**:
+   - Setelah PR dibuat, dilarang langsung melakukan merge manual sebelum seluruh check selesai.
+   - Wajib memantau status checks melalui `gh pr checks <pr-number>` hingga semua selesai:
+     1. `Contribution Policy` (validasi branch, issue, dan relasi parent phase).
+     2. `Backend CI` (Go test suites & quality checks).
+     3. `Mobile CI` (contract test, formatting, flutter analyze, unit/widget tests, dan debug APK build).
+   - Apabila terdapat kegagalan pada CI runner:
+     - Periksa log kegagalan (`gh run view <run-id> --log-failed`).
+     - Lakukan perbaikan pada branch lokal.
+     - Push perbaikan ke remote branch dan tunggu siklus CI baru berjalan hingga 100% hijau.
+5. **Merge & Sinkronisasi Branch**:
+   - Merge hanya boleh dieksekusi setelah seluruh status check CI berstatus **Passed** (3 dari 3 berhasil).
+   - Eksekusi squash merge dengan penghapusan branch: `gh pr merge <pr-number> --squash --delete-branch --admin`.
+   - Sinkronisasi repository lokal ke latest main: `git checkout main && git pull origin main`.
+   - Pastikan GitHub Issue otomatis tertutup (`CLOSED`).
 
 ### 1.3 Standar Desain UI/UX Flutter (`FLUTTER_DESIGN_SYSTEM.md`)
 1. **Design Tokens Terpusat**: Seluruh warna wajib merujuk ke `AppColors` (Terracotta `#7A321F`/`#8D321F`, Warm Cream `#FFF8EE`, Surface `#FFFFFF`, Text Primary `#1E293B`). Dilarang menulis raw hex color di widget view.

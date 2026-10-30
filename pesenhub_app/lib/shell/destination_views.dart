@@ -24,6 +24,7 @@ import '../settings/views/discount_management_view.dart';
 import '../settings/views/employee_management_view.dart';
 import '../settings/views/integration_services_view.dart';
 import '../settings/views/outlet_operational_view.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/app_button.dart';
 
@@ -1237,6 +1238,664 @@ class _SettingsDestinationViewState extends State<SettingsDestinationView> {
             child: const Text('Keluar'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// HistoryDestinationView provides the Transaction History module (Issue #178 & #180).
+class HistoryDestinationView extends StatefulWidget {
+  final PesenHubApiClient? apiClient;
+  final String? branchId;
+
+  const HistoryDestinationView({super.key, this.apiClient, this.branchId});
+
+  @override
+  State<HistoryDestinationView> createState() => _HistoryDestinationViewState();
+}
+
+class _HistoryDestinationViewState extends State<HistoryDestinationView> {
+  String _selectedFilter = 'Semua';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= AppSpacing.tabletBreakpoint;
+        return SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: isWide ? AppSpacing.xl : AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header & Search
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      key: const Key('history-search-input'),
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Cari nomor antrean, nama pelanggan, atau ID...',
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.neutralTextLight,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: AppColors.neutralTextMuted,
+                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded),
+                                onPressed: () {
+                                  setState(() {
+                                    _searchController.clear();
+                                  });
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: AppColors.warmSurface,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final filter in [
+                            'Semua',
+                            'Selesai',
+                            'Batal',
+                            'Offline',
+                          ])
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(filter),
+                                selected: _selectedFilter == filter,
+                                onSelected: (val) {
+                                  if (val) {
+                                    setState(() => _selectedFilter = filter);
+                                  }
+                                },
+                                selectedColor: AppColors.primaryContainer,
+                                labelStyle: TextStyle(
+                                  color: _selectedFilter == filter
+                                      ? AppColors.primary
+                                      : AppColors.slate,
+                                  fontWeight: _selectedFilter == filter
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                                side: BorderSide(
+                                  color: _selectedFilter == filter
+                                      ? AppColors.terracottaBorder
+                                      : AppColors.border,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              // Empty State Card
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xl,
+                  vertical: 48,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: const BoxDecoration(
+                        color: AppColors.terracottaLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.history_toggle_off_rounded,
+                        size: 38,
+                        color: AppColors.terracotta,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    const Text(
+                      'Belum Ada Riwayat Transaksi',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Transaksi pesanan kasir dan online yang selesai atau dibatalkan akan tercatat rapi di sini.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.neutralText,
+                        height: 1.4,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// FinanceDestinationView provides the Cash Recap and Financial Monitoring module (Issue #178 & #181).
+class FinanceDestinationView extends StatelessWidget {
+  final PesenHubApiClient? apiClient;
+  final String? branchId;
+  final VoidCallback? onRefresh;
+
+  const FinanceDestinationView({
+    super.key,
+    this.apiClient,
+    this.branchId,
+    this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= AppSpacing.tabletBreakpoint;
+        return SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: isWide ? AppSpacing.xl : AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Summary Banner
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.terracotta, Color(0xFF6E2415)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.terracotta.withValues(alpha: 0.25),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        const Text(
+                          'TOTAL OMSET HARI INI',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today_rounded,
+                                size: 12,
+                                color: Colors.white,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Hari Ini',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Rp 0',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Rekapitulasi transaksi lunas kasir & online',
+                      style: TextStyle(fontSize: 12, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              // Metric Breakdown Cards
+              LayoutBuilder(
+                builder: (context, cardConstraints) {
+                  final isCompact = cardConstraints.maxWidth < 420;
+                  if (isCompact) {
+                    return Column(
+                      children: [
+                        _buildMetricCard(
+                          icon: Icons.payments_outlined,
+                          iconColor: AppColors.accentGreen,
+                          iconBg: AppColors.accentGreenBg,
+                          title: 'Tunai (Cash)',
+                          value: 'Rp 0',
+                          subtitle: 'Di laci kasir',
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _buildMetricCard(
+                          icon: Icons.qr_code_rounded,
+                          iconColor: AppColors.accentBlue,
+                          iconBg: AppColors.accentBlueBg,
+                          title: 'Non-Tunai / QRIS',
+                          value: 'Rp 0',
+                          subtitle: 'Masuk rekening',
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _buildMetricCard(
+                          icon: Icons.payments_outlined,
+                          iconColor: AppColors.accentGreen,
+                          iconBg: AppColors.accentGreenBg,
+                          title: 'Tunai (Cash)',
+                          value: 'Rp 0',
+                          subtitle: 'Di laci kasir',
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _buildMetricCard(
+                          icon: Icons.qr_code_rounded,
+                          iconColor: AppColors.accentBlue,
+                          iconBg: AppColors.accentBlueBg,
+                          title: 'Non-Tunai / QRIS',
+                          value: 'Rp 0',
+                          subtitle: 'Masuk rekening',
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              // Action Buttons (Minimum 48dp touch target)
+              LayoutBuilder(
+                builder: (context, btnConstraints) {
+                  final isCompact = btnConstraints.maxWidth < 420;
+                  if (isCompact) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: OutlinedButton.icon(
+                            key: const Key('recap-cash-action-button'),
+                            onPressed: () {},
+                            icon: const Icon(
+                              Icons.receipt_long_rounded,
+                              size: 18,
+                              color: AppColors.terracotta,
+                            ),
+                            label: const Text('Rekap Kas Harian'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.terracotta,
+                              side: const BorderSide(
+                                color: AppColors.terracottaBorder,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: ElevatedButton.icon(
+                            key: const Key('close-cashier-action-button'),
+                            onPressed: () {},
+                            icon: const Icon(
+                              Icons.lock_clock_rounded,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                            label: const Text('Tutup Kasir'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.terracotta,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: OutlinedButton.icon(
+                            key: const Key('recap-cash-action-button'),
+                            onPressed: () {},
+                            icon: const Icon(
+                              Icons.receipt_long_rounded,
+                              size: 18,
+                              color: AppColors.terracotta,
+                            ),
+                            label: const Text('Rekap Kas Harian'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.terracotta,
+                              side: const BorderSide(
+                                color: AppColors.terracottaBorder,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: ElevatedButton.icon(
+                            key: const Key('close-cashier-action-button'),
+                            onPressed: () {},
+                            icon: const Icon(
+                              Icons.lock_clock_rounded,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                            label: const Text('Tutup Kasir'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.terracotta,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: AppSpacing.lg),
+
+              // Empty or Placeholder List
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Rincian Rekapitulasi Kas Terakhir',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.account_balance_wallet_outlined,
+                              size: 40,
+                              color: AppColors.slateLight.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Belum ada penutupan kasir untuk sesi ini.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.neutralText,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static Widget _buildMetricCard({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required String title,
+    required String value,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.slate,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 10,
+              color: AppColors.neutralTextLight,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// SettingsScreen provides the standalone full-screen wrapper for SettingsDestinationView (Issue #178).
+class SettingsScreen extends StatelessWidget {
+  final Future<void> Function()? onSignOut;
+  final WhatsAppSettingsController? whatsAppController;
+  final bool isAdmin;
+  final Future<String> Function(String email)? inviteCashier;
+  final String? userName;
+  final String? userEmail;
+  final String? userRole;
+  final String? branchName;
+  final String? branchAddress;
+  final String? branchId;
+  final List<Map<String, dynamic>>? availableBranches;
+  final ConnectivityController? connectivityController;
+  final PesenHubApiClient? apiClient;
+  final Future<void> Function(String newName)? onUpdateDisplayName;
+
+  const SettingsScreen({
+    super.key,
+    this.onSignOut,
+    this.whatsAppController,
+    this.isAdmin = false,
+    this.inviteCashier,
+    this.userName,
+    this.userEmail,
+    this.userRole,
+    this.branchName,
+    this.branchAddress,
+    this.branchId,
+    this.availableBranches,
+    this.connectivityController,
+    this.apiClient,
+    this.onUpdateDisplayName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        leading: IconButton(
+          key: const Key('settings-back-button'),
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Pengaturan Outlet',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
+        elevation: 0,
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: AppColors.border),
+        ),
+      ),
+      body: SettingsDestinationView(
+        onSignOut: onSignOut,
+        whatsAppController: whatsAppController,
+        isAdmin: isAdmin,
+        inviteCashier: inviteCashier,
+        userName: userName,
+        userEmail: userEmail,
+        userRole: userRole,
+        branchName: branchName,
+        branchAddress: branchAddress,
+        branchId: branchId,
+        availableBranches: availableBranches,
+        connectivityController: connectivityController,
+        apiClient: apiClient,
+        onUpdateDisplayName: onUpdateDisplayName,
       ),
     );
   }

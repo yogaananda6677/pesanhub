@@ -108,12 +108,12 @@ class FinancialReportSheet extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5E9),
+                          color: AppColors.accentGreenBg,
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
                           Icons.account_balance_wallet_rounded,
-                          color: Color(0xFF2E7D32),
+                          color: AppColors.accentGreenDeep,
                           size: 22,
                         ),
                       ),
@@ -127,14 +127,14 @@ class FinancialReportSheet extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFF2B1B16),
+                                color: AppColors.textPrimary,
                               ),
                             ),
                             Text(
                               'Ringkasan omset & rincian pembayaran kasir',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF8C7E77),
+                                color: AppColors.neutralTextMuted,
                               ),
                             ),
                           ],
@@ -148,13 +148,11 @@ class FinancialReportSheet extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2B1B16),
+                      color: AppColors.textPrimary,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(
-                            0xFF2B1B16,
-                          ).withValues(alpha: 0.15),
+                          color: AppColors.textPrimary.withValues(alpha: 0.15),
                           blurRadius: 16,
                           offset: const Offset(0, 6),
                         ),
@@ -172,7 +170,7 @@ class FinancialReportSheet extends StatelessWidget {
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.8,
-                                color: Color(0xFFD4C7C1),
+                                color: AppColors.terracottaBorder,
                               ),
                             ),
                             Container(
@@ -181,7 +179,7 @@ class FinancialReportSheet extends StatelessWidget {
                                 vertical: 3,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF3E2B25),
+                                color: AppColors.terracottaDark,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -189,7 +187,7 @@ class FinancialReportSheet extends StatelessWidget {
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFFFEF3ED),
+                                  color: AppColors.primaryContainer,
                                 ),
                               ),
                             ),
@@ -206,7 +204,10 @@ class FinancialReportSheet extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        const Divider(height: 1, color: Color(0xFF4A3832)),
+                        const Divider(
+                          height: 1,
+                          color: AppColors.terracottaDark,
+                        ),
                         const SizedBox(height: 12),
                         Row(
                           children: [
@@ -235,7 +236,7 @@ class FinancialReportSheet extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF2B1B16),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -244,7 +245,7 @@ class FinancialReportSheet extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFF3ECE6)),
+                      border: Border.all(color: AppColors.cardBorderAlt),
                     ),
                     child: Column(
                       children: [
@@ -252,16 +253,19 @@ class FinancialReportSheet extends StatelessWidget {
                           icon: Icons.qr_code_rounded,
                           title: 'QRIS (Gopay / Shopee / OVO)',
                           amount: effectiveQris,
-                          iconColor: const Color(0xFF0284C7),
-                          iconBgColor: const Color(0xFFE0F2FE),
+                          iconColor: AppColors.accentBlue,
+                          iconBgColor: AppColors.accentBlueBg,
                         ),
-                        const Divider(height: 18, color: Color(0xFFF1F5F9)),
+                        const Divider(
+                          height: 18,
+                          color: AppColors.surfaceVariant,
+                        ),
                         _buildPaymentRow(
                           icon: Icons.payments_outlined,
                           title: 'Tunai (Cash di Laci)',
                           amount: effectiveCash,
-                          iconColor: const Color(0xFF16A34A),
-                          iconBgColor: const Color(0xFFDCFCE7),
+                          iconColor: AppColors.accentGreen,
+                          iconBgColor: AppColors.successBg,
                         ),
                       ],
                     ),
@@ -274,14 +278,14 @@ class FinancialReportSheet extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF2B1B16),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFAFAFA),
+                      color: AppColors.surfaceVariant,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.border),
                     ),
@@ -294,7 +298,7 @@ class FinancialReportSheet extends StatelessWidget {
                               'Modal Awal Kasir',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF64748B),
+                                color: AppColors.slate,
                               ),
                             ),
                             Text(
@@ -302,7 +306,7 @@ class FinancialReportSheet extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF2B1B16),
+                                color: AppColors.textPrimary,
                               ),
                             ),
                           ],
@@ -316,7 +320,7 @@ class FinancialReportSheet extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF2B1B16),
+                                color: AppColors.textPrimary,
                               ),
                             ),
                             Text(
@@ -324,7 +328,7 @@ class FinancialReportSheet extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFF16A34A),
+                                color: AppColors.accentGreen,
                               ),
                             ),
                           ],
@@ -378,7 +382,7 @@ class FinancialReportSheet extends StatelessWidget {
           label,
           style: const TextStyle(
             fontSize: 10,
-            color: Color(0xFFD4C7C1),
+            color: AppColors.terracottaBorder,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -420,7 +424,7 @@ class FinancialReportSheet extends StatelessWidget {
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF2B1B16),
+              color: AppColors.textPrimary,
             ),
           ),
         ),
@@ -429,7 +433,7 @@ class FinancialReportSheet extends StatelessWidget {
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF2B1B16),
+            color: AppColors.textPrimary,
           ),
         ),
       ],

@@ -9,6 +9,7 @@ class ProfileSheet extends StatelessWidget {
   final String? branchName;
   final String? branchAddress;
   final Future<void> Function()? onSignOut;
+  final VoidCallback? onOpenSettings;
 
   const ProfileSheet({
     super.key,
@@ -18,6 +19,7 @@ class ProfileSheet extends StatelessWidget {
     this.branchName,
     this.branchAddress,
     this.onSignOut,
+    this.onOpenSettings,
   });
 
   static Future<void> show(
@@ -28,6 +30,7 @@ class ProfileSheet extends StatelessWidget {
     String? branchName,
     String? branchAddress,
     Future<void> Function()? onSignOut,
+    VoidCallback? onOpenSettings,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -40,6 +43,7 @@ class ProfileSheet extends StatelessWidget {
         branchName: branchName,
         branchAddress: branchAddress,
         onSignOut: onSignOut,
+        onOpenSettings: onOpenSettings,
       ),
     );
   }
@@ -95,7 +99,7 @@ class ProfileSheet extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.primaryContainer,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFF0DCD3)),
+                      border: Border.all(color: AppColors.terracottaBorder),
                     ),
                     child: Row(
                       children: [
@@ -135,7 +139,7 @@ class ProfileSheet extends StatelessWidget {
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w900,
-                                  color: Color(0xFF2B1B16),
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 3),
@@ -143,7 +147,7 @@ class ProfileSheet extends StatelessWidget {
                                 effectiveEmail,
                                 style: const TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF8C7E77),
+                                  color: AppColors.neutralTextMuted,
                                 ),
                               ),
                               const SizedBox(height: 6),
@@ -180,14 +184,14 @@ class ProfileSheet extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF2B1B16),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFAFAFA),
+                      color: AppColors.surfaceVariant,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.border),
                     ),
@@ -198,7 +202,10 @@ class ProfileSheet extends StatelessWidget {
                           title: 'Nama Gerai',
                           value: 'Martabak & Terang Bulan Jenggirat',
                         ),
-                        const Divider(height: 18, color: Color(0xFFEEEEEE)),
+                        const Divider(
+                          height: 18,
+                          color: AppColors.cardBorderSubtle,
+                        ),
                         _buildInfoRow(
                           icon: Icons.location_on_outlined,
                           title: 'Cabang & Alamat',
@@ -207,7 +214,10 @@ class ProfileSheet extends StatelessWidget {
                               ? '${branchName ?? "Cabang"} — $branchAddress'
                               : (branchName ?? 'Semua Cabang'),
                         ),
-                        const Divider(height: 18, color: Color(0xFFEEEEEE)),
+                        const Divider(
+                          height: 18,
+                          color: AppColors.cardBorderSubtle,
+                        ),
                         _buildInfoRow(
                           icon: Icons.access_time_rounded,
                           title: 'Jam Buka Gerai',
@@ -219,6 +229,32 @@ class ProfileSheet extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xl),
 
                   // Action Buttons
+                  if (onOpenSettings != null) ...[
+                    OutlinedButton.icon(
+                      key: const Key('profile-sheet-open-settings'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        onOpenSettings!();
+                      },
+                      icon: const Icon(
+                        Icons.settings_outlined,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
+                      label: const Text('Buka Pengaturan Outlet'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(
+                          color: AppColors.terracottaBorder,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
                   if (onSignOut != null) ...[
                     ElevatedButton.icon(
                       onPressed: () {
@@ -232,7 +268,7 @@ class ProfileSheet extends StatelessWidget {
                       ),
                       label: const Text('Keluar Akun'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFC62828),
+                        backgroundColor: AppColors.accentRed,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -261,7 +297,7 @@ class ProfileSheet extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: const Color(0xFF8C7E77)),
+        Icon(icon, size: 18, color: AppColors.neutralTextMuted),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
@@ -271,7 +307,7 @@ class ProfileSheet extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   fontSize: 11,
-                  color: Color(0xFF8C7E77),
+                  color: AppColors.neutralTextMuted,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -281,7 +317,7 @@ class ProfileSheet extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF2B1B16),
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
@@ -312,7 +348,7 @@ class ProfileSheet extends StatelessWidget {
               onSignOut?.call();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFC62828),
+              backgroundColor: AppColors.accentRed,
               foregroundColor: Colors.white,
             ),
             child: const Text('Keluar'),
