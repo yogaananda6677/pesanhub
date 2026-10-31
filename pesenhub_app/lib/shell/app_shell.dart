@@ -157,12 +157,22 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     int overdue = 0;
     int completed = 0;
     int totalRev = 0;
+    int qrisFromOrders = 0;
+    int cashFromOrders = 0;
     final now = DateTime.now();
 
     if (queue != null) {
       for (final order in queue.allOrders) {
         if (order.orderStatus == 'COMPLETED' || order.paymentStatus == 'PAID') {
           totalRev += order.totalAmount;
+          final method = (order.paymentMethod ?? '').toUpperCase();
+          if (method.contains('QRIS')) {
+            qrisFromOrders += order.totalAmount;
+          } else if (method == 'CASH' || method.isEmpty) {
+            cashFromOrders += order.totalAmount;
+          } else {
+            qrisFromOrders += order.totalAmount;
+          }
         }
         switch (order.orderStatus) {
           case 'PENDING':
@@ -212,6 +222,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
     final effectiveTotalRev = sRev > totalRev ? sRev : totalRev;
     final effectiveCompleted = sCompleted > completed ? sCompleted : completed;
+    final effectiveQris = sQris > 0 ? sQris : qrisFromOrders;
+    final effectiveCash = sCash > 0 ? sCash : cashFromOrders;
 
     return OperationalSummary(
       pendingCount: pending,
@@ -220,8 +232,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       overdueCount: overdue,
       completedCount: effectiveCompleted,
       totalRevenue: effectiveTotalRev,
-      qrisRevenue: sQris,
-      cashRevenue: sCash,
+      qrisRevenue: effectiveQris,
+      cashRevenue: effectiveCash,
       averageOrderValue: sAov > 0
           ? sAov
           : (effectiveCompleted > 0

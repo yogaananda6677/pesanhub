@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../queue/controllers/queue_controller.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
-import '../theme/app_typography.dart';
 import '../widgets/app_feedback.dart';
 import 'models/dashboard_state.dart';
 import 'models/operational_summary.dart';
@@ -181,11 +180,11 @@ class DashboardView extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardBorderAlt),
+        border: Border.all(color: AppColors.cardBorderModern),
         boxShadow: [
           BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.04),
-            blurRadius: 14,
+            color: AppColors.obsidianDark.withValues(alpha: 0.03),
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
@@ -193,29 +192,19 @@ class DashboardView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${getGreeting(now)}, ${name.toUpperCase()}',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.6,
-              color: AppColors.neutralTextMuted,
-            ),
-          ),
-          const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Text(
-                  formatIndonesianDate(now),
+                  '${getGreeting(now)}, ${name.toUpperCase()}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    fontFamily: 'serif',
-                    color: AppColors.textPrimary,
-                    height: 1.25,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: AppColors.neutralTextMuted,
                   ),
                 ),
               ),
@@ -227,9 +216,14 @@ class DashboardView extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: effectiveOnline
-                      ? AppColors.accentGreenBg
-                      : AppColors.accentRedBg,
-                  borderRadius: BorderRadius.circular(12),
+                      ? AppColors.emeraldBg
+                      : AppColors.coralBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: effectiveOnline
+                        ? AppColors.emeraldBorder
+                        : AppColors.coralBorder,
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -239,20 +233,30 @@ class DashboardView extends StatelessWidget {
                       height: 6,
                       decoration: BoxDecoration(
                         color: effectiveOnline
-                            ? AppColors.accentGreenDeep
-                            : AppColors.accentRed,
+                            ? AppColors.emerald
+                            : AppColors.coral,
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                (effectiveOnline
+                                        ? AppColors.emerald
+                                        : AppColors.coral)
+                                    .withValues(alpha: 0.4),
+                            blurRadius: 4,
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 5),
                     Text(
                       effectiveOnline ? 'Online' : 'Offline',
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
                         color: effectiveOnline
-                            ? AppColors.accentGreenDeep
-                            : AppColors.accentRed,
+                            ? AppColors.emerald
+                            : AppColors.coral,
                       ),
                     ),
                   ],
@@ -261,9 +265,24 @@ class DashboardView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
+          Text(
+            formatIndonesianDate(now),
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AppColors.obsidianDark,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 6),
           const Text(
             'Semangat jualan martabak & terang bulan hari ini!',
-            style: TextStyle(fontSize: 13, color: AppColors.neutralTextMuted),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.neutralTextMuted,
+            ),
           ),
         ],
       ),
@@ -289,6 +308,33 @@ class DashboardView extends StatelessWidget {
     OperationalSummary summary,
   ) {
     final revenue = _calculateRevenue(summary);
+    final totalSplit = summary.qrisRevenue + summary.cashRevenue;
+    final String qrisLabel;
+    final String cashLabel;
+    final int qrisFlex;
+    final int cashFlex;
+
+    if (totalSplit > 0) {
+      final qrisPct = ((summary.qrisRevenue / totalSplit) * 100).round();
+      final cashPct = 100 - qrisPct;
+      qrisLabel = 'QRIS: $qrisPct%';
+      cashLabel = 'Tunai: $cashPct%';
+      qrisFlex = qrisPct.clamp(1, 99);
+      cashFlex = cashPct.clamp(1, 99);
+    } else if (revenue > 0) {
+      qrisLabel =
+          'QRIS: ${FinancialReportSheet.formatRupiah(summary.qrisRevenue)}';
+      cashLabel =
+          'Tunai: ${FinancialReportSheet.formatRupiah(summary.cashRevenue)}';
+      qrisFlex = 1;
+      cashFlex = 1;
+    } else {
+      qrisLabel = 'QRIS: 0%';
+      cashLabel = 'Tunai: 0%';
+      qrisFlex = 1;
+      cashFlex = 1;
+    }
+
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(20),
@@ -309,14 +355,14 @@ class DashboardView extends StatelessWidget {
         },
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md + 2),
+          padding: const EdgeInsets.all(AppSpacing.md + 4),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.cardBorderAlt),
+            border: Border.all(color: AppColors.cardBorderModern),
             boxShadow: [
               BoxShadow(
-                color: AppColors.textPrimary.withValues(alpha: 0.04),
-                blurRadius: 12,
+                color: AppColors.obsidianDark.withValues(alpha: 0.03),
+                blurRadius: 14,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -333,23 +379,25 @@ class DashboardView extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.accentGreenBg,
-                            borderRadius: BorderRadius.circular(10),
+                            color: AppColors.emeraldBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.emeraldBorder),
                           ),
                           child: const Icon(
                             Icons.account_balance_wallet_rounded,
-                            color: AppColors.accentGreenDeep,
+                            color: AppColors.emerald,
                             size: 18,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         const Expanded(
                           child: Text(
                             'Ringkasan Keuangan Hari Ini',
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 14,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
+                              letterSpacing: -0.2,
+                              color: AppColors.obsidianDark,
                             ),
                           ),
                         ),
@@ -359,12 +407,12 @@ class DashboardView extends StatelessWidget {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 10,
+                      vertical: 5,
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.primaryContainer,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -380,7 +428,7 @@ class DashboardView extends StatelessWidget {
                         SizedBox(width: 2),
                         Icon(
                           Icons.chevron_right_rounded,
-                          size: 16,
+                          size: 15,
                           color: AppColors.primary,
                         ),
                       ],
@@ -388,7 +436,7 @@ class DashboardView extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: 8,
@@ -397,10 +445,10 @@ class DashboardView extends StatelessWidget {
                   Text(
                     FinancialReportSheet.formatRupiah(revenue),
                     style: const TextStyle(
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary,
-                      fontFamily: 'serif',
+                      letterSpacing: -0.6,
+                      color: AppColors.obsidianDark,
                     ),
                   ),
                   Text(
@@ -408,12 +456,33 @@ class DashboardView extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.neutralTextMuted,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              if (totalSplit > 0) ...[
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: SizedBox(
+                    height: 6,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: qrisFlex,
+                          child: Container(color: AppColors.indigo),
+                        ),
+                        Expanded(
+                          flex: cashFlex,
+                          child: Container(color: AppColors.emerald),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 6,
@@ -421,27 +490,28 @@ class DashboardView extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
-                      vertical: 6,
+                      vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
+                      color: AppColors.indigoBg,
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.indigoBorder),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.qr_code_2_rounded,
                           size: 14,
-                          color: AppColors.accentBlue,
+                          color: AppColors.indigo,
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
-                          'QRIS: 60%',
-                          style: TextStyle(
+                          qrisLabel,
+                          style: const TextStyle(
                             fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.slateDark,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.indigo,
                           ),
                         ),
                       ],
@@ -450,27 +520,28 @@ class DashboardView extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
-                      vertical: 6,
+                      vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
+                      color: AppColors.emeraldBg,
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.emeraldBorder),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.payments_outlined,
                           size: 14,
-                          color: AppColors.accentGreen,
+                          color: AppColors.emerald,
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
-                          'Tunai: 40%',
-                          style: TextStyle(
+                          cashLabel,
+                          style: const TextStyle(
                             fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.slateDark,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.emerald,
                           ),
                         ),
                       ],
@@ -495,8 +566,8 @@ class DashboardView extends StatelessWidget {
         const Text(
           'SUB MENU OPERASIONAL',
           style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
             letterSpacing: 0.8,
             color: AppColors.neutralTextMuted,
           ),
@@ -520,8 +591,8 @@ class DashboardView extends StatelessWidget {
                 title: 'Kasir\nTransaksi POS',
                 subtitle: 'Pesanan baru',
                 icon: Icons.point_of_sale_rounded,
-                iconColor: AppColors.accentGreenDeep,
-                iconBgColor: AppColors.accentGreenBg,
+                iconColor: AppColors.emerald,
+                iconBgColor: AppColors.emeraldBg,
                 contractActionLabel: 'Buat Pesanan Baru',
                 onTap: onNavigateToPos,
               ),
@@ -535,10 +606,10 @@ class DashboardView extends StatelessWidget {
               child: _QuickActionCard(
                 title: 'Antrean\nDapur & KDS',
                 subtitle: '${summary.activeOrdersCount} Sedang Disiapkan',
-                subtitleColor: AppColors.accentRed,
+                subtitleColor: AppColors.coral,
                 icon: Icons.outdoor_grill_rounded,
-                iconColor: AppColors.accentAmber,
-                iconBgColor: AppColors.accentAmberBg,
+                iconColor: AppColors.amberModern,
+                iconBgColor: AppColors.amberBgModern,
                 contractActionLabel: 'Lihat Antrean',
                 onTap: onNavigateToQueue ?? onNavigateToKds,
               ),
@@ -549,8 +620,8 @@ class DashboardView extends StatelessWidget {
                 title: 'Laporan\nKeuangan',
                 subtitle: 'Omset & rekap kas',
                 icon: Icons.assessment_outlined,
-                iconColor: AppColors.accentBlue,
-                iconBgColor: AppColors.accentBlueBg,
+                iconColor: AppColors.indigo,
+                iconBgColor: AppColors.indigoBg,
                 onTap: () {
                   final revenue = _calculateRevenue(summary);
                   FinancialReportSheet.show(
@@ -585,10 +656,10 @@ class DashboardView extends StatelessWidget {
         const Text(
           'Status Antrean',
           style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            fontFamily: 'serif',
-            color: AppColors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
+            color: AppColors.obsidianDark,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -599,27 +670,27 @@ class DashboardView extends StatelessWidget {
               _StatusPill(
                 label: 'Menunggu',
                 count: pending,
-                dotColor: AppColors.accentRed,
-                bgColor: AppColors.accentRedBg,
-                textColor: AppColors.accentRed,
+                dotColor: AppColors.coral,
+                bgColor: AppColors.coralBg,
+                textColor: AppColors.coral,
                 onTap: onNavigateToQueue ?? onNavigateToKds,
               ),
               const SizedBox(width: AppSpacing.sm),
               _StatusPill(
                 label: 'Dimasak',
                 count: preparing,
-                dotColor: AppColors.accentAmber,
-                bgColor: AppColors.accentAmberBg,
-                textColor: AppColors.warning,
+                dotColor: AppColors.amberModern,
+                bgColor: AppColors.amberBgModern,
+                textColor: AppColors.amberModern,
                 onTap: onNavigateToQueue ?? onNavigateToKds,
               ),
               const SizedBox(width: AppSpacing.sm),
               _StatusPill(
                 label: 'Siap',
                 count: ready,
-                dotColor: AppColors.accentGreenDeep,
-                bgColor: AppColors.accentGreenBg,
-                textColor: AppColors.accentGreenDeep,
+                dotColor: AppColors.emerald,
+                bgColor: AppColors.emeraldBg,
+                textColor: AppColors.emerald,
                 onTap: onNavigateToQueue ?? onNavigateToKds,
               ),
             ],
@@ -632,7 +703,12 @@ class DashboardView extends StatelessWidget {
   Widget _buildDetailedMetricsHeader() {
     return const Text(
       'Status Antrean Operasional',
-      style: AppTypography.titleMedium,
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.3,
+        color: AppColors.obsidianDark,
+      ),
     );
   }
 
@@ -656,7 +732,7 @@ class DashboardView extends StatelessWidget {
           title: 'Menunggu Konfirmasi',
           count: summary.pendingCount,
           icon: Icons.hourglass_top_rounded,
-          accentColor: AppColors.statusPending,
+          accentColor: AppColors.coral,
           subtitle: 'Perlu verifikasi kasir',
           onTap: onNavigateToQueue,
         ),
@@ -664,7 +740,7 @@ class DashboardView extends StatelessWidget {
           title: 'Sedang Dimasak',
           count: summary.preparingCount,
           icon: Icons.outdoor_grill_rounded,
-          accentColor: AppColors.statusPreparing,
+          accentColor: AppColors.amberModern,
           subtitle: 'Sedang diproses',
           onTap: onNavigateToQueue ?? onNavigateToKds,
         ),
@@ -672,7 +748,7 @@ class DashboardView extends StatelessWidget {
           title: 'Siap Diambil',
           count: summary.readyCount,
           icon: Icons.shopping_bag_outlined,
-          accentColor: AppColors.statusReady,
+          accentColor: AppColors.emerald,
           subtitle: 'Siap diserahkan',
           onTap: onNavigateToQueue,
         ),
@@ -680,7 +756,7 @@ class DashboardView extends StatelessWidget {
           title: 'Pesanan Aktif',
           count: summary.activeOrdersCount,
           icon: Icons.receipt_long_rounded,
-          accentColor: AppColors.primary,
+          accentColor: AppColors.indigo,
           subtitle: 'Total antrean aktif',
           onTap: onNavigateToQueue,
         ),
@@ -688,7 +764,7 @@ class DashboardView extends StatelessWidget {
           title: 'Selesai Hari Ini',
           count: summary.completedCount,
           icon: Icons.task_alt_rounded,
-          accentColor: AppColors.statusCompleted,
+          accentColor: AppColors.emerald,
           subtitle: 'Total pesanan ditutup',
           onTap: onNavigateToQueue,
         ),
@@ -696,7 +772,7 @@ class DashboardView extends StatelessWidget {
           title: 'Antrean Offline',
           count: summary.pendingSyncCount,
           icon: Icons.cloud_upload_outlined,
-          accentColor: AppColors.warning,
+          accentColor: AppColors.amberModern,
           subtitle: 'Tersimpan lokal',
           isAlert: summary.pendingSyncCount > 0,
           onTap: onRefresh,
@@ -731,19 +807,19 @@ class _QuickActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.cardBorderAlt),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.cardBorderModern),
             boxShadow: [
               BoxShadow(
-                color: AppColors.textPrimary.withValues(alpha: 0.03),
-                blurRadius: 10,
+                color: AppColors.obsidianDark.withValues(alpha: 0.025),
+                blurRadius: 12,
                 offset: const Offset(0, 3),
               ),
             ],
@@ -756,7 +832,7 @@ class _QuickActionCard extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                   color: iconBgColor,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(icon, color: iconColor, size: 22),
               ),
@@ -770,7 +846,8 @@ class _QuickActionCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+                        letterSpacing: -0.2,
+                        color: AppColors.obsidianDark,
                         height: 1.25,
                       ),
                     ),
@@ -827,12 +904,16 @@ class _StatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: bgColor,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: dotColor.withValues(alpha: 0.2)),
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -842,14 +923,20 @@ class _StatusPill extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: dotColor,
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: dotColor.withValues(alpha: 0.4),
+                      blurRadius: 4,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 7),
               Text(
                 '$label $count',
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
                   color: textColor,
                 ),
               ),

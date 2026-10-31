@@ -17,21 +17,21 @@ class ChannelBreakdownCard extends StatelessWidget {
         name: 'Kasir POS Manual',
         subtitle: 'Pesanan langsung di kasir toko',
         icon: Icons.point_of_sale_rounded,
-        color: AppColors.terracotta,
+        color: AppColors.indigo,
       ),
       _ChannelData(
         key: 'WHATSAPP',
         name: 'WhatsApp Hermes',
         subtitle: 'Asisten AI WhatsApp Jenggirat',
         icon: Icons.chat_rounded,
-        color: const Color(0xFF25D366),
+        color: const Color(0xFF10B981),
       ),
       _ChannelData(
         key: 'CUSTOMER_WEB',
         name: 'Web Customer',
         subtitle: 'Pemesanan mandiri via browser',
         icon: Icons.language_rounded,
-        color: AppColors.accentBlue,
+        color: AppColors.sky,
       ),
     ];
 
@@ -40,9 +40,16 @@ class ChannelBreakdownCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.outlineVariant),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.cardBorderModern),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.obsidianDark.withValues(alpha: 0.025),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,13 +59,14 @@ class ChannelBreakdownCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.accentAmberBg,
-                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.amberBgModern,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.amberBorderModern),
                 ),
                 child: const Icon(
                   Icons.hub_outlined,
                   size: 18,
-                  color: AppColors.accentAmber,
+                  color: AppColors.amberModern,
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -70,15 +78,17 @@ class ChannelBreakdownCard extends StatelessWidget {
                       'Distribusi Kanal Penjualan',
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        color: AppColors.obsidianDark,
                       ),
                     ),
                     Text(
                       'Porsi pendapatan kasir fisik vs online bot & web',
                       style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.neutralTextMuted,
                       ),
                     ),
                   ],
@@ -95,13 +105,13 @@ class ChannelBreakdownCard extends StatelessWidget {
               final pct = (ratio * 100).toStringAsFixed(1);
 
               return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(ch.icon, size: 16, color: ch.color),
+                        Icon(ch.icon, size: 15, color: ch.color),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -110,14 +120,14 @@ class ChannelBreakdownCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.obsidianDark,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Wrap(
                       alignment: WrapAlignment.spaceBetween,
                       crossAxisAlignment: WrapCrossAlignment.center,
@@ -128,8 +138,8 @@ class ChannelBreakdownCard extends StatelessWidget {
                           '$orders order ($pct%)',
                           style: const TextStyle(
                             fontSize: 11,
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
+                            color: AppColors.neutralTextMuted,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
@@ -137,18 +147,18 @@ class ChannelBreakdownCard extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
+                            color: AppColors.obsidianDark,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: ratio,
                         minHeight: 6,
-                        backgroundColor: AppColors.outlineVariant,
+                        backgroundColor: AppColors.slateBg,
                         valueColor: AlwaysStoppedAnimation<Color>(ch.color),
                       ),
                     ),
