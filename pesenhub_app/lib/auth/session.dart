@@ -367,12 +367,21 @@ class SessionController extends ChangeNotifier {
       }
     } on FormatException catch (e) {
       errorMessage = e.message;
+    } on UnimplementedError catch (e) {
+      errorMessage =
+          e.message ??
+          'Fitur Google Sign-In belum tersedia di platform ini. Silakan gunakan Username & Password.';
     } on UnsupportedError catch (e) {
       errorMessage =
           e.message ?? 'Google Sign-In tidak didukung pada perangkat ini.';
-    } catch (_) {
+    } on AssertionError catch (e) {
       errorMessage =
-          'Login Google belum berhasil. Periksa koneksi lalu coba lagi.';
+          e.message?.toString() ??
+          'Konfigurasi Google Sign-In belum sesuai. Silakan gunakan Username & Password.';
+    } catch (_) {
+      errorMessage = kIsWeb
+          ? 'Login Google belum berhasil pada browser. Silakan masuk menggunakan Username & Password kasir/admin di atas.'
+          : 'Login Google belum berhasil. Periksa koneksi lalu coba lagi.';
     }
     status = SessionStatus.signedOut;
     notifyListeners();
