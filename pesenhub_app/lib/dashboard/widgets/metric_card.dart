@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
-import '../../theme/app_spacing.dart';
 
 /// MetricCard displays a scannable operational metric with count, icon, and tap action.
 class MetricCard extends StatelessWidget {
