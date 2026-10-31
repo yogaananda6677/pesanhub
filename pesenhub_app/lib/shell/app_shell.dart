@@ -11,6 +11,7 @@ import '../dashboard/models/dashboard_state.dart';
 import '../dashboard/models/operational_summary.dart';
 import '../menu/controllers/menu_availability_controller.dart';
 import '../menu/controllers/menu_controller.dart' as mc;
+import '../history/controllers/history_controller.dart';
 import '../navigation/app_destination.dart';
 import '../queue/controllers/queue_controller.dart';
 import '../queue/models/queue_order.dart';
@@ -81,7 +82,10 @@ class AppShell extends StatefulWidget {
     this.apiClient,
     this.onUpdateDisplayName,
     this.getDailySequence,
+    this.onPayOrder,
   });
+
+  final FutureOr<void> Function(QueueOrder order)? onPayOrder;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -93,6 +97,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   late DashboardState _dashboardState;
   late final ConnectivityController _connectivity;
   late final OrderAlertController _alerts;
+  late final HistoryController _historyController;
   late final bool _ownsConnectivity;
   late final bool _ownsAlerts;
   Map<String, dynamic>? _serverReportSummary;
@@ -111,6 +116,14 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     _dashboardState =
         widget.initialDashboardState ??
         DashboardState.success(_calculateSummary());
+    _historyController = HistoryController(
+      apiClient: widget.apiClient,
+      branchId: widget.branchId,
+      initialOrders: widget.queueController?.allOrders
+          .where((o) => o.isCompleted)
+          .toList(),
+    );
+    unawaited(_historyController.loadOrders());
     widget.queueController?.addListener(_onQueueChanged);
     _loadReportSummary();
   }
@@ -121,6 +134,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     if (widget.branchId != oldWidget.branchId ||
         widget.apiClient != oldWidget.apiClient) {
       _loadReportSummary();
+      _historyController.loadOrders();
     }
   }
 
@@ -259,6 +273,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.queueController?.removeListener(_onQueueChanged);
+    _historyController.dispose();
     if (_ownsConnectivity) _connectivity.dispose();
     if (_ownsAlerts) _alerts.dispose();
     super.dispose();
@@ -269,6 +284,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       setState(() {
         _selectedIndex = index;
       });
+      if (AppDestination.fromIndex(index) == AppDestination.history) {
+        _historyController.loadOrders();
+      }
     }
   }
 
@@ -348,13 +366,16 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           await widget.onStatusChanged?.call(order, status);
           if (status == 'COMPLETED') {
             unawaited(_loadReportSummary());
+            unawaited(_historyController.loadOrders());
           }
         },
+        onPayOrder: widget.onPayOrder,
         onRefresh: widget.onRefreshQueue,
       ),
       HistoryDestinationView(
         apiClient: widget.apiClient,
         branchId: widget.branchId,
+        controller: _historyController,
       ),
       FinanceDestinationView(
         apiClient: widget.apiClient,

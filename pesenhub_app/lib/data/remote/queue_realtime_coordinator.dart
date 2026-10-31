@@ -230,6 +230,62 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
     }
   }
 
+  /// Records payment for an order with optimistic local update,
+  /// SQLite persistence, and backend API call if online.
+  Future<void> recordPayment(
+    String orderId,
+    int amount, {
+    String method = 'CASH',
+  }) async {
+    // 1. Optimistic update in QueueController
+    queueController.updatePaymentStatus(orderId, 'PAID');
+
+    // 2. Persist in local SQLite
+    await localQueue.updatePaymentStatus(orderId, 'PAID');
+
+    // 3. Attempt server payment call if online
+    final isOnline = connectivity != null
+        ? (connectivity!.state != OperationalConnectionState.offline &&
+              connectivity!.networkOnline)
+        : _networkAvailable;
+    if (isOnline && gateway is PesenHubApiClient) {
+      try {
+        await (gateway as PesenHubApiClient).recordCashPayment(orderId, amount);
+      } catch (e) {
+        await _enqueuePaymentMutation(orderId, amount, method);
+      }
+    } else {
+      await _enqueuePaymentMutation(orderId, amount, method);
+    }
+  }
+
+  Future<void> _enqueuePaymentMutation(
+    String orderId,
+    int amount,
+    String method,
+  ) async {
+    final outbox = outboxRepo;
+    if (outbox == null) return;
+    final branchId = await activeBranchId?.call();
+    final mutation = OutboxMutation(
+      id: 'mut-pay-${DateTime.now().millisecondsSinceEpoch}',
+      idempotencyKey: 'cash-$orderId-${DateTime.now().millisecondsSinceEpoch}',
+      clientOrderId: orderId.replaceFirst('ord-', ''),
+      mutationType: 'RECORD_PAYMENT',
+      payloadJson: jsonEncode({
+        'action': 'RECORD_CASH_PAYMENT',
+        'order_id': orderId,
+        'amount': amount,
+        'payment_method': method,
+      }),
+      syncStatus: OutboxSyncStatus.pending,
+      retryCount: 0,
+      createdAt: DateTime.now(),
+      branchId: branchId,
+    );
+    await outbox.enqueueMutation(mutation);
+  }
+
   Future<void> _enqueueStatusMutation(
     String orderId,
     String targetStatus,

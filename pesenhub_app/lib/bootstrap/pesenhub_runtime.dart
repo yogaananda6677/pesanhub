@@ -400,6 +400,9 @@ class _PesenHubRuntimeState extends State<PesenHubRuntime>
       onRefreshQueue: () async {
         await _coordinator?.refreshSnapshot();
       },
+      onPayOrder: (order) async {
+        await _coordinator?.recordPayment(order.id, order.totalAmount);
+      },
       apiClient: _api,
       getDailySequence: _queueRepository == null
           ? null

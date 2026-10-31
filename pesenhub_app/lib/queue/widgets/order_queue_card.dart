@@ -284,6 +284,9 @@ class OrderQueueCard extends StatelessWidget {
             _ => ('Pesanan Selesai', null, const Color(0xFF9B918D)),
           };
 
+    final isUnpaidCompletion =
+        nextStatus == 'COMPLETED' && order.paymentStatus != 'PAID';
+
     return Wrap(
       alignment: WrapAlignment.end,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -344,7 +347,10 @@ class OrderQueueCard extends StatelessWidget {
             ),
           ),
         ElevatedButton(
-          onPressed: nextStatus != null && onStatusChanged != null
+          onPressed:
+              nextStatus != null &&
+                  onStatusChanged != null &&
+                  !isUnpaidCompletion
               ? () => onStatusChanged!(order, nextStatus)
               : null,
           style: ElevatedButton.styleFrom(
@@ -352,6 +358,7 @@ class OrderQueueCard extends StatelessWidget {
             backgroundColor: color,
             foregroundColor: Colors.white,
             disabledBackgroundColor: const Color(0xFFE2DEDB),
+            disabledForegroundColor: const Color(0xFF9E9E9E),
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 14),
             shape: RoundedRectangleBorder(

@@ -27,11 +27,14 @@ class OrderDetailView extends StatelessWidget {
   transitionFn;
   final Future<QueueOrder> Function(String orderId)? reloadFn;
 
+  final Future<void> Function(String orderId, int amount)? onPaymentSuccess;
+
   const OrderDetailView({
     super.key,
     required this.controller,
     this.transitionFn,
     this.reloadFn,
+    this.onPaymentSuccess,
   });
 
   static Future<void> show({
@@ -45,6 +48,7 @@ class OrderDetailView extends StatelessWidget {
     )?
     transitionFn,
     Future<QueueOrder> Function(String orderId)? reloadFn,
+    Future<void> Function(String orderId, int amount)? onPaymentSuccess,
   }) {
     final controller = OrderDetailController(initialOrder: order, role: role);
     final isTablet =
@@ -63,6 +67,7 @@ class OrderDetailView extends StatelessWidget {
               controller: controller,
               transitionFn: transitionFn,
               reloadFn: reloadFn,
+              onPaymentSuccess: onPaymentSuccess,
             ),
           ),
         ),
@@ -87,6 +92,7 @@ class OrderDetailView extends StatelessWidget {
               controller: controller,
               transitionFn: transitionFn,
               reloadFn: reloadFn,
+              onPaymentSuccess: onPaymentSuccess,
             ),
           ),
         ),
@@ -403,6 +409,12 @@ class OrderDetailView extends StatelessWidget {
                         );
                         if (result != null && result.isPaid) {
                           controller.markPaid();
+                          if (onPaymentSuccess != null) {
+                            await onPaymentSuccess!(
+                              order.id,
+                              order.totalAmount,
+                            );
+                          }
                           if (context.mounted) {
                             AppFeedback.show(
                               context,
@@ -552,52 +564,60 @@ class OrderDetailView extends StatelessWidget {
                 children: [
                   // Criteria #1: Exactly ONE Primary Action Button based on state
                   if (primaryAction != null) ...[
-                    AppButton(
-                      label: isExecuting ? 'Menyimpan...' : primaryAction.label,
-                      icon: isExecuting ? null : primaryAction.icon,
-                      isFullWidth: true,
-                      onPressed: isExecuting
-                          ? null
-                          : () async {
-                              if (primaryAction.targetStatus == 'COMPLETED' &&
-                                  order.paymentStatus != 'PAID') {
-                                final result = await PaymentDialog.show(
-                                  context: context,
-                                  totalAmount: order.totalAmount,
-                                  orderNumber: order.orderNumber,
-                                  customerName: order.customerName,
-                                );
-                                if (result == null || !result.isPaid) {
-                                  if (context.mounted) {
-                                    AppFeedback.show(
-                                      context,
-                                      message:
-                                          'Pesanan belum dibayar. Selesaikan pembayaran terlebih dahulu sebelum menyelesaikan pesanan.',
-                                      type: AppBannerType.warning,
-                                    );
-                                  }
-                                  return;
-                                }
-                                controller.markPaid();
-                              }
-                              await controller.executeAction(
-                                primaryAction,
-                                transitionFn: transitionFn,
-                                reloadFn: reloadFn,
-                              );
-                            },
+                    Builder(
+                      builder: (context) {
+                        final isUnpaidCompletion =
+                            primaryAction.targetStatus == 'COMPLETED' &&
+                            order.paymentStatus != 'PAID';
+                        final isActionDisabled =
+                            isExecuting || isUnpaidCompletion;
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AppButton(
+                              label: isExecuting
+                                  ? 'Menyimpan...'
+                                  : primaryAction.label,
+                              icon: isExecuting ? null : primaryAction.icon,
+                              isFullWidth: true,
+                              onPressed: isActionDisabled
+                                  ? null
+                                  : () async {
+                                      await controller.executeAction(
+                                        primaryAction,
+                                        transitionFn: transitionFn,
+                                        reloadFn: reloadFn,
+                                      );
+                                    },
+                            ),
+                            if (isUnpaidCompletion) ...[
+                              const SizedBox(height: 6),
+                              const Center(
+                                child: Text(
+                                  'Pesanan wajib dibayar lunas sebelum diselesaikan.',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.error,
+                                  ),
+                                ),
+                              ),
+                            ] else if (primaryAction.helperText != null) ...[
+                              const SizedBox(height: 4),
+                              Center(
+                                child: Text(
+                                  primaryAction.helperText!,
+                                  style: AppTypography.labelSmall.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
+                      },
                     ),
-                    if (primaryAction.helperText != null) ...[
-                      const SizedBox(height: 4),
-                      Center(
-                        child: Text(
-                          primaryAction.helperText!,
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
                   ] else if (controller.role == 'CUSTOMER') ...[
                     // Criteria #4: Unauthorized role message
                     const Center(

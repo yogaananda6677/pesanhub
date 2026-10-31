@@ -236,14 +236,17 @@ class _PaymentDialogState extends State<PaymentDialog> {
                                     : const Color(0xFF64748B),
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                'Tunai (Cash)',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: isCash
-                                      ? AppColors.primary
-                                      : const Color(0xFF64748B),
+                              Flexible(
+                                child: Text(
+                                  'Tunai (Cash)',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: isCash
+                                        ? AppColors.primary
+                                        : const Color(0xFF64748B),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -283,14 +286,17 @@ class _PaymentDialogState extends State<PaymentDialog> {
                                     : const Color(0xFF64748B),
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                'Non-Tunai (QRIS)',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: !isCash
-                                      ? AppColors.primary
-                                      : const Color(0xFF64748B),
+                              Flexible(
+                                child: Text(
+                                  'Non-Tunai (QRIS)',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: !isCash
+                                        ? AppColors.primary
+                                        : const Color(0xFF64748B),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],

@@ -75,6 +75,7 @@ class QueueDestinationView extends StatefulWidget {
   final OrderAlertController? alertController;
   final FutureOr<void> Function(QueueOrder order, String newStatus)?
   onStatusChanged;
+  final FutureOr<void> Function(QueueOrder order)? onPayOrder;
   final Future<void> Function()? onRefresh;
 
   const QueueDestinationView({
@@ -82,6 +83,7 @@ class QueueDestinationView extends StatefulWidget {
     this.controller,
     this.alertController,
     this.onStatusChanged,
+    this.onPayOrder,
     this.onRefresh,
   });
 
@@ -110,6 +112,7 @@ class _QueueDestinationViewState extends State<QueueDestinationView> {
     return QueueView(
       controller: _controller,
       onStatusChanged: widget.onStatusChanged,
+      onPayOrder: widget.onPayOrder,
       onRefresh: widget.onRefresh,
     );
   }

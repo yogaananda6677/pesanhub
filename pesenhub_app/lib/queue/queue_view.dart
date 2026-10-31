@@ -17,12 +17,14 @@ class QueueView extends StatefulWidget {
   final VoidCallback? onRefresh;
   final FutureOr<void> Function(QueueOrder order, String newStatus)?
   onStatusChanged;
+  final FutureOr<void> Function(QueueOrder order)? onPayOrder;
 
   const QueueView({
     super.key,
     required this.controller,
     this.onRefresh,
     this.onStatusChanged,
+    this.onPayOrder,
   });
 
   @override
@@ -62,32 +64,6 @@ class _QueueViewState extends State<QueueView>
     }
   }
 
-  Future<void> _handlePaymentAndCompletion(QueueOrder order) async {
-    final result = await PaymentDialog.show(
-      context: context,
-      totalAmount: order.totalAmount,
-      orderNumber: order.orderNumber,
-      customerName: order.customerName,
-    );
-    if (result != null && result.isPaid) {
-      widget.controller.updatePaymentStatus(order.id, 'PAID');
-      final currentOrder = widget.controller.allOrders.firstWhere(
-        (o) => o.id == order.id,
-        orElse: () => order.copyWith(paymentStatus: 'PAID'),
-      );
-      await _handleStatusChanged(currentOrder, 'COMPLETED');
-    } else {
-      if (mounted) {
-        AppFeedback.show(
-          context,
-          message:
-              'Pesanan belum dibayar. Selesaikan pembayaran terlebih dahulu sebelum menyelesaikan pesanan.',
-          type: AppBannerType.warning,
-        );
-      }
-    }
-  }
-
   Future<void> _handlePayOrder(QueueOrder order) async {
     final result = await PaymentDialog.show(
       context: context,
@@ -96,15 +72,17 @@ class _QueueViewState extends State<QueueView>
       customerName: order.customerName,
     );
     if (result != null && result.isPaid) {
-      final updated = widget.controller.updatePaymentStatus(order.id, 'PAID');
+      if (widget.onPayOrder != null) {
+        await widget.onPayOrder!(order);
+      } else {
+        widget.controller.updatePaymentStatus(order.id, 'PAID');
+      }
       if (mounted) {
         setState(() {});
         AppFeedback.show(
           context,
-          message: updated
-              ? 'Pembayaran ${order.orderNumber} berhasil dicatat (LUNAS).'
-              : 'Gagal memperbarui status pembayaran.',
-          type: updated ? AppBannerType.success : AppBannerType.error,
+          message: 'Pembayaran ${order.orderNumber} berhasil dicatat (LUNAS).',
+          type: AppBannerType.success,
         );
       }
     }
@@ -117,7 +95,14 @@ class _QueueViewState extends State<QueueView>
     );
 
     if (newStatus == 'COMPLETED' && currentOrder.paymentStatus != 'PAID') {
-      await _handlePaymentAndCompletion(currentOrder);
+      if (mounted) {
+        AppFeedback.show(
+          context,
+          message:
+              'Pesanan belum dibayar. Selesaikan pembayaran terlebih dahulu sebelum menyelesaikan pesanan.',
+          type: AppBannerType.warning,
+        );
+      }
       return;
     }
 
@@ -156,6 +141,17 @@ class _QueueViewState extends State<QueueView>
       context: context,
       order: order,
       role: 'STAFF',
+      onPaymentSuccess: (orderId, amount) async {
+        if (widget.onPayOrder != null) {
+          final target = widget.controller.allOrders.firstWhere(
+            (o) => o.id == orderId,
+            orElse: () => order,
+          );
+          await widget.onPayOrder!(target);
+        } else {
+          widget.controller.updatePaymentStatus(orderId, 'PAID');
+        }
+      },
       transitionFn: (orderId, targetStatus, expectedVersion) async {
         final current = widget.controller.allOrders.firstWhere(
           (o) => o.id == orderId,
