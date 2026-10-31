@@ -24,7 +24,9 @@ class PaymentBreakdownCard extends StatelessWidget {
             nominal: summary.formattedCashRevenue,
             percentage: '$cashPct%',
             subtitle: 'Masuk kas laci kasir',
-            color: AppColors.accentGreen,
+            color: AppColors.emerald,
+            bgColor: AppColors.emeraldBg,
+            borderColor: AppColors.emeraldBorder,
             icon: Icons.payments_outlined,
           ),
           _buildBreakdownTile(
@@ -32,7 +34,9 @@ class PaymentBreakdownCard extends StatelessWidget {
             nominal: summary.formattedDigitalRevenue,
             percentage: '$digitalPct%',
             subtitle: 'Masuk rekening settled',
-            color: AppColors.accentBlue,
+            color: AppColors.indigo,
+            bgColor: AppColors.indigoBg,
+            borderColor: AppColors.indigoBorder,
             icon: Icons.qr_code_rounded,
           ),
         ];
@@ -40,9 +44,16 @@ class PaymentBreakdownCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outlineVariant),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.cardBorderModern),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.obsidianDark.withValues(alpha: 0.025),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,13 +63,14 @@ class PaymentBreakdownCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.accentBlueBg,
-                      borderRadius: BorderRadius.circular(8),
+                      color: AppColors.indigoBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.indigoBorder),
                     ),
                     child: const Icon(
                       Icons.pie_chart_outline_rounded,
                       size: 18,
-                      color: AppColors.accentBlue,
+                      color: AppColors.indigo,
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -70,15 +82,17 @@ class PaymentBreakdownCard extends StatelessWidget {
                           'Breakdown Metode Pembayaran',
                           style: TextStyle(
                             fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                            color: AppColors.obsidianDark,
                           ),
                         ),
                         Text(
                           'Pemisahan pendapatan riil Tunai & Non-Tunai',
                           style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.neutralTextMuted,
                           ),
                         ),
                       ],
@@ -90,20 +104,20 @@ class PaymentBreakdownCard extends StatelessWidget {
 
               // Multi-color Progress Bar
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
                 child: SizedBox(
-                  height: 14,
+                  height: 10,
                   child: Row(
                     children: [
                       if (cashRatio > 0)
                         Flexible(
                           flex: (cashRatio * 1000).toInt().clamp(1, 1000),
-                          child: Container(color: AppColors.accentGreen),
+                          child: Container(color: AppColors.emerald),
                         ),
                       if (digitalRatio > 0)
                         Flexible(
                           flex: (digitalRatio * 1000).toInt().clamp(1, 1000),
-                          child: Container(color: AppColors.accentBlue),
+                          child: Container(color: AppColors.indigo),
                         ),
                       if (cashRatio == 0 && digitalRatio == 0)
                         Expanded(
@@ -145,14 +159,16 @@ class PaymentBreakdownCard extends StatelessWidget {
     required String percentage,
     required String subtitle,
     required Color color,
+    required Color bgColor,
+    required Color borderColor,
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,16 +179,17 @@ class PaymentBreakdownCard extends StatelessWidget {
               Expanded(
                 child: Row(
                   children: [
-                    Icon(icon, size: 14, color: color),
-                    const SizedBox(width: 4),
+                    Icon(icon, size: 15, color: color),
+                    const SizedBox(width: 5),
                     Flexible(
                       child: Text(
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.1,
                           color: color,
                         ),
                       ),
@@ -182,35 +199,40 @@ class PaymentBreakdownCard extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: color,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   percentage,
                   style: const TextStyle(
                     fontSize: 10,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             nominal,
             style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.4,
+              color: AppColors.obsidianDark,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 9, color: AppColors.textMuted),
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: AppColors.neutralTextMuted,
+            ),
           ),
         ],
       ),

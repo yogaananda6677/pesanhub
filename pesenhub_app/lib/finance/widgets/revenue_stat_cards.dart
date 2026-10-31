@@ -21,32 +21,32 @@ class RevenueStatCards extends StatelessWidget {
             value: summary.formattedGrossRevenue,
             subtitle: 'Sebelum diskon',
             icon: Icons.storefront_outlined,
-            iconColor: AppColors.accentBlue,
-            iconBg: AppColors.accentBlueBg,
+            iconColor: AppColors.indigo,
+            iconBg: AppColors.indigoBg,
           ),
           _StatData(
             title: 'Total Diskon',
             value: summary.formattedTotalDiscount,
             subtitle: 'Promo & potongan',
             icon: Icons.local_offer_outlined,
-            iconColor: AppColors.accentAmber,
-            iconBg: AppColors.accentAmberBg,
+            iconColor: AppColors.amberModern,
+            iconBg: AppColors.amberBgModern,
           ),
           _StatData(
             title: 'Pesanan Sukses',
             value: '${summary.totalOrders}',
             subtitle: 'Lunas / selesai',
             icon: Icons.receipt_long_outlined,
-            iconColor: AppColors.accentGreen,
-            iconBg: AppColors.accentGreenBg,
+            iconColor: AppColors.emerald,
+            iconBg: AppColors.emeraldBg,
           ),
           _StatData(
             title: 'Rata-rata Order',
             value: summary.formattedAverageOrderValue,
             subtitle: 'Nilai per pesanan',
             icon: Icons.analytics_outlined,
-            iconColor: AppColors.terracotta,
-            iconBg: AppColors.terracottaSoft,
+            iconColor: AppColors.sky,
+            iconBg: AppColors.skyBg,
           ),
         ];
 
@@ -86,16 +86,19 @@ class RevenueStatCards extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppColors.terracotta, Color(0xFF6E2415)],
+          colors: [AppColors.obsidianDark, Color(0xFF1E293B)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.obsidianLight.withValues(alpha: 0.3),
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.terracotta.withValues(alpha: 0.25),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: AppColors.obsidianDark.withValues(alpha: 0.16),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -104,12 +107,21 @@ class RevenueStatCards extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.account_balance_wallet,
-                size: 16,
-                color: Colors.white70,
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: AppColors.emeraldLight,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.emeraldLight.withValues(alpha: 0.6),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               const Expanded(
                 child: Text(
                   'TOTAL OMSET BERSIH',
@@ -118,7 +130,7 @@ class RevenueStatCards extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.8,
-                    color: Colors.white70,
+                    color: AppColors.emeraldLight,
                   ),
                 ),
               ),
@@ -131,17 +143,21 @@ class RevenueStatCards extends StatelessWidget {
             child: Text(
               summary.formattedNetRevenue,
               style: const TextStyle(
-                fontSize: 30,
+                fontSize: 32,
                 fontWeight: FontWeight.w900,
                 color: Colors.white,
-                letterSpacing: -0.5,
+                letterSpacing: -0.8,
               ),
             ),
           ),
           const SizedBox(height: 6),
           const Text(
             'Omset riil yang telah diterima setelah potongan diskon',
-            style: TextStyle(fontSize: 12, color: Colors.white70),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.white70,
+            ),
           ),
         ],
       ),
@@ -152,9 +168,16 @@ class RevenueStatCards extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outlineVariant),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorderModern),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.obsidianDark.withValues(alpha: 0.025),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -163,7 +186,7 @@ class RevenueStatCards extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: item.iconBg,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(item.icon, color: item.iconColor, size: 22),
           ),
@@ -176,8 +199,9 @@ class RevenueStatCards extends StatelessWidget {
                   item.title,
                   style: const TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
+                    color: AppColors.neutralTextMuted,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -188,8 +212,9 @@ class RevenueStatCards extends StatelessWidget {
                     item.value,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.4,
+                      color: AppColors.obsidianDark,
                     ),
                   ),
                 ),
@@ -197,7 +222,8 @@ class RevenueStatCards extends StatelessWidget {
                   item.subtitle,
                   style: const TextStyle(
                     fontSize: 10,
-                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],

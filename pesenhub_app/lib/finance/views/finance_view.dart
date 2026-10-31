@@ -319,7 +319,7 @@ class _FinanceViewState extends State<FinanceView> {
 
     return RefreshIndicator(
       onRefresh: _handleRefresh,
-      color: AppColors.terracotta,
+      color: AppColors.indigo,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= AppSpacing.tabletBreakpoint;
@@ -361,24 +361,24 @@ class _FinanceViewState extends State<FinanceView> {
                               await _financeController.setFilter(f);
                             }
                           },
-                          selectedColor: AppColors.terracottaSoft,
-                          checkmarkColor: AppColors.terracotta,
+                          selectedColor: AppColors.indigoBg,
+                          checkmarkColor: AppColors.indigo,
                           labelStyle: TextStyle(
                             fontSize: 12,
                             fontWeight: isSelected
-                                ? FontWeight.w700
+                                ? FontWeight.w800
                                 : FontWeight.w500,
                             color: isSelected
-                                ? AppColors.terracotta
+                                ? AppColors.indigo
                                 : AppColors.textSecondary,
                           ),
-                          backgroundColor: AppColors.surface,
+                          backgroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                             side: BorderSide(
                               color: isSelected
-                                  ? AppColors.terracotta
-                                  : AppColors.outlineVariant,
+                                  ? AppColors.indigo
+                                  : AppColors.cardBorderModern,
                             ),
                           ),
                         ),

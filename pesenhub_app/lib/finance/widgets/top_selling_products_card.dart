@@ -24,9 +24,16 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.outlineVariant),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.cardBorderModern),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.obsidianDark.withValues(alpha: 0.025),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,20 +47,29 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.leaderboard_rounded,
-                    size: 18,
-                    color: AppColors.terracotta,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.coralBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.coralBorder),
+                    ),
+                    child: const Icon(
+                      Icons.leaderboard_rounded,
+                      size: 18,
+                      color: AppColors.coral,
+                    ),
                   ),
                   const SizedBox(width: 8),
-                  Flexible(
+                  const Flexible(
                     child: Text(
                       'Paling Diminati',
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        color: AppColors.obsidianDark,
                       ),
                     ),
                   ),
@@ -62,10 +78,11 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
               // Segmented switch
               Container(
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceWarm,
-                  borderRadius: BorderRadius.circular(10),
+                  color: AppColors.slateBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.cardBorderModern),
                 ),
-                padding: const EdgeInsets.all(2),
+                padding: const EdgeInsets.all(3),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -87,7 +104,11 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
           const SizedBox(height: AppSpacing.sm),
           const Text(
             '5 item dengan penjualan dan kontribusi omset tertinggi',
-            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppColors.neutralTextMuted,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           if (items.isEmpty)
@@ -96,7 +117,10 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
               alignment: Alignment.center,
               child: const Text(
                 'Belum ada data penjualan pada periode ini.',
-                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.neutralTextMuted,
+                ),
               ),
             )
           else
@@ -126,14 +150,14 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
       onTap: () => setState(() => _tabIndex = index),
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.surface : Colors.transparent,
+          color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: AppColors.obsidianDark.withValues(alpha: 0.05),
                     blurRadius: 4,
                   ),
                 ]
@@ -143,8 +167,8 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
           label,
           style: TextStyle(
             fontSize: 11,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? AppColors.terracotta : AppColors.textSecondary,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? AppColors.indigo : AppColors.textSecondary,
           ),
         ),
       ),
@@ -155,45 +179,46 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
     final Color badgeColor;
     final Color badgeText;
     if (rank == 1) {
-      badgeColor = const Color(0xFFFFD700);
-      badgeText = const Color(0xFF7A5900);
+      badgeColor = const Color(0xFFFEF3C7);
+      badgeText = const Color(0xFFD97706);
     } else if (rank == 2) {
-      badgeColor = const Color(0xFFC0C0C0);
-      badgeText = const Color(0xFF4A4A4A);
+      badgeColor = const Color(0xFFF1F5F9);
+      badgeText = const Color(0xFF475569);
     } else if (rank == 3) {
-      badgeColor = const Color(0xFFCD7F32);
-      badgeText = Colors.white;
+      badgeColor = const Color(0xFFFFEDD5);
+      badgeText = const Color(0xFFEA580C);
     } else {
-      badgeColor = AppColors.surfaceWarm;
-      badgeText = AppColors.textSecondary;
+      badgeColor = AppColors.slateBg;
+      badgeText = AppColors.neutralTextMuted;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWarm.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(10),
+        color: AppColors.slateBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorderModern),
       ),
       child: Row(
         children: [
           Container(
-            width: 24,
-            height: 24,
+            width: 26,
+            height: 26,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: badgeColor,
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               '$rank',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
                 color: badgeText,
               ),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.sm + 2),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,8 +229,8 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.obsidianDark,
                   ),
                 ),
                 Text(
@@ -214,13 +239,14 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 11,
-                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.neutralTextMuted,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Flexible(
             child: Text(
               item.formattedRevenue,
@@ -228,8 +254,8 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w900,
+                color: AppColors.obsidianDark,
               ),
             ),
           ),

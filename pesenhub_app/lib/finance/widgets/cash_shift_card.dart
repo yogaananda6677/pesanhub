@@ -22,12 +22,21 @@ class CashShiftCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isOpen ? AppColors.accentGreen : AppColors.outlineVariant,
+          color: isOpen ? AppColors.emerald : AppColors.cardBorderModern,
           width: isOpen ? 1.5 : 1.0,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: isOpen
+                ? AppColors.emerald.withValues(alpha: 0.08)
+                : AppColors.obsidianDark.withValues(alpha: 0.025),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -41,10 +50,13 @@ class CashShiftCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: isOpen
-                            ? AppColors.accentGreenBg
-                            : AppColors.surfaceWarm,
-                        borderRadius: BorderRadius.circular(8),
+                        color: isOpen ? AppColors.emeraldBg : AppColors.slateBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isOpen
+                              ? AppColors.emeraldBorder
+                              : AppColors.cardBorderModern,
+                        ),
                       ),
                       child: Icon(
                         isOpen
@@ -52,8 +64,8 @@ class CashShiftCard extends StatelessWidget {
                             : Icons.lock_outline_rounded,
                         size: 18,
                         color: isOpen
-                            ? AppColors.accentGreen
-                            : AppColors.textSecondary,
+                            ? AppColors.emerald
+                            : AppColors.neutralTextMuted,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -67,8 +79,9 @@ class CashShiftCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                              color: AppColors.obsidianDark,
                             ),
                           ),
                           Text(
@@ -79,7 +92,8 @@ class CashShiftCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 11,
-                              color: AppColors.textMuted,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.neutralTextMuted,
                             ),
                           ),
                         ],
@@ -90,12 +104,18 @@ class CashShiftCard extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: isOpen
-                      ? AppColors.accentGreenBg
-                      : AppColors.surfaceWarm,
-                  borderRadius: BorderRadius.circular(8),
+                  color: isOpen ? AppColors.emeraldBg : AppColors.slateBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isOpen
+                        ? AppColors.emeraldBorder
+                        : AppColors.cardBorderModern,
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -104,20 +124,30 @@ class CashShiftCard extends StatelessWidget {
                       height: 6,
                       decoration: BoxDecoration(
                         color: isOpen
-                            ? AppColors.accentGreen
-                            : AppColors.textSecondary,
+                            ? AppColors.emerald
+                            : AppColors.neutralTextMuted,
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                (isOpen
+                                        ? AppColors.emerald
+                                        : AppColors.neutralTextMuted)
+                                    .withValues(alpha: 0.4),
+                            blurRadius: 4,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 5),
                     Text(
                       isOpen ? 'AKTIF' : 'TUTUP',
                       style: TextStyle(
                         fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                         color: isOpen
-                            ? AppColors.accentGreen
-                            : AppColors.textSecondary,
+                            ? AppColors.emerald
+                            : AppColors.neutralTextMuted,
                       ),
                     ),
                   ],
@@ -130,8 +160,9 @@ class CashShiftCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
-                color: AppColors.surfaceWarm.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.slateBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.cardBorderModern),
               ),
               child: Row(
                 children: [
@@ -143,10 +174,11 @@ class CashShiftCard extends StatelessWidget {
                           'Modal Awal',
                           style: TextStyle(
                             fontSize: 10,
-                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.neutralTextMuted,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
@@ -154,8 +186,8 @@ class CashShiftCard extends StatelessWidget {
                             activeShift!.formattedStartingCash,
                             style: const TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.obsidianDark,
                             ),
                           ),
                         ),
@@ -170,10 +202,11 @@ class CashShiftCard extends StatelessWidget {
                           'Tunai Masuk',
                           style: TextStyle(
                             fontSize: 10,
-                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.neutralTextMuted,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
@@ -181,8 +214,8 @@ class CashShiftCard extends StatelessWidget {
                             activeShift!.formattedCashIn,
                             style: const TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.accentGreen,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.emerald,
                             ),
                           ),
                         ),
@@ -197,10 +230,11 @@ class CashShiftCard extends StatelessWidget {
                           'Estimasi di Laci',
                           style: TextStyle(
                             fontSize: 10,
-                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.neutralTextMuted,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
@@ -208,8 +242,8 @@ class CashShiftCard extends StatelessWidget {
                             activeShift!.formattedExpectedCash,
                             style: const TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.terracotta,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.obsidianDark,
                             ),
                           ),
                         ),
@@ -229,10 +263,11 @@ class CashShiftCard extends StatelessWidget {
                 icon: const Icon(Icons.lock_rounded, size: 18),
                 label: const Text('Tutup Kasir & Rekonsiliasi Kas'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.terracotta,
+                  backgroundColor: AppColors.obsidianDark,
                   foregroundColor: Colors.white,
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
               ),
@@ -240,7 +275,11 @@ class CashShiftCard extends StatelessWidget {
           ] else ...[
             const Text(
               'Mulai shift kasir untuk mencatat uang modal awal laci dan melacak penerimaan uang fisik secara realtime.',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             SizedBox(
@@ -252,10 +291,11 @@ class CashShiftCard extends StatelessWidget {
                 icon: const Icon(Icons.lock_open_rounded, size: 18),
                 label: const Text('Buka Shift Kasir Baru'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accentGreen,
+                  backgroundColor: AppColors.emerald,
                   foregroundColor: Colors.white,
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
               ),
