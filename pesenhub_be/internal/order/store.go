@@ -75,7 +75,8 @@ func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInp
 	var current string
 	var version int64
 	var orderBranchID string
-	err = tx.QueryRow(ctx, `SELECT id::text,status,version,branch_id::text FROM orders WHERE id=$1 OR client_order_id=$1 FOR UPDATE`, orderID).Scan(&actualOrderID, &current, &version, &orderBranchID)
+	var totalAmount int64
+	err = tx.QueryRow(ctx, `SELECT id::text,status,version,branch_id::text,total_amount FROM orders WHERE id=$1 OR client_order_id=$1 FOR UPDATE`, orderID).Scan(&actualOrderID, &current, &version, &orderBranchID, &totalAmount)
 	if errors.Is(err, sql.ErrNoRows) {
 		return StatusResult{}, false, ErrNotFound
 	}
@@ -108,6 +109,16 @@ func (s *Store) Transition(ctx context.Context, orderID string, in TransitionInp
 	}
 	if !ValidTransition(domain.OrderStatus(current), domain.OrderStatus(in.TargetStatus)) {
 		return StatusResult{}, false, ErrInvalidTransition
+	}
+	if in.TargetStatus == string(domain.OrderStatusCompleted) && totalAmount > 0 {
+		var isPaid bool
+		err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM payments WHERE order_id=$1 AND status='PAID')`, orderID).Scan(&isPaid)
+		if err != nil {
+			return StatusResult{}, false, err
+		}
+		if !isPaid {
+			return StatusResult{}, false, ErrOrderUnpaid
+		}
 	}
 	result := StatusResult{ID: orderID, Status: in.TargetStatus, Version: version + 1}
 	if _, err = tx.Exec(ctx, `UPDATE orders SET status=$2,version=$3,updated_at=now() WHERE id=$1`, orderID, result.Status, result.Version); err != nil {

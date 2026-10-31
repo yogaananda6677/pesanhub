@@ -162,6 +162,15 @@ func TestStoreCreateConcurrentIdempotencyIntegration(t *testing.T) {
 	if _, _, err = s.Transition(ctx, first, TransitionInput{TargetStatus: "CANCELLED", ExpectedVersion: 4}, "status-illegal", "staff", "STAFF", "request"); !errors.Is(err, ErrInvalidTransition) {
 		t.Fatalf("expected invalid transition, got %v", err)
 	}
+	// Strict Rule: Unpaid order cannot be transitioned to COMPLETED
+	if _, _, err = s.Transition(ctx, first, TransitionInput{TargetStatus: "COMPLETED", ExpectedVersion: 4}, "status-completed-unpaid", "staff", "STAFF", "request"); !errors.Is(err, ErrOrderUnpaid) {
+		t.Fatalf("expected ErrOrderUnpaid, got %v", err)
+	}
+	// Record payment as PAID
+	_, err = db.Exec(ctx, `INSERT INTO payments (id,order_id,method,status,amount,idempotency_key,version,paid_at) VALUES ($1,$2,'CASH','PAID',25000,'pay-first-test',1,now())`, customer.NewID(), first)
+	if err != nil {
+		t.Fatal(err)
+	}
 	completed, completedChanged, err := s.Transition(ctx, first, TransitionInput{TargetStatus: "COMPLETED", ExpectedVersion: 4}, "status-completed", "staff", "STAFF", "request")
 	if err != nil || !completedChanged || completed.Version != 5 {
 		t.Fatalf("complete got=%#v changed=%v err=%v", completed, completedChanged, err)

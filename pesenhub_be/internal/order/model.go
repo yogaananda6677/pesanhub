@@ -19,6 +19,7 @@ var (
 	ErrInvalidTransition   = errors.New("order status transition is not allowed")
 	ErrVersionConflict     = errors.New("order version conflict")
 	ErrNotFound            = errors.New("order not found")
+	ErrOrderUnpaid         = errors.New("order must be fully paid before completion")
 )
 
 type ItemInput struct {

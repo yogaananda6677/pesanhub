@@ -401,6 +401,8 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		status, code, message = http.StatusConflict, "VERSION_CONFLICT", "Order was modified by another request."
 	case errors.Is(err, ErrInvalidTransition):
 		status, code, message = http.StatusConflict, "INVALID_STATUS_TRANSITION", "Order status transition is not allowed."
+	case errors.Is(err, ErrOrderUnpaid):
+		status, code, message = http.StatusConflict, "ORDER_UNPAID", "Pesanan wajib dibayar lunas sebelum diselesaikan."
 	case errors.Is(err, ErrNotFound):
 		status, code, message = http.StatusNotFound, "ORDER_NOT_FOUND", "Order was not found."
 	case errors.Is(err, ErrInvalidInput), errors.Is(err, catalog.ErrInvalidModifier):

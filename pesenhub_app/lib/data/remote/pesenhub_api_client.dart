@@ -13,6 +13,7 @@ import 'api_config.dart';
 import 'api_failure.dart';
 import 'catalog_dto.dart';
 import 'catalog_gateway.dart';
+import 'contract_dto.dart';
 import 'order_dto.dart';
 import '../../contact/models/whatsapp_contact.dart';
 import '../../evaluation/models/ai_evaluation.dart';
@@ -462,6 +463,21 @@ class PesenHubApiClient
     }
   }
 
+  Future<PaymentDto> recordCashPayment(String orderId, int amount) async {
+    final safeId = orderId.startsWith('ord-') ? orderId.substring(4) : orderId;
+    final response = await _send(
+      'POST',
+      config.resolve('orders/$safeId/payments/cash'),
+      body: jsonEncode({'amount': amount}),
+      extraHeaders: {
+        'Idempotency-Key':
+            'cash-$orderId-${DateTime.now().millisecondsSinceEpoch}',
+      },
+    );
+    final json = _decodeObject(response);
+    return PaymentDto.fromJson(json);
+  }
+
   @override
   Future<RemoteCatalog> fetchAdminCatalog() async {
     final response = await _send('GET', config.resolve('admin/catalog'));
@@ -619,6 +635,15 @@ class PesenHubApiClient
       final raw = jsonDecode(payloadJson);
       if (raw is! Map) throw const FormatException('invalid mutation');
       final map = Map<String, dynamic>.from(raw);
+      if (map.containsKey('amount') &&
+          map.containsKey('order_id') &&
+          (map['action'] == 'RECORD_CASH_PAYMENT' ||
+              map['payment_method'] == 'CASH')) {
+        final orderId = map['order_id'] as String;
+        final amount = (map['amount'] as num).toInt();
+        await recordCashPayment(orderId, amount);
+        return SyncGatewayResponse.success(serverOrderId: orderId);
+      }
       if (map.containsKey('target_status') && map.containsKey('order_id')) {
         final orderId = map['order_id'] as String;
         final targetStatus = map['target_status'] as String;
@@ -642,6 +667,14 @@ class PesenHubApiClient
       final json = _decodeObject(response);
       final id = json['id'];
       if (id is! String || id.isEmpty) throw _invalidResponse(response);
+      if (map['payment_status'] == 'PAID') {
+        final totalAmount = (json['total_amount'] as num?)?.toInt() ?? 0;
+        if (totalAmount > 0) {
+          try {
+            await recordCashPayment(id, totalAmount);
+          } catch (_) {}
+        }
+      }
       return SyncGatewayResponse.success(serverOrderId: id);
     } on ApiFailure catch (failure) {
       final kind = _syncFailureKind(failure.kind);

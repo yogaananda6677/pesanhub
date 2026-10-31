@@ -5,9 +5,11 @@ import 'package:pesenhub_app/order/models/order_action.dart';
 import 'package:pesenhub_app/order/order_detail_view.dart';
 import 'package:pesenhub_app/order/widgets/order_payment_card.dart';
 import 'package:pesenhub_app/order/widgets/order_status_timeline.dart';
+import 'package:pesenhub_app/order/widgets/payment_dialog.dart';
 import 'package:pesenhub_app/queue/models/queue_order.dart';
 import 'package:pesenhub_app/queue/models/queue_order_item.dart';
 import 'package:pesenhub_app/theme/app_theme.dart';
+import 'package:pesenhub_app/widgets/app_button.dart';
 import 'package:pesenhub_app/widgets/app_feedback.dart';
 
 void main() {
@@ -330,6 +332,150 @@ void main() {
             find.textContaining('Koneksi internet terputus'),
             findsOneWidget,
           );
+        },
+      );
+
+      testWidgets(
+        'Issue #195: Selesaikan Order button is disabled when paymentStatus is UNPAID and warning is displayed',
+        (tester) async {
+          final order = buildTestOrder(
+            orderStatus: 'READY_FOR_PICKUP',
+            paymentStatus: 'UNPAID',
+          );
+          final controller = OrderDetailController(
+            initialOrder: order,
+            role: 'STAFF',
+          );
+
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: AppTheme.lightTheme,
+              home: Scaffold(body: OrderDetailView(controller: controller)),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          expect(find.text('Selesaikan Order'), findsOneWidget);
+          final button = tester.widget<AppButton>(
+            find.ancestor(
+              of: find.text('Selesaikan Order'),
+              matching: find.byType(AppButton),
+            ),
+          );
+          expect(button.onPressed, isNull);
+          expect(
+            find.text('Pesanan wajib dibayar lunas sebelum diselesaikan.'),
+            findsOneWidget,
+          );
+        },
+      );
+
+      testWidgets(
+        'Issue #195: Selesaikan Order button is enabled when paymentStatus is PAID and completes directly',
+        (tester) async {
+          final order = buildTestOrder(
+            orderStatus: 'READY_FOR_PICKUP',
+            paymentStatus: 'PAID',
+          );
+          final controller = OrderDetailController(
+            initialOrder: order,
+            role: 'STAFF',
+          );
+
+          bool completed = false;
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: AppTheme.lightTheme,
+              home: Scaffold(
+                body: OrderDetailView(
+                  controller: controller,
+                  transitionFn: (orderId, targetStatus, expectedVersion) async {
+                    if (targetStatus == 'COMPLETED') {
+                      completed = true;
+                    }
+                    return buildTestOrder(
+                      orderStatus: 'COMPLETED',
+                      paymentStatus: 'PAID',
+                      version: order.version + 1,
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          expect(find.text('Selesaikan Order'), findsOneWidget);
+          final button = tester.widget<AppButton>(
+            find.ancestor(
+              of: find.text('Selesaikan Order'),
+              matching: find.byType(AppButton),
+            ),
+          );
+          expect(button.onPressed, isNotNull);
+          expect(
+            find.text('Pesanan wajib dibayar lunas sebelum diselesaikan.'),
+            findsNothing,
+          );
+
+          await tester.tap(find.text('Selesaikan Order'));
+          await tester.pumpAndSettle();
+
+          expect(completed, isTrue);
+          expect(controller.order.orderStatus, equals('COMPLETED'));
+        },
+      );
+
+      testWidgets(
+        'Issue #195: onPaymentSuccess callback is triggered when payment is received via Terima Pembayaran',
+        (tester) async {
+          final order = buildTestOrder(
+            orderStatus: 'READY_FOR_PICKUP',
+            paymentStatus: 'UNPAID',
+          );
+          final controller = OrderDetailController(
+            initialOrder: order,
+            role: 'STAFF',
+          );
+
+          tester.view.physicalSize = const Size(1024, 768);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          String? paidOrderId;
+          int? paidAmount;
+
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: AppTheme.lightTheme,
+              home: Scaffold(
+                body: OrderDetailView(
+                  controller: controller,
+                  onPaymentSuccess: (orderId, amount) async {
+                    paidOrderId = orderId;
+                    paidAmount = amount;
+                  },
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          expect(find.text('Terima Pembayaran'), findsOneWidget);
+          await tester.ensureVisible(find.text('Terima Pembayaran'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Terima Pembayaran'));
+          await tester.pumpAndSettle();
+
+          expect(find.byType(PaymentDialog), findsOneWidget);
+          expect(find.text('Konfirmasi Tunai'), findsOneWidget);
+          await tester.tap(find.text('Konfirmasi Tunai'));
+          await tester.pumpAndSettle();
+
+          expect(paidOrderId, equals(order.id));
+          expect(paidAmount, equals(order.totalAmount));
+          expect(controller.order.paymentStatus, equals('PAID'));
         },
       );
     },

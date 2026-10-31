@@ -426,5 +426,111 @@ void main() {
         expect(nextStatus, equals('REJECTED'));
       },
     );
+
+    testWidgets(
+      'Issue #195: Selesai button is disabled when order is READY_FOR_PICKUP but UNPAID',
+      (tester) async {
+        final unpaidReadyOrder = buildOrder(
+          id: 'ord-ready-unpaid',
+          orderNumber: '#ORD-RDY-1',
+          customerName: 'Ahmad Unpaid',
+          source: 'CASHIER_MANUAL',
+          orderStatus: 'READY_FOR_PICKUP',
+          paymentStatus: 'UNPAID',
+        );
+
+        final controller = QueueController(
+          initialOrders: [unpaidReadyOrder],
+          timeOverride: fixedNow,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: Scaffold(body: QueueView(controller: controller)),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Switch to "Siap" tab (index 2)
+        await tester.tap(find.text('Siap'));
+        await tester.pumpAndSettle();
+
+        // "Bayar" button must be present
+        expect(find.text('Bayar'), findsOneWidget);
+
+        // "Selesai" button must be disabled
+        expect(find.text('Selesai'), findsOneWidget);
+        final selesaiButton = tester.widget<ElevatedButton>(
+          find.ancestor(
+            of: find.text('Selesai'),
+            matching: find.byType(ElevatedButton),
+          ),
+        );
+        expect(selesaiButton.onPressed, isNull);
+      },
+    );
+
+    testWidgets(
+      'Issue #195: Selesai button is enabled when order is READY_FOR_PICKUP and PAID, completing directly',
+      (tester) async {
+        final paidReadyOrder = buildOrder(
+          id: 'ord-ready-paid',
+          orderNumber: '#ORD-RDY-2',
+          customerName: 'Ahmad Paid',
+          source: 'CASHIER_MANUAL',
+          orderStatus: 'READY_FOR_PICKUP',
+          paymentStatus: 'PAID',
+        );
+
+        final controller = QueueController(
+          initialOrders: [paidReadyOrder],
+          timeOverride: fixedNow,
+        );
+
+        QueueOrder? completedOrder;
+        String? targetStatus;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: Scaffold(
+              body: QueueView(
+                controller: controller,
+                onStatusChanged: (order, status) {
+                  completedOrder = order;
+                  targetStatus = status;
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Switch to "Siap" tab (index 2)
+        await tester.tap(find.text('Siap'));
+        await tester.pumpAndSettle();
+
+        // "Bayar" button is not shown
+        expect(find.text('Bayar'), findsNothing);
+
+        // "Selesai" button must be enabled
+        expect(find.text('Selesai'), findsOneWidget);
+        final selesaiButton = tester.widget<ElevatedButton>(
+          find.ancestor(
+            of: find.text('Selesai'),
+            matching: find.byType(ElevatedButton),
+          ),
+        );
+        expect(selesaiButton.onPressed, isNotNull);
+
+        // Tapping Selesai directly completes without payment dialog
+        await tester.tap(find.text('Selesai'));
+        await tester.pumpAndSettle();
+
+        expect(completedOrder?.id, equals('ord-ready-paid'));
+        expect(targetStatus, equals('COMPLETED'));
+      },
+    );
   });
 }
