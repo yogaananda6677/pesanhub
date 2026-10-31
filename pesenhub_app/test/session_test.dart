@@ -67,9 +67,15 @@ class _Gateway implements AuthGateway {
 
 class _Identity implements GoogleIdentityClient {
   bool signedOut = false;
+  Object? error;
+
+  _Identity({this.error});
 
   @override
-  Future<String> authenticate(String nonce) async => 'google-id-token';
+  Future<String> authenticate(String nonce) async {
+    if (error != null) throw error!;
+    return 'google-id-token';
+  }
 
   @override
   Future<void> signOut() async => signedOut = true;
@@ -412,4 +418,77 @@ void main() {
     expect(controller.status, SessionStatus.webOnly);
     controller.dispose();
   });
+
+  test(
+    'signInWithGoogle handles UnsupportedError with informative message',
+    () async {
+      final controller = SessionController(
+        store: MemorySessionStore(),
+        gateway: _Gateway(credential()),
+        identityClient: _Identity(
+          error: UnsupportedError(
+            'Login Google interaktif belum didukung langsung pada browser. Silakan masuk menggunakan Username & Password kasir/admin di atas.',
+          ),
+        ),
+      );
+      final success = await controller.signInWithGoogle();
+      expect(success, isFalse);
+      expect(controller.status, SessionStatus.signedOut);
+      expect(
+        controller.errorMessage,
+        contains('Login Google interaktif belum didukung'),
+      );
+      controller.dispose();
+    },
+  );
+
+  test(
+    'signInWithGoogle handles UnimplementedError and AssertionError',
+    () async {
+      final unimplementedCtrl = SessionController(
+        store: MemorySessionStore(),
+        gateway: _Gateway(credential()),
+        identityClient: _Identity(
+          error: UnimplementedError(
+            'authenticate is not supported on the web.',
+          ),
+        ),
+      );
+      final success1 = await unimplementedCtrl.signInWithGoogle();
+      expect(success1, isFalse);
+      expect(unimplementedCtrl.status, SessionStatus.signedOut);
+      expect(
+        unimplementedCtrl.errorMessage,
+        contains('authenticate is not supported on the web'),
+      );
+      unimplementedCtrl.dispose();
+
+      final assertionCtrl = SessionController(
+        store: MemorySessionStore(),
+        gateway: _Gateway(credential()),
+        identityClient: _Identity(
+          error: AssertionError('serverClientId is not supported on Web.'),
+        ),
+      );
+      final success2 = await assertionCtrl.signInWithGoogle();
+      expect(success2, isFalse);
+      expect(assertionCtrl.status, SessionStatus.signedOut);
+      expect(
+        assertionCtrl.errorMessage,
+        contains('serverClientId is not supported on Web'),
+      );
+      assertionCtrl.dispose();
+    },
+  );
+
+  test(
+    'PlatformGoogleIdentityClient throws FormatException when serverClientId is empty',
+    () async {
+      final client = PlatformGoogleIdentityClient(serverClientId: '   ');
+      expect(
+        () => client.authenticate('test-nonce'),
+        throwsA(isA<FormatException>()),
+      );
+    },
+  );
 }
