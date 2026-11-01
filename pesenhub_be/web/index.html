@@ -14,6 +14,11 @@
        SVG DEFINITIONS
        ========================================== -->
   <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
+    <symbol id="icon-menu" viewBox="0 0 24 24">
+      <line class="svg-icon-stroke" x1="4" y1="6" x2="20" y2="6"></line>
+      <line class="svg-icon-stroke" x1="4" y1="12" x2="20" y2="12"></line>
+      <line class="svg-icon-stroke" x1="4" y1="18" x2="20" y2="18"></line>
+    </symbol>
     <symbol id="icon-bag" viewBox="0 0 24 24">
       <path class="svg-icon-stroke" d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
       <line class="svg-icon-stroke" x1="3" y1="6" x2="21" y2="6"></line>
@@ -104,14 +109,11 @@
         <a href="/downloads/pesenhub-pos.apk" class="btn btn-outline btn-sm nav-btn-app" download title="Unduh Aplikasi Android (APK)">
           <svg class="svg-icon"><use href="#icon-download"/></svg> Unduh APK
         </a>
-        <a href="/order/" class="btn btn-primary btn-sm">
-          <svg class="svg-icon"><use href="#icon-bag"/></svg> Pesan Online
-        </a>
         <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20ingin%20pesan" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp btn-sm">
           <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> WhatsApp
         </a>
         <button type="button" class="mobile-toggle" id="mobile-toggle" aria-label="Buka Menu Navigasi" aria-expanded="false">
-          <svg class="svg-icon" style="width:24px;height:24px;"><use href="#icon-bag"/></svg>
+          <svg class="svg-icon" id="mobile-toggle-icon" style="width:24px;height:24px;"><use href="#icon-menu"/></svg>
         </button>
       </div>
     </div>
@@ -120,22 +122,19 @@
     <div class="mobile-menu" id="mobile-menu">
       <a href="#hero" class="nav-link">Beranda</a>
       <a href="#keunggulan" class="nav-link">Menu Unggulan</a>
-      <a href="#menu" class="nav-link">Daftar Menu</a>
+      <a href="#menu" class="nav-link">Daftar Menu &amp; Harga</a>
       <a href="#aplikasi" class="nav-link">Aplikasi Kasir (POS)</a>
       <a href="#mitra" class="nav-link">Pesan Antar</a>
       <a href="#lokasi" class="nav-link">Lokasi Outlet</a>
       <div style="display:flex;flex-direction:column;gap:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border-subtle)">
+        <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20ingin%20pesan" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp">
+          <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> WhatsApp: 0822 4350 9775
+        </a>
         <a href="/downloads/pesenhub-pos.apk" class="btn btn-outline" download>
           <svg class="svg-icon"><use href="#icon-download"/></svg> Unduh Aplikasi Kasir (.APK)
         </a>
         <a href="/app/" class="btn btn-outline" style="border-color:var(--primary);color:var(--primary);">
           <svg class="svg-icon"><use href="#icon-smartphone"/></svg> Buka Web POS Kasir
-        </a>
-        <a href="/order/" class="btn btn-primary">
-          <svg class="svg-icon"><use href="#icon-bag"/></svg> Pesan Online (Web Order)
-        </a>
-        <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20ingin%20pesan" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp">
-          <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> WhatsApp: 0822 4350 9775
         </a>
       </div>
     </div>
@@ -156,7 +155,7 @@
           </div>
 
           <h1 class="hero-title">
-            Sensasi Gurih <span class="title-accent-red">Martabak Telur</span> & Legit Lembut <span class="title-accent-gold">Terang Bulan</span>
+            Sensasi Gurih <span class="title-accent-red text-nowrap">Martabak Telur</span> &amp; Legit Lembut <span class="title-accent-gold text-nowrap">Terang Bulan</span>
           </h1>
 
           <p class="hero-desc">
@@ -164,14 +163,12 @@
           </p>
 
           <div class="hero-cta-group">
-            <a href="/order/" class="btn btn-primary">
-              <svg class="svg-icon"><use href="#icon-bag"/></svg> Pesan Online Sekarang
+            <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20mau%20order" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp btn-hero-wa">
+              <svg class="svg-icon" style="width:20px;height:20px;"><use href="#icon-whatsapp"/></svg>
+              <span>Order via WhatsApp</span>
             </a>
-            <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20mau%20order" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp">
-              <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Order via WhatsApp
-            </a>
-            <a href="#menu" class="btn btn-outline">
-              <span>Daftar Menu & Harga</span>
+            <a href="#menu" class="btn btn-outline btn-hero-menu">
+              <span>Daftar Menu &amp; Harga</span>
               <svg class="svg-icon"><use href="#icon-arrow-right"/></svg>
             </a>
           </div>
@@ -287,8 +284,8 @@
                   <span class="price-small-label">Harga Mulai</span>
                   <span class="price-main-val">Rp 20.000</span>
                 </div>
-                <a href="/order/" class="btn btn-primary btn-sm">
-                  <span>Pesan</span> <svg class="svg-icon"><use href="#icon-arrow-right"/></svg>
+                <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20mau%20pesan%20Martel%20Pedas%20Sambal%20Uleg" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp btn-sm">
+                  <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> <span>Pesan WA</span>
                 </a>
               </div>
             </div>
@@ -315,8 +312,8 @@
                   <span class="price-small-label">Harga Mulai</span>
                   <span class="price-main-val">Rp 50.000</span>
                 </div>
-                <a href="/order/" class="btn btn-primary btn-sm">
-                  <span>Pesan</span> <svg class="svg-icon"><use href="#icon-arrow-right"/></svg>
+                <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20mau%20pesan%20Martel%20Mozarella%20Melted" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp btn-sm">
+                  <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> <span>Pesan WA</span>
                 </a>
               </div>
             </div>
@@ -343,8 +340,8 @@
                   <span class="price-small-label">Harga Mulai</span>
                   <span class="price-main-val">Rp 18.000</span>
                 </div>
-                <a href="/order/" class="btn btn-primary btn-sm">
-                  <span>Pesan</span> <svg class="svg-icon"><use href="#icon-arrow-right"/></svg>
+                <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20mau%20pesan%20Terang%20Bulan%20Manis%20Susu" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp btn-sm">
+                  <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> <span>Pesan WA</span>
                 </a>
               </div>
             </div>
@@ -360,7 +357,7 @@
       <div class="container">
         <div class="section-header">
           <span class="section-tag">
-            <svg class="svg-icon"><use href="#icon-bag"/></svg> Daftar Menu & Harga
+            <svg class="svg-icon"><use href="#icon-star"/></svg> Daftar Menu &amp; Harga
           </span>
           <h2 class="section-title">Pilihan Lengkap Martabak & Terang Bulan</h2>
           <p class="section-subtitle">
@@ -391,8 +388,8 @@
               <h3>Martabak Telur — Spesial Sambal Uleg dan Acar Segar</h3>
               <p>Kulit krispi gurih, rempah daging meresap sempurna, plus kuah cuko dan acar timun wortel segar.</p>
             </div>
-            <a href="/order/" class="btn btn-primary btn-sm">
-              <svg class="svg-icon"><use href="#icon-bag"/></svg> Order Martabak
+            <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%2C%20saya%20mau%20pesan%20Martabak%20Telur" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp btn-sm">
+              <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Pesan via WhatsApp
             </a>
           </div>
 
@@ -413,7 +410,9 @@
               </div>
               <div class="catalog-card-footer">
                 <span class="footer-benefit"><svg class="svg-icon" style="color:var(--accent-green)"><use href="#icon-check"/></svg> Gratis Acar + Cuko</span>
-                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+                <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%2C%20saya%20mau%20pesan%20Martabak%20Sosis%20Jamur" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp-subtle btn-sm">
+                  <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Pesan WA
+                </a>
               </div>
             </div>
 
@@ -433,7 +432,9 @@
               </div>
               <div class="catalog-card-footer">
                 <span class="footer-benefit"><svg class="svg-icon" style="color:var(--accent-green)"><use href="#icon-check"/></svg> Gratis Acar + Cuko</span>
-                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+                <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%2C%20saya%20mau%20pesan%20Martabak%20Daging%20Ayam" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp-subtle btn-sm">
+                  <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Pesan WA
+                </a>
               </div>
             </div>
 
@@ -453,7 +454,9 @@
               </div>
               <div class="catalog-card-footer">
                 <span class="footer-benefit"><svg class="svg-icon" style="color:var(--accent-green)"><use href="#icon-check"/></svg> Gratis Acar + Cuko</span>
-                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+                <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%2C%20saya%20mau%20pesan%20Martabak%20Daging%20Sapi" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp-subtle btn-sm">
+                  <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Pesan WA
+                </a>
               </div>
             </div>
 
@@ -474,7 +477,9 @@
               </div>
               <div class="catalog-card-footer">
                 <span class="footer-benefit"><svg class="svg-icon" style="color:var(--primary)"><use href="#icon-cheese"/></svg> Full Keju Mozarella</span>
-                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+                <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%2C%20saya%20mau%20pesan%20Martel%20Mozarella" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp-subtle btn-sm">
+                  <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Pesan WA
+                </a>
               </div>
             </div>
           </div>
@@ -487,8 +492,8 @@
               <h3>Terang Bulan Manis — Manis Susu Kenyal Sampai Pagi</h3>
               <p>Adonan lembut harum mentega wisman, bersarang rapat, susu manis kental dan taburan topping melimpah.</p>
             </div>
-            <a href="/order/" class="btn btn-primary btn-sm">
-              <svg class="svg-icon"><use href="#icon-bag"/></svg> Order Terang Bulan
+            <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%2C%20saya%20mau%20pesan%20Terang%20Bulan" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp btn-sm">
+              <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Pesan via WhatsApp
             </a>
           </div>
 
@@ -508,7 +513,9 @@
               </div>
               <div class="catalog-card-footer">
                 <span class="footer-benefit"><svg class="svg-icon" style="color:var(--accent-green)"><use href="#icon-check"/></svg> Manis Susu Gurih</span>
-                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+                <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%2C%20saya%20mau%20pesan%20Terang%20Bulan%201%20Toping" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp-subtle btn-sm">
+                  <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Pesan WA
+                </a>
               </div>
             </div>
 
@@ -527,7 +534,9 @@
               </div>
               <div class="catalog-card-footer">
                 <span class="footer-benefit"><svg class="svg-icon" style="color:var(--accent-green)"><use href="#icon-check"/></svg> Kombinasi Pas</span>
-                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+                <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%2C%20saya%20mau%20pesan%20Terang%20Bulan%202%20Toping" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp-subtle btn-sm">
+                  <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Pesan WA
+                </a>
               </div>
             </div>
 
@@ -546,7 +555,9 @@
               </div>
               <div class="catalog-card-footer">
                 <span class="footer-benefit"><svg class="svg-icon" style="color:var(--accent-green)"><use href="#icon-check"/></svg> Porsi Super Puas</span>
-                <a href="/order/" class="btn btn-outline btn-sm">Pilih Menu</a>
+                <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%2C%20saya%20mau%20pesan%20Terang%20Bulan%203%20Toping" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp-subtle btn-sm">
+                  <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Pesan WA
+                </a>
               </div>
             </div>
 
@@ -564,7 +575,9 @@
               </div>
               <div class="catalog-card-footer">
                 <span class="footer-benefit"><svg class="svg-icon" style="color:var(--primary)"><use href="#icon-star"/></svg> Pas untuk Ulang Tahun</span>
-                <a href="/order/" class="btn btn-primary btn-sm">Pilih Menu</a>
+                <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%2C%20saya%20mau%20pesan%20Terang%20Bulan%20Cut%20Pizza%20All%20In%20One" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp btn-sm">
+                  <svg class="svg-icon"><use href="#icon-whatsapp"/></svg> Pesan WA
+                </a>
               </div>
             </div>
           </div>
@@ -789,8 +802,8 @@
           <div class="delivery-pill">
             <span class="delivery-dot delivery-dot-maxim"></span> Maxim Food
           </div>
-          <a href="/order/" class="delivery-pill" style="background:#fffbeb;border-color:var(--primary-border);">
-            <span class="delivery-dot delivery-dot-pesenhub"></span> Web Order PesenHub (Langsung)
+          <a href="https://wa.me/6282243509775?text=Halo%20Martabak%20Jenggirat%20Kediri%2C%20saya%20mau%20order" target="_blank" rel="noopener noreferrer" class="delivery-pill" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534;">
+            <span class="delivery-dot" style="background:#22c55e;"></span> WhatsApp Outlet (Langsung)
           </a>
         </div>
       </div>
@@ -898,8 +911,9 @@
         <div class="footer-col">
           <h5>Layanan Pemesanan</h5>
           <ul>
-            <li><a href="/order/">Pesan Online (PesenHub)</a></li>
             <li><a href="https://wa.me/6282243509775" target="_blank" rel="noopener noreferrer">Order via WhatsApp</a></li>
+            <li><a href="#lokasi">Dine-in &amp; Takeaway Outlet</a></li>
+            <li><a href="#mitra">Mitra Pesan Antar Online</a></li>
             <li><a href="/superadmin/">Superadmin Portal</a></li>
           </ul>
         </div>
@@ -919,7 +933,7 @@
         <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
           <a href="/downloads/pesenhub-pos.apk" download style="color:var(--accent-green);font-weight:700;">Unduh APK POS</a>
           <a href="/app/" style="color:var(--primary);font-weight:700;">Web POS</a>
-          <a href="/order/" style="color:var(--primary);font-weight:700;">Order Online</a>
+          <a href="https://wa.me/6282243509775" target="_blank" rel="noopener noreferrer" style="color:var(--accent-green);font-weight:700;">Pesan WhatsApp</a>
           <a href="/superadmin/">Control Plane</a>
         </div>
       </div>

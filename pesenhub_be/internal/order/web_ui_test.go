@@ -41,6 +41,15 @@ func TestWebStaticAssetsAccessibilityAndResponsive(t *testing.T) {
 		t.Fatal("index.html missing aria-live regions for dynamic validation and status announcements")
 	}
 
+	// Web order removal verification: index.html must not contain href="/order/"
+	if strings.Contains(body, `href="/order/"`) {
+		t.Fatal("index.html should not contain direct links to web order (/order/)")
+	}
+	// WhatsApp order channel verification
+	if !strings.Contains(body, `https://wa.me/6282243509775`) {
+		t.Fatal("index.html must provide WhatsApp ordering link")
+	}
+
 	// 2. Check style.css
 	req = httptest.NewRequest(http.MethodGet, "/style.css", nil)
 	w = httptest.NewRecorder()
@@ -68,5 +77,31 @@ func TestWebStaticAssetsAccessibilityAndResponsive(t *testing.T) {
 	}
 	if !strings.Contains(js, "loadTracking") {
 		t.Fatal("app.js must support tracking view via token")
+	}
+
+	// 4. Check landing.js (Interactive category tabs and mobile nav)
+	req = httptest.NewRequest(http.MethodGet, "/landing.js", nil)
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for landing.js, got %d", w.Code)
+	}
+	landingJS := w.Body.String()
+	if !strings.Contains(landingJS, "menu-category-section") {
+		t.Fatal("landing.js must query menu-category-section for menu tab filtering")
+	}
+
+	// 5. Check landing.css
+	req = httptest.NewRequest(http.MethodGet, "/landing.css", nil)
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for landing.css, got %d", w.Code)
+	}
+	landingCSS := w.Body.String()
+	if !strings.Contains(landingCSS, ".btn-whatsapp-subtle") {
+		t.Fatal("landing.css must include .btn-whatsapp-subtle styling")
 	}
 }

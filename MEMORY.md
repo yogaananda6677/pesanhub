@@ -81,12 +81,12 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#6 — Phase 1D MVP Integration & Release](https://github.com/yogaananda6677/pesanhub/issues/6)
 - Child Issue: #133
 - Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#153 — feat(settings): informasi status koneksi whatsapp gowa, pairing qr realtime, dan privasi di menu pengaturan](https://github.com/yogaananda6677/pesanhub/issues/153)
-- Current Branch: `feature/153-whatsapp-settings-qr-pairing`
-- Merged Pull Requests: sampai [#150](https://github.com/yogaananda6677/pesanhub/pull/150)
+- Current Issue: [#197 — feat(web): perbaikan tampilan landing page gerai dan eliminasi pemesanan via web (prioritas whatsapp & kasir)](https://github.com/yogaananda6677/pesanhub/issues/197)
+- Current Branch: `feature/197-web-landing-ui-improvements-remove-web-order`
+- Merged Pull Requests: sampai [#196](https://github.com/yogaananda6677/pesanhub/pull/196)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Menu Pengaturan menampilkan kartu "Integrasi WhatsApp" dengan status realtime (Terhubung / Belum Terhubung / Gateway Offline); nomor WhatsApp terhubung disanitasi dengan PII masking; privasi data transaksi dijelaskan; tombol hubungkan WhatsApp memunculkan QR modal realtime dari GOWA via proxy backend; auto-detect sukses connect dan auto-close modal; tombol putuskan sambungan; pengujian backend dan widget Flutter 100% lulus.
-- Validation: Unit & widget tests Flutter 100% lulus (223 tests), flutter analyze clean (0 issues), go test ./... clean (100% pass).
+- Exit Criteria: Seluruh tautan dan tombol pemesanan online langsung di website (`/order/`) dihilangkan dari header, hero section, menu unggulan, katalog harga, daftar mitra pesan antar, dan footer; saluran pemesanan dialihkan langsung ke WhatsApp resmi outlet dengan pesan pre-fill otomatis sesuai item menu; perbaikan visual tampilan hero section (pencegahan clipping elemen floating badge harga & rating, spasi wrapping judul kuliner); perbaikan fungsionalitas tab kategori menu di `landing.js` (`menu-category-section`); pengujian otomatis unit test backend lulus 100%.
+- Validation: Go test ./internal/order lulus (TestWebStaticAssetsAccessibilityAndResponsive clean), backend ./run.sh check clean (exit code 0), flutter analyze clean (0 issues), flutter test clean (100% pass).
 
 ## 6. Current Phase Checklist
 

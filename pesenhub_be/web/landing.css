@@ -269,6 +269,53 @@ img {
   font-size: 0.8125rem;
 }
 
+.btn-hero-wa {
+  font-size: 1.05rem;
+  padding: 0.85rem 1.85rem;
+  box-shadow: 0 6px 18px rgba(21, 128, 61, 0.35);
+  border-radius: var(--radius-full);
+  font-weight: 800;
+}
+
+.btn-hero-wa:hover {
+  box-shadow: 0 8px 24px rgba(21, 128, 61, 0.45);
+  transform: translateY(-2px);
+}
+
+.btn-hero-menu {
+  font-size: 1.05rem;
+  padding: 0.85rem 1.65rem;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+}
+
+.btn-whatsapp-subtle {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-whatsapp-subtle:hover {
+  background-color: #16a34a;
+  color: #ffffff;
+  border-color: #16a34a;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.28);
+  transform: translateY(-1px);
+}
+
+.text-nowrap {
+  white-space: nowrap;
+}
+
 .mobile-toggle {
   display: none;
   background: transparent;
@@ -298,7 +345,7 @@ img {
    ========================================== */
 .hero-section {
   position: relative;
-  padding: 4rem 0 4.5rem;
+  padding: 4.5rem 0 6rem;
   background: radial-gradient(circle at 80% 25%, rgba(254, 243, 199, 0.7) 0%, rgba(254, 226, 226, 0.35) 45%, rgba(252, 251, 249, 1) 75%);
   overflow: hidden;
 }
@@ -383,6 +430,7 @@ img {
 /* Hero Food Photography Showcase */
 .hero-visual-wrap {
   position: relative;
+  padding: 1rem 1rem 1.75rem 1rem;
 }
 
 .hero-card-featured {
@@ -449,8 +497,8 @@ img {
 /* Secondary Floating Preview Card */
 .hero-floating-card-sub {
   position: absolute;
-  bottom: -28px;
-  left: -28px;
+  bottom: -8px;
+  left: -12px;
   width: 210px;
   background-color: #fff;
   border-radius: var(--radius-md);
@@ -499,8 +547,8 @@ img {
 /* Review Floating Bubble */
 .hero-review-bubble {
   position: absolute;
-  top: -20px;
-  right: -20px;
+  top: -10px;
+  right: -10px;
   background-color: #fff;
   border-radius: var(--radius-md);
   padding: 0.85rem 1.1rem;
@@ -1223,6 +1271,22 @@ img {
 /* ==========================================
    RESPONSIVE QUERIES
    ========================================== */
+@media (max-width: 1080px) and (min-width: 769px) {
+  .desktop-nav {
+    gap: 1.15rem;
+  }
+  .nav-link {
+    font-size: 0.875rem;
+  }
+  .nav-actions {
+    gap: 0.5rem;
+  }
+  .nav-actions .btn {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8125rem;
+  }
+}
+
 @media (max-width: 992px) {
   .hero-grid {
     grid-template-columns: 1fr;
