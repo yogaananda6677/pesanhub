@@ -36,6 +36,41 @@ class OrderReceiptModal extends StatefulWidget {
 class _OrderReceiptModalState extends State<OrderReceiptModal> {
   bool _isPrinting = false;
 
+  String _formatReceiptOrderStatus(String status) {
+    switch (status.toUpperCase()) {
+      case 'PENDING':
+        return 'MENUNGGU';
+      case 'ACCEPTED':
+        return 'DITERIMA';
+      case 'PREPARING':
+        return 'DIMASAK';
+      case 'READY_FOR_PICKUP':
+        return 'SIAP DIAMBIL';
+      case 'COMPLETED':
+        return 'SELESAI';
+      case 'CANCELLED':
+      case 'REJECTED':
+        return 'DIBATALKAN';
+      default:
+        return status.toUpperCase();
+    }
+  }
+
+  String _formatPaymentMethod(String? method) {
+    if (method == null || method.isEmpty) return 'Tunai';
+    switch (method.toUpperCase()) {
+      case 'CASH':
+        return 'Tunai';
+      case 'QRIS':
+      case 'MIDTRANS_QRIS':
+        return 'QRIS';
+      case 'TRANSFER':
+        return 'Transfer';
+      default:
+        return method;
+    }
+  }
+
   PrinterService get _printer =>
       widget.printerService ?? PrinterService.instance;
 
@@ -111,7 +146,10 @@ class _OrderReceiptModalState extends State<OrderReceiptModal> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(
                                 order.orderNumber,
@@ -121,43 +159,138 @@ class _OrderReceiptModalState extends State<OrderReceiptModal> {
                                   color: AppColors.textPrimary,
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isCancelled
-                                      ? AppColors.accentRedBg
-                                      : (isCompleted
-                                            ? AppColors.accentGreenBg
-                                            : AppColors.accentAmberBg),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: isCancelled
-                                        ? AppColors.accentRedBorder
-                                        : (isCompleted
-                                              ? AppColors.accentGreenBorder
-                                              : AppColors.accentAmber),
-                                  ),
-                                ),
-                                child: Text(
-                                  isCancelled
-                                      ? 'DIBATALKAN'
-                                      : (isCompleted
-                                            ? 'SELESAI'
-                                            : order.orderStatus),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: isCancelled
-                                        ? AppColors.accentRed
-                                        : (isCompleted
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          order.paymentStatus.toUpperCase() ==
+                                              'PAID'
+                                          ? AppColors.accentGreenBg
+                                          : AppColors.accentRedBg,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color:
+                                            order.paymentStatus.toUpperCase() ==
+                                                'PAID'
+                                            ? AppColors.accentGreenBorder
+                                            : AppColors.accentRedBorder,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          order.paymentStatus.toUpperCase() ==
+                                                  'PAID'
+                                              ? Icons.check_circle_rounded
+                                              : Icons.money_off_rounded,
+                                          size: 12,
+                                          color:
+                                              order.paymentStatus
+                                                      .toUpperCase() ==
+                                                  'PAID'
                                               ? AppColors.accentGreenDeep
-                                              : AppColors.slateDark),
+                                              : AppColors.accentRed,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          order.paymentStatus.toUpperCase() ==
+                                                  'PAID'
+                                              ? 'LUNAS'
+                                              : 'BELUM BAYAR',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color:
+                                                order.paymentStatus
+                                                        .toUpperCase() ==
+                                                    'PAID'
+                                                ? AppColors.accentGreenDeep
+                                                : AppColors.accentRed,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isCancelled
+                                          ? AppColors.accentRedBg
+                                          : (isCompleted
+                                                ? AppColors.accentGreenBg
+                                                : (order.orderStatus ==
+                                                          'READY_FOR_PICKUP'
+                                                      ? const Color(0xFFE8F5E9)
+                                                      : (order.orderStatus ==
+                                                                'PREPARING'
+                                                            ? const Color(
+                                                                0xFFFFF3E0,
+                                                              )
+                                                            : AppColors
+                                                                  .accentAmberBg))),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isCancelled
+                                            ? AppColors.accentRedBorder
+                                            : (isCompleted
+                                                  ? AppColors.accentGreenBorder
+                                                  : (order.orderStatus ==
+                                                            'READY_FOR_PICKUP'
+                                                        ? const Color(
+                                                            0xFFA5D6A7,
+                                                          )
+                                                        : (order.orderStatus ==
+                                                                  'PREPARING'
+                                                              ? const Color(
+                                                                  0xFFFFCC80,
+                                                                )
+                                                              : AppColors
+                                                                    .accentAmber))),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      isCancelled
+                                          ? 'DIBATALKAN'
+                                          : (isCompleted
+                                                ? 'SELESAI'
+                                                : _formatReceiptOrderStatus(
+                                                    order.orderStatus,
+                                                  )),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: isCancelled
+                                            ? AppColors.accentRed
+                                            : (isCompleted
+                                                  ? AppColors.accentGreenDeep
+                                                  : (order.orderStatus ==
+                                                            'READY_FOR_PICKUP'
+                                                        ? const Color(
+                                                            0xFF2E7D32,
+                                                          )
+                                                        : (order.orderStatus ==
+                                                                  'PREPARING'
+                                                              ? const Color(
+                                                                  0xFFE65100,
+                                                                )
+                                                              : AppColors
+                                                                    .slateDark))),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -502,13 +635,13 @@ class _OrderReceiptModalState extends State<OrderReceiptModal> {
                           ),
                         ),
                         Text(
-                          '${order.paymentMethod ?? "Tunai"} • ${order.paymentStatus == "PAID" ? "Lunas" : order.paymentStatus}',
+                          '${_formatPaymentMethod(order.paymentMethod)} • ${order.paymentStatus.toUpperCase() == "PAID" ? "Lunas" : "Belum Bayar"}',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: order.paymentStatus == 'PAID'
+                            color: order.paymentStatus.toUpperCase() == 'PAID'
                                 ? AppColors.accentGreenDeep
-                                : AppColors.slate,
+                                : AppColors.accentRed,
                           ),
                         ),
                       ],
