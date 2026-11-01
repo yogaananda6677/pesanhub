@@ -189,11 +189,7 @@ class _HistoryViewState extends State<HistoryView> {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: fg,
-        ),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: fg),
       ),
     );
   }

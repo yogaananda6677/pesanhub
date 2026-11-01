@@ -170,13 +170,15 @@ class _OrderReceiptModalState extends State<OrderReceiptModal> {
                                       vertical: 3,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: order.paymentStatus.toUpperCase() ==
+                                      color:
+                                          order.paymentStatus.toUpperCase() ==
                                               'PAID'
                                           ? AppColors.accentGreenBg
                                           : AppColors.accentRedBg,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
-                                        color: order.paymentStatus.toUpperCase() ==
+                                        color:
+                                            order.paymentStatus.toUpperCase() ==
                                                 'PAID'
                                             ? AppColors.accentGreenBorder
                                             : AppColors.accentRedBorder,
@@ -191,7 +193,9 @@ class _OrderReceiptModalState extends State<OrderReceiptModal> {
                                               ? Icons.check_circle_rounded
                                               : Icons.money_off_rounded,
                                           size: 12,
-                                          color: order.paymentStatus.toUpperCase() ==
+                                          color:
+                                              order.paymentStatus
+                                                      .toUpperCase() ==
                                                   'PAID'
                                               ? AppColors.accentGreenDeep
                                               : AppColors.accentRed,
@@ -205,7 +209,9 @@ class _OrderReceiptModalState extends State<OrderReceiptModal> {
                                           style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w800,
-                                            color: order.paymentStatus.toUpperCase() ==
+                                            color:
+                                                order.paymentStatus
+                                                        .toUpperCase() ==
                                                     'PAID'
                                                 ? AppColors.accentGreenDeep
                                                 : AppColors.accentRed,
@@ -225,12 +231,15 @@ class _OrderReceiptModalState extends State<OrderReceiptModal> {
                                           : (isCompleted
                                                 ? AppColors.accentGreenBg
                                                 : (order.orderStatus ==
-                                                        'READY_FOR_PICKUP'
-                                                    ? const Color(0xFFE8F5E9)
-                                                    : (order.orderStatus ==
-                                                            'PREPARING'
-                                                        ? const Color(0xFFFFF3E0)
-                                                        : AppColors.accentAmberBg))),
+                                                          'READY_FOR_PICKUP'
+                                                      ? const Color(0xFFE8F5E9)
+                                                      : (order.orderStatus ==
+                                                                'PREPARING'
+                                                            ? const Color(
+                                                                0xFFFFF3E0,
+                                                              )
+                                                            : AppColors
+                                                                  .accentAmberBg))),
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: isCancelled
@@ -238,12 +247,17 @@ class _OrderReceiptModalState extends State<OrderReceiptModal> {
                                             : (isCompleted
                                                   ? AppColors.accentGreenBorder
                                                   : (order.orderStatus ==
-                                                          'READY_FOR_PICKUP'
-                                                      ? const Color(0xFFA5D6A7)
-                                                      : (order.orderStatus ==
-                                                              'PREPARING'
-                                                          ? const Color(0xFFFFCC80)
-                                                          : AppColors.accentAmber))),
+                                                            'READY_FOR_PICKUP'
+                                                        ? const Color(
+                                                            0xFFA5D6A7,
+                                                          )
+                                                        : (order.orderStatus ==
+                                                                  'PREPARING'
+                                                              ? const Color(
+                                                                  0xFFFFCC80,
+                                                                )
+                                                              : AppColors
+                                                                    .accentAmber))),
                                       ),
                                     ),
                                     child: Text(
@@ -251,7 +265,9 @@ class _OrderReceiptModalState extends State<OrderReceiptModal> {
                                           ? 'DIBATALKAN'
                                           : (isCompleted
                                                 ? 'SELESAI'
-                                                : _formatReceiptOrderStatus(order.orderStatus)),
+                                                : _formatReceiptOrderStatus(
+                                                    order.orderStatus,
+                                                  )),
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w800,
@@ -260,12 +276,17 @@ class _OrderReceiptModalState extends State<OrderReceiptModal> {
                                             : (isCompleted
                                                   ? AppColors.accentGreenDeep
                                                   : (order.orderStatus ==
-                                                          'READY_FOR_PICKUP'
-                                                      ? const Color(0xFF2E7D32)
-                                                      : (order.orderStatus ==
-                                                              'PREPARING'
-                                                          ? const Color(0xFFE65100)
-                                                          : AppColors.slateDark))),
+                                                            'READY_FOR_PICKUP'
+                                                        ? const Color(
+                                                            0xFF2E7D32,
+                                                          )
+                                                        : (order.orderStatus ==
+                                                                  'PREPARING'
+                                                              ? const Color(
+                                                                  0xFFE65100,
+                                                                )
+                                                              : AppColors
+                                                                    .slateDark))),
                                       ),
                                     ),
                                   ),

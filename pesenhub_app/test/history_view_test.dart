@@ -299,10 +299,8 @@ void main() {
               body: Builder(
                 builder: (context) => ElevatedButton(
                   key: const Key('open-receipt-button'),
-                  onPressed: () => OrderReceiptModal.show(
-                    context,
-                    order: pendingPaidOrder,
-                  ),
+                  onPressed: () =>
+                      OrderReceiptModal.show(context, order: pendingPaidOrder),
                   child: const Text('Open'),
                 ),
               ),
