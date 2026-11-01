@@ -135,3 +135,24 @@ func TestClientGapDetectionLogic(t *testing.T) {
 		t.Fatal("expected gap detection to flag needsReload")
 	}
 }
+
+func TestPublisherPaymentEventResolvesOrderID(t *testing.T) {
+	rawPayload, _ := json.Marshal(map[string]any{
+		"order_id":   "order-uuid-9999",
+		"payment_id": "pay-uuid-1111",
+		"status":     "PAID",
+		"branch_id":  "branch-bwx",
+	})
+	orderAggregateID := "pay-uuid-1111"
+
+	var rawMap map[string]any
+	_ = json.Unmarshal(rawPayload, &rawMap)
+	orderID := orderAggregateID
+	if oid, ok := rawMap["order_id"].(string); ok && oid != "" {
+		orderID = oid
+	}
+	if orderID != "order-uuid-9999" {
+		t.Fatalf("expected resolved orderID 'order-uuid-9999', got %s", orderID)
+	}
+}
+

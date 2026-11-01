@@ -123,9 +123,11 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
 
   /// Triggers a manual or user-initiated queue snapshot refresh from backend.
   Future<void> refreshSnapshot() async {
-    if (_canRecover) {
-      await _recoverSnapshot();
-    }
+    if (_disposed) return;
+    _started = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    await _recoverAndConnect();
   }
 
   /// Transitions the status of an order with optimistic local update,
@@ -428,23 +430,40 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
     if (!_started || message is! String) return;
     try {
       final raw = jsonDecode(message);
-      if (raw is! Map) throw const FormatException('invalid event');
-      final event = OrderEventDto.fromJson(Map<String, dynamic>.from(raw));
-      final existing = _findOrder(event.orderId);
-      if (existing != null && event.version <= existing.version) return;
+      if (raw is! Map) return;
+      final map = Map<String, dynamic>.from(raw);
+      final eventType = map['event_type'] as String?;
 
-      if (existing == null) {
-        final order = await gateway.fetchOrder(event.orderId);
-        queueController.upsertOrder(order, eventId: event.eventId);
-        await localQueue.saveOrders(orders: queueController.allOrders);
-      } else if (event.version == existing.version + 1) {
-        queueController.upsertOrder(
-          existing.copyWith(orderStatus: event.status, version: event.version),
-          eventId: event.eventId,
-        );
-        await localQueue.saveOrders(orders: queueController.allOrders);
-      } else {
+      if (eventType == 'ORDER_CREATED' || eventType == 'ORDER_STATUS_CHANGED') {
+        final event = OrderEventDto.fromJson(map);
+        final existing = _findOrder(event.orderId);
+        if (existing != null && event.version <= existing.version) return;
+
+        if (existing == null) {
+          final order = await gateway.fetchOrder(event.orderId);
+          queueController.upsertOrder(order, eventId: event.eventId);
+          await localQueue.saveOrders(orders: queueController.allOrders);
+        } else if (event.version == existing.version + 1) {
+          queueController.upsertOrder(
+            existing.copyWith(
+              orderStatus: event.status,
+              version: event.version,
+            ),
+            eventId: event.eventId,
+          );
+          await localQueue.saveOrders(orders: queueController.allOrders);
+        } else {
+          await _recoverSnapshot();
+        }
+      } else if (eventType == 'CASH_PAYMENT_RECORDED' ||
+          eventType == 'PAYMENT_STATUS_CHANGED' ||
+          eventType == 'QRIS_CHARGE_CREATED') {
+        // Payment event received: update snapshot to reflect payment status (e.g. PAID / LUNAS)
         await _recoverSnapshot();
+      } else {
+        // Non-order or unknown event: ignore safely without crashing the queue
+        debugPrint('[QueueRealtimeCoordinator] Ignored event type: $eventType');
+        return;
       }
       _setState(
         _state.copyWith(
@@ -472,13 +491,9 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
           await onSessionExpired?.call();
         }
       }
-    } catch (_) {
-      const failure = ApiFailure(ApiFailureKind.invalidResponse);
-      _reportFailure(failure);
-      _started = false;
-      _setState(_state.copyWith(failureKind: ApiFailureKind.invalidResponse));
-      _setState(_state.copyWith(connection: RealtimeConnectionState.stopped));
-      await _closeConnection();
+    } catch (e, st) {
+      debugPrint('[QueueRealtimeCoordinator] Error handling message: $e\n$st');
+      unawaited(_recoverSnapshot());
     }
   }
 
@@ -561,7 +576,8 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
   }
 
   void retryNow() {
-    if (!_canRecover) return;
+    if (_disposed) return;
+    _started = true;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     unawaited(_recoverAndConnect());

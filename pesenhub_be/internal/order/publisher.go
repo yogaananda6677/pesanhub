@@ -184,10 +184,15 @@ func (p *OutboxPublisher) ProcessBatch(ctx context.Context) (int, error) {
 			branchName = b
 		}
 
+		orderID := e.orderID
+		if oid, ok := rawMap["order_id"].(string); ok && oid != "" {
+			orderID = oid
+		}
+
 		staffEnv := OrderEventEnvelope{
 			EventID:    e.id,
 			EventType:  e.eventType,
-			OrderID:    e.orderID,
+			OrderID:    orderID,
 			BranchID:   branchID,
 			BranchCode: branchCode,
 			BranchName: branchName,
@@ -211,7 +216,7 @@ func (p *OutboxPublisher) ProcessBatch(ctx context.Context) (int, error) {
 		kdsEnv := OrderEventEnvelope{
 			EventID:    e.id,
 			EventType:  e.eventType,
-			OrderID:    e.orderID,
+			OrderID:    orderID,
 			BranchID:   branchID,
 			BranchCode: branchCode,
 			BranchName: branchName,

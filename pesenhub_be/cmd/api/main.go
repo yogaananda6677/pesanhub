@@ -443,6 +443,8 @@ func main() {
 	mux.HandleFunc("POST /api/v1/superadmin/users/{id}/revoke-sessions", superadminHandler.RevokeSessions)
 	mux.HandleFunc("GET /api/v1/superadmin/audits", superadminHandler.ListAudits)
 	mux.HandleFunc("GET /downloads/pesenhub-pos.apk", func(w http.ResponseWriter, r *http.Request) {
+		rc := http.NewResponseController(w)
+		_ = rc.SetWriteDeadline(time.Now().Add(30 * time.Minute))
 		apkPaths := []string{
 			"web/downloads/pesenhub-pos.apk",
 			"../pesenhub_app/build/app/outputs/flutter-apk/app-release.apk",
@@ -467,7 +469,14 @@ func main() {
 	})
 	mux.Handle("GET /", fileServer)
 	authenticatedMux := customer.Authenticate(cfg.Auth.StaffToken, cfg.Auth.KDSToken, sessions, branch.Middleware(branchService)(mux))
-	server := &http.Server{Addr: cfg.Address(), Handler: httpserver.Middleware(logger, authenticatedMux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
+	server := &http.Server{
+		Addr:              cfg.Address(),
+		Handler:           httpserver.Middleware(logger, authenticatedMux),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      300 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
 	go func() {
 		logger.Info("API listening", "address", server.Addr, "environment", cfg.App.Env)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
