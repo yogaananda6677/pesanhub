@@ -6,25 +6,30 @@
   const mobileMenu = document.getElementById('mobile-menu');
 
   if (mobileToggle && mobileMenu) {
+    const toggleIconUse = mobileToggle.querySelector('use');
     mobileToggle.addEventListener('click', () => {
       mobileMenu.classList.toggle('open');
       const isOpen = mobileMenu.classList.contains('open');
       mobileToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-      mobileToggle.textContent = isOpen ? '✕' : '☰';
+      if (toggleIconUse) {
+        toggleIconUse.setAttribute('href', isOpen ? '#icon-close' : '#icon-menu');
+      }
     });
 
     mobileMenu.querySelectorAll('.nav-link, .btn').forEach((link) => {
       link.addEventListener('click', () => {
         mobileMenu.classList.remove('open');
         mobileToggle.setAttribute('aria-expanded', 'false');
-        mobileToggle.textContent = '☰';
+        if (toggleIconUse) {
+          toggleIconUse.setAttribute('href', '#icon-menu');
+        }
       });
     });
   }
 
   // Interactive Menu Category Tabs
   const tabBtns = document.querySelectorAll('.menu-tab-btn');
-  const catGroups = document.querySelectorAll('.menu-category-group');
+  const catSections = document.querySelectorAll('.menu-category-section');
 
   tabBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -33,12 +38,12 @@
       tabBtns.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
 
-      catGroups.forEach((group) => {
-        const groupCat = group.getAttribute('data-category');
-        if (targetCategory === 'all' || groupCat === targetCategory) {
-          group.style.display = 'block';
+      catSections.forEach((section) => {
+        const sectionCat = section.getAttribute('data-category');
+        if (targetCategory === 'all' || sectionCat === targetCategory) {
+          section.style.display = 'block';
         } else {
-          group.style.display = 'none';
+          section.style.display = 'none';
         }
       });
     });
