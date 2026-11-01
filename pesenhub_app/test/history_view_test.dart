@@ -201,5 +201,126 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'displays explicit payment badge (Lunas/Belum Bayar) and localized order status for PENDING and READY_FOR_PICKUP orders',
+      (tester) async {
+        final pendingPaidOrder = QueueOrder(
+          id: 'ord-103',
+          orderNumber: 'ORD-20261030-103',
+          customerName: 'Siti Rahma',
+          customerPhone: '08111222333',
+          source: 'CASHIER_MANUAL',
+          orderStatus: 'PENDING',
+          paymentStatus: 'PAID',
+          paymentMethod: 'CASH',
+          createdAt: DateTime(2026, 10, 30, 14, 0),
+          items: const [
+            QueueOrderItem(
+              name: 'Martabak Telur Spesial',
+              quantity: 1,
+              unitPrice: 35000,
+            ),
+          ],
+          subtotalAmount: 35000,
+        );
+
+        final readyOrder = QueueOrder(
+          id: 'ord-104',
+          orderNumber: 'ORD-20261030-104',
+          customerName: 'Ahmad Fauzi',
+          customerPhone: '08555666777',
+          source: 'CASHIER_MANUAL',
+          orderStatus: 'READY_FOR_PICKUP',
+          paymentStatus: 'UNPAID',
+          paymentMethod: 'CASH',
+          createdAt: DateTime(2026, 10, 30, 14, 30),
+          items: const [
+            QueueOrderItem(
+              name: 'Terang Bulan Coklat Keju',
+              quantity: 1,
+              unitPrice: 25000,
+            ),
+          ],
+          subtotalAmount: 25000,
+        );
+
+        final testController = HistoryController(
+          initialOrders: [pendingPaidOrder, readyOrder],
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: HistoryView(controller: testController)),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // 1. Verify ORD-103 (PENDING + PAID):
+        // Shows 'Lunas' payment badge and 'Menunggu' order status badge, NEVER raw 'PENDING'
+        expect(find.text('Lunas'), findsOneWidget);
+        expect(find.text('Menunggu'), findsOneWidget);
+        expect(find.text('PENDING'), findsNothing);
+
+        // 2. Verify ORD-104 (READY_FOR_PICKUP + UNPAID):
+        // Shows 'Belum Bayar' payment badge and 'Siap Diambil' order status badge, NEVER raw 'READY_FOR_PICKUP'
+        expect(find.text('Belum Bayar'), findsOneWidget);
+        expect(find.text('Siap Diambil'), findsOneWidget);
+        expect(find.text('READY_FOR_PICKUP'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'order receipt modal displays both payment status badge and localized order status',
+      (tester) async {
+        final pendingPaidOrder = QueueOrder(
+          id: 'ord-105',
+          orderNumber: 'ORD-20261030-105',
+          customerName: 'Dewi Lestari',
+          customerPhone: '0812344321',
+          source: 'CASHIER_MANUAL',
+          orderStatus: 'PENDING',
+          paymentStatus: 'PAID',
+          paymentMethod: 'CASH',
+          createdAt: DateTime(2026, 10, 30, 15, 0),
+          items: const [
+            QueueOrderItem(
+              name: 'Martabak Daging Sapi',
+              quantity: 1,
+              unitPrice: 45000,
+            ),
+          ],
+          subtotalAmount: 45000,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  key: const Key('open-receipt-button'),
+                  onPressed: () => OrderReceiptModal.show(
+                    context,
+                    order: pendingPaidOrder,
+                  ),
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byKey(const Key('open-receipt-button')));
+        await tester.pumpAndSettle();
+
+        // Header badges should display 'LUNAS' and 'MENUNGGU'
+        expect(find.text('LUNAS'), findsOneWidget);
+        expect(find.text('MENUNGGU'), findsOneWidget);
+        expect(find.text('PENDING'), findsNothing);
+
+        // Detail payment row should display 'Tunai • Lunas'
+        expect(find.text('Tunai • Lunas'), findsOneWidget);
+      },
+    );
   });
 }

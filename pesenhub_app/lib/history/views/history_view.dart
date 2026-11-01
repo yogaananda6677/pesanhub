@@ -87,6 +87,117 @@ class _HistoryViewState extends State<HistoryView> {
     }
   }
 
+  String _formatOrderStatus(
+    String status, {
+    required bool isCompleted,
+    required bool isCancelled,
+  }) {
+    if (isCancelled) return 'Batal';
+    if (isCompleted) return 'Selesai';
+    switch (status.toUpperCase()) {
+      case 'PENDING':
+        return 'Menunggu';
+      case 'ACCEPTED':
+        return 'Diterima';
+      case 'PREPARING':
+        return 'Dimasak';
+      case 'READY_FOR_PICKUP':
+        return 'Siap Diambil';
+      default:
+        return status;
+    }
+  }
+
+  Widget _buildPaymentBadge(String paymentStatus) {
+    final isPaid = paymentStatus.toUpperCase() == 'PAID';
+    final bg = isPaid ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
+    final fg = isPaid ? const Color(0xFF2E7D32) : const Color(0xFFC62828);
+    final icon = isPaid ? Icons.check_circle_rounded : Icons.money_off_rounded;
+    final label = isPaid ? 'Lunas' : 'Belum Bayar';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, size: 12, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: fg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderStatusBadge(
+    String status, {
+    required bool isCompleted,
+    required bool isCancelled,
+  }) {
+    final label = _formatOrderStatus(
+      status,
+      isCompleted: isCompleted,
+      isCancelled: isCancelled,
+    );
+    final Color bg;
+    final Color fg;
+
+    if (isCancelled) {
+      bg = AppColors.accentRedBg;
+      fg = AppColors.accentRed;
+    } else if (isCompleted) {
+      bg = AppColors.accentGreenBg;
+      fg = AppColors.accentGreenDeep;
+    } else {
+      switch (status.toUpperCase()) {
+        case 'READY_FOR_PICKUP':
+          bg = const Color(0xFFE8F5E9);
+          fg = const Color(0xFF2E7D32);
+          break;
+        case 'PREPARING':
+          bg = const Color(0xFFFFF3E0);
+          fg = const Color(0xFFE65100);
+          break;
+        case 'ACCEPTED':
+          bg = AppColors.statusAcceptedBg;
+          fg = AppColors.statusAccepted;
+          break;
+        case 'PENDING':
+        default:
+          bg = AppColors.accentAmberBg;
+          fg = AppColors.slateDark;
+          break;
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: fg,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -440,40 +551,19 @@ class _HistoryViewState extends State<HistoryView> {
                                               ),
                                             ],
                                           ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: isCancelled
-                                                  ? AppColors.accentRedBg
-                                                  : (isCompleted
-                                                        ? AppColors
-                                                              .accentGreenBg
-                                                        : AppColors
-                                                              .accentAmberBg),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                            child: Text(
-                                              isCancelled
-                                                  ? 'Batal'
-                                                  : (isCompleted
-                                                        ? 'Selesai'
-                                                        : order.orderStatus),
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w800,
-                                                color: isCancelled
-                                                    ? AppColors.accentRed
-                                                    : (isCompleted
-                                                          ? AppColors
-                                                                .accentGreenDeep
-                                                          : AppColors
-                                                                .slateDark),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              _buildPaymentBadge(
+                                                order.paymentStatus,
                                               ),
-                                            ),
+                                              const SizedBox(width: 6),
+                                              _buildOrderStatusBadge(
+                                                order.orderStatus,
+                                                isCompleted: isCompleted,
+                                                isCancelled: isCancelled,
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
