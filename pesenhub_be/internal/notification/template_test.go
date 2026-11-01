@@ -133,6 +133,44 @@ func TestRenderCompleted(t *testing.T) {
 	}
 }
 
+func TestRenderCancelled(t *testing.T) {
+	data := OrderNotificationData{
+		OrderNumber:  "ORD-20261101-001",
+		CustomerName: "Yoga",
+	}
+
+	rendered, err := RenderTemplate(TypeCancelled, data)
+	if err != nil {
+		t.Fatalf("unexpected render error: %v", err)
+	}
+
+	if !strings.Contains(rendered, "ORD-20261101-001") {
+		t.Error("rendered missing order number")
+	}
+	if !strings.Contains(rendered, "telah dibatalkan") {
+		t.Error("rendered missing cancelled message")
+	}
+}
+
+func TestRenderRejected(t *testing.T) {
+	data := OrderNotificationData{
+		OrderNumber:  "ORD-20261101-002",
+		CustomerName: "Yoga",
+	}
+
+	rendered, err := RenderTemplate(TypeRejected, data)
+	if err != nil {
+		t.Fatalf("unexpected render error: %v", err)
+	}
+
+	if !strings.Contains(rendered, "ORD-20261101-002") {
+		t.Error("rendered missing order number")
+	}
+	if !strings.Contains(rendered, "belum dapat diproses") {
+		t.Error("rendered missing rejected message")
+	}
+}
+
 func TestRenderUnsupportedType(t *testing.T) {
 	_, err := RenderTemplate(NotificationType("UNKNOWN"), OrderNotificationData{})
 	if err == nil {

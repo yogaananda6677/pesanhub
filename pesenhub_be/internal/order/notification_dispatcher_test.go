@@ -47,6 +47,14 @@ func (m *mockNotifier) NotifyCompleted(ctx context.Context, data notification.Or
 	return m.Dispatch(ctx, notification.TypeCompleted, data)
 }
 
+func (m *mockNotifier) NotifyCancelled(ctx context.Context, data notification.OrderNotificationData) (*notification.NotificationResult, error) {
+	return m.Dispatch(ctx, notification.TypeCancelled, data)
+}
+
+func (m *mockNotifier) NotifyRejected(ctx context.Context, data notification.OrderNotificationData) (*notification.NotificationResult, error) {
+	return m.Dispatch(ctx, notification.TypeRejected, data)
+}
+
 type mockOrderReader struct {
 	detail OrderDetail
 	err    error
@@ -227,6 +235,42 @@ func TestNotificationDispatcher_ReadyForPickupTransition(t *testing.T) {
 	}
 	if notif.lastType != notification.TypeCompleted {
 		t.Fatalf("expected TypeCompleted, got %s", notif.lastType)
+	}
+}
+
+func TestNotificationDispatcher_CancelledAndRejectedTransitions(t *testing.T) {
+	phone := "+6281234567890"
+	reader := &mockOrderReader{
+		detail: OrderDetail{
+			ID:                  "ord-123",
+			OrderNumber:         "ORD-CANCEL-1",
+			CustomerName:        "Doni",
+			CustomerPhone:       &phone,
+			Status:              "CANCELLED",
+			TotalAmount:         35000,
+			PublicTrackingToken: "trk_cancel_123",
+		},
+	}
+	notif := &mockNotifier{}
+	dispatcher := NewNotificationDispatcher(reader, notif, nil)
+
+	// Test CANCELLED
+	dispatcher.NotifyStatusTransition(context.Background(), "ord-123", "ACCEPTED", "CANCELLED")
+	if notif.dispatchCalls != 1 {
+		t.Fatalf("expected 1 dispatch call on CANCELLED, got %d", notif.dispatchCalls)
+	}
+	if notif.lastType != notification.TypeCancelled {
+		t.Fatalf("expected TypeCancelled, got %s", notif.lastType)
+	}
+
+	// Test REJECTED
+	reader.detail.Status = "REJECTED"
+	dispatcher.NotifyStatusTransition(context.Background(), "ord-123", "PENDING", "REJECTED")
+	if notif.dispatchCalls != 2 {
+		t.Fatalf("expected 2 dispatch calls on REJECTED, got %d", notif.dispatchCalls)
+	}
+	if notif.lastType != notification.TypeRejected {
+		t.Fatalf("expected TypeRejected, got %s", notif.lastType)
 	}
 }
 

@@ -27,6 +27,11 @@ type OrderReader interface {
 	GetLatestByPhone(ctx context.Context, phone string) (order.OrderDetail, error)
 }
 
+// OrderTransitioner transitions order status (e.g. to CANCELLED).
+type OrderTransitioner interface {
+	Transition(ctx context.Context, orderID string, in order.TransitionInput, idempotencyKey, actorID, actorType, requestID string) (order.StatusResult, bool, error)
+}
+
 // CustomerMemory defines methods needed to remember and retrieve customer names by phone number.
 type CustomerMemory interface {
 	GetByPhone(ctx context.Context, phone string) (*customer.Profile, error)
@@ -35,19 +40,20 @@ type CustomerMemory interface {
 
 // Service coordinates LLM extraction, catalog resolution, confidence policy, and audit logging.
 type Service struct {
-	client          LLMClient
-	resolver        *CatalogResolver
-	evaluator       *ConfidenceEvaluator
-	store           RunStore
-	convStore       ConversationStore
-	clarifier       *ClarificationEngine
-	merger          *DraftMerger
-	catalogProvider CatalogProvider
-	orderCreator    OrderCreator
-	orderReader     OrderReader
-	customerMemory  CustomerMemory
-	modelName       string
-	promptVersion   string
+	client            LLMClient
+	resolver          *CatalogResolver
+	evaluator         *ConfidenceEvaluator
+	store             RunStore
+	convStore         ConversationStore
+	clarifier         *ClarificationEngine
+	merger            *DraftMerger
+	catalogProvider   CatalogProvider
+	orderCreator      OrderCreator
+	orderReader       OrderReader
+	orderTransitioner OrderTransitioner
+	customerMemory    CustomerMemory
+	modelName         string
+	promptVersion     string
 }
 
 // Config holds configuration options for Hermes Service.
@@ -56,6 +62,7 @@ type Config struct {
 	CatalogProvider     CatalogProvider
 	OrderCreator        OrderCreator
 	OrderReader         OrderReader
+	OrderTransitioner   OrderTransitioner
 	CustomerMemory      CustomerMemory
 	Store               RunStore
 	ConversationStore   ConversationStore
@@ -92,19 +99,20 @@ func NewService(cfg Config) *Service {
 	}
 
 	return &Service{
-		client:          cfg.Client,
-		resolver:        resolver,
-		evaluator:       evaluator,
-		store:           cfg.Store,
-		convStore:       convStore,
-		clarifier:       clarifier,
-		merger:          merger,
-		catalogProvider: cfg.CatalogProvider,
-		orderCreator:    cfg.OrderCreator,
-		orderReader:     cfg.OrderReader,
-		customerMemory:  cfg.CustomerMemory,
-		modelName:       modelName,
-		promptVersion:   promptVer,
+		client:            cfg.Client,
+		resolver:          resolver,
+		evaluator:         evaluator,
+		store:             cfg.Store,
+		convStore:         convStore,
+		clarifier:         clarifier,
+		merger:            merger,
+		catalogProvider:   cfg.CatalogProvider,
+		orderCreator:      cfg.OrderCreator,
+		orderReader:       cfg.OrderReader,
+		orderTransitioner: cfg.OrderTransitioner,
+		customerMemory:    cfg.CustomerMemory,
+		modelName:         modelName,
+		promptVersion:     promptVer,
 	}
 }
 
@@ -567,6 +575,230 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 			HandledByAgent:   false,
 			AutomationPaused: true,
 		}, nil
+	}
+
+	// 4-cancel. Ongoing Cancellation Confirmation (Step 2 of Two-Step Confirmation)
+	if state.PendingAmbiguity == "awaiting_cancel_order_confirmation" {
+		greeting := "kak"
+		if state.CustomerName != "" {
+			greeting = "kak " + state.CustomerName
+		}
+
+		var targetOrder *order.OrderDetail
+		if state.LastOrderID != nil && *state.LastOrderID != "" && s.orderReader != nil {
+			if ord, err := s.orderReader.GetByID(ctx, *state.LastOrderID); err == nil && ord.ID != "" {
+				targetOrder = &ord
+			}
+		}
+		if targetOrder == nil && s.orderReader != nil {
+			if ord, err := s.orderReader.GetLatestByPhone(ctx, req.SenderPhone); err == nil && ord.ID != "" {
+				targetOrder = &ord
+			}
+		}
+
+		if DetectCancelConfirmationAffirmative(req.MessageText) {
+			var reply string
+			if targetOrder != nil {
+				if targetOrder.Status == "PENDING" || targetOrder.Status == "ACCEPTED" {
+					if s.orderTransitioner != nil {
+						idempotencyKey := fmt.Sprintf("cancel-wa-%s-%d", targetOrder.ID, time.Now().UnixNano())
+						_, _, _ = s.orderTransitioner.Transition(ctx, targetOrder.ID, order.TransitionInput{
+							TargetStatus:    "CANCELLED",
+							ExpectedVersion: targetOrder.Version,
+						}, idempotencyKey, "HERMES_WA", "AGENT", correlationID)
+					}
+					reply = fmt.Sprintf("Baik %s, pesanan *#%s* telah berhasil dibatalkan. Jika ingin memesan kembali di lain waktu, silakan hubungi kami lagi ya! 🙏", greeting, targetOrder.OrderNumber)
+				} else if targetOrder.Status == "CANCELLED" || targetOrder.Status == "REJECTED" {
+					reply = fmt.Sprintf("Pesanan *#%s* sudah berstatus dibatalkan sebelumnya %s 🙏", targetOrder.OrderNumber, greeting)
+				} else {
+					reply = fmt.Sprintf("Mohon maaf %s, pesanan *#%s* saat ini sudah masuk tahap persiapan dapur / siap diambil, sehingga sudah tidak dapat dibatalkan melalui WhatsApp. Silakan hubungi kasir outlet ya kak 🙏", greeting, targetOrder.OrderNumber)
+				}
+			} else {
+				reply = fmt.Sprintf("Baik %s, permintaan pembatalan telah diproses.", greeting)
+			}
+
+			if s.convStore != nil && state.CycleID != "" {
+				_ = s.convStore.ClearCycleContext(ctx, req.SenderPhone, state.CycleID)
+			}
+			state.CycleID = ""
+			state.Status = ConversationCollecting
+			state.CurrentDraft = nil
+			state.PendingAmbiguity = ""
+			state.LastQuestion = reply
+			_ = s.convStore.Save(ctx, state)
+
+			return &TurnResponse{
+				State:            state,
+				ReplyText:        reply,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+			}, nil
+		} else if DetectCancelConfirmationNegative(req.MessageText) {
+			orderNum := ""
+			if targetOrder != nil {
+				orderNum = " *#" + targetOrder.OrderNumber + "*"
+			}
+			reply := fmt.Sprintf("Baik %s, pembatalan dibatalkan ya. Pesanan%s tetap diproses! Silakan hubungi kami jika ada pertanyaan lain 😊", greeting, orderNum)
+			state.PendingAmbiguity = ""
+			state.LastQuestion = reply
+			_ = s.convStore.Save(ctx, state)
+
+			return &TurnResponse{
+				State:            state,
+				Draft:            state.CurrentDraft,
+				ReplyText:        reply,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+			}, nil
+		} else {
+			orderNum := ""
+			if targetOrder != nil {
+				orderNum = " *#" + targetOrder.OrderNumber + "*"
+			}
+			reply := fmt.Sprintf("Mohon konfirmasi kembali %s, apakah pesanan%s benar-benar ingin dibatalkan?\n\nKetik *YA BATALKAN* untuk konfirmasi pembatalan, atau ketik *TIDAK* untuk tetap melanjutkan pesanan ya 😊", greeting, orderNum)
+			state.LastQuestion = reply
+			_ = s.convStore.Save(ctx, state)
+
+			return &TurnResponse{
+				State:            state,
+				Draft:            state.CurrentDraft,
+				ReplyText:        reply,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+			}, nil
+		}
+	}
+
+	if state.PendingAmbiguity == "awaiting_draft_cancel_confirmation" {
+		greeting := "kak"
+		if state.CustomerName != "" {
+			greeting = "kak " + state.CustomerName
+		}
+
+		if DetectCancelConfirmationAffirmative(req.MessageText) {
+			if s.convStore != nil && state.CycleID != "" {
+				_ = s.convStore.ClearCycleContext(ctx, req.SenderPhone, state.CycleID)
+			}
+			state.CycleID = ""
+			state.Status = ConversationCollecting
+			state.CurrentDraft = nil
+			state.PendingAmbiguity = ""
+			state.LastQuestion = ""
+			_ = s.convStore.Save(ctx, state)
+
+			reply := fmt.Sprintf("Baik %s, draf pesanan telah dibatalkan. Jika ingin memesan kembali di lain waktu, silakan hubungi kami lagi ya! 😊", greeting)
+			return &TurnResponse{
+				State:            state,
+				ReplyText:        reply,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+			}, nil
+		} else if DetectCancelConfirmationNegative(req.MessageText) {
+			state.PendingAmbiguity = ""
+			summary := ""
+			if state.CurrentDraft != nil && len(state.CurrentDraft.Items) > 0 {
+				state.Status = ConversationReadyForConfirmation
+				summary = "\n\n" + formatOrderSummary(state.CurrentDraft, state.CustomerName)
+			}
+			reply := fmt.Sprintf("Baik %s, draf pesanan tidak dibatalkan ya 😊%s", greeting, summary)
+			state.LastQuestion = reply
+			_ = s.convStore.Save(ctx, state)
+
+			return &TurnResponse{
+				State:            state,
+				Draft:            state.CurrentDraft,
+				ReplyText:        reply,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+			}, nil
+		} else {
+			reply := fmt.Sprintf("Mohon konfirmasi %s, apakah draf pesanan ingin dibatalkan?\n\nKetik *YA BATAL* untuk membatalkan draf, atau ketik *TIDAK* untuk melanjutkan ya 😊", greeting)
+			state.LastQuestion = reply
+			_ = s.convStore.Save(ctx, state)
+
+			return &TurnResponse{
+				State:            state,
+				Draft:            state.CurrentDraft,
+				ReplyText:        reply,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+			}, nil
+		}
+	}
+
+	// 4-trigger-cancel. Cancellation Request (Step 1 of Two-Step Confirmation)
+	if DetectOrderCancellationRequest(req.MessageText) {
+		greeting := "kak"
+		if state.CustomerName != "" {
+			greeting = "kak " + state.CustomerName
+		}
+
+		var activeOrder *order.OrderDetail
+		if state.LastOrderID != nil && *state.LastOrderID != "" && s.orderReader != nil {
+			if ord, err := s.orderReader.GetByID(ctx, *state.LastOrderID); err == nil && ord.ID != "" {
+				activeOrder = &ord
+			}
+		}
+		if activeOrder == nil && s.orderReader != nil {
+			if ord, err := s.orderReader.GetLatestByPhone(ctx, req.SenderPhone); err == nil && ord.ID != "" {
+				activeOrder = &ord
+			}
+		}
+
+		if activeOrder != nil && (activeOrder.Status == "PENDING" || activeOrder.Status == "ACCEPTED") {
+			state.PendingAmbiguity = "awaiting_cancel_order_confirmation"
+			state.LastOrderID = &activeOrder.ID
+			reply := fmt.Sprintf("Halo %s, apakah kakak yakin ingin membatalkan pesanan *#%s* (Total: Rp %d)?\n\nKetik *YA BATALKAN* untuk konfirmasi pembatalan, atau ketik *TIDAK* untuk tetap melanjutkan pesanan ya 😊", greeting, activeOrder.OrderNumber, activeOrder.TotalAmount)
+			state.LastQuestion = reply
+			_ = s.convStore.Save(ctx, state)
+
+			return &TurnResponse{
+				State:            state,
+				Draft:            state.CurrentDraft,
+				ReplyText:        reply,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+			}, nil
+		} else if activeOrder != nil && (activeOrder.Status == "PREPARING" || activeOrder.Status == "READY_FOR_PICKUP" || activeOrder.Status == "COMPLETED") {
+			statusDesc := "sedang diproses di dapur"
+			if activeOrder.Status == "READY_FOR_PICKUP" {
+				statusDesc = "sudah siap diambil di outlet"
+			} else if activeOrder.Status == "COMPLETED" {
+				statusDesc = "sudah selesai"
+			}
+			reply := fmt.Sprintf("Mohon maaf %s, pesanan *#%s* saat ini %s sehingga sudah tidak dapat dibatalkan melalui WhatsApp. Silakan hubungi kasir outlet kami ya kak 🙏", greeting, activeOrder.OrderNumber, statusDesc)
+			state.LastQuestion = reply
+			_ = s.convStore.Save(ctx, state)
+
+			return &TurnResponse{
+				State:            state,
+				Draft:            state.CurrentDraft,
+				ReplyText:        reply,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+			}, nil
+		} else if state.CurrentDraft == nil || len(state.CurrentDraft.Items) == 0 {
+			reply := fmt.Sprintf("Saat ini belum ada pesanan aktif yang dapat dibatalkan %s 😊 Ada yang bisa kami bantu?", greeting)
+			state.LastQuestion = reply
+			_ = s.convStore.Save(ctx, state)
+
+			return &TurnResponse{
+				State:            state,
+				Draft:            state.CurrentDraft,
+				ReplyText:        reply,
+				RequiresHandoff:  false,
+				HandledByAgent:   true,
+				AutomationPaused: false,
+			}, nil
+		}
 	}
 
 	// 4a. Receipt / struk inquiry (e.g. "minta struknya dong kak", "kirim struk")

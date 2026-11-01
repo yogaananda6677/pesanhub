@@ -14,10 +14,11 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current phase  | Phase 1D — MVP Integration & Release                       |
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
-| Last updated   | 8 September 2026                                           |
+| Last updated   | 1 November 2026                                            |
 | Updated by     | Issue #140 Portal web Superadmin untuk approval user & health |
 | Updated by     | Issue #143 Dukungan koneksi LAN lokal, feedback, dan kepedasan |
 | Updated by     | Issue #145 Perbaikan error autentikasi Google dan menu terkunci pending |
+| Updated by     | Issue #210 Sinkronisasi pembatalan WhatsApp 2 tahap dan integrasi cancel di POS |
 
 ## 2. Product Intent
 
@@ -1766,5 +1767,30 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - `dart format --output=none --set-exit-if-changed .` (0 changed, PASS).
 - `flutter analyze` (No issues found, PASS).
 - `flutter test test/backend_contract_test.dart` (All 7 tests passed).
+
+### 1 November 2026 — WhatsApp 2-Step Cancellation & POS Cancel Integration (Issue #210)
+
+**Goal**
+
+- Sinkronisasi alur pembatalan pesanan WhatsApp via percakapan interaktif 2 tahap (konfirmasi eksplisit) dan integrasi tombol pembatalan/penolakan yang aman di aplikasi Flutter POS dengan notifikasi otomatis ke WhatsApp pelanggan.
+
+**Changed**
+
+- `pesenhub_be/internal/hermes/cs_intents.go`: Menambahkan deteksi intent pembatalan pesanan (`DetectOrderCancellationRequest`), konfirmasi afirmatif (`DetectCancelConfirmationAffirmative`), dan penolakan/batal cancel (`DetectCancelConfirmationNegative`).
+- `pesenhub_be/internal/hermes/service.go`: Menambahkan `OrderTransitioner` interface dan alur 2 tahap pembatalan pesanan aktif (`PENDING` / `ACCEPTED`) ke status `CANCELLED`. Menolak pembatalan customer jika pesanan sudah diproses di dapur (`PREPARING` / `READY_FOR_PICKUP` / `COMPLETED`).
+- `pesenhub_be/internal/notification/model.go` & `template.go` & `service.go`: Menambahkan template notifikasi WhatsApp untuk `CANCELLED` dan `REJECTED`.
+- `pesenhub_be/internal/order/notification_dispatcher.go`: Menambahkan dispatch notifikasi otomatis ke WhatsApp saat kasir menolak (`REJECTED`) atau membatalkan (`CANCELLED`) pesanan dari POS.
+- `pesenhub_app/lib/queue/queue_view.dart`: Menambahkan dialog konfirmasi pengaman sebelum membatalkan/menolak pesanan, serta pemetaan label status antrean untuk `REJECTED` (Ditolak) dan `CANCELLED` (Dibatalkan).
+- `pesenhub_app/lib/order/order_detail_view.dart`: Menambahkan dialog konfirmasi pengaman pada aksi destruktif sekunder (Tolak / Batalkan Pesanan).
+
+**Validation**
+
+- Backend `pesenhub_be/run.sh check`: All modules verified, [OK].
+- Backend `go test -v ./internal/hermes/... ./internal/notification/... ./internal/order/...`: PASS.
+- Mobile `flutter analyze`: No issues found!
+- Mobile `dart format --output=none --set-exit-if-changed .`: 176 files clean.
+- Mobile `flutter test`: 347 tests passed (0 failures).
+- Build Web POS: `flutter build web --release --base-href /app/ --dart-define-from-file=config.json` -> Berhasil di-deploy ke `pesenhub_be/web/app/`.
+- Build Android APK: `flutter build apk --release --dart-define-from-file=config.json` -> Berhasil di-build ke `pesenhub_be/web/downloads/pesenhub-pos.apk` (65.4 MB).
 
 

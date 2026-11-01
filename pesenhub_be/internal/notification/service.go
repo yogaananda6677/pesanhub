@@ -17,6 +17,8 @@ type Notifier interface {
 	NotifyConfirmation(ctx context.Context, data OrderNotificationData) (*NotificationResult, error)
 	NotifyAccepted(ctx context.Context, data OrderNotificationData) (*NotificationResult, error)
 	NotifyCompleted(ctx context.Context, data OrderNotificationData) (*NotificationResult, error)
+	NotifyCancelled(ctx context.Context, data OrderNotificationData) (*NotificationResult, error)
+	NotifyRejected(ctx context.Context, data OrderNotificationData) (*NotificationResult, error)
 }
 
 // Service coordinates notification dispatch, template rendering, idempotency, and guard checks.
@@ -76,6 +78,16 @@ func (s *Service) NotifyAccepted(ctx context.Context, data OrderNotificationData
 // NotifyCompleted sends an order completed / ready for pickup notification.
 func (s *Service) NotifyCompleted(ctx context.Context, data OrderNotificationData) (*NotificationResult, error) {
 	return s.Dispatch(ctx, TypeCompleted, data)
+}
+
+// NotifyCancelled sends an order cancelled notification.
+func (s *Service) NotifyCancelled(ctx context.Context, data OrderNotificationData) (*NotificationResult, error) {
+	return s.Dispatch(ctx, TypeCancelled, data)
+}
+
+// NotifyRejected sends an order rejected notification.
+func (s *Service) NotifyRejected(ctx context.Context, data OrderNotificationData) (*NotificationResult, error) {
+	return s.Dispatch(ctx, TypeRejected, data)
 }
 
 // Dispatch processes and sends a single order notification with idempotency and guard verification.

@@ -82,6 +82,10 @@ func (d *WhatsAppNotificationDispatcher) NotifyStatusTransition(ctx context.Cont
 		notifType = notification.TypeAccepted
 	case "READY_FOR_PICKUP", "COMPLETED":
 		notifType = notification.TypeCompleted
+	case "CANCELLED":
+		notifType = notification.TypeCancelled
+	case "REJECTED":
+		notifType = notification.TypeRejected
 	default:
 		return
 	}
