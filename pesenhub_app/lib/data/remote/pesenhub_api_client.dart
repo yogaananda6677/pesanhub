@@ -145,7 +145,8 @@ class PesenHubApiClient
       return nonce;
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -165,7 +166,8 @@ class PesenHubApiClient
       return SessionCredential.fromJson(_decodeObject(response));
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -185,7 +187,8 @@ class PesenHubApiClient
       return SessionCredential.fromJson(_decodeObject(response));
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -197,7 +200,8 @@ class PesenHubApiClient
       return AuthUser.fromJson(_decodeObject(response));
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -224,7 +228,8 @@ class PesenHubApiClient
       return maskedEmail;
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -239,7 +244,8 @@ class PesenHubApiClient
       return _decodeObject(response);
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -261,7 +267,8 @@ class PesenHubApiClient
           .toList();
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -289,7 +296,8 @@ class PesenHubApiClient
       return Employee.fromJson(json);
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -316,7 +324,8 @@ class PesenHubApiClient
       return Employee.fromJson(json);
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -339,7 +348,8 @@ class PesenHubApiClient
             ).order,
           )
           .toList(growable: false);
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -353,7 +363,8 @@ class PesenHubApiClient
       return QueueOrderDto.fromJson(_decodeObject(response)).order;
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -416,7 +427,8 @@ class PesenHubApiClient
             ).order,
           )
           .toList(growable: false);
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -490,7 +502,8 @@ class PesenHubApiClient
       return decodeCatalog(_decodeObject(response));
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -506,7 +519,8 @@ class PesenHubApiClient
       return decodeCatalog(_decodeObject(response));
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -616,7 +630,8 @@ class PesenHubApiClient
       return decodeCategory(_decodeObject(response));
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
@@ -626,7 +641,8 @@ class PesenHubApiClient
       return decodeMenu(_decodeObject(response));
     } on ApiFailure {
       rethrow;
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('[PesenhubApiClient] failed to parse response: $e\n$stack');
       throw _invalidResponse(response);
     }
   }
