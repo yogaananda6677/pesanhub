@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../data/remote/api_failure.dart';
 import '../order/order_detail_view.dart';
 import '../order/widgets/payment_dialog.dart';
 import '../theme/app_spacing.dart';
@@ -72,18 +73,34 @@ class _QueueViewState extends State<QueueView>
       customerName: order.customerName,
     );
     if (result != null && result.isPaid) {
-      if (widget.onPayOrder != null) {
-        await widget.onPayOrder!(order);
-      } else {
-        widget.controller.updatePaymentStatus(order.id, 'PAID');
-      }
-      if (mounted) {
-        setState(() {});
-        AppFeedback.show(
-          context,
-          message: 'Pembayaran ${order.orderNumber} berhasil dicatat (LUNAS).',
-          type: AppBannerType.success,
-        );
+      try {
+        if (widget.onPayOrder != null) {
+          await widget.onPayOrder!(order);
+        } else {
+          widget.controller.updatePaymentStatus(order.id, 'PAID');
+        }
+        if (mounted) {
+          setState(() {});
+          AppFeedback.show(
+            context,
+            message:
+                'Pembayaran ${order.orderNumber} berhasil dicatat (LUNAS).',
+            type: AppBannerType.success,
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {});
+          final errorMsg = e is ApiFailure
+              ? e.presentationMessage
+              : e.toString();
+          AppFeedback.show(
+            context,
+            message:
+                'Gagal mencatat pembayaran ${order.orderNumber}: $errorMsg',
+            type: AppBannerType.error,
+          );
+        }
       }
     }
   }
@@ -107,11 +124,15 @@ class _QueueViewState extends State<QueueView>
     }
 
     var updated = true;
+    String? errorMessage;
     if (widget.onStatusChanged != null) {
       try {
         await widget.onStatusChanged!(currentOrder, newStatus);
-      } catch (_) {
+      } catch (e) {
         updated = false;
+        if (e is ApiFailure) {
+          errorMessage = e.presentationMessage;
+        }
       }
     } else {
       updated = widget.controller.updateOrderStatus(currentOrder.id, newStatus);
@@ -122,7 +143,9 @@ class _QueueViewState extends State<QueueView>
         context,
         message: updated
             ? '${currentOrder.orderNumber} dipindahkan ke ${_statusLabel(newStatus)}.'
-            : '${currentOrder.orderNumber} tidak dapat diperbarui. Muat ulang lalu coba lagi.',
+            : (errorMessage != null
+                  ? '${currentOrder.orderNumber}: $errorMessage'
+                  : '${currentOrder.orderNumber} tidak dapat diperbarui. Muat ulang lalu coba lagi.'),
         type: updated ? AppBannerType.success : AppBannerType.error,
       );
     }

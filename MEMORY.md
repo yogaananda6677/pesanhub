@@ -1749,3 +1749,22 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Pemeriksaan stack: `./run.sh check` (PASS).
 - Live inferensi 9Router & WhatsApp webhook turn processing: Berhasil merespon dalam bahasa Indonesia yang ramah dan akurat.
 
+### 1 November 2026 — POS Payment Error Handling, Optimistic Rollback & Error Feedback (Issue #204)
+
+**Goal**
+
+- Menampilkan pesan error spesifik dari server saat aksi transisi status antrean gagal, melakukan rollback status optimistik saat pencatatan pembayaran gagal permanen, dan merapikan mapping sort query riwayat transaksi.
+
+**Changed**
+
+- `pesenhub_app/lib/queue/queue_view.dart`: Menangkap `ApiFailure` pada pemindahan status order dan pencatatan pembayaran untuk menampilkan `presentationMessage` server (misal: "Pesanan wajib dibayar lunas sebelum diselesaikan") menggantikan pesan generik.
+- `pesenhub_app/lib/data/remote/queue_realtime_coordinator.dart`: Menyimpan status pembayaran sebelumnya sebelum update optimistik, dan melakukan rollback status pada `queueController` dan `localQueue` jika `recordCashPayment` gagal non-transient.
+- `pesenhub_app/lib/data/remote/pesenhub_api_client.dart`: Memetakan parameter `order` (`desc` -> `-created_at`, `asc` -> `created_at`) pada query endpoint `/orders`.
+
+**Validation**
+
+- `dart format --output=none --set-exit-if-changed .` (0 changed, PASS).
+- `flutter analyze` (No issues found, PASS).
+- `flutter test test/backend_contract_test.dart` (All 7 tests passed).
+
+

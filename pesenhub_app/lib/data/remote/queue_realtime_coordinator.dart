@@ -237,6 +237,9 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
     int amount, {
     String method = 'CASH',
   }) async {
+    final existing = _findOrder(orderId);
+    final previousPaymentStatus = existing?.paymentStatus ?? 'UNPAID';
+
     // 1. Optimistic update in QueueController
     queueController.updatePaymentStatus(orderId, 'PAID');
 
@@ -251,6 +254,15 @@ class QueueRealtimeCoordinator extends ChangeNotifier {
     if (isOnline && gateway is PesenHubApiClient) {
       try {
         await (gateway as PesenHubApiClient).recordCashPayment(orderId, amount);
+      } on ApiFailure catch (f) {
+        if (f.isTransient) {
+          await _enqueuePaymentMutation(orderId, amount, method);
+        } else {
+          // Permanent failure: rollback optimistic status
+          queueController.updatePaymentStatus(orderId, previousPaymentStatus);
+          await localQueue.updatePaymentStatus(orderId, previousPaymentStatus);
+          rethrow;
+        }
       } catch (e) {
         await _enqueuePaymentMutation(orderId, amount, method);
       }

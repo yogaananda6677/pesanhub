@@ -393,6 +393,11 @@ class PesenHubApiClient
     }
     if (order != null && order.isNotEmpty) {
       queryParams['page[order]'] = order;
+      if (order.toLowerCase() == 'desc') {
+        queryParams['sort'] = '-created_at';
+      } else if (order.toLowerCase() == 'asc') {
+        queryParams['sort'] = 'created_at';
+      }
     }
 
     final baseUri = config.resolve('orders');
