@@ -216,6 +216,12 @@ func main() {
 		})
 		if err != nil {
 			logger.Error("Hermes WhatsApp turn processing error", "error", err, "sender", senderPhone, "msg_id", msg.ID)
+			fallbackReply := attachAISignature(hermes.FormatSystemDownMessage(customerName))
+			sendCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			if _, sendErr := wc.SendMessage(sendCtx, senderPhone, fallbackReply); sendErr != nil {
+				logger.Error("Failed to send Hermes system down fallback via WhatsApp", "error", sendErr, "sender", senderPhone)
+			}
 			return
 		}
 

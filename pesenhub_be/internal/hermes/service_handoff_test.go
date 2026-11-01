@@ -3,6 +3,7 @@ package hermes
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -257,8 +258,51 @@ func TestService_ProcessTurn_RepeatedToolFailureDeterministicThreshold(t *testin
 	if resp3.State.HandoffPriority != HandoffPriorityHigh {
 		t.Fatalf("expected HandoffPriority=HIGH, got %s", resp3.State.HandoffPriority)
 	}
-	if !strings.Contains(resp3.ReplyText, "gangguan teknis") {
-		t.Errorf("expected technical apology, got %q", resp3.ReplyText)
+	if !strings.Contains(resp3.ReplyText, "gangguan") || !strings.Contains(resp3.ReplyText, "karyawan Jenggirat") {
+		t.Errorf("expected technical apology with staff handoff, got %q", resp3.ReplyText)
+	}
+}
+
+func TestService_ProcessTurn_ErrLLMUnavailable_ImmediateHandoff(t *testing.T) {
+	ctx := context.Background()
+	provider := &mockCatalogProvider{categories: sampleCatalog()}
+	convStore := NewMemoryConversationStore()
+	runStore := NewMemoryStore()
+
+	unavailableLLM := &MockLLMClient{
+		Err: fmt.Errorf("%w: connection refused", ErrLLMUnavailable),
+	}
+
+	svc := NewService(Config{
+		Client:            unavailableLLM,
+		CatalogProvider:   provider,
+		Store:             runStore,
+		ConversationStore: convStore,
+	})
+
+	session := "session-llm-down"
+	phone := "+6281234567899"
+
+	resp, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      session,
+		SenderPhone:  phone,
+		CustomerName: "Budi",
+		MessageText:  "Pesan martabak manis",
+	})
+	if err != nil {
+		t.Fatalf("expected immediate graceful handoff turn response, got error: %v", err)
+	}
+	if !resp.RequiresHandoff {
+		t.Fatalf("expected RequiresHandoff=true on ErrLLMUnavailable")
+	}
+	if resp.State.Status != ConversationHandoff {
+		t.Fatalf("expected Status=HANDOFF, got %s", resp.State.Status)
+	}
+	if !strings.Contains(resp.ReplyText, "Mohon maaf kak Budi, sistem kami sedang mengalami gangguan") {
+		t.Errorf("expected personalized system down apology, got %q", resp.ReplyText)
+	}
+	if !strings.Contains(resp.ReplyText, "karyawan Jenggirat") {
+		t.Errorf("expected mention of karyawan Jenggirat, got %q", resp.ReplyText)
 	}
 }
 
