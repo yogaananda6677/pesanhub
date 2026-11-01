@@ -100,7 +100,7 @@ func (e *ClarificationEngine) PlanClarification(draft *DraftCandidate, attempts 
 		draft.FulfillmentType = "PICKUP"
 	}
 	if chosenAmbiguity == "" || chosenAmbiguity == "missing_fulfillment_type" {
-		if strings.TrimSpace(draft.PaymentMethod) == "" {
+		if len(draft.Items) > 0 && strings.TrimSpace(draft.PaymentMethod) == "" {
 			chosenAmbiguity = "missing_payment_method"
 		} else {
 			chosenAmbiguity = ""

@@ -179,8 +179,12 @@ run_check() {
   local unformatted
   unformatted="$(gofmt -l .)"
   [[ -z "$unformatted" ]] || die "File Go belum terformat:$'\n'$unformatted\nJalankan './run.sh fmt'."
-  GOCACHE="${GOCACHE:-/tmp/pesenhub-go-cache}" go vet ./...
-  GOCACHE="${GOCACHE:-/tmp/pesenhub-go-cache}" go test ./...
+  default_cache="/tmp/pesenhub-go-cache"
+  if [[ -e "$default_cache" && ! -w "$default_cache" ]]; then
+    default_cache="${HOME:-/tmp}/.cache/pesenhub-go-cache"
+  fi
+  GOCACHE="${GOCACHE:-$default_cache}" go vet ./...
+  GOCACHE="${GOCACHE:-$default_cache}" go test ./...
   need_docker; need_env; compose config --quiet
   ok "Seluruh pemeriksaan lulus."
 }

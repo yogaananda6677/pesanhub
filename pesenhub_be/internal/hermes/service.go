@@ -430,7 +430,9 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 		}
 	} else if state.CustomerName == "" && s.customerMemory != nil {
 		if profile, err := s.customerMemory.GetByPhone(ctx, req.SenderPhone); err == nil && profile != nil && profile.DisplayName != "" {
-			state.CustomerName = profile.DisplayName
+			if cleaned := cleanCustomerName(profile.DisplayName); cleaned != "" {
+				state.CustomerName = cleaned
+			}
 		}
 	}
 
@@ -690,7 +692,40 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 				Session:          session,
 				PromptContext:    pCtx,
 			})
-			if extractErr == nil && len(newDraft.Items) == 0 {
+			if extractErr != nil {
+				state.ToolFailureCount++
+				if state.ToolFailureCount >= MaxToolFailures || errors.Is(extractErr, ErrLLMUnavailable) {
+					state.Status = ConversationHandoff
+					state.HandoffStatus = HandoffStatusPending
+					reason := "llm_unavailable"
+					if !errors.Is(extractErr, ErrLLMUnavailable) {
+						reason = "repeated_tool_failure"
+					}
+					state.HandoffReason = &reason
+					state.HandoffPriority = HandoffPriorityHigh
+					reply := FormatSystemDownMessage(state.CustomerName)
+					state.LastQuestion = reply
+					_ = s.convStore.Save(ctx, state)
+					s.recordHandoffAudit(ctx, state, HandoffActionTriggered, "SYSTEM", "SYSTEM", reason, correlationID, map[string]any{
+						"priority":      HandoffPriorityHigh,
+						"failure_count": state.ToolFailureCount,
+						"error":         extractErr.Error(),
+					})
+
+					return &TurnResponse{
+						State:            state,
+						Draft:            state.CurrentDraft,
+						ReplyText:        reply,
+						RequiresHandoff:  true,
+						HandledByAgent:   false,
+						AutomationPaused: true,
+						Run:              run,
+					}, nil
+				}
+				_ = s.convStore.Save(ctx, state)
+				return nil, extractErr
+			}
+			if len(newDraft.Items) == 0 {
 				reply := newDraft.ReplyText
 				var mediaAttachments []MediaAttachment
 				if reply == "" {
@@ -712,7 +747,7 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 					MediaAttachments: mediaAttachments,
 				}, nil
 			}
-			if extractErr == nil && len(newDraft.Items) > 0 {
+			if len(newDraft.Items) > 0 {
 				plan := s.clarifier.PlanClarification(newDraft, 0, categories)
 				if plan.RequiresHandoff {
 					state.Status = ConversationHandoff
@@ -1184,7 +1219,7 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 					reason := "order_creation_failed"
 					state.HandoffReason = &reason
 					state.HandoffPriority = HandoffPriorityHigh
-					reply := personalizeCustomerGreeting("Mohon maaf kak, sistem kami mengalami kendala teknis saat memproses pesanan kakak. Percakapan ini kami alihkan ke staf kami.", state.CustomerName)
+					reply := FormatSystemDownMessage(state.CustomerName)
 					state.LastQuestion = reply
 					_ = s.convStore.Save(ctx, state)
 					s.recordHandoffAudit(ctx, state, HandoffActionTriggered, "SYSTEM", "SYSTEM", reason, correlationID, map[string]any{
@@ -1549,18 +1584,22 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 	})
 	if err != nil {
 		state.ToolFailureCount++
-		if state.ToolFailureCount >= MaxToolFailures {
+		if state.ToolFailureCount >= MaxToolFailures || errors.Is(err, ErrLLMUnavailable) {
 			state.Status = ConversationHandoff
 			state.HandoffStatus = HandoffStatusPending
-			reason := "repeated_tool_failure"
+			reason := "llm_unavailable"
+			if !errors.Is(err, ErrLLMUnavailable) {
+				reason = "repeated_tool_failure"
+			}
 			state.HandoffReason = &reason
 			state.HandoffPriority = HandoffPriorityHigh
-			reply := personalizeCustomerGreeting("Mohon maaf kak, sistem kami sedang mengalami gangguan teknis saat memproses pesanan. Percakapan ini kami alihkan ke staf kami.", state.CustomerName)
+			reply := FormatSystemDownMessage(state.CustomerName)
 			state.LastQuestion = reply
 			_ = s.convStore.Save(ctx, state)
 			s.recordHandoffAudit(ctx, state, HandoffActionTriggered, "SYSTEM", "SYSTEM", reason, correlationID, map[string]any{
 				"priority":      HandoffPriorityHigh,
 				"failure_count": state.ToolFailureCount,
+				"error":         err.Error(),
 			})
 
 			return &TurnResponse{
@@ -1741,7 +1780,42 @@ func cleanCustomerName(name string) string {
 	if !hasLetter {
 		return ""
 	}
+
+	// Strip common leading honorific prefixes like "kak ", "mas ", etc.
+	for _, prefix := range []string{"kak ", "kakak ", "mas ", "mbak ", "bang ", "min ", "pak ", "bu "} {
+		if strings.HasPrefix(strings.ToLower(name), prefix) {
+			name = strings.TrimSpace(name[len(prefix):])
+			break
+		}
+	}
+
+	lower := strings.ToLower(name)
+	if commonNonNames[lower] || len(lower) < 2 {
+		return ""
+	}
+
+	// If all constituent words are non-names (e.g. "pelanggan whatsapp", "bayar tunai"), reject
+	words := strings.Fields(lower)
+	allNonNames := true
+	for _, w := range words {
+		if !commonNonNames[w] {
+			allNonNames = false
+			break
+		}
+	}
+	if allNonNames {
+		return ""
+	}
+
 	return name
+}
+
+// DefaultSystemDownMessage is the official apology reply sent when the Hermes system or LLM encounters technical downtime.
+const DefaultSystemDownMessage = "Mohon maaf kak, sistem kami sedang mengalami gangguan. Percakapan ini akan segera di-handle oleh karyawan Jenggirat ya kak. Mohon ditunggu sebentar 🙏"
+
+// FormatSystemDownMessage returns the system down apology greeting personalized with the customer's name if known.
+func FormatSystemDownMessage(customerName string) string {
+	return personalizeCustomerGreeting(DefaultSystemDownMessage, customerName)
 }
 
 func personalizeCustomerGreeting(text, customerName string) string {
