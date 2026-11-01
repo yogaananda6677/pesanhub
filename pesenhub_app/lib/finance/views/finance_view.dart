@@ -14,6 +14,7 @@ import '../widgets/channel_breakdown_card.dart';
 import '../widgets/payment_breakdown_card.dart';
 import '../widgets/print_daily_recap_dialog.dart';
 import '../widgets/revenue_stat_cards.dart';
+import '../widgets/sales_bar_chart_card.dart';
 import '../widgets/top_selling_products_card.dart';
 
 class FinanceView extends StatefulWidget {
@@ -377,110 +378,109 @@ class _FinanceViewState extends State<FinanceView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Clean & Modern Segmented Date Period Filter
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: FinancePeriodFilter.values.map((f) {
-                      final isSelected = _financeController.filter == f;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: AppSpacing.sm),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            key: Key('finance-filter-${f.name}'),
-                            borderRadius: BorderRadius.circular(24),
-                            onTap: () async {
-                              if (f == FinancePeriodFilter.custom) {
-                                final picked = await showDateRangePicker(
-                                  context: context,
-                                  firstDate: DateTime(2024),
-                                  lastDate: DateTime.now(),
-                                  initialDateRange:
-                                      _financeController.effectiveDateRange,
-                                );
-                                if (picked != null) {
-                                  await _financeController.setFilter(f, picked);
+                // Clean & Modern Segmented Date Period Filter (matching Screen 2 mockup)
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F3F8),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: AppColors.cardBorderModern),
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: FinancePeriodFilter.values.map((f) {
+                        final isSelected = _financeController.filter == f;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              key: Key('finance-filter-${f.name}'),
+                              borderRadius: BorderRadius.circular(24),
+                              onTap: () async {
+                                if (f == FinancePeriodFilter.custom) {
+                                  final picked = await showDateRangePicker(
+                                    context: context,
+                                    firstDate: DateTime(2024),
+                                    lastDate: DateTime.now(),
+                                    initialDateRange:
+                                        _financeController.effectiveDateRange,
+                                  );
+                                  if (picked != null) {
+                                    await _financeController.setFilter(
+                                      f,
+                                      picked,
+                                    );
+                                  }
+                                } else {
+                                  await _financeController.setFilter(f);
                                 }
-                              } else {
-                                await _financeController.setFilter(f);
-                              }
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: isSelected
-                                    ? const LinearGradient(
-                                        colors: [
-                                          Color(0xFF1E293B),
-                                          Color(0xFF0F172A),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      )
-                                    : null,
-                                color: isSelected ? null : Colors.white,
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? const Color(0xFF334155)
-                                      : AppColors.border,
-                                  width: isSelected ? 1.4 : 1.0,
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 9,
                                 ),
-                                boxShadow: isSelected
-                                    ? [
-                                        BoxShadow(
-                                          color: const Color(
-                                            0xFF0F172A,
-                                          ).withValues(alpha: 0.18),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ]
-                                    : [
-                                        BoxShadow(
-                                          color: AppColors.obsidianDark
-                                              .withValues(alpha: 0.02),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _periodIcon(f),
-                                    size: 15,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : AppColors.neutralTextMuted,
-                                  ),
-                                  const SizedBox(width: 7),
-                                  Text(
-                                    f.label,
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w800
-                                          : FontWeight.w600,
+                                decoration: BoxDecoration(
+                                  gradient: isSelected
+                                      ? const LinearGradient(
+                                          colors: [
+                                            Color(0xFF6366F1),
+                                            Color(0xFF4F46E5),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        )
+                                      : null,
+                                  color: isSelected ? null : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: const Color(
+                                              0xFF6366F1,
+                                            ).withValues(alpha: 0.35),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _periodIcon(f),
+                                      size: 15,
                                       color: isSelected
                                           ? Colors.white
-                                          : AppColors.textSecondary,
-                                      letterSpacing: -0.1,
+                                          : AppColors.slate,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      f.label,
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w800
+                                            : FontWeight.w600,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppColors.slateDark,
+                                        letterSpacing: -0.1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -492,8 +492,8 @@ class _FinanceViewState extends State<FinanceView> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: AppColors.cardBorderModern),
                   ),
                   child: Wrap(
@@ -617,22 +617,30 @@ class _FinanceViewState extends State<FinanceView> {
                         flex: 5,
                         child: Column(
                           children: [
-                            PaymentBreakdownCard(summary: summary),
+                            SalesBarChartCard(summary: summary),
                             const SizedBox(height: AppSpacing.md),
-                            ChannelBreakdownCard(summary: summary),
+                            PaymentBreakdownCard(summary: summary),
                           ],
                         ),
                       ),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
-                        flex: 4,
-                        child: TopSellingProductsCard(topProducts: topProducts),
+                        flex: 5,
+                        child: Column(
+                          children: [
+                            TopSellingProductsCard(topProducts: topProducts),
+                            const SizedBox(height: AppSpacing.md),
+                            ChannelBreakdownCard(summary: summary),
+                          ],
+                        ),
                       ),
                     ],
                   )
                 else
                   Column(
                     children: [
+                      SalesBarChartCard(summary: summary),
+                      const SizedBox(height: AppSpacing.md),
                       PaymentBreakdownCard(summary: summary),
                       const SizedBox(height: AppSpacing.md),
                       ChannelBreakdownCard(summary: summary),

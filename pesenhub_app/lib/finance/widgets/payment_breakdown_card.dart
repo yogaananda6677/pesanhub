@@ -38,38 +38,36 @@ class PaymentBreakdownCard extends StatelessWidget {
         final isWide = constraints.maxWidth >= 600;
 
         final tiles = [
-          _buildBreakdownTile(
+          _buildRecordTile(
             title: 'Tunai (Cash)',
             nominal: summary.formattedCashRevenue,
             percentage: '$cashPct%',
             subtitle: 'Masuk kas laci kasir',
             color: AppColors.emerald,
             bgColor: AppColors.emeraldBg,
-            borderColor: AppColors.emeraldBorder,
-            icon: Icons.payments_outlined,
+            icon: Icons.payments_rounded,
           ),
-          _buildBreakdownTile(
+          _buildRecordTile(
             title: 'Non-Tunai (QRIS)',
             nominal: summary.formattedDigitalRevenue,
             percentage: '$digitalPct%',
             subtitle: 'Masuk rekening settled',
             color: AppColors.indigo,
             bgColor: AppColors.indigoBg,
-            borderColor: AppColors.indigoBorder,
-            icon: Icons.qr_code_rounded,
+            icon: Icons.qr_code_2_rounded,
           ),
         ];
 
         return Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(color: AppColors.cardBorderModern),
             boxShadow: [
               BoxShadow(
                 color: AppColors.obsidianDark.withValues(alpha: 0.03),
-                blurRadius: 12,
+                blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -77,59 +75,74 @@ class PaymentBreakdownCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Card Header
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.indigoBg,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.indigoBorder),
-                    ),
-                    child: const Icon(
-                      Icons.pie_chart_rounded,
-                      size: 18,
-                      color: AppColors.indigo,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  Expanded(
+                    child: Row(
                       children: [
-                        Text(
-                          'Breakdown Metode Pembayaran',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                            color: AppColors.obsidianDark,
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: AppColors.indigoBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.indigoBorder),
+                          ),
+                          child: const Icon(
+                            Icons.pie_chart_rounded,
+                            size: 20,
+                            color: AppColors.indigo,
                           ),
                         ),
-                        Text(
-                          'Pemisahan pendapatan riil Tunai & Non-Tunai',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.neutralTextMuted,
+                        const SizedBox(width: AppSpacing.sm),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Breakdown Metode Pembayaran',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.2,
+                                  color: AppColors.obsidianDark,
+                                ),
+                              ),
+                              Text(
+                                'Pemisahan pendapatan riil Tunai & Non-Tunai',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.slate,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
+                  Icon(
+                    Icons.more_horiz_rounded,
+                    size: 18,
+                    color: AppColors.slateLight.withValues(alpha: 0.7),
+                  ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.lg),
 
-              // Visual Donut Chart Section
+              // Visual Circular Gauge / Donut Meter Section (matching Screen 3 mockup)
               Container(
-                padding: const EdgeInsets.symmetric(
-                  vertical: AppSpacing.md,
-                  horizontal: AppSpacing.sm,
-                ),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: AppColors.slateBg,
-                  borderRadius: BorderRadius.circular(16),
+                  color: const Color(0xFFF8F9FD),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: AppColors.cardBorderModern),
                 ),
                 child: isWide
@@ -167,7 +180,7 @@ class PaymentBreakdownCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
 
-              // Multi-color Mini Progress Bar
+              // Multi-color Segmented Proportion Bar
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: SizedBox(
@@ -208,23 +221,36 @@ class PaymentBreakdownCard extends StatelessWidget {
 
     return DonutPieChart(
       segments: segments,
-      size: 150,
+      size: 156,
       strokeWidth: 20,
       centerWidget: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            total > 0
-                ? (summary.cashRevenue >= summary.digitalRevenue
-                      ? Icons.payments_outlined
-                      : Icons.qr_code_rounded)
-                : Icons.donut_large_rounded,
-            size: 18,
-            color: total > 0
-                ? AppColors.obsidianLight
-                : AppColors.neutralTextMuted,
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: total > 0
+                  ? (summary.cashRevenue >= summary.digitalRevenue
+                        ? AppColors.emeraldBg
+                        : AppColors.indigoBg)
+                  : AppColors.slateBg,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              total > 0
+                  ? (summary.cashRevenue >= summary.digitalRevenue
+                        ? Icons.payments_rounded
+                        : Icons.qr_code_2_rounded)
+                  : Icons.donut_large_rounded,
+              size: 20,
+              color: total > 0
+                  ? (summary.cashRevenue >= summary.digitalRevenue
+                        ? AppColors.emerald
+                        : AppColors.indigo)
+                  : AppColors.neutralTextMuted,
+            ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 3),
           Text(
             total > 0
                 ? (summary.cashRevenue >= summary.digitalRevenue
@@ -232,9 +258,10 @@ class PaymentBreakdownCard extends StatelessWidget {
                       : '$digitalPct% QRIS')
                 : 'Kosong',
             style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
               color: AppColors.obsidianDark,
+              letterSpacing: -0.2,
             ),
           ),
           const Text(
@@ -244,7 +271,7 @@ class PaymentBreakdownCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: AppColors.neutralTextMuted,
+              color: AppColors.slate,
             ),
           ),
         ],
@@ -252,96 +279,105 @@ class PaymentBreakdownCard extends StatelessWidget {
     );
   }
 
-  Widget _buildBreakdownTile({
+  Widget _buildRecordTile({
     required String title,
     required String nominal,
     required String percentage,
     required String subtitle,
     required Color color,
     required Color bgColor,
-    required Color borderColor,
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorderModern),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.obsidianDark.withValues(alpha: 0.015),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Circular Icon Avatar matching Screen 3 "Today's records"
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
+            child: Icon(icon, size: 20, color: color),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          // Title & Subtitle
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.1,
+                    color: AppColors.obsidianDark,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.slate,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          // Nominal & Percentage Pill
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(icon, size: 14, color: color),
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.1,
-                          color: color,
-                        ),
-                      ),
-                    ),
-                  ],
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  nominal,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
+                    color: AppColors.obsidianDark,
+                  ),
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(height: 2),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(20),
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: color.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   percentage,
-                  style: const TextStyle(
-                    fontSize: 10,
+                  style: TextStyle(
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: color,
                   ),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            nominal,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.3,
-              color: AppColors.obsidianDark,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: AppColors.neutralTextMuted,
-            ),
           ),
         ],
       ),

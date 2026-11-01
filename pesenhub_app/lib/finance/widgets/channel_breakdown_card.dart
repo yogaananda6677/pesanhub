@@ -19,13 +19,15 @@ class ChannelBreakdownCard extends StatelessWidget {
         subtitle: 'Pesanan langsung di kasir toko',
         icon: Icons.point_of_sale_rounded,
         color: AppColors.indigo,
+        bgColor: AppColors.indigoBg,
       ),
       _ChannelData(
         key: 'WHATSAPP',
         name: 'WhatsApp Hermes',
         subtitle: 'Asisten AI WhatsApp Jenggirat',
-        icon: Icons.chat_rounded,
+        icon: Icons.chat_bubble_rounded,
         color: const Color(0xFF10B981),
+        bgColor: const Color(0xFFECFDF5),
       ),
       _ChannelData(
         key: 'CUSTOMER_WEB',
@@ -33,6 +35,7 @@ class ChannelBreakdownCard extends StatelessWidget {
         subtitle: 'Pemesanan mandiri via browser',
         icon: Icons.language_rounded,
         color: AppColors.sky,
+        bgColor: AppColors.skyBg,
       ),
     ];
 
@@ -52,15 +55,15 @@ class ChannelBreakdownCard extends StatelessWidget {
         final isWide = constraints.maxWidth >= 600;
 
         return Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(color: AppColors.cardBorderModern),
             boxShadow: [
               BoxShadow(
                 color: AppColors.obsidianDark.withValues(alpha: 0.03),
-                blurRadius: 12,
+                blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -68,56 +71,76 @@ class ChannelBreakdownCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.amberBgModern,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.amberBorderModern),
-                    ),
-                    child: const Icon(
-                      Icons.hub_outlined,
-                      size: 18,
-                      color: AppColors.amberModern,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  Expanded(
+                    child: Row(
                       children: [
-                        Text(
-                          'Distribusi Kanal Penjualan',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                            color: AppColors.obsidianDark,
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: AppColors.amberBgModern,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.amberBorderModern,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.hub_rounded,
+                            size: 20,
+                            color: AppColors.amberModern,
                           ),
                         ),
-                        Text(
-                          'Porsi pendapatan kasir fisik vs online bot & web',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.neutralTextMuted,
+                        const SizedBox(width: AppSpacing.sm),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Distribusi Kanal Penjualan',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.2,
+                                  color: AppColors.obsidianDark,
+                                ),
+                              ),
+                              Text(
+                                'Porsi pendapatan kasir fisik vs online bot & web',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.slate,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
+                  Icon(
+                    Icons.more_horiz_rounded,
+                    size: 18,
+                    color: AppColors.slateLight.withValues(alpha: 0.7),
+                  ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.lg),
 
               // Visual Graphic representation
               Container(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: AppColors.slateBg,
-                  borderRadius: BorderRadius.circular(16),
+                  color: const Color(0xFFF8F9FD),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: AppColors.cardBorderModern),
                 ),
                 child: isWide
@@ -125,8 +148,8 @@ class ChannelBreakdownCard extends StatelessWidget {
                         children: [
                           DonutPieChart(
                             segments: channelSegments,
-                            size: 130,
-                            strokeWidth: 16,
+                            size: 136,
+                            strokeWidth: 18,
                             centerWidget: const Icon(
                               Icons.storefront_rounded,
                               size: 22,
@@ -148,11 +171,11 @@ class ChannelBreakdownCard extends StatelessWidget {
                           Center(
                             child: DonutPieChart(
                               segments: channelSegments,
-                              size: 120,
-                              strokeWidth: 16,
+                              size: 130,
+                              strokeWidth: 18,
                               centerWidget: const Icon(
                                 Icons.storefront_rounded,
-                                size: 20,
+                                size: 22,
                                 color: AppColors.obsidianLight,
                               ),
                             ),
@@ -182,11 +205,18 @@ class ChannelBreakdownCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.cardBorderModern),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.obsidianDark.withValues(alpha: 0.015),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,12 +224,13 @@ class ChannelBreakdownCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(5),
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
-                    color: ch.color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+                    color: ch.bgColor,
+                    shape: BoxShape.circle,
                   ),
-                  child: Icon(ch.icon, size: 14, color: ch.color),
+                  child: Icon(ch.icon, size: 18, color: ch.color),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -208,9 +239,10 @@ class ChannelBreakdownCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.obsidianDark,
+                      letterSpacing: -0.1,
                     ),
                   ),
                 ),
@@ -221,8 +253,9 @@ class ChannelBreakdownCard extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: ch.color.withValues(alpha: 0.12),
+                    color: ch.bgColor,
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: ch.color.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     '$pct%',
@@ -235,7 +268,7 @@ class ChannelBreakdownCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Wrap(
               alignment: WrapAlignment.spaceBetween,
               crossAxisAlignment: WrapCrossAlignment.center,
@@ -246,15 +279,16 @@ class ChannelBreakdownCard extends StatelessWidget {
                   '$orders order ($pct%)',
                   style: const TextStyle(
                     fontSize: 11,
-                    color: AppColors.neutralTextMuted,
+                    color: AppColors.slate,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   CurrencyFormatter.formatRupiah(rev),
                   style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2,
                     color: AppColors.obsidianDark,
                   ),
                 ),
@@ -266,7 +300,7 @@ class ChannelBreakdownCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: ratio,
                 minHeight: 5,
-                backgroundColor: AppColors.slateBg,
+                backgroundColor: const Color(0xFFF1F3F8),
                 valueColor: AlwaysStoppedAnimation<Color>(ch.color),
               ),
             ),
@@ -283,6 +317,7 @@ class _ChannelData {
   final String subtitle;
   final IconData icon;
   final Color color;
+  final Color bgColor;
 
   _ChannelData({
     required this.key,
@@ -290,5 +325,6 @@ class _ChannelData {
     required this.subtitle,
     required this.icon,
     required this.color,
+    required this.bgColor,
   });
 }

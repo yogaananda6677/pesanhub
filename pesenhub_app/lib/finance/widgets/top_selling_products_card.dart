@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/currency_formatter.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../models/top_products.dart';
@@ -22,101 +23,120 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
         : widget.topProducts.topToppings;
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.cardBorderModern),
         boxShadow: [
           BoxShadow(
-            color: AppColors.obsidianDark.withValues(alpha: 0.025),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: AppColors.obsidianDark.withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
+          // Header: Full-width Title Row
+          Row(
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.coralBg,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.coralBorder),
-                    ),
-                    child: const Icon(
-                      Icons.leaderboard_rounded,
-                      size: 18,
-                      color: AppColors.coral,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Flexible(
-                    child: Text(
-                      'Paling Diminati',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                        color: AppColors.obsidianDark,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // Segmented switch
               Container(
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: AppColors.slateBg,
+                  color: AppColors.coralBg,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.cardBorderModern),
+                  border: Border.all(color: AppColors.coralBorder),
                 ),
-                padding: const EdgeInsets.all(3),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildTabButton(
-                      label: 'Menu',
-                      index: 0,
-                      keyName: 'top-menus-tab',
-                    ),
-                    _buildTabButton(
-                      label: 'Topping',
-                      index: 1,
-                      keyName: 'top-toppings-tab',
-                    ),
-                  ],
+                child: const Icon(
+                  Icons.leaderboard_rounded,
+                  size: 20,
+                  color: AppColors.coral,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              const Expanded(
+                child: Text(
+                  'Paling Diminati',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                    color: AppColors.obsidianDark,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          const Text(
-            '5 item dengan penjualan dan kontribusi omset tertinggi',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: AppColors.neutralTextMuted,
-            ),
+          const SizedBox(height: 10),
+
+          // Sub-row: Subtitle & Segmented Tab Switch with Wrap for zero overflow
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              Text(
+                _tabIndex == 0
+                    ? '5 item menu omset tertinggi'
+                    : '5 item topping paling laris',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.slate,
+                ),
+              ),
+              // Segmented Capsule Toggle matching mockup Screen 2 & 3
+              LayoutBuilder(
+                builder: (context, boxConstraints) {
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: boxConstraints.maxWidth,
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F3F8),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: const EdgeInsets.all(3),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildTabButton(
+                              label: 'Menu',
+                              index: 0,
+                              keyName: 'top-menus-tab',
+                            ),
+                            _buildTabButton(
+                              label: 'Topping',
+                              index: 1,
+                              keyName: 'top-toppings-tab',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.md),
+
+          // Items List (matching Screen 3 "Today's records")
           if (items.isEmpty)
             Container(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               alignment: Alignment.center,
               child: const Text(
-                'Belum ada data penjualan pada periode ini.',
+                'Belum ada data penjualan pada periode ini',
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.neutralTextMuted,
@@ -125,14 +145,12 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
             )
           else
             Column(
-              children: items.asMap().entries.map((entry) {
-                final idx = entry.key;
-                final item = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: _buildItemRow(rank: idx + 1, item: item),
-                );
-              }).toList(),
+              children: [
+                for (int i = 0; i < items.length; i++) ...[
+                  if (i > 0) const SizedBox(height: AppSpacing.sm),
+                  _buildProductTile(items[i], i + 1),
+                ],
+              ],
             ),
         ],
       ),
@@ -145,116 +163,125 @@ class _TopSellingProductsCardState extends State<TopSellingProductsCard> {
     required String keyName,
   }) {
     final isSelected = _tabIndex == index;
-    return InkWell(
+    return GestureDetector(
       key: Key(keyName),
       onTap: () => setState(() => _tabIndex = index),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppColors.obsidianDark.withValues(alpha: 0.05),
-                    blurRadius: 4,
+                    color: AppColors.obsidianDark.withValues(alpha: 0.08),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ]
               : null,
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            color: isSelected ? AppColors.indigo : AppColors.textSecondary,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              color: isSelected ? AppColors.obsidianDark : AppColors.slate,
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildItemRow({required int rank, required TopProduct item}) {
-    final Color badgeColor;
-    final Color badgeText;
+  Widget _buildProductTile(TopProduct product, int rank) {
+    Color rankColor;
+    Color rankBg;
     if (rank == 1) {
-      badgeColor = const Color(0xFFFEF3C7);
-      badgeText = const Color(0xFFD97706);
+      rankColor = const Color(0xFFD97706);
+      rankBg = const Color(0xFFFEF3C7);
     } else if (rank == 2) {
-      badgeColor = const Color(0xFFF1F5F9);
-      badgeText = const Color(0xFF475569);
+      rankColor = const Color(0xFF475569);
+      rankBg = const Color(0xFFF1F5F9);
     } else if (rank == 3) {
-      badgeColor = const Color(0xFFFFEDD5);
-      badgeText = const Color(0xFFEA580C);
+      rankColor = const Color(0xFF9A3412);
+      rankBg = const Color(0xFFFFEDD5);
     } else {
-      badgeColor = AppColors.slateBg;
-      badgeText = AppColors.neutralTextMuted;
+      rankColor = AppColors.slate;
+      rankBg = const Color(0xFFF8FAFC);
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.slateBg,
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFF8F9FD),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.cardBorderModern),
       ),
       child: Row(
         children: [
+          // Circular Rank Badge matching Screen 3
           Container(
-            width: 26,
-            height: 26,
-            alignment: Alignment.center,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: badgeColor,
-              borderRadius: BorderRadius.circular(8),
+              color: rankBg,
+              shape: BoxShape.circle,
+              border: Border.all(color: rankColor.withValues(alpha: 0.3)),
             ),
+            alignment: Alignment.center,
             child: Text(
               '$rank',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 12.5,
                 fontWeight: FontWeight.w900,
-                color: badgeText,
+                color: rankColor,
               ),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm + 2),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.name,
+                  product.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.1,
                     color: AppColors.obsidianDark,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
-                  '${item.quantity} porsi terjual',
+                  '${product.quantitySold} porsi terjual',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.neutralTextMuted,
+                    color: AppColors.slate,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Flexible(
+          const SizedBox(width: AppSpacing.sm),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
             child: Text(
-              item.formattedRevenue,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              CurrencyFormatter.formatRupiah(product.totalSales),
               style: const TextStyle(
-                fontSize: 13,
+                fontSize: 13.5,
                 fontWeight: FontWeight.w900,
+                letterSpacing: -0.2,
                 color: AppColors.obsidianDark,
               ),
             ),
