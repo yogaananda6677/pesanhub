@@ -311,6 +311,50 @@ class _FinanceViewState extends State<FinanceView> {
     );
   }
 
+  String _formatDateRange(DateTimeRange range) {
+    const months = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+    final start = range.start;
+    final end = range.end;
+    if (start.year == end.year &&
+        start.month == end.month &&
+        start.day == end.day) {
+      return '${start.day} ${months[start.month]} ${start.year}';
+    }
+    if (start.year == end.year) {
+      return '${start.day} ${months[start.month]} – ${end.day} ${months[end.month]} ${end.year}';
+    }
+    return '${start.day} ${months[start.month]} ${start.year} – ${end.day} ${months[end.month]} ${end.year}';
+  }
+
+  IconData _periodIcon(FinancePeriodFilter f) {
+    switch (f) {
+      case FinancePeriodFilter.today:
+        return Icons.today_rounded;
+      case FinancePeriodFilter.yesterday:
+        return Icons.history_rounded;
+      case FinancePeriodFilter.thisWeek:
+        return Icons.date_range_rounded;
+      case FinancePeriodFilter.thisMonth:
+        return Icons.calendar_month_rounded;
+      case FinancePeriodFilter.custom:
+        return Icons.tune_rounded;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final summary = _financeController.summary ?? FinancialSummary.empty();
@@ -333,7 +377,7 @@ class _FinanceViewState extends State<FinanceView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Quick Date Filter Chips
+                // Clean & Modern Segmented Date Period Filter
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -341,49 +385,178 @@ class _FinanceViewState extends State<FinanceView> {
                       final isSelected = _financeController.filter == f;
                       return Padding(
                         padding: const EdgeInsets.only(right: AppSpacing.sm),
-                        child: FilterChip(
-                          key: Key('finance-filter-${f.name}'),
-                          label: Text(f.label),
-                          selected: isSelected,
-                          onSelected: (_) async {
-                            if (f == FinancePeriodFilter.custom) {
-                              final picked = await showDateRangePicker(
-                                context: context,
-                                firstDate: DateTime(2024),
-                                lastDate: DateTime.now(),
-                                initialDateRange:
-                                    _financeController.effectiveDateRange,
-                              );
-                              if (picked != null) {
-                                await _financeController.setFilter(f, picked);
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            key: Key('finance-filter-${f.name}'),
+                            borderRadius: BorderRadius.circular(24),
+                            onTap: () async {
+                              if (f == FinancePeriodFilter.custom) {
+                                final picked = await showDateRangePicker(
+                                  context: context,
+                                  firstDate: DateTime(2024),
+                                  lastDate: DateTime.now(),
+                                  initialDateRange:
+                                      _financeController.effectiveDateRange,
+                                );
+                                if (picked != null) {
+                                  await _financeController.setFilter(f, picked);
+                                }
+                              } else {
+                                await _financeController.setFilter(f);
                               }
-                            } else {
-                              await _financeController.setFilter(f);
-                            }
-                          },
-                          selectedColor: AppColors.indigoBg,
-                          checkmarkColor: AppColors.indigo,
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            fontWeight: isSelected
-                                ? FontWeight.w800
-                                : FontWeight.w500,
-                            color: isSelected
-                                ? AppColors.indigo
-                                : AppColors.textSecondary,
-                          ),
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(
-                              color: isSelected
-                                  ? AppColors.indigo
-                                  : AppColors.cardBorderModern,
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: isSelected
+                                    ? const LinearGradient(
+                                        colors: [
+                                          Color(0xFF1E293B),
+                                          Color(0xFF0F172A),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                    : null,
+                                color: isSelected ? null : Colors.white,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? const Color(0xFF334155)
+                                      : AppColors.border,
+                                  width: isSelected ? 1.4 : 1.0,
+                                ),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: const Color(
+                                            0xFF0F172A,
+                                          ).withValues(alpha: 0.18),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ]
+                                    : [
+                                        BoxShadow(
+                                          color: AppColors.obsidianDark
+                                              .withValues(alpha: 0.02),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _periodIcon(f),
+                                    size: 15,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppColors.neutralTextMuted,
+                                  ),
+                                  const SizedBox(width: 7),
+                                  Text(
+                                    f.label,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w800
+                                          : FontWeight.w600,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : AppColors.textSecondary,
+                                      letterSpacing: -0.1,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       );
                     }).toList(),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+
+                // Active Period Info Banner
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.cardBorderModern),
+                  ),
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_rounded,
+                            size: 13,
+                            color: AppColors.indigo,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatDateRange(
+                              _financeController.effectiveDateRange,
+                            ),
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.obsidianDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.emeraldBg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.emeraldBorder),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 5,
+                              height: 5,
+                              decoration: const BoxDecoration(
+                                color: AppColors.emerald,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              'Periode Aktif',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.emeraldDeep,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),

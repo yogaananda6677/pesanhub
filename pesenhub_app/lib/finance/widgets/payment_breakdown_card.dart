@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../models/financial_summary.dart';
+import 'donut_pie_chart.dart';
 
 class PaymentBreakdownCard extends StatelessWidget {
   final FinancialSummary summary;
@@ -15,9 +16,27 @@ class PaymentBreakdownCard extends StatelessWidget {
     final cashPct = (cashRatio * 100).toStringAsFixed(1);
     final digitalPct = (digitalRatio * 100).toStringAsFixed(1);
 
+    final segments = [
+      PieChartSegment(
+        value: summary.cashRevenue.toDouble(),
+        color: AppColors.emerald,
+        label: 'Tunai (Cash)',
+        subtitle: 'Masuk kas laci kasir',
+        icon: Icons.payments_outlined,
+      ),
+      PieChartSegment(
+        value: summary.digitalRevenue.toDouble(),
+        color: AppColors.indigo,
+        label: 'Non-Tunai (QRIS)',
+        subtitle: 'Masuk rekening settled',
+        icon: Icons.qr_code_rounded,
+      ),
+    ];
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 420;
+        final isWide = constraints.maxWidth >= 600;
+
         final tiles = [
           _buildBreakdownTile(
             title: 'Tunai (Cash)',
@@ -45,13 +64,13 @@ class PaymentBreakdownCard extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: AppColors.cardBorderModern),
             boxShadow: [
               BoxShadow(
-                color: AppColors.obsidianDark.withValues(alpha: 0.025),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
+                color: AppColors.obsidianDark.withValues(alpha: 0.03),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -68,7 +87,7 @@ class PaymentBreakdownCard extends StatelessWidget {
                       border: Border.all(color: AppColors.indigoBorder),
                     ),
                     child: const Icon(
-                      Icons.pie_chart_outline_rounded,
+                      Icons.pie_chart_rounded,
                       size: 18,
                       color: AppColors.indigo,
                     ),
@@ -102,11 +121,57 @@ class PaymentBreakdownCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
 
-              // Multi-color Progress Bar
+              // Visual Donut Chart Section
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.md,
+                  horizontal: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.slateBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.cardBorderModern),
+                ),
+                child: isWide
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildDonutView(segments, cashPct, digitalPct),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              children: [
+                                tiles[0],
+                                const SizedBox(height: AppSpacing.sm),
+                                tiles[1],
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          Center(
+                            child: _buildDonutView(
+                              segments,
+                              cashPct,
+                              digitalPct,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          tiles[0],
+                          const SizedBox(height: AppSpacing.sm),
+                          tiles[1],
+                        ],
+                      ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+
+              // Multi-color Mini Progress Bar
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: SizedBox(
-                  height: 10,
+                  height: 6,
                   child: Row(
                     children: [
                       if (cashRatio > 0)
@@ -127,29 +192,63 @@ class PaymentBreakdownCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-
-              // Detail Tiles
-              if (isCompact)
-                Column(
-                  children: [
-                    tiles[0],
-                    const SizedBox(height: AppSpacing.sm),
-                    tiles[1],
-                  ],
-                )
-              else
-                Row(
-                  children: [
-                    Expanded(child: tiles[0]),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(child: tiles[1]),
-                  ],
-                ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDonutView(
+    List<PieChartSegment> segments,
+    String cashPct,
+    String digitalPct,
+  ) {
+    final total = summary.cashRevenue + summary.digitalRevenue;
+
+    return DonutPieChart(
+      segments: segments,
+      size: 150,
+      strokeWidth: 20,
+      centerWidget: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            total > 0
+                ? (summary.cashRevenue >= summary.digitalRevenue
+                      ? Icons.payments_outlined
+                      : Icons.qr_code_rounded)
+                : Icons.donut_large_rounded,
+            size: 18,
+            color: total > 0
+                ? AppColors.obsidianLight
+                : AppColors.neutralTextMuted,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            total > 0
+                ? (summary.cashRevenue >= summary.digitalRevenue
+                      ? '$cashPct% Tunai'
+                      : '$digitalPct% QRIS')
+                : 'Kosong',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: AppColors.obsidianDark,
+            ),
+          ),
+          const Text(
+            'Metode Utama',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColors.neutralTextMuted,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -164,7 +263,10 @@ class PaymentBreakdownCard extends StatelessWidget {
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 12,
+      ),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
@@ -179,8 +281,15 @@ class PaymentBreakdownCard extends StatelessWidget {
               Expanded(
                 child: Row(
                   children: [
-                    Icon(icon, size: 15, color: color),
-                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(icon, size: 14, color: color),
+                    ),
+                    const SizedBox(width: 6),
                     Flexible(
                       child: Text(
                         title,
@@ -215,13 +324,13 @@ class PaymentBreakdownCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             nominal,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w900,
-              letterSpacing: -0.4,
+              letterSpacing: -0.3,
               color: AppColors.obsidianDark,
             ),
           ),
