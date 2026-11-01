@@ -60,3 +60,19 @@ func TestAgentClientAddsV1ToRootBaseURL(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestAgentClientNon200ReturnsBodySnippet(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"message":"Model version deactivated"}}`))
+	}))
+	defer server.Close()
+
+	_, err := NewAgentClient(server.URL, "key", "", time.Second).ExtractOrder(context.Background(), "system", "user")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "status 400") || !strings.Contains(err.Error(), "Model version deactivated") {
+		t.Fatalf("expected error containing status 400 and body snippet, got: %v", err)
+	}
+}

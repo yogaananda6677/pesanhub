@@ -430,7 +430,9 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 		}
 	} else if state.CustomerName == "" && s.customerMemory != nil {
 		if profile, err := s.customerMemory.GetByPhone(ctx, req.SenderPhone); err == nil && profile != nil && profile.DisplayName != "" {
-			state.CustomerName = profile.DisplayName
+			if cleaned := cleanCustomerName(profile.DisplayName); cleaned != "" {
+				state.CustomerName = cleaned
+			}
 		}
 	}
 
@@ -1741,6 +1743,33 @@ func cleanCustomerName(name string) string {
 	if !hasLetter {
 		return ""
 	}
+
+	// Strip common leading honorific prefixes like "kak ", "mas ", etc.
+	for _, prefix := range []string{"kak ", "kakak ", "mas ", "mbak ", "bang ", "min ", "pak ", "bu "} {
+		if strings.HasPrefix(strings.ToLower(name), prefix) {
+			name = strings.TrimSpace(name[len(prefix):])
+			break
+		}
+	}
+
+	lower := strings.ToLower(name)
+	if commonNonNames[lower] || len(lower) < 2 {
+		return ""
+	}
+
+	// If all constituent words are non-names (e.g. "pelanggan whatsapp", "bayar tunai"), reject
+	words := strings.Fields(lower)
+	allNonNames := true
+	for _, w := range words {
+		if !commonNonNames[w] {
+			allNonNames = false
+			break
+		}
+	}
+	if allNonNames {
+		return ""
+	}
+
 	return name
 }
 

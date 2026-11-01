@@ -63,6 +63,35 @@ var commonNonNames = map[string]bool{
 	"masih": true, "belum": true, "belom": true, "kelar": true, "beres": true,
 	"jadi": true, "hari": true, "ini": true, "itu": true, "di": true, "ke": true,
 	"dari": true, "yang": true, "dan": true, "atau": true,
+
+	// Payment & checkout terms
+	"cash": true, "tunai": true, "qris": true, "transfer": true, "tf": true,
+	"debit": true, "kredit": true, "cod": true, "bayar": true, "pembayaran": true,
+	"kembalian": true, "kembaliannya": true, "uang": true, "duit": true,
+	"rekening": true, "va": true, "bca": true, "bri": true, "bni": true, "mandiri": true,
+	"dana": true, "gopay": true, "ovo": true, "shopeepay": true, "spay": true,
+	"linkaja": true, "lunas": true, "tagihan": true,
+
+	// Fulfillment & delivery terms
+	"pickup": true, "diambil": true, "bungkus": true, "dibungkus": true,
+	"dinein": true, "dine": true, "delivery": true, "dikirim": true,
+	"antar": true, "diantar": true, "bawa": true, "pulang": true, "gosend": true,
+	"grab": true, "gojek": true, "ongkir": true,
+
+	// Flow, navigation & action terms
+	"lanjut": true, "lanjutkan": true, "terus": true, "skip": true, "next": true,
+	"done": true, "selesai": true, "cancel": true, "kembali": true,
+	"back": true, "reset": true, "hapus": true, "ulang": true, "ganti": true,
+	"ubah": true, "edit": true, "tambah": true, "kurang": true, "checkout": true,
+
+	// Confirmation & affirmation
+	"iyap": true, "betul": true, "benar": true, "sip": true, "deal": true, "fix": true,
+	"gass": true, "gas": true, "boleh": true, "yoi": true, "yep": true, "yes": true,
+	"yap": true, "yup": true, "mantap": true, "mantul": true, "ready": true,
+
+	// Common communication & app terms
+	"wa": true, "whatsapp": true, "chat": true, "test": true, "tes": true,
+	"testing": true, "ping": true, "p": true,
 }
 
 // cleanCandidateName truncates candidate string at punctuation and negation/correction words.
@@ -78,6 +107,7 @@ func cleanCandidateName(candidate string) string {
 	cutWords := []string{
 		" bukan", " bukanlah", " bkn", " tapi", " tp", " tetapi", " melainkan",
 		" aja", " saja", " ya", " kok", " dong", " kak", " mas", " mbak", " min",
+		" cash", " tunai", " qris", " transfer", " tf", " lanjut",
 	}
 	for _, cw := range cutWords {
 		if idx := strings.Index(candidateLower, cw); idx != -1 {

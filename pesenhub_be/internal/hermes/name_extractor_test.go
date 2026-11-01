@@ -58,12 +58,46 @@ func TestExtractBareCustomerName(t *testing.T) {
 		{"siapa", ""},
 		{"nama saya siapa", ""},
 		{"Yoga bukan siapa!", "Yoga"},
+		{"Cash", ""},
+		{"cash", ""},
+		{"Lanjut", ""},
+		{"lanjut", ""},
+		{"tunai", ""},
+		{"qris", ""},
+		{"transfer", ""},
+		{"batal", ""},
+		{"skip", ""},
 	}
 
 	for _, tt := range tests {
 		got := ExtractBareCustomerName(tt.input)
 		if got != tt.expected {
 			t.Errorf("ExtractBareCustomerName(%q) = %q, expected %q", tt.input, got, tt.expected)
+		}
+	}
+}
+
+func TestCleanCustomerName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"Yoga", "Yoga"},
+		{"kak Yoga", "Yoga"},
+		{"Mas Budi", "Budi"},
+		{"Cash", ""},
+		{"kak Cash", ""},
+		{"Lanjut", ""},
+		{"Pelanggan WhatsApp", ""},
+		{"+6289516122795", ""},
+		{"08123456789", ""},
+		{"bayar tunai", ""},
+	}
+
+	for _, tt := range tests {
+		got := cleanCustomerName(tt.input)
+		if got != tt.expected {
+			t.Errorf("cleanCustomerName(%q) = %q, expected %q", tt.input, got, tt.expected)
 		}
 	}
 }

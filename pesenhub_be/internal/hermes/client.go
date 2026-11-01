@@ -209,7 +209,11 @@ func (c *AgentClient) ExtractOrder(ctx context.Context, systemPrompt, userPrompt
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: status %d", ErrLLMUnavailable, resp.StatusCode)
+		snippet := string(bodyBytes)
+		if len(snippet) > 200 {
+			snippet = snippet[:200] + "..."
+		}
+		return nil, fmt.Errorf("%w: status %d, body: %s", ErrLLMUnavailable, resp.StatusCode, snippet)
 	}
 
 	var completionResp chatCompletionResponse

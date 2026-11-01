@@ -1727,3 +1727,25 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 **Next**
 
 - Push branch `feature/133-redesign-pos-tab-sticky-cart` and open PR for Issue #133.
+
+### 1 November 2026 — Hermes Customer Name Sanitization & 9Router Kiro Combo (Issue #202)
+
+**Goal**
+
+- Mencegah kata transaksi/keuangan (seperti `Cash`, `Tunai`, `Lanjut`) diekstrak sebagai nama pelanggan dan mengoptimasi model LLM 9Router untuk tanya jawab & ekstraksi pesanan dengan memanfaatkan akun Kiro.
+
+**Changed**
+
+- `pesenhub_be/internal/hermes/name_extractor.go`: Memperluas kamus `commonNonNames` dengan kata-kata finansial/checkout, fulfillment, flow/navigasi, dan konfirmasi. Menambahkan `cutWords` di `cleanCandidateName`.
+- `pesenhub_be/internal/hermes/service.go`: Memperketat `cleanCustomerName` agar memfilter honorifik di awal dan menolak multi-kata non-nama. Menyanitasi `profile.DisplayName` dari `customerMemory`.
+- `pesenhub_be/internal/hermes/client.go`: Menyertakan potongan body respons saat HTTP status upstream LLM bukan 200 untuk visibilitas error provider.
+- `pesenhub_be/run.sh`: Menambahkan fallback `GOCACHE` jika `/tmp/pesenhub-go-cache` tidak dapat ditulisi.
+- 9Router combo `pesenhub`: Mengonfigurasi prioritas model Kiro `["kr/deepseek-3.2", "kr/auto", "kr/qwen3-coder-next"]` dengan failover `["gemini/gemini-3.8-flash", "gemini/gemini-3.7-flash"]`.
+- Database: Membersihkan dummy nama `Cash` dan `Lanjut`, memulihkan nama asli `Anlisty` untuk `+6289516122795`, serta mereset status percakapan dari `HANDOFF` ke `COLLECTING`.
+
+**Validation**
+
+- Unit test Hermes: `go test -v ./internal/hermes/...` (PASS).
+- Pemeriksaan stack: `./run.sh check` (PASS).
+- Live inferensi 9Router & WhatsApp webhook turn processing: Berhasil merespon dalam bahasa Indonesia yang ramah dan akurat.
+
