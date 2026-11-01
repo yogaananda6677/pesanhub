@@ -73,18 +73,31 @@ class _QueueViewState extends State<QueueView>
       customerName: order.customerName,
     );
     if (result != null && result.isPaid) {
-      if (widget.onPayOrder != null) {
-        await widget.onPayOrder!(order);
-      } else {
-        widget.controller.updatePaymentStatus(order.id, 'PAID');
-      }
-      if (mounted) {
-        setState(() {});
-        AppFeedback.show(
-          context,
-          message: 'Pembayaran ${order.orderNumber} berhasil dicatat (LUNAS).',
-          type: AppBannerType.success,
-        );
+      try {
+        if (widget.onPayOrder != null) {
+          await widget.onPayOrder!(order);
+        } else {
+          widget.controller.updatePaymentStatus(order.id, 'PAID');
+        }
+        if (mounted) {
+          setState(() {});
+          AppFeedback.show(
+            context,
+            message: 'Pembayaran ${order.orderNumber} berhasil dicatat (LUNAS).',
+            type: AppBannerType.success,
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {});
+          final errorMsg =
+              e is ApiFailure ? e.presentationMessage : e.toString();
+          AppFeedback.show(
+            context,
+            message: 'Gagal mencatat pembayaran ${order.orderNumber}: $errorMsg',
+            type: AppBannerType.error,
+          );
+        }
       }
     }
   }
