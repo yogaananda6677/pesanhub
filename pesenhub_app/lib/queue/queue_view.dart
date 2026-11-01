@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../data/remote/api_failure.dart';
 import '../order/order_detail_view.dart';
 import '../order/widgets/payment_dialog.dart';
 import '../theme/app_spacing.dart';
@@ -107,11 +108,15 @@ class _QueueViewState extends State<QueueView>
     }
 
     var updated = true;
+    String? errorMessage;
     if (widget.onStatusChanged != null) {
       try {
         await widget.onStatusChanged!(currentOrder, newStatus);
-      } catch (_) {
+      } catch (e) {
         updated = false;
+        if (e is ApiFailure) {
+          errorMessage = e.presentationMessage;
+        }
       }
     } else {
       updated = widget.controller.updateOrderStatus(currentOrder.id, newStatus);
@@ -122,7 +127,9 @@ class _QueueViewState extends State<QueueView>
         context,
         message: updated
             ? '${currentOrder.orderNumber} dipindahkan ke ${_statusLabel(newStatus)}.'
-            : '${currentOrder.orderNumber} tidak dapat diperbarui. Muat ulang lalu coba lagi.',
+            : (errorMessage != null
+                ? '${currentOrder.orderNumber}: $errorMessage'
+                : '${currentOrder.orderNumber} tidak dapat diperbarui. Muat ulang lalu coba lagi.'),
         type: updated ? AppBannerType.success : AppBannerType.error,
       );
     }
