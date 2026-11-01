@@ -341,21 +341,6 @@ class _FinanceViewState extends State<FinanceView> {
     return '${start.day} ${months[start.month]} ${start.year} – ${end.day} ${months[end.month]} ${end.year}';
   }
 
-  IconData _periodIcon(FinancePeriodFilter f) {
-    switch (f) {
-      case FinancePeriodFilter.today:
-        return Icons.today_rounded;
-      case FinancePeriodFilter.yesterday:
-        return Icons.history_rounded;
-      case FinancePeriodFilter.thisWeek:
-        return Icons.date_range_rounded;
-      case FinancePeriodFilter.thisMonth:
-        return Icons.calendar_month_rounded;
-      case FinancePeriodFilter.custom:
-        return Icons.tune_rounded;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final summary = _financeController.summary ?? FinancialSummary.empty();
@@ -378,182 +363,234 @@ class _FinanceViewState extends State<FinanceView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Clean & Modern Segmented Date Period Filter (matching Screen 2 mockup)
+                // Modern Unified Filter & Period Card
                 Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F3F8),
-                    borderRadius: BorderRadius.circular(30),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.cardBorderModern),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.obsidianDark.withValues(alpha: 0.025),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: FinancePeriodFilter.values.map((f) {
-                        final isSelected = _financeController.filter == f;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              key: Key('finance-filter-${f.name}'),
-                              borderRadius: BorderRadius.circular(24),
-                              onTap: () async {
-                                if (f == FinancePeriodFilter.custom) {
-                                  final picked = await showDateRangePicker(
-                                    context: context,
-                                    firstDate: DateTime(2024),
-                                    lastDate: DateTime.now(),
-                                    initialDateRange:
-                                        _financeController.effectiveDateRange,
-                                  );
-                                  if (picked != null) {
-                                    await _financeController.setFilter(
-                                      f,
-                                      picked,
-                                    );
-                                  }
-                                } else {
-                                  await _financeController.setFilter(f);
-                                }
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 9,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: isSelected
-                                      ? const LinearGradient(
-                                          colors: [
-                                            Color(0xFF6366F1),
-                                            Color(0xFF4F46E5),
-                                          ],
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                        )
-                                      : null,
-                                  color: isSelected ? null : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(24),
-                                  boxShadow: isSelected
-                                      ? [
-                                          BoxShadow(
-                                            color: const Color(
-                                              0xFF6366F1,
-                                            ).withValues(alpha: 0.35),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                        ]
-                                      : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header Row: Formatted Date Range & Active Period Badge
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: constraints.maxWidth,
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
-                                      _periodIcon(f),
-                                      size: 15,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : AppColors.slate,
+                                    Container(
+                                      padding: const EdgeInsets.all(7),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.indigoBg,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: AppColors.indigoBorder,
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.calendar_today_rounded,
+                                        size: 15,
+                                        color: AppColors.indigo,
+                                      ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      f.label,
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w800
-                                            : FontWeight.w600,
-                                        color: isSelected
-                                            ? Colors.white
-                                            : AppColors.slateDark,
-                                        letterSpacing: -0.1,
+                                    const SizedBox(width: AppSpacing.sm),
+                                    Flexible(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              _formatDateRange(
+                                                _financeController
+                                                    .effectiveDateRange,
+                                              ),
+                                              maxLines: 1,
+                                              style: const TextStyle(
+                                                fontSize: 13.5,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: -0.2,
+                                                color: AppColors.obsidianDark,
+                                              ),
+                                            ),
+                                          ),
+                                          const FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              'Periode Rekap Keuangan',
+                                              maxLines: 1,
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w500,
+                                                color: AppColors.slate,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-
-                // Active Period Info Banner
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.cardBorderModern),
-                  ),
-                  child: Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.calendar_today_rounded,
-                            size: 13,
-                            color: AppColors.indigo,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            _formatDateRange(
-                              _financeController.effectiveDateRange,
-                            ),
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.obsidianDark,
-                            ),
-                          ),
-                        ],
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.emeraldBg,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppColors.emeraldBorder,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.emerald,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      'Periode Aktif',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.emeraldDeep,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      // Segmented Capsule Filter Bar (Full Width, Equal Spacing, No Cut-Offs!)
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
+                        padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
-                          color: AppColors.emeraldBg,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.emeraldBorder),
+                          color: const Color(0xFFF1F3F8),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 5,
-                              height: 5,
-                              decoration: const BoxDecoration(
-                                color: AppColors.emerald,
-                                shape: BoxShape.circle,
+                          children: FinancePeriodFilter.values.map((f) {
+                            final isSelected = _financeController.filter == f;
+                            return Expanded(
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  key: Key('finance-filter-${f.name}'),
+                                  borderRadius: BorderRadius.circular(11),
+                                  onTap: () async {
+                                    if (f == FinancePeriodFilter.custom) {
+                                      final picked = await showDateRangePicker(
+                                        context: context,
+                                        firstDate: DateTime(2024),
+                                        lastDate: DateTime.now(),
+                                        initialDateRange: _financeController
+                                            .effectiveDateRange,
+                                      );
+                                      if (picked != null) {
+                                        await _financeController.setFilter(
+                                          f,
+                                          picked,
+                                        );
+                                      }
+                                    } else {
+                                      await _financeController.setFilter(f);
+                                    }
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: isSelected
+                                          ? const LinearGradient(
+                                              colors: [
+                                                Color(0xFF6366F1),
+                                                Color(0xFF4F46E5),
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            )
+                                          : null,
+                                      color: isSelected
+                                          ? null
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(11),
+                                      boxShadow: isSelected
+                                          ? [
+                                              BoxShadow(
+                                                color: const Color(
+                                                  0xFF6366F1,
+                                                ).withValues(alpha: 0.35),
+                                                blurRadius: 6,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                        child: Text(
+                                          f.label,
+                                          maxLines: 1,
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w800
+                                                : FontWeight.w600,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : AppColors.slateDark,
+                                            letterSpacing: -0.1,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'Periode Aktif',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.emeraldDeep,
-                              ),
-                            ),
-                          ],
+                            );
+                          }).toList(),
                         ),
                       ),
                     ],
