@@ -14,11 +14,12 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Current phase  | Phase 1D — MVP Integration & Release                       |
 | Current status | IN_PROGRESS                                                |
 | MVP target     | 30 hari sejak kickoff                                      |
-| Last updated   | 1 November 2026                                            |
+| Last updated   | 2 November 2026                                            |
 | Updated by     | Issue #140 Portal web Superadmin untuk approval user & health |
 | Updated by     | Issue #143 Dukungan koneksi LAN lokal, feedback, dan kepedasan |
 | Updated by     | Issue #145 Perbaikan error autentikasi Google dan menu terkunci pending |
 | Updated by     | Issue #210 Sinkronisasi pembatalan WhatsApp 2 tahap dan integrasi cancel di POS |
+| Updated by     | Issue #212 Pengenalan intent konfirmasi 'konfirmasi' dan anti-loop respons draf |
 
 ## 2. Product Intent
 
@@ -1792,5 +1793,25 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 - Mobile `flutter test`: 347 tests passed (0 failures).
 - Build Web POS: `flutter build web --release --base-href /app/ --dart-define-from-file=config.json` -> Berhasil di-deploy ke `pesenhub_be/web/app/`.
 - Build Android APK: `flutter build apk --release --dart-define-from-file=config.json` -> Berhasil di-build ke `pesenhub_be/web/downloads/pesenhub-pos.apk` (65.4 MB).
+
+### 2 November 2026 — Hermes Confirmation Intent & Anti-Loop Response (Issue #212)
+
+**Goal**
+
+- Memperbaiki pengenalan intent konfirmasi kata "konfirmasi" dan variasinya pada bot WhatsApp Hermes agar langsung memproses pesanan aktif, menangani pertanyaan status draf seperti "loh bukanya udah ya" atau "cek", serta mencegah bot mengulang pesan canned yang sama secara kaku saat dalam status `READY_FOR_CONFIRMATION`.
+
+**Changed**
+
+- `pesenhub_be/internal/hermes/confirmation.go`: Menambahkan kata konfirmasi baku bahasa Indonesia (`konfirmasi`, `konfirm`, `buatkan`, `bikinkan`, `langsung buatkan`, `proses sekarang`, dll.) ke `exactConfirms`, `strings.Contains`, dan pengecekan kata pertama (`first`). Menambahkan frasa penolakan/batal (`tidak`, `nggak`, `ngga`, `gak`, `tidak usah`, `gak usah`, `jangan`) ke `cancelPhrases`.
+- `pesenhub_be/internal/hermes/cs_intents.go`: Menambahkan pola regex untuk deteksi pertanyaan status draf (`bukannya udah ya`, `cek`, `cek dong`, `sudah diproses belum`).
+- `pesenhub_be/internal/hermes/service.go`: Mengintegrasikan `DetectGreetingInquiry` dan `DetectOrderStatusInquiry` pada status `READY_FOR_CONFIRMATION` dengan fungsi `formatDraftStatusMessage` yang merinci isi draf pesanan dan memberikan instruksi aksi yang jelas (`YA/KONFIRMASI` atau `BATAL`), serta memperjelas pesan fallback jika input pengguna ambigu.
+- `pesenhub_be/internal/hermes/confirmation_test.go` & `service_confirmation_test.go`: Menambahkan pengujian komprehensif untuk pengenalan kata konfirmasi, penolakan, pertanyaan status, dan pembuatan order sukses.
+
+**Validation**
+
+- Backend `pesenhub_be/run.sh check`: All modules verified, [OK].
+- Backend `go test -v ./internal/hermes/...`: 100% PASS.
+- Docker build & container restart: Image `pesenhub-api:dev` diperbarui dan container `pesenhub-api-1` live & healthy.
+
 
 

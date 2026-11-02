@@ -16,6 +16,9 @@ var (
 		regexp.MustCompile(`(?i)\b(status\s+pesanan|cek\s+pesanan|cek\s+status|gimana\s+pesanan|pantau\s+pesanan|lacak\s+pesanan|posisi\s+pesanan)\b`),
 		regexp.MustCompile(`(?i)\b(pesanan|makanan|martabak|terang\s*bulan)(ku|\s+saya)?\s+(udah|sudah|sampai\s+mana|di\s*mana|dimana|masih\s+lama)\b`),
 		regexp.MustCompile(`(?i)\b(sampai\s+mana|masih\s+lama\s+(gak|ngga|ya)|kapan\s+selesai|kapan\s+jadi)\b`),
+		regexp.MustCompile(`(?i)\b(bukannya|bukanya|bukan e|bukane)\s+(udah|sudah)\b`),
+		regexp.MustCompile(`(?i)^\s*(cek|cek\s+dong|cek\s+kak|cek\s+min|lacak|pantau)[\.!?]*\s*$`),
+		regexp.MustCompile(`(?i)\b(sudah\s+dibuatkan|udah\s+dibuat|udah\s+diproses|sudah\s+diproses|udah\s+masuk|sudah\s+masuk)\b`),
 	}
 
 	catalogPatterns = []*regexp.Regexp{

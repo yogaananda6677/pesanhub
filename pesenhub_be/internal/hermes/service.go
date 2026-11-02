@@ -1741,13 +1741,26 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 					AutomationPaused: false,
 				}, nil
 			}
+			if DetectGreetingInquiry(req.MessageText) {
+				reply := formatDraftStatusMessage(state.CurrentDraft, state.CustomerName)
+				state.LastQuestion = reply
+				_ = s.convStore.Save(ctx, state)
+				return &TurnResponse{
+					State:            state,
+					Draft:            state.CurrentDraft,
+					ReplyText:        reply,
+					RequiresHandoff:  false,
+					HandledByAgent:   true,
+					AutomationPaused: false,
+				}, nil
+			}
 			if isInfo, infoType := DetectStoreInfoInquiry(req.MessageText); isInfo {
 				infoReply := formatStoreInfoMessage(infoType, state.CustomerName)
 				greeting := "kak"
 				if state.CustomerName != "" {
 					greeting = "kak " + state.CustomerName
 				}
-				reply := fmt.Sprintf("%s\n\nApakah pesanan yang tadi mau langsung kami buatkan ya %s?", infoReply, greeting)
+				reply := fmt.Sprintf("%s\n\nApakah pesanan yang tadi mau langsung kami buatkan ya %s? (Balas YA/KONFIRMASI atau BATAL)", infoReply, greeting)
 				state.LastQuestion = reply
 				_ = s.convStore.Save(ctx, state)
 				return &TurnResponse{
@@ -1763,7 +1776,7 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 			if state.CustomerName != "" {
 				greeting = "kak " + state.CustomerName
 			}
-			reply := fmt.Sprintf("Pesanan belum terkonfirmasi nih %s. Apakah pesanannya mau langsung kami buatkan? Atau ada menu lain yang ingin ditambahkan atau diubah terlebih dahulu ya %s?", greeting, greeting)
+			reply := fmt.Sprintf("Pesanan belum terkonfirmasi nih %s. Balas *YA* atau *KONFIRMASI* jika ingin langsung kami buatkan, balas *BATAL* jika ingin membatalkan, atau sebutkan menu lain jika ingin menambah/mengubah pesanan ya!", greeting)
 			state.LastQuestion = reply
 			_ = s.convStore.Save(ctx, state)
 
@@ -2276,7 +2289,7 @@ func formatDraftStatusMessage(draft *DraftCandidate, customerName string) string
 	if strings.TrimSpace(customerName) != "" {
 		greeting = "kak " + strings.TrimSpace(customerName)
 	}
-	sb.WriteString(fmt.Sprintf("Halo %s! Berikut draf pesanan kakak saat ini yang belum dikonfirmasi:\n", greeting))
+	sb.WriteString(fmt.Sprintf("Halo %s! Pesanan sebelumnya belum masuk ke antrean dapur karena belum dikonfirmasi ya.\n\nBerikut draf pesanan kakak saat ini:\n", greeting))
 	for _, it := range draft.Items {
 		var modNames []string
 		for _, m := range it.SelectedModifiers {
@@ -2291,8 +2304,8 @@ func formatDraftStatusMessage(draft *DraftCandidate, customerName string) string
 		}
 		sb.WriteString(fmt.Sprintf("- %dx %s%s: Rp %d\n", it.Quantity, it.Name, modStr, it.LineTotalAmount))
 	}
-	sb.WriteString(fmt.Sprintf("\nTotal: Rp %d\n", draft.SubtotalAmount))
-	sb.WriteString(fmt.Sprintf("Apakah pesanannya mau langsung kami buatkan atau ada tambahan menu lain %s? 😊", greeting))
+	sb.WriteString(fmt.Sprintf("\nTotal: Rp %d\n\n", draft.SubtotalAmount))
+	sb.WriteString(fmt.Sprintf("Apakah pesanannya mau langsung kami buatkan sekarang %s? (Balas YA atau KONFIRMASI untuk proses, atau BATAL jika tidak jadi) 😊", greeting))
 	return sb.String()
 }
 
