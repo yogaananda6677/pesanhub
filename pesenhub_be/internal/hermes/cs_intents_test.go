@@ -30,6 +30,11 @@ func TestDetectOrderStatusInquiry(t *testing.T) {
 		"posisi pesanan saya gimana",
 		"martabak saya sudah di mana",
 		"posisi pesanan",
+		"loh bukanya udah ya",
+		"bukannya udah ya",
+		"cek",
+		"cek dong",
+		"sudah diproses belum",
 	}
 
 	for _, text := range positives {

@@ -865,3 +865,100 @@ func TestService_ProcessTurn_ModifyOrder_NoDuplication(t *testing.T) {
 		t.Fatalf("expected 1 item in created order, got %d", len(orderCreator.calls[0].Items))
 	}
 }
+
+func TestService_ProcessTurn_KonfirmasiAndLohBukanyaUdah(t *testing.T) {
+	mockClient := &MockLLMClient{}
+	catProvider := &mockCatalogProvider{categories: sampleCatalog()}
+	convStore := NewMemoryConversationStore()
+	orderCreator := &mockOrderCreator{}
+
+	svc := NewService(Config{
+		Client:            mockClient,
+		CatalogProvider:   catProvider,
+		OrderCreator:      orderCreator,
+		ConversationStore: convStore,
+	})
+
+	ctx := context.Background()
+	phone := "+6289516122795"
+
+	// Pre-seed draft in READY_FOR_CONFIRMATION
+	state, _ := convStore.GetOrCreate(ctx, "default", phone, "corr-init")
+	state.Status = ConversationReadyForConfirmation
+	state.CustomerName = "Anlisty"
+	state.CurrentDraft = &DraftCandidate{
+		Items: []ExtractedItem{
+			{
+				MenuID:          "menu-nasgor",
+				SKU:             "NASGOR",
+				Name:            "Nasi Goreng Spesial",
+				Quantity:        1,
+				UnitPriceAmount: 20000,
+				LineTotalAmount: 20000,
+			},
+		},
+		SubtotalAmount: 20000,
+		TotalAmount:    20000,
+	}
+	_ = convStore.Save(ctx, state)
+
+	// Turn 1: Customer asks "loh bukanya udah ya"
+	turn1, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Anlisty",
+		MessageText:  "loh bukanya udah ya",
+	})
+	if err != nil {
+		t.Fatalf("turn 1 error: %v", err)
+	}
+	if turn1.State.Status != ConversationReadyForConfirmation {
+		t.Fatalf("expected state READY_FOR_CONFIRMATION, got %s", turn1.State.Status)
+	}
+	if !strings.Contains(turn1.ReplyText, "Nasi Goreng Spesial") {
+		t.Fatalf("expected draft items in reply, got: %s", turn1.ReplyText)
+	}
+	if !strings.Contains(turn1.ReplyText, "belum masuk ke antrean dapur") {
+		t.Fatalf("expected explanation in reply, got: %s", turn1.ReplyText)
+	}
+	if len(orderCreator.calls) != 0 {
+		t.Fatalf("expected 0 orders created, got %d", len(orderCreator.calls))
+	}
+
+	// Turn 2: Customer asks "cek"
+	turn2, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Anlisty",
+		MessageText:  "cek",
+	})
+	if err != nil {
+		t.Fatalf("turn 2 error: %v", err)
+	}
+	if turn2.State.Status != ConversationReadyForConfirmation {
+		t.Fatalf("expected state READY_FOR_CONFIRMATION, got %s", turn2.State.Status)
+	}
+	if !strings.Contains(turn2.ReplyText, "Nasi Goreng Spesial") {
+		t.Fatalf("expected draft items in reply, got: %s", turn2.ReplyText)
+	}
+
+	// Turn 3: Customer confirms with "konfirmasi"
+	turn3, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Anlisty",
+		MessageText:  "konfirmasi",
+	})
+	if err != nil {
+		t.Fatalf("turn 3 error: %v", err)
+	}
+	if turn3.State.Status != ConversationCompleted {
+		t.Fatalf("expected state COMPLETED on 'konfirmasi', got %s", turn3.State.Status)
+	}
+	if len(orderCreator.calls) != 1 {
+		t.Fatalf("expected 1 order created on 'konfirmasi', got %d", len(orderCreator.calls))
+	}
+	if !strings.Contains(turn3.ReplyText, "ORD-CONFIRM-123") {
+		t.Fatalf("expected order number in reply, got: %s", turn3.ReplyText)
+	}
+}
