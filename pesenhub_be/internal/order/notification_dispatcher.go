@@ -67,15 +67,6 @@ func (d *WhatsAppNotificationDispatcher) NotifyStatusTransition(ctx context.Cont
 		return
 	}
 
-	// Single Communication Channel Policy:
-	// 1. If order was created via WhatsApp bot, the customer already received order confirmation & PDF receipt in chat.
-	// Suppress ACCEPTED notification so customer is not spammed.
-	// Only notify when food is actually ready for pickup (READY_FOR_PICKUP).
-	if strings.EqualFold(strings.TrimSpace(detail.Source), "WHATSAPP") && toStatus == "ACCEPTED" {
-		d.logger.Info("suppressing ACCEPTED notification for WHATSAPP order", "order_id", orderID)
-		return
-	}
-
 	var notifType notification.NotificationType
 	switch toStatus {
 	case "ACCEPTED":
