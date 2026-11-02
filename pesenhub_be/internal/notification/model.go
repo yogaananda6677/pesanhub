@@ -17,6 +17,8 @@ const (
 	TypeConfirmation NotificationType = "CONFIRMATION"
 	TypeAccepted     NotificationType = "ACCEPTED"
 	TypeCompleted    NotificationType = "COMPLETED"
+	TypeCancelled    NotificationType = "CANCELLED"
+	TypeRejected     NotificationType = "REJECTED"
 )
 
 // NotificationStatus defines the delivery status of a notification record.

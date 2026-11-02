@@ -60,6 +60,10 @@ func RenderTemplate(notifType NotificationType, data OrderNotificationData) (str
 		return RenderAccepted(data), nil
 	case TypeCompleted:
 		return RenderCompleted(data), nil
+	case TypeCancelled:
+		return RenderCancelled(data), nil
+	case TypeRejected:
+		return RenderRejected(data), nil
 	default:
 		return "", fmt.Errorf("unsupported notification type: %s", notifType)
 	}
@@ -131,6 +135,38 @@ func RenderCompleted(data OrderNotificationData) string {
 	sb.WriteString(fmt.Sprintf("Halo *%s*, pesanan Anda *%s* telah SELESAI dan siap diambil di outlet!\n\n", custName, data.OrderNumber))
 	sb.WriteString("Silakan tunjukkan nomor pesanan ini ke kasir saat pengambilan.\n\n")
 	sb.WriteString("Terima kasih telah memesan di PesenHub! 🙏")
+
+	return sb.String()
+}
+
+// RenderCancelled renders the order cancelled message.
+func RenderCancelled(data OrderNotificationData) string {
+	var sb strings.Builder
+	sb.WriteString("❌ *Pesanan Dibatalkan — PesenHub*\n\n")
+
+	custName := strings.TrimSpace(data.CustomerName)
+	if custName == "" {
+		custName = "Pelanggan"
+	}
+	sb.WriteString(fmt.Sprintf("Halo *%s*, pesanan Anda *#%s* telah dibatalkan.\n\n", custName, data.OrderNumber))
+	sb.WriteString("Jika Anda membutuhkan bantuan atau ingin memesan kembali di lain waktu, silakan hubungi kami via WhatsApp ini ya.\n\n")
+	sb.WriteString("Terima kasih atas pengertiannya! 🙏")
+
+	return sb.String()
+}
+
+// RenderRejected renders the order rejected message.
+func RenderRejected(data OrderNotificationData) string {
+	var sb strings.Builder
+	sb.WriteString("🚫 *Pesanan Tidak Dapat Diproses — PesenHub*\n\n")
+
+	custName := strings.TrimSpace(data.CustomerName)
+	if custName == "" {
+		custName = "Pelanggan"
+	}
+	sb.WriteString(fmt.Sprintf("Halo *%s*, mohon maaf pesanan Anda *#%s* belum dapat diproses oleh outlet kami saat ini.\n\n", custName, data.OrderNumber))
+	sb.WriteString("Hal ini mungkin dikarenakan stok menu sedang habis atau kendala operasional outlet.\n\n")
+	sb.WriteString("Mohon maaf atas ketidaknyamanan ini dan terima kasih atas pengertiannya! 🙏")
 
 	return sb.String()
 }

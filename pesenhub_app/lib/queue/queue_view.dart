@@ -123,6 +123,34 @@ class _QueueViewState extends State<QueueView>
       return;
     }
 
+    if (newStatus == 'REJECTED' || newStatus == 'CANCELLED') {
+      final isRejected = newStatus == 'REJECTED';
+      final actionLabel = isRejected ? 'Tolak Pesanan' : 'Batalkan Pesanan';
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Konfirmasi $actionLabel'),
+          content: Text(
+            'Apakah Anda yakin ingin ${isRejected ? 'menolak' : 'membatalkan'} ${currentOrder.orderNumber}?\n\nPembeli akan menerima informasi status terkait.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFC62828),
+              ),
+              child: Text(isRejected ? 'Ya, Tolak' : 'Ya, Batalkan'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
     var updated = true;
     String? errorMessage;
     if (widget.onStatusChanged != null) {
@@ -156,6 +184,8 @@ class _QueueViewState extends State<QueueView>
     'PREPARING' => 'Diproses',
     'READY_FOR_PICKUP' => 'Siap Diambil',
     'COMPLETED' => 'Selesai',
+    'REJECTED' => 'Ditolak',
+    'CANCELLED' => 'Dibatalkan',
     _ => status,
   };
 

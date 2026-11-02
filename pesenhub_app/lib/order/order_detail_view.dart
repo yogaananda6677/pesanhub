@@ -653,11 +653,41 @@ class OrderDetailView extends StatelessWidget {
                       ),
                       onPressed: isExecuting
                           ? null
-                          : () => controller.executeAction(
-                              secondaryAction,
-                              transitionFn: transitionFn,
-                              reloadFn: reloadFn,
-                            ),
+                          : () async {
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: Text(
+                                    'Konfirmasi ${secondaryAction.label}',
+                                  ),
+                                  content: Text(
+                                    'Apakah Anda yakin ingin memproses ${secondaryAction.label.toLowerCase()} untuk ${order.orderNumber}?\n\nPembeli akan menerima informasi status terkait.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(ctx).pop(false),
+                                      child: const Text('Batal'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () =>
+                                          Navigator.of(ctx).pop(true),
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: AppColors.error,
+                                      ),
+                                      child: Text(secondaryAction.label),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirmed == true) {
+                                await controller.executeAction(
+                                  secondaryAction,
+                                  transitionFn: transitionFn,
+                                  reloadFn: reloadFn,
+                                );
+                              }
+                            },
                     ),
                   ],
                 ],

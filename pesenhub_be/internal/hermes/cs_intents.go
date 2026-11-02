@@ -68,6 +68,12 @@ var (
 		regexp.MustCompile(`(?i)\b(tau|tahu|kenal)\s+(nama\s*(saya|ku|aku|gw|gue)|(siapa\s+)?(saya|aku|gw|gue))\b`),
 		regexp.MustCompile(`(?i)^\s*(nama\s+saya\s+siapa|namaku\s+siapa|siapa\s+namaku)(\s+(dong|kak|min|ya|kah|sih|nih|deh|ta))*\s*[\.!?]*\s*$`),
 	}
+
+	cancelOrderPatterns = []*regexp.Regexp{
+		regexp.MustCompile(`(?i)\b(batal|batalkan|batalin|cancel|cancle|gak\s+jadi|ga\s+jadi|ngga\s+jadi|tidak\s+jadi)\s+(pesanan|order|orderan|makanan|martabak|terang\s*bulan)\b`),
+		regexp.MustCompile(`(?i)\b(mau|tolong|minta|bisa)?\s*(batalkan|batalin|cancel)\s*(pesanan(ku|\s+saya)?)?\b`),
+		regexp.MustCompile(`(?i)^\s*(batal|batalkan|batalin|cancel|gak\s+jadi|ga\s+jadi|ngga\s+jadi|tidak\s+jadi)(\s+(kak|min|dong|ya|aja|mas))*\s*[\.!?]*\s*$`),
+	}
 )
 
 // DetectNameInquiry detects whether the customer is asking the bot what their recorded name is.
@@ -184,6 +190,72 @@ func DetectGreetingInquiry(text string) bool {
 		if p.MatchString(trimmed) {
 			return true
 		}
+	}
+	return false
+}
+
+// DetectOrderCancellationRequest detects whether the customer is asking to cancel an order or draft.
+func DetectOrderCancellationRequest(text string) bool {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return false
+	}
+	for _, p := range cancelOrderPatterns {
+		if p.MatchString(trimmed) {
+			return true
+		}
+	}
+	return false
+}
+
+// DetectCancelConfirmationAffirmative checks if the customer confirms the cancellation in the 2nd step.
+func DetectCancelConfirmationAffirmative(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	cleaned := cleanPunctuationRegex.ReplaceAllString(lower, " ")
+	fields := strings.Fields(cleaned)
+	if len(fields) == 0 {
+		return false
+	}
+	normalized := strings.Join(fields, " ")
+
+	exacts := map[string]struct{}{
+		"ya": {}, "iya": {}, "ya batalkan": {}, "ya batal": {}, "batalkan": {},
+		"batal": {}, "cancel": {}, "ya cancel": {}, "iya batalkan": {}, "iya batal": {},
+		"oke batalkan": {}, "ok batalkan": {}, "beneran batal": {}, "benar batalkan": {},
+		"y": {}, "yes": {}, "yep": {}, "yap": {}, "siap batalkan": {},
+	}
+	if _, ok := exacts[normalized]; ok {
+		return true
+	}
+	if strings.HasPrefix(normalized, "ya batal") || strings.HasPrefix(normalized, "iya batal") {
+		return true
+	}
+	return false
+}
+
+// DetectCancelConfirmationNegative checks if the customer changes their mind and wants to keep the order.
+func DetectCancelConfirmationNegative(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	cleaned := cleanPunctuationRegex.ReplaceAllString(lower, " ")
+	fields := strings.Fields(cleaned)
+	if len(fields) == 0 {
+		return false
+	}
+	normalized := strings.Join(fields, " ")
+
+	exacts := map[string]struct{}{
+		"tidak": {}, "ngga": {}, "nggak": {}, "gak": {}, "ngak": {}, "tdk": {},
+		"jangan": {}, "jangan batalkan": {}, "jangan batal": {}, "gak jadi": {},
+		"ga jadi": {}, "tidak jadi": {}, "ngga jadi": {}, "gak jadi batal": {},
+		"ga jadi batal": {}, "tidak jadi batal": {}, "ngga jadi batal": {},
+		"lanjut": {}, "lanjutkan": {}, "tetap proses": {}, "tetap pesan": {},
+		"no": {}, "nope": {}, "enggak": {}, "engga": {},
+	}
+	if _, ok := exacts[normalized]; ok {
+		return true
+	}
+	if strings.Contains(normalized, "gak jadi batal") || strings.Contains(normalized, "jangan") || strings.Contains(normalized, "tidak jadi batal") {
+		return true
 	}
 	return false
 }

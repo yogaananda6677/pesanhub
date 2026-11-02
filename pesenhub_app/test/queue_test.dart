@@ -422,6 +422,11 @@ void main() {
         await tester.tap(find.text('Tolak'));
         await tester.pumpAndSettle();
 
+        // Confirm rejection dialog
+        expect(find.text('Ya, Tolak'), findsOneWidget);
+        await tester.tap(find.text('Ya, Tolak'));
+        await tester.pumpAndSettle();
+
         expect(updatedOrder?.id, equals('ord-wa-1'));
         expect(nextStatus, equals('REJECTED'));
       },

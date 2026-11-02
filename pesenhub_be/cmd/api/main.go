@@ -133,6 +133,7 @@ func main() {
 		CatalogProvider:     catalogService,
 		OrderCreator:        orderService,
 		OrderReader:         orderStore,
+		OrderTransitioner:   orderService,
 		CustomerMemory:      customerService,
 		Store:               hermesStore,
 		ConversationStore:   hermesConvStore,
