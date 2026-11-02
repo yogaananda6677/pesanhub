@@ -132,7 +132,7 @@ func TestNotificationDispatcher_AcceptedTransition(t *testing.T) {
 	}
 }
 
-func TestNotificationDispatcher_AcceptedTransition_WhatsAppSuppressed(t *testing.T) {
+func TestNotificationDispatcher_AcceptedTransition_WhatsAppDispatched(t *testing.T) {
 	phone := "+6281234567890"
 	reader := &mockOrderReader{
 		detail: OrderDetail{
@@ -149,11 +149,14 @@ func TestNotificationDispatcher_AcceptedTransition_WhatsAppSuppressed(t *testing
 	notif := &mockNotifier{}
 	dispatcher := NewNotificationDispatcher(reader, notif, nil)
 
-	// ACCEPTED notification for WHATSAPP order should be suppressed
+	// ACCEPTED notification for WHATSAPP order should be dispatched to customer
 	dispatcher.NotifyStatusTransition(context.Background(), "ord-123", "PENDING", "ACCEPTED")
 
-	if notif.dispatchCalls != 0 {
-		t.Fatalf("expected 0 dispatch calls for WHATSAPP order ACCEPTED transition, got %d", notif.dispatchCalls)
+	if notif.dispatchCalls != 1 {
+		t.Fatalf("expected 1 dispatch call for WHATSAPP order ACCEPTED transition, got %d", notif.dispatchCalls)
+	}
+	if notif.lastType != notification.TypeAccepted {
+		t.Fatalf("expected TypeAccepted, got %s", notif.lastType)
 	}
 }
 

@@ -20,6 +20,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Updated by     | Issue #145 Perbaikan error autentikasi Google dan menu terkunci pending |
 | Updated by     | Issue #210 Sinkronisasi pembatalan WhatsApp 2 tahap dan integrasi cancel di POS |
 | Updated by     | Issue #212 Pengenalan intent konfirmasi 'konfirmasi' dan anti-loop respons draf |
+| Updated by     | Issue #214 Pemesanan langsung tanpa 'YA', pembatalan 2-tahap 'BATAL', dan notifikasi kasir |
 
 ## 2. Product Intent
 
@@ -1811,6 +1812,29 @@ Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemuka
 
 - Backend `pesenhub_be/run.sh check`: All modules verified, [OK].
 - Backend `go test -v ./internal/hermes/...`: 100% PASS.
+- Docker build & container restart: Image `pesenhub-api:dev` diperbarui dan container `pesenhub-api-1` live & healthy.
+
+### 2 November 2026 — Pemesanan Langsung Tanpa 'YA', Pembatalan 2-Tahap 'BATAL', dan Notifikasi WhatsApp Kasir (Issue #214)
+
+**Goal**
+
+- Memperbaiki alur percakapan WhatsApp agar pesanan makanan yang lengkap (menu, varian, nama pelanggan) langsung dibuat (`PENDING`) tanpa mengharuskan pelanggan mengetik "YA" atau menahan draf di `READY_FOR_CONFIRMATION`.
+- Menyediakan instruksi pembatalan eksplisit via keyword `BATAL` dengan dialog konfirmasi pengaman 2 tahap (`YA BATALKAN` / `TIDAK`).
+- Mengaktifkan pengiriman notifikasi WhatsApp ke pelanggan saat kasir di POS menerima pesanan (`ACCEPTED`) serta memastikan notifikasi tetap terkirim saat kasir menolak atau membatalkan pesanan (`REJECTED` / `CANCELLED`).
+
+**Changed**
+
+- `pesenhub_be/internal/order/notification_dispatcher.go`: Menghapus supresi notifikasi `ACCEPTED` untuk pesanan WhatsApp sehingga notifikasi WhatsApp langsung terkirim ke pelanggan saat pesanan diterima oleh kasir di POS.
+- `pesenhub_be/internal/order/notification_dispatcher_test.go`: Menyesuaikan unit test `TestNotificationDispatcher_AcceptedTransition_WhatsAppDispatched` untuk memvalidasi pengiriman notifikasi WhatsApp `ACCEPTED`.
+- `pesenhub_be/internal/hermes/confirmation.go`: Menambahkan panduan pembatalan `_Ketik *BATAL* jika ingin membatalkan pesanan._` pada pesan konfirmasi order sukses.
+- `pesenhub_be/internal/hermes/service.go`: Menambahkan helper `executeOrderCreation` untuk pembuatan order langsung, memanggilnya pada Turn 1 setelah ekstraksi berhasil (selama nama pelanggan tersedia), saat penambahan menu selesai, atau saat penggantian menu terselesaikan. Menambahkan `isOrderAcknowledgment` dan pengecekan di status `ConversationCompleted` agar respons santai/terima kasih pelanggan tidak memicu duplikasi order.
+- `pesenhub_be/internal/hermes/service_confirmation_test.go`: Menambahkan pengujian `TestService_ProcessTurn_DirectOrderPlacement_AndCancelByBatal` yang memvalidasi pembuatan order langsung tanpa ketik "YA" dan proses pembatalan 2 tahap dengan keyword "BATAL".
+
+**Validation**
+
+- Backend `pesenhub_be/run.sh check`: All modules verified, [OK].
+- Backend `go test -v ./internal/hermes/... ./internal/order/... ./internal/notification/...`: 100% PASS.
+- Frontend `flutter analyze`: No issues found!
 - Docker build & container restart: Image `pesenhub-api:dev` diperbarui dan container `pesenhub-api-1` live & healthy.
 
 

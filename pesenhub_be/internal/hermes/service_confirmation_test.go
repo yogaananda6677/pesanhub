@@ -506,25 +506,34 @@ func TestService_ProcessTurn_AddItemsDuringConfirmation(t *testing.T) {
 	ctx := context.Background()
 	phone := "+6289516122795"
 
-	// Turn 1: Initial item
-	turn1, err := svc.ProcessTurn(ctx, TurnRequest{
-		Session:      "default",
-		SenderPhone:  phone,
-		CustomerName: "Yoga",
-		MessageText:  "Pesan nasi goreng spesial 1 pedas",
+	// Pre-seed draft in READY_FOR_CONFIRMATION
+	_ = convStore.Save(ctx, &ConversationState{
+		ID:            "conv-add-test",
+		Session:       "default",
+		CustomerPhone: phone,
+		CustomerName:  "Yoga",
+		Status:        ConversationReadyForConfirmation,
+		CurrentDraft: &DraftCandidate{
+			CustomerPhone:   phone,
+			CustomerName:    "Yoga",
+			FulfillmentType: "PICKUP",
+			PaymentMethod:   "CASH",
+			Items: []ExtractedItem{
+				{
+					MenuID:          "m1",
+					Name:            "Nasi Goreng Spesial",
+					Quantity:        1,
+					LineTotalAmount: 20000,
+					SelectedModifiers: []SelectedModifier{
+						{GroupID: "g1", OptionID: "opt-pedas", OptionName: "Pedas"},
+					},
+				},
+			},
+			SubtotalAmount: 20000,
+			TotalAmount:    20000,
+		},
+		DraftVersion: 1,
 	})
-	if err != nil {
-		t.Fatalf("turn 1 error: %v", err)
-	}
-	if turn1.State.Status != ConversationReadyForConfirmation {
-		t.Fatalf("expected status READY_FOR_CONFIRMATION, got %s", turn1.State.Status)
-	}
-	if len(turn1.Draft.Items) != 1 {
-		t.Fatalf("expected 1 item in draft, got %d", len(turn1.Draft.Items))
-	}
-	if len(orderCreator.calls) != 0 {
-		t.Fatal("order should not be created yet")
-	}
 
 	// Turn 2: Customer wants to add items ("iya nambah pesanan lagi")
 	// The mock client will return 0 items for extraction of "iya nambah pesanan lagi"
@@ -656,19 +665,34 @@ func TestService_ProcessTurn_AddItemsWithLLMClarification(t *testing.T) {
 	ctx := context.Background()
 	phone := "+6289516122795"
 
-	// Turn 1: Initial item
-	turn1, err := svc.ProcessTurn(ctx, TurnRequest{
-		Session:      "default",
-		SenderPhone:  phone,
-		CustomerName: "Yoga",
-		MessageText:  "Pesan nasi goreng spesial 1 pedas",
+	// Pre-seed draft in READY_FOR_CONFIRMATION
+	_ = convStore.Save(ctx, &ConversationState{
+		ID:            "conv-add-llm-test",
+		Session:       "default",
+		CustomerPhone: phone,
+		CustomerName:  "Yoga",
+		Status:        ConversationReadyForConfirmation,
+		CurrentDraft: &DraftCandidate{
+			CustomerPhone:   phone,
+			CustomerName:    "Yoga",
+			FulfillmentType: "PICKUP",
+			PaymentMethod:   "CASH",
+			Items: []ExtractedItem{
+				{
+					MenuID:          "m1",
+					Name:            "Nasi Goreng Spesial",
+					Quantity:        1,
+					LineTotalAmount: 20000,
+					SelectedModifiers: []SelectedModifier{
+						{GroupID: "g1", OptionID: "opt-pedas", OptionName: "Pedas"},
+					},
+				},
+			},
+			SubtotalAmount: 20000,
+			TotalAmount:    20000,
+		},
+		DraftVersion: 1,
 	})
-	if err != nil {
-		t.Fatalf("turn 1 error: %v", err)
-	}
-	if turn1.State.Status != ConversationReadyForConfirmation {
-		t.Fatalf("expected status READY_FOR_CONFIRMATION, got %s", turn1.State.Status)
-	}
 
 	// Turn 2: Customer wants to add drinks, LLM returns conversational clarifying question
 	mockClient.Response = &RawExtractedOrder{
@@ -724,8 +748,8 @@ func TestService_ProcessTurn_AddItemsWithLLMClarification(t *testing.T) {
 	if err != nil {
 		t.Fatalf("turn 3 error: %v", err)
 	}
-	if turn3.State.Status != ConversationReadyForConfirmation {
-		t.Fatalf("expected status READY_FOR_CONFIRMATION, got %s", turn3.State.Status)
+	if turn3.State.Status != ConversationCompleted {
+		t.Fatalf("expected status COMPLETED, got %s", turn3.State.Status)
 	}
 	if len(turn3.Draft.Items) != 2 {
 		t.Fatalf("expected 2 items in draft, got %d", len(turn3.Draft.Items))
@@ -733,8 +757,8 @@ func TestService_ProcessTurn_AddItemsWithLLMClarification(t *testing.T) {
 	if turn3.Draft.TotalAmount != 25000 {
 		t.Fatalf("expected total amount 25000 (20000 + 5000), got %d", turn3.Draft.TotalAmount)
 	}
-	if !strings.Contains(turn3.ReplyText, "Es Teh Manis") || !strings.Contains(turn3.ReplyText, "Nasi Goreng Spesial") {
-		t.Fatalf("expected both items in confirmation summary, got:\n%s", turn3.ReplyText)
+	if !strings.Contains(turn3.ReplyText, "ORD-CONFIRM-123") || !strings.Contains(turn3.ReplyText, "25000") {
+		t.Fatalf("expected order confirmation in reply, got:\n%s", turn3.ReplyText)
 	}
 
 	// Turn 4: Confirm
@@ -790,24 +814,33 @@ func TestService_ProcessTurn_ModifyOrder_NoDuplication(t *testing.T) {
 	phone := "+6281234567890"
 	ctx := context.Background()
 
-	turn1, err := svc.ProcessTurn(ctx, TurnRequest{
-		Session:      "default",
-		SenderPhone:  phone,
-		CustomerName: "Yoga",
-		MessageText:  "pesan terang bulan 2 toping pisang coklat",
+	// Pre-seed draft in READY_FOR_CONFIRMATION
+	_ = convStore.Save(ctx, &ConversationState{
+		ID:            "conv-modify-test",
+		Session:       "default",
+		CustomerPhone: phone,
+		CustomerName:  "Yoga",
+		Status:        ConversationReadyForConfirmation,
+		CurrentDraft: &DraftCandidate{
+			CustomerPhone: phone,
+			CustomerName:  "Yoga",
+			Items: []ExtractedItem{
+				{
+					MenuID:          "menu-terang-bulan-2-toping",
+					Name:            "Terang Bulan 2 Topping",
+					Quantity:        1,
+					LineTotalAmount: 30000,
+					SelectedModifiers: []SelectedModifier{
+						{GroupID: "g-topping-1", OptionID: "opt-pisang", OptionName: "Pisang"},
+						{GroupID: "g-topping-2", OptionID: "opt-coklat", OptionName: "Coklat"},
+					},
+				},
+			},
+			SubtotalAmount: 30000,
+			TotalAmount:    30000,
+		},
+		DraftVersion: 1,
 	})
-	if err != nil {
-		t.Fatalf("turn 1 error: %v", err)
-	}
-	if turn1.State.Status != ConversationReadyForConfirmation {
-		t.Fatalf("expected status READY_FOR_CONFIRMATION, got %s", turn1.State.Status)
-	}
-	if len(turn1.Draft.Items) != 1 {
-		t.Fatalf("expected 1 item in draft, got %d", len(turn1.Draft.Items))
-	}
-	if turn1.Draft.TotalAmount != 30000 {
-		t.Fatalf("expected total amount 30000, got %d", turn1.Draft.TotalAmount)
-	}
 
 	// Turn 2: Customer modifies to "Diubah, 2 toping keju dan coklat"
 	// LLM extracts the modified order
@@ -960,5 +993,119 @@ func TestService_ProcessTurn_KonfirmasiAndLohBukanyaUdah(t *testing.T) {
 	}
 	if !strings.Contains(turn3.ReplyText, "ORD-CONFIRM-123") {
 		t.Fatalf("expected order number in reply, got: %s", turn3.ReplyText)
+	}
+}
+
+func TestService_ProcessTurn_DirectOrderPlacement_AndCancelByBatal(t *testing.T) {
+	mockClient := &MockLLMClient{
+		Response: &RawExtractedOrder{
+			Items: []RawExtractedItem{
+				{
+					MenuName:   "Nasi Goreng Spesial",
+					Quantity:   1,
+					Modifiers:  []string{"Pedas"},
+					Confidence: 0.95,
+				},
+			},
+			FulfillmentType: "PICKUP",
+			PaymentMethod:   "CASH",
+			Confidence:      0.95,
+		},
+	}
+
+	catProvider := &mockCatalogProvider{categories: sampleCatalog()}
+	convStore := NewMemoryConversationStore()
+	orderCreator := &mockOrderCreator{}
+	transitioner := &mockOrderTransitioner{}
+	testOrder := order.OrderDetail{
+		ID:          "ord-direct-1",
+		OrderNumber: "ORD-CONFIRM-123",
+		Status:      "PENDING",
+		TotalAmount: 20000,
+		Version:     1,
+	}
+	reader := &mockOrderReader{
+		latestByPhone: map[string]order.OrderDetail{
+			"+6289516122795": testOrder,
+		},
+		orderByID: map[string]order.OrderDetail{
+			"ord-direct-1": testOrder,
+		},
+	}
+
+	svc := NewService(Config{
+		Client:            mockClient,
+		CatalogProvider:   catProvider,
+		OrderCreator:      orderCreator,
+		OrderReader:       reader,
+		OrderTransitioner: transitioner,
+		ConversationStore: convStore,
+	})
+
+	ctx := context.Background()
+	phone := "+6289516122795"
+
+	// Turn 1: Customer orders with name "Anlisty" -> DIRECTLY creates order (no "YA" required!)
+	turn1, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Anlisty",
+		MessageText:  "Pesan Nasi Goreng Spesial 1 pedas",
+	})
+	if err != nil {
+		t.Fatalf("turn 1 error: %v", err)
+	}
+	if turn1.State.Status != ConversationCompleted {
+		t.Fatalf("expected status COMPLETED on direct order placement, got %s", turn1.State.Status)
+	}
+	if len(orderCreator.calls) != 1 {
+		t.Fatalf("expected 1 order created directly without YA, got %d", len(orderCreator.calls))
+	}
+	if !strings.Contains(turn1.ReplyText, "ORD-CONFIRM-123") {
+		t.Fatalf("expected order number ORD-CONFIRM-123 in reply, got: %s", turn1.ReplyText)
+	}
+	if !strings.Contains(turn1.ReplyText, "Ketik *BATAL* jika ingin membatalkan pesanan") {
+		t.Fatalf("expected BATAL cancellation instruction in reply, got: %s", turn1.ReplyText)
+	}
+
+	// Turn 2: Customer wants to cancel -> types "batal"
+	mockClient.Response = &RawExtractedOrder{
+		Items:      []RawExtractedItem{},
+		Confidence: 0.95,
+	}
+	turn2, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Anlisty",
+		MessageText:  "batal",
+	})
+	if err != nil {
+		t.Fatalf("turn 2 error: %v", err)
+	}
+	if turn2.State.PendingAmbiguity != "awaiting_cancel_order_confirmation" {
+		t.Fatalf("expected state awaiting_cancel_order_confirmation, got %s", turn2.State.PendingAmbiguity)
+	}
+	if !strings.Contains(turn2.ReplyText, "apakah kakak yakin ingin membatalkan pesanan") {
+		t.Fatalf("expected 2-step cancellation prompt, got: %s", turn2.ReplyText)
+	}
+
+	// Turn 3: Customer confirms cancellation -> types "ya batalkan"
+	turn3, err := svc.ProcessTurn(ctx, TurnRequest{
+		Session:      "default",
+		SenderPhone:  phone,
+		CustomerName: "Anlisty",
+		MessageText:  "ya batalkan",
+	})
+	if err != nil {
+		t.Fatalf("turn 3 error: %v", err)
+	}
+	if !strings.Contains(turn3.ReplyText, "telah berhasil dibatalkan") {
+		t.Fatalf("expected cancellation success reply, got: %s", turn3.ReplyText)
+	}
+	if len(transitioner.transitions) != 1 {
+		t.Fatalf("expected 1 transition to CANCELLED, got %d", len(transitioner.transitions))
+	}
+	if transitioner.transitions[0].targetStatus != "CANCELLED" {
+		t.Fatalf("expected target status CANCELLED, got %s", transitioner.transitions[0].targetStatus)
 	}
 }

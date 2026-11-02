@@ -1124,6 +1124,10 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 						}, nil
 					}
 
+					if s.orderCreator != nil && state.CustomerName != "" {
+						return s.executeOrderCreation(ctx, req, state, mergedDraft, correlationID, run)
+					}
+
 					state.Status = ConversationReadyForConfirmation
 					state.CurrentDraft = mergedDraft
 					state.PendingAmbiguity = ""
@@ -1235,6 +1239,10 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 					}
 
 					// Unambiguous and complete!
+					if s.orderCreator != nil && state.CustomerName != "" {
+						return s.executeOrderCreation(ctx, req, state, mergedDraft, correlationID, run)
+					}
+
 					state.Status = ConversationReadyForConfirmation
 					state.CurrentDraft = mergedDraft
 					state.PendingAmbiguity = ""
@@ -1340,6 +1348,10 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 		}
 
 		// Unambiguous and complete!
+		if s.orderCreator != nil && state.CustomerName != "" {
+			return s.executeOrderCreation(ctx, req, state, updatedDraft, correlationID, nil)
+		}
+
 		state.Status = ConversationReadyForConfirmation
 		state.CurrentDraft = updatedDraft
 		state.PendingAmbiguity = ""
@@ -1401,144 +1413,8 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 				}, nil
 			}
 
-			// 2. Draft is fresh! Create WhatsApp order idempotently
-			if s.orderCreator == nil {
-				return nil, errors.New("order creator unavailable")
-			}
-
-			orderItems := make([]order.ItemInput, 0, len(state.CurrentDraft.Items))
-			for _, it := range state.CurrentDraft.Items {
-				var selections []catalog.Selection
-				groupOptions := make(map[string][]string)
-				for _, mod := range it.SelectedModifiers {
-					groupOptions[mod.GroupID] = append(groupOptions[mod.GroupID], mod.OptionID)
-				}
-				for gID, optIDs := range groupOptions {
-					selections = append(selections, catalog.Selection{
-						GroupID:   gID,
-						OptionIDs: optIDs,
-					})
-				}
-				orderItems = append(orderItems, order.ItemInput{
-					MenuID:     it.MenuID,
-					Quantity:   it.Quantity,
-					Notes:      it.Notes,
-					Selections: selections,
-				})
-			}
-
-			customerDisplayName := "Pelanggan WhatsApp"
-			if state.CustomerName != "" {
-				customerDisplayName = state.CustomerName
-			}
-			idempotencyKey := fmt.Sprintf("wa-conf-%s-%d", state.ID, state.DraftVersion)
-			if state.ConfirmationToken != "" {
-				idempotencyKey = fmt.Sprintf("wa-%s", state.ConfirmationToken)
-			}
-			createIn := order.WhatsAppOrderCreateInput{
-				CustomerPhone: req.SenderPhone,
-				CustomerName:  customerDisplayName,
-				Notes:         state.CurrentDraft.Notes,
-				Items:         orderItems,
-			}
-
-			orderRes, _, err := s.orderCreator.CreateWhatsApp(ctx, createIn, idempotencyKey, correlationID)
-			if err != nil {
-				state.ToolFailureCount++
-				if state.ToolFailureCount >= MaxToolFailures {
-					state.Status = ConversationHandoff
-					state.HandoffStatus = HandoffStatusPending
-					reason := "order_creation_failed"
-					state.HandoffReason = &reason
-					state.HandoffPriority = HandoffPriorityHigh
-					reply := FormatSystemDownMessage(state.CustomerName)
-					state.LastQuestion = reply
-					_ = s.convStore.Save(ctx, state)
-					s.recordHandoffAudit(ctx, state, HandoffActionTriggered, "SYSTEM", "SYSTEM", reason, correlationID, map[string]any{
-						"priority": HandoffPriorityHigh,
-						"error":    err.Error(),
-					})
-
-					return &TurnResponse{
-						State:            state,
-						Draft:            state.CurrentDraft,
-						ReplyText:        reply,
-						RequiresHandoff:  true,
-						HandledByAgent:   false,
-						AutomationPaused: true,
-					}, nil
-				}
-				_ = s.convStore.Save(ctx, state)
-				return nil, fmt.Errorf("failed to create whatsapp order: %w", err)
-			}
-
-			state.ToolFailureCount = 0
-			state.Status = ConversationCompleted
-			state.LastOrderID = &orderRes.ID
-			state.LastQuestion = ""
-			_ = s.convStore.Save(ctx, state)
-
-			if state.CustomerName != "" && s.customerMemory != nil {
-				_, _ = s.customerMemory.UpsertName(ctx, req.SenderPhone, state.CustomerName)
-			}
-
-			orderSummary := &WhatsAppOrderSummary{
-				ID:                  orderRes.ID,
-				OrderNumber:         orderRes.OrderNumber,
-				PublicTrackingToken: orderRes.PublicTrackingToken,
-				Status:              orderRes.Status,
-				TotalAmount:         orderRes.TotalAmount,
-				CreatedAt:           orderRes.CreatedAt,
-			}
-
-			successReply := FormatOrderSuccessMessage(orderRes.OrderNumber, orderRes.PublicTrackingToken, orderRes.TotalAmount, state.CustomerName)
-
-			var mediaAttachments []MediaAttachment
-			var createdOrd order.OrderDetail
-			if s.orderReader != nil {
-				if fetched, fetchErr := s.orderReader.GetByID(ctx, orderRes.ID); fetchErr == nil && fetched.ID != "" {
-					createdOrd = fetched
-				}
-			}
-			if createdOrd.ID == "" {
-				createdOrd = order.OrderDetail{
-					ID:                  orderRes.ID,
-					OrderNumber:         orderRes.OrderNumber,
-					PublicTrackingToken: orderRes.PublicTrackingToken,
-					Status:              orderRes.Status,
-					TotalAmount:         orderRes.TotalAmount,
-					CustomerName:        customerDisplayName,
-					CreatedAt:           orderRes.CreatedAt,
-				}
-				if state.CurrentDraft != nil {
-					for _, it := range state.CurrentDraft.Items {
-						var mods []order.ModifierSnapshot
-						for _, m := range it.SelectedModifiers {
-							mods = append(mods, order.ModifierSnapshot{Name: m.OptionName})
-						}
-						createdOrd.Items = append(createdOrd.Items, order.OrderItemDetail{
-							Name:            it.Name,
-							Quantity:        it.Quantity,
-							LineTotalAmount: it.LineTotalAmount,
-							Modifiers:       mods,
-						})
-					}
-				}
-			}
-			if receiptAtt := buildReceiptMediaAttachment(createdOrd, state.CustomerName); receiptAtt != nil {
-				mediaAttachments = append(mediaAttachments, *receiptAtt)
-			}
-
-			return &TurnResponse{
-				State:            state,
-				Draft:            state.CurrentDraft,
-				ReplyText:        successReply,
-				RequiresHandoff:  false,
-				HandledByAgent:   true,
-				AutomationPaused: false,
-				Order:            orderSummary,
-				MediaAttachments: mediaAttachments,
-			}, nil
+			// 2. Draft is fresh! Create WhatsApp order
+			return s.executeOrderCreation(ctx, req, state, updatedDraft, correlationID, nil)
 
 		case IntentCancel:
 			if s.convStore != nil && state.CycleID != "" {
@@ -1793,8 +1669,7 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 
 	// 7. If currently completed:
 	if state.Status == ConversationCompleted {
-		lower := strings.ToLower(strings.TrimSpace(req.MessageText))
-		if lower == "terima kasih" || lower == "makasih" || lower == "terimakasih" || lower == "tq" || lower == "ok" || lower == "oke" || lower == "siap" {
+		if DetectConfirmationIntent(req.MessageText) == IntentConfirm || isOrderAcknowledgment(req.MessageText) {
 			reply := "Sama-sama kak! Pesanan kakak sedang kami siapkan ya."
 			if state.CustomerName != "" {
 				reply = fmt.Sprintf("Sama-sama kak %s! Pesanan kakak sedang kami siapkan ya.", state.CustomerName)
@@ -1946,7 +1821,11 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 		}, nil
 	}
 
-	// Complete on first turn
+	// Unambiguous and complete on first turn!
+	if s.orderCreator != nil && state.CustomerName != "" {
+		return s.executeOrderCreation(ctx, req, state, draft, correlationID, run)
+	}
+
 	state.Status = ConversationReadyForConfirmation
 	state.CurrentDraft = draft
 	state.PendingAmbiguity = ""
@@ -1969,6 +1848,176 @@ func (s *Service) ProcessTurn(ctx context.Context, req TurnRequest) (resp *TurnR
 		RequiresHandoff:  false,
 		HandledByAgent:   true,
 		AutomationPaused: false,
+		Run:              run,
+	}, nil
+}
+
+// executeOrderCreation creates a WhatsApp order directly and returns the completed turn response.
+func (s *Service) executeOrderCreation(ctx context.Context, req TurnRequest, state *ConversationState, draft *DraftCandidate, correlationID string, run *AgentRun) (*TurnResponse, error) {
+	if s.orderCreator == nil {
+		state.Status = ConversationReadyForConfirmation
+		state.CurrentDraft = draft
+		state.PendingAmbiguity = ""
+		state.LastQuestion = ""
+		state.ClarificationAttempts = 0
+		if state.DraftVersion < 1 {
+			state.DraftVersion = 1
+		} else {
+			state.DraftVersion++
+		}
+		state.ConfirmationToken = fmt.Sprintf("tok-%s-%d", newID(), state.DraftVersion)
+		summaryText := formatOrderSummary(draft, state.CustomerName)
+		state.LastQuestion = summaryText
+		_ = s.convStore.Save(ctx, state)
+
+		return &TurnResponse{
+			State:            state,
+			Draft:            draft,
+			ReplyText:        summaryText,
+			RequiresHandoff:  false,
+			HandledByAgent:   true,
+			AutomationPaused: false,
+			Run:              run,
+		}, nil
+	}
+
+	orderItems := make([]order.ItemInput, 0, len(draft.Items))
+	for _, it := range draft.Items {
+		var selections []catalog.Selection
+		groupOptions := make(map[string][]string)
+		for _, mod := range it.SelectedModifiers {
+			groupOptions[mod.GroupID] = append(groupOptions[mod.GroupID], mod.OptionID)
+		}
+		for gID, optIDs := range groupOptions {
+			selections = append(selections, catalog.Selection{
+				GroupID:   gID,
+				OptionIDs: optIDs,
+			})
+		}
+		orderItems = append(orderItems, order.ItemInput{
+			MenuID:     it.MenuID,
+			Quantity:   it.Quantity,
+			Notes:      it.Notes,
+			Selections: selections,
+		})
+	}
+
+	customerDisplayName := "Pelanggan WhatsApp"
+	if state.CustomerName != "" {
+		customerDisplayName = state.CustomerName
+	}
+	if state.DraftVersion < 1 {
+		state.DraftVersion = 1
+	} else {
+		state.DraftVersion++
+	}
+	idempotencyKey := fmt.Sprintf("wa-conf-%s-%d", state.ID, state.DraftVersion)
+	if state.ConfirmationToken != "" {
+		idempotencyKey = fmt.Sprintf("wa-%s", state.ConfirmationToken)
+	}
+	createIn := order.WhatsAppOrderCreateInput{
+		CustomerPhone: req.SenderPhone,
+		CustomerName:  customerDisplayName,
+		Notes:         draft.Notes,
+		Items:         orderItems,
+	}
+
+	orderRes, _, err := s.orderCreator.CreateWhatsApp(ctx, createIn, idempotencyKey, correlationID)
+	if err != nil {
+		state.ToolFailureCount++
+		if state.ToolFailureCount >= MaxToolFailures {
+			state.Status = ConversationHandoff
+			state.HandoffStatus = HandoffStatusPending
+			reason := "order_creation_failed"
+			state.HandoffReason = &reason
+			state.HandoffPriority = HandoffPriorityHigh
+			reply := FormatSystemDownMessage(state.CustomerName)
+			state.LastQuestion = reply
+			_ = s.convStore.Save(ctx, state)
+			s.recordHandoffAudit(ctx, state, HandoffActionTriggered, "SYSTEM", "SYSTEM", reason, correlationID, map[string]any{
+				"priority": HandoffPriorityHigh,
+				"error":    err.Error(),
+			})
+
+			return &TurnResponse{
+				State:            state,
+				Draft:            draft,
+				ReplyText:        reply,
+				RequiresHandoff:  true,
+				HandledByAgent:   false,
+				AutomationPaused: true,
+			}, nil
+		}
+		_ = s.convStore.Save(ctx, state)
+		return nil, fmt.Errorf("failed to create whatsapp order: %w", err)
+	}
+
+	state.ToolFailureCount = 0
+	state.Status = ConversationCompleted
+	state.LastOrderID = &orderRes.ID
+	state.CurrentDraft = draft
+	state.PendingAmbiguity = ""
+	state.LastQuestion = ""
+	_ = s.convStore.Save(ctx, state)
+
+	if state.CustomerName != "" && s.customerMemory != nil {
+		_, _ = s.customerMemory.UpsertName(ctx, req.SenderPhone, state.CustomerName)
+	}
+
+	orderSummary := &WhatsAppOrderSummary{
+		ID:                  orderRes.ID,
+		OrderNumber:         orderRes.OrderNumber,
+		PublicTrackingToken: orderRes.PublicTrackingToken,
+		Status:              orderRes.Status,
+		TotalAmount:         orderRes.TotalAmount,
+		CreatedAt:           orderRes.CreatedAt,
+	}
+
+	successReply := FormatOrderSuccessMessage(orderRes.OrderNumber, orderRes.PublicTrackingToken, orderRes.TotalAmount, state.CustomerName)
+
+	var mediaAttachments []MediaAttachment
+	var createdOrd order.OrderDetail
+	if s.orderReader != nil {
+		if fetched, fetchErr := s.orderReader.GetByID(ctx, orderRes.ID); fetchErr == nil && fetched.ID != "" {
+			createdOrd = fetched
+		}
+	}
+	if createdOrd.ID == "" {
+		createdOrd = order.OrderDetail{
+			ID:                  orderRes.ID,
+			OrderNumber:         orderRes.OrderNumber,
+			PublicTrackingToken: orderRes.PublicTrackingToken,
+			Status:              orderRes.Status,
+			TotalAmount:         orderRes.TotalAmount,
+			CustomerName:        customerDisplayName,
+			CreatedAt:           orderRes.CreatedAt,
+		}
+		for _, it := range draft.Items {
+			var mods []order.ModifierSnapshot
+			for _, m := range it.SelectedModifiers {
+				mods = append(mods, order.ModifierSnapshot{Name: m.OptionName})
+			}
+			createdOrd.Items = append(createdOrd.Items, order.OrderItemDetail{
+				Name:            it.Name,
+				Quantity:        it.Quantity,
+				LineTotalAmount: it.LineTotalAmount,
+				Modifiers:       mods,
+			})
+		}
+	}
+	if receiptAtt := buildReceiptMediaAttachment(createdOrd, state.CustomerName); receiptAtt != nil {
+		mediaAttachments = append(mediaAttachments, *receiptAtt)
+	}
+
+	return &TurnResponse{
+		State:            state,
+		Draft:            draft,
+		ReplyText:        successReply,
+		RequiresHandoff:  false,
+		HandledByAgent:   true,
+		AutomationPaused: false,
+		Order:            orderSummary,
+		MediaAttachments: mediaAttachments,
 		Run:              run,
 	}, nil
 }
@@ -2005,6 +2054,21 @@ func formatOrderSummary(draft *DraftCandidate, customerName string) string {
 		sb.WriteString("\nOiya kak, sebelumnya boleh tahu dengan kakak siapa nih, biar nanti pesanannya bisa kami siapkan atas nama kakak? Kalau rincian di atas sudah sesuai, langsung balas nama kakak dan kata 'oke/ya' ya! 😊")
 	}
 	return sb.String()
+}
+
+func isOrderAcknowledgment(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	lower = strings.Trim(lower, ".!?,~ ")
+	if lower == "terima kasih" || lower == "makasih" || lower == "terimakasih" || lower == "tq" ||
+		lower == "ok" || lower == "oke" || lower == "siap" || lower == "sip" || lower == "mantap" ||
+		lower == "iya" || lower == "ya" || lower == "iya kak" || lower == "ya kak" ||
+		lower == "siap kak" || lower == "oke kak" || lower == "ok kak" ||
+		lower == "makasih kak" || lower == "terima kasih kak" ||
+		strings.Contains(lower, "siap bungkus") || strings.Contains(lower, "pas kak") ||
+		strings.Contains(lower, "sudah pas") || strings.Contains(lower, "sudah benar") {
+		return true
+	}
+	return false
 }
 
 func cleanCustomerName(name string) string {

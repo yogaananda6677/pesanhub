@@ -354,7 +354,6 @@ func FormatOrderSuccessMessage(orderNumber, trackingToken string, totalAmount in
 	sb.WriteString(fmt.Sprintf("*%s*\n\n", orderNumber))
 	sb.WriteString(fmt.Sprintf("Total: Rp %d\n", totalAmount))
 	sb.WriteString("Pengambilan: PICKUP (Bawa Pulang)\n")
-	sb.WriteString("Status: Sedang disiapkan di dapur\n\n")
-	sb.WriteString(fmt.Sprintf("Kami akan langsung mengabari di WhatsApp ini saat makanan sudah matang dan siap diambil ya%s! Pembayaran dapat dilakukan secara Tunai atau QRIS di kasir. Sampai jumpa! 😊", nameSuffix))
+	sb.WriteString(fmt.Sprintf("Kami akan langsung mengabari di WhatsApp ini saat makanan sudah matang dan siap diambil ya%s! Pembayaran dapat dilakukan secara Tunai atau QRIS di kasir. Sampai jumpa! 😊\n\n_Ketik *BATAL* jika ingin membatalkan pesanan._", nameSuffix))
 	return sb.String()
 }
