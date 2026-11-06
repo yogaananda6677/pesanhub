@@ -461,9 +461,10 @@ GitHub Issue dan milestone adalah sumber kebenaran status eksekusi. Estimasi har
 
 ### Phase 2 — Food Aggregator Integration ([#7](https://github.com/yogaananda6677/pesanhub/issues/7))
 
+- Menggunakan **Klikit** ([klikit.io](https://www.klikit.io)) sebagai unified third-party aggregator untuk GoFood, GrabFood, dan ShopeeFood melalui satu gateway Partner API dan sandbox simulator terpadu (ADR-016, [docs/KLIKIT_AGGREGATOR_ONBOARDING.md](docs/KLIKIT_AGGREGATOR_ONBOARDING.md), Task #216).
 - Spike kontrak resmi dan keputusan go/no-go sebelum implementasi.
 - Channel adapter untuk GoFood, GrabFood, dan ShopeeFood hanya jika API/kemitraan resmi tersedia.
-- Normalisasi item, status, pembayaran, dan pembatalan lintas channel.
+- Normalisasi item, status, pembayaran, dan pembatalan lintas channel via Klikit Inbound Order Webhooks (`klikit.order.created.v2`).
 - External mapping, idempotency, rekonsiliasi order, dan dashboard multi-channel.
 - Badge sumber dan filter diperluas.
 
