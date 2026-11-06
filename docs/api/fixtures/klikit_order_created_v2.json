@@ -1,0 +1,69 @@
+{
+  "event": "klikit.order.created.v2",
+  "event_id": "evt_klikit_20261106_9f83a001",
+  "created_at": "2026-11-06T15:30:00Z",
+  "data": {
+    "order_id": "klikit_ord_88291039",
+    "business_id": "bus_pesenhub_jenggirat_01",
+    "branch_id": "branch_katang_kediri",
+    "brand_id": "brand_martabak_jenggirat",
+    "channel": "grabfood",
+    "channel_order_id": "GF-20261106-9912",
+    "status": "PLACED",
+    "order_type": "DELIVERY",
+    "currency": "IDR",
+    "amounts": {
+      "subtotal": 85000,
+      "tax": 0,
+      "delivery_fee": 12000,
+      "merchant_discount": 5000,
+      "total": 92000
+    },
+    "customer": {
+      "name": "Budi Santoso",
+      "phone": "+628123456789",
+      "delivery_address": {
+        "address": "Jl. Raya Katang No. 12, Kediri",
+        "notes": "Pagar hitam depan pos satpam"
+      }
+    },
+    "driver": {
+      "name": "Agus Driver",
+      "phone": "+6285712349900",
+      "license_plate": "AG 4512 AB"
+    },
+    "items": [
+      {
+        "item_id": "mt-spesial-01",
+        "name": "Martabak Telur Spesial Daging Sapi",
+        "quantity": 1,
+        "unit_price": 50000,
+        "total_price": 50000,
+        "modifiers": [
+          {
+            "modifier_group": "Level Pedas",
+            "option_name": "Sedang",
+            "price": 0
+          }
+        ],
+        "notes": "Kuah cukanya dipisah dan ditambah acar timun."
+      },
+      {
+        "item_id": "tb-coklat-keju-01",
+        "name": "Terang Bulan Coklat Keju",
+        "quantity": 1,
+        "unit_price": 35000,
+        "total_price": 35000,
+        "modifiers": [
+          {
+            "modifier_group": "Base Cake",
+            "option_name": "Original",
+            "price": 0
+          }
+        ],
+        "notes": "Susu kental manis sedang saja."
+      }
+    ],
+    "notes": "Pesanan mitra GrabFood via Klikit Aggregator untuk Martabak Jenggirat Katang."
+  }
+}

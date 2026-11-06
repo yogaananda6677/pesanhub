@@ -21,6 +21,7 @@ Dokumen ini adalah memori kerja proyek untuk manusia dan coding agent. Baca doku
 | Updated by     | Issue #210 Sinkronisasi pembatalan WhatsApp 2 tahap dan integrasi cancel di POS |
 | Updated by     | Issue #212 Pengenalan intent konfirmasi 'konfirmasi' dan anti-loop respons draf |
 | Updated by     | Issue #214 Pemesanan langsung tanpa 'YA', pembatalan 2-tahap 'BATAL', dan notifikasi kasir |
+| Updated by     | Issue #216 Panduan onboarding & pengajuan akses partner API Klikit |
 
 ## 2. Product Intent
 
@@ -60,6 +61,7 @@ Membangun sistem antrean order tunggal bernama PesenHub untuk outlet martabak te
 | ADR-011 | Web Customer tanpa akun menggunakan nama dan nomor HP                            | ACCEPTED          | Mengurangi hambatan pelanggan saat membuat order                                                    |
 | ADR-014 | Owner login dengan Google dan memerlukan approval Superadmin                    | ACCEPTED — #141   | Autentikasi eksternal dipisahkan dari authorization; pending/rejected/suspended selalu terkunci       |
 | ADR-015 | Portal Superadmin web-only untuk approval user & monitoring kesehatan            | ACCEPTED — #140   | Zero operational access; PII masking; session revocation instan; kontrol infrastruktur terpusat     |
+| ADR-016 | Klikit sebagai Unified Aggregator untuk Integrasi Online Food Delivery           | ACCEPTED — #216   | Menghindari kompleksitas birokrasi & legalitas 3 provider berbeda (GoFood, GrabFood, ShopeeFood) melalui satu Partner API, webhook receiver, dan sandbox simulator |
 
 ## 5. Phase Progress Summary
 
@@ -78,18 +80,14 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 ## Current GitHub Work
 
 - Epic Issue: [#1](https://github.com/yogaananda6677/pesanhub/issues/1)
-- Phase Issue: [#5 — Phase 1C WhatsApp, Agent & Payment](https://github.com/yogaananda6677/pesanhub/issues/5)
-- Child Issue: #132
-- Epic Issue: [#129](https://github.com/yogaananda6677/pesanhub/issues/129)
-- Phase Issue: [#6 — Phase 1D MVP Integration & Release](https://github.com/yogaananda6677/pesanhub/issues/6)
-- Child Issue: #133
-- Phase Roadmap: [#2](https://github.com/yogaananda6677/pesanhub/issues/2), [#3](https://github.com/yogaananda6677/pesanhub/issues/3), [#4](https://github.com/yogaananda6677/pesanhub/issues/4), [#5](https://github.com/yogaananda6677/pesanhub/issues/5), [#6](https://github.com/yogaananda6677/pesanhub/issues/6), [#7](https://github.com/yogaananda6677/pesanhub/issues/7), [#8](https://github.com/yogaananda6677/pesanhub/issues/8)
-- Current Issue: [#197 — feat(web): perbaikan tampilan landing page gerai dan eliminasi pemesanan via web (prioritas whatsapp & kasir)](https://github.com/yogaananda6677/pesanhub/issues/197)
-- Current Branch: `feature/197-web-landing-ui-improvements-remove-web-order`
-- Merged Pull Requests: sampai [#196](https://github.com/yogaananda6677/pesanhub/pull/196)
+- Phase Issue: [#7 — Phase 2 Food Aggregator Integration](https://github.com/yogaananda6677/pesanhub/issues/7)
+- Child Issue: #216
+- Current Issue: [#216 — task(aggregator): pengajuan akses partner api dan sandbox klikit untuk integrasi online food delivery](https://github.com/yogaananda6677/pesanhub/issues/216)
+- Current Branch: `docs/216-klikit-partner-api-sandbox-access`
+- Merged Pull Requests: sampai [#215](https://github.com/yogaananda6677/pesanhub/pull/215)
 - Status: `IN_PROGRESS`
-- Exit Criteria: Seluruh tautan dan tombol pemesanan online langsung di website (`/order/`) dihilangkan dari header, hero section, menu unggulan, katalog harga, daftar mitra pesan antar, dan footer; saluran pemesanan dialihkan langsung ke WhatsApp resmi outlet dengan pesan pre-fill otomatis sesuai item menu; perbaikan visual tampilan hero section (pencegahan clipping elemen floating badge harga & rating, spasi wrapping judul kuliner); perbaikan fungsionalitas tab kategori menu di `landing.js` (`menu-category-section`); pengujian otomatis unit test backend lulus 100%.
-- Validation: Go test ./internal/order lulus (TestWebStaticAssetsAccessibilityAndResponsive clean), backend ./run.sh check clean (exit code 0), flutter analyze clean (0 issues), flutter test clean (100% pass).
+- Exit Criteria: Dokumen panduan onboarding dan integrasi Klikit Partner API (`docs/KLIKIT_AGGREGATOR_ONBOARDING.md`) tersusun lengkap dengan latar belakang arsitektur (ADR-016), profil data entitas, template permohonan kemitraan dua bahasa (ID & EN), spesifikasi webhook (`klikit.order.created.v2`), pemetaan channel (`GRABFOOD`, `GOFOOD`, `SHOPEEFOOD`), verifikasi signature HMAC, dan checklist onboarding; artefak sampel payload canonical tersedia di `docs/api/fixtures/klikit_order_created_v2.json`; update PRD dan MEMORY; seluruh test gate lulus.
+- Validation: Backend `./run.sh check` clean (exit code 0), flutter analyze clean (0 issues), flutter test clean (100% pass).
 
 ## 6. Current Phase Checklist
 
@@ -266,7 +264,35 @@ Salin bagian ini ke bawah `Work Log` setelah satu sesi implementasi.
 
 Tambahkan sesi terbaru di bagian paling atas agar kondisi terkini mudah ditemukan.
 
-### 28 September 2026 — Web Profil Landing Page Martabak Jenggirat Kediri & Pemindahan Web Order ke /order/
+### 6 November 2026 — Panduan Onboarding & Integrasi Klikit Partner API (Issue #216)
+
+**Goal**
+
+- Mempersiapkan panduan operasional pengajuan akses Klikit Partner API & Sandbox Environment sebagai unified third-party aggregator online food delivery (GoFood, GrabFood, ShopeeFood) untuk PIC (@zakkiyahkarimah-sketch) dan tim pengembang PesenHub (Issue #216).
+- Mendokumentasikan spesifikasi teknis webhook inbound (`klikit.order.created.v2`), skema HMAC signature verification, idempotensi `event_id`, serta pemetaan ke enum domain internal `domain.OrderSource` (`GRABFOOD`, `GOFOOD`, `SHOPEEFOOD`).
+
+**Changed**
+
+- `docs/KLIKIT_AGGREGATOR_ONBOARDING.md`: Panduan komprehensif onboarding Klikit mencakup latar belakang arsitektur (ADR-016), profil bisnis PesenHub, template surat/email resmi dwi-bahasa (ID & EN), tabel artefak wajib, spesifikasi teknis webhook & diagram sequence, dan checklist pelacakan status permohonan.
+- `docs/api/fixtures/klikit_order_created_v2.json`: Artefak sampel payload JSON canonical webhook `klikit.order.created.v2` berbasis menu Martabak Jenggirat Kediri untuk referensi pengujian integrasi backend.
+- `PRD.md`: Memperbarui Phase 2 — Food Aggregator Integration dengan penetapan Klikit sebagai partner aggregator terpadu.
+- `MEMORY.md`: Menambahkan ADR-016, memperbarui Current GitHub Work ke Issue #216, dan mencatat work log.
+- `.claude/napkin.md`: Menambahkan pedoman penanganan kredensial sandbox aggregator (dilarang commit ke git, gunakan environment variables).
+
+**Decisions**
+
+- ADR-016: Klikit disetujui sebagai single aggregator gateway untuk Phase 2 guna menghindari overhead legalitas dan pemeliharaan 3 adapter platform terpisah (GoFood, GrabFood, ShopeeFood).
+
+**Validation**
+
+- Backend: `cd pesenhub_be && ./run.sh check` -> PASS
+- Mobile: `cd pesenhub_app && flutter analyze && flutter test` -> PASS
+
+**Next**
+
+- Buka Pull Request untuk Issue #216.
+- PIC (@zakkiyahkarimah-sketch) mengirimkan permohonan kemitraan ke `integrations@klikit.io` / form website sesuai panduan.
+- Pantau respon Klikit hingga akses Sandbox dan kredensial pengujian diterima.
 
 **Goal**
 
