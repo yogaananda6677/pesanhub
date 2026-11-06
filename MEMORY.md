@@ -83,7 +83,7 @@ Status yang diperbolehkan: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 - Phase Issue: [#7 — Phase 2 Food Aggregator Integration](https://github.com/yogaananda6677/pesanhub/issues/7)
 - Child Issue: #216
 - Current Issue: [#216 — task(aggregator): pengajuan akses partner api dan sandbox klikit untuk integrasi online food delivery](https://github.com/yogaananda6677/pesanhub/issues/216)
-- Current Branch: `task/216-klikit-partner-api-sandbox-access`
+- Current Branch: `docs/216-klikit-partner-api-sandbox-access`
 - Merged Pull Requests: sampai [#215](https://github.com/yogaananda6677/pesanhub/pull/215)
 - Status: `IN_PROGRESS`
 - Exit Criteria: Dokumen panduan onboarding dan integrasi Klikit Partner API (`docs/KLIKIT_AGGREGATOR_ONBOARDING.md`) tersusun lengkap dengan latar belakang arsitektur (ADR-016), profil data entitas, template permohonan kemitraan dua bahasa (ID & EN), spesifikasi webhook (`klikit.order.created.v2`), pemetaan channel (`GRABFOOD`, `GOFOOD`, `SHOPEEFOOD`), verifikasi signature HMAC, dan checklist onboarding; artefak sampel payload canonical tersedia di `docs/api/fixtures/klikit_order_created_v2.json`; update PRD dan MEMORY; seluruh test gate lulus.
